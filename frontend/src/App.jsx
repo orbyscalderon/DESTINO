@@ -1,5 +1,5 @@
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, lazy, Suspense } from 'react';
 import { Toaster } from 'react-hot-toast';
 
 import { useAuthStore } from './store/authStore.js';
@@ -8,23 +8,29 @@ import { initPushNotifications } from './lib/pushNotifications.js';
 import { initAdMob } from './lib/admob.js';
 import api from './lib/api.js';
 
-import Landing from './pages/Landing.jsx';
-import Register from './pages/Register.jsx';
-import Login from './pages/Login.jsx';
-import AuthCallback from './pages/AuthCallback.jsx';
-import Onboarding from './pages/Onboarding.jsx';
-import Home from './pages/Home.jsx';
-import Matches from './pages/Matches.jsx';
-import Chat from './pages/Chat.jsx';
-import Video from './pages/Video.jsx';
-import Profile from './pages/Profile.jsx';
-import UserProfile from './pages/UserProfile.jsx';
-import Premium from './pages/Premium.jsx';
-import Settings from './pages/Settings.jsx';
-import Admin from './pages/Admin.jsx';
-import Privacy from './pages/Privacy.jsx';
-import Terms from './pages/Terms.jsx';
-import NotFound from './pages/NotFound.jsx';
+const Landing     = lazy(() => import('./pages/Landing.jsx'));
+const Register    = lazy(() => import('./pages/Register.jsx'));
+const Login       = lazy(() => import('./pages/Login.jsx'));
+const AuthCallback= lazy(() => import('./pages/AuthCallback.jsx'));
+const Onboarding  = lazy(() => import('./pages/Onboarding.jsx'));
+const Home        = lazy(() => import('./pages/Home.jsx'));
+const Matches     = lazy(() => import('./pages/Matches.jsx'));
+const Chat        = lazy(() => import('./pages/Chat.jsx'));
+const Video       = lazy(() => import('./pages/Video.jsx'));
+const Profile     = lazy(() => import('./pages/Profile.jsx'));
+const UserProfile = lazy(() => import('./pages/UserProfile.jsx'));
+const Premium     = lazy(() => import('./pages/Premium.jsx'));
+const Settings    = lazy(() => import('./pages/Settings.jsx'));
+const Admin       = lazy(() => import('./pages/Admin.jsx'));
+const Privacy     = lazy(() => import('./pages/Privacy.jsx'));
+const Terms       = lazy(() => import('./pages/Terms.jsx'));
+const NotFound    = lazy(() => import('./pages/NotFound.jsx'));
+
+const PageLoader = () => (
+  <div className="min-h-screen flex items-center justify-center bg-dark-900">
+    <div className="w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
+  </div>
+);
 
 export default function App() {
   const { initialize, user, initialized } = useAuthStore();
@@ -69,6 +75,7 @@ export default function App() {
 
   return (
     <HashRouter>
+      <Suspense fallback={<PageLoader />}>
       <Toaster
         position="top-center"
         toastOptions={{
@@ -107,6 +114,7 @@ export default function App() {
         {/* 404 */}
         <Route path="*" element={<NotFound />} />
       </Routes>
+      </Suspense>
     </HashRouter>
   );
 }

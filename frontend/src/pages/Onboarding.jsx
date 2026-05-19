@@ -6,6 +6,7 @@ import { useAuthStore } from '../store/authStore.js';
 import api from '../lib/api.js';
 import toast from 'react-hot-toast';
 import { COUNTRIES, LANGUAGES } from '../lib/geodata.js';
+import { compressAvatar } from '../lib/imageCompressor.js';
 
 const STEP_LABELS = ['Foto', 'Sobre ti', 'Ubicación', 'Bio'];
 
@@ -22,11 +23,12 @@ export default function Onboarding() {
     country: '', language: 'es',
   });
 
-  const handlePhotoChange = (e) => {
+  const handlePhotoChange = async (e) => {
     const f = e.target.files[0];
     if (!f) return;
-    setFile(f);
-    setPreview(URL.createObjectURL(f));
+    const compressed = await compressAvatar(f);
+    setFile(compressed);
+    setPreview(URL.createObjectURL(compressed));
   };
 
   const goNext = () => {

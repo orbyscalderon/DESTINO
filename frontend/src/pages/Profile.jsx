@@ -7,6 +7,7 @@ import { useAuthStore } from '../store/authStore.js';
 import api from '../lib/api.js';
 import toast from 'react-hot-toast';
 import { COUNTRIES, LANGUAGES, countryByCode, languageByCode } from '../lib/geodata.js';
+import { compressAvatar, compressImage } from '../lib/imageCompressor.js';
 
 export default function Profile() {
   const { user, profile, fetchProfile, logout } = useAuthStore();
@@ -55,8 +56,9 @@ export default function Profile() {
   const handleAvatarChange = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
+    const compressed = await compressAvatar(file);
     const fd = new FormData();
-    fd.append('avatar', file);
+    fd.append('avatar', compressed);
     try {
       await api.post('/api/profiles/avatar', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
       await fetchProfile(user.id);
@@ -71,8 +73,9 @@ export default function Profile() {
     if (!file) return;
     e.target.value = '';
     setUploadingPhoto(true);
+    const compressed = await compressImage(file);
     const fd = new FormData();
-    fd.append('photo', file);
+    fd.append('photo', compressed);
     try {
       await api.post('/api/profiles/photos', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
       await loadPhotos();

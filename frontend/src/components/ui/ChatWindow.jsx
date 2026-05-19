@@ -7,6 +7,7 @@ import { useAuthStore } from '../../store/authStore.js';
 import { useChatStore } from '../../store/chatStore.js';
 import MessageLimitBanner from './MessageLimitBanner.jsx';
 import PremiumModal from './PremiumModal.jsx';
+import { compressChatImage } from '../../lib/imageCompressor.js';
 
 export default function ChatWindow({ matchId, otherUser }) {
   const { user, profile } = useAuthStore();
@@ -14,6 +15,8 @@ export default function ChatWindow({ matchId, otherUser }) {
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
   const [sending, setSending] = useState(false);
   const [sendingImage, setSendingImage] = useState(false);
   const [showPremiumModal, setShowPremiumModal] = useState(false);
@@ -22,6 +25,7 @@ export default function ChatWindow({ matchId, otherUser }) {
   const [translating, setTranslating] = useState(false);
   const [lightboxImg, setLightboxImg] = useState(null);
   const bottomRef = useRef(null);
+  const topRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const typingChannelRef = useRef(null);
   const translationCache = useRef({});
@@ -84,10 +88,30 @@ export default function ChatWindow({ matchId, otherUser }) {
 
   const loadMessages = async () => {
     try {
-      const { data } = await api.get(`/api/messages/${matchId}`);
+      const { data } = await api.get(`/api/messages/${matchId}?limit=50`);
       setMessages(data.messages || []);
+      setHasMore(data.hasMore || false);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadMoreMessages = async () => {
+    if (loadingMore || !hasMore || messages.length === 0) return;
+    setLoadingMore(true);
+    try {
+      const oldest = messages[0].created_at;
+      const { data } = await api.get(`/api/messages/${matchId}?limit=50&before=${encodeURIComponent(oldest)}`);
+      if (data.messages?.length > 0) {
+        setMessages(prev => [...data.messages, ...prev]);
+        setHasMore(data.hasMore || false);
+        // Mantener posición de scroll: saltar al primer mensaje que había antes
+        setTimeout(() => topRef.current?.scrollIntoView({ block: 'start' }), 50);
+      } else {
+        setHasMore(false);
+      }
+    } finally {
+      setLoadingMore(false);
     }
   };
 
@@ -163,8 +187,9 @@ export default function ChatWindow({ matchId, otherUser }) {
     }
 
     setSendingImage(true);
+    const compressed = await compressChatImage(file);
     const fd = new FormData();
-    fd.append('image', file);
+    fd.append('image', compressed);
     fd.append('matchId', matchId);
     try {
       await api.post('/api/messages/image', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
@@ -212,6 +237,21 @@ export default function ChatWindow({ matchId, otherUser }) {
 
       {/* Mensajes */}
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
+
+        {/* Botón cargar mensajes anteriores */}
+        {hasMore && (
+          <div className="text-center">
+            <button
+              onClick={loadMoreMessages}
+              disabled={loadingMore}
+              className="text-xs text-brand-400 hover:text-brand-300 disabled:opacity-50 bg-dark-800 px-4 py-1.5 rounded-full border border-white/10"
+            >
+              {loadingMore ? 'Cargando...' : 'Ver mensajes anteriores'}
+            </button>
+          </div>
+        )}
+        <div ref={topRef} />
+
         <AnimatePresence initial={false}>
           {messages.map((msg) => {
             const isMe = msg.sender_id === user.id;

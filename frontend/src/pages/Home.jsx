@@ -132,7 +132,14 @@ export default function Home() {
     } catch {}
   };
 
-  const removeFromFeed = (id) => setFeed(prev => prev.filter(p => p.id !== id));
+  const removeFromFeed = (id) => {
+    setFeed(prev => {
+      const next = prev.filter(p => p.id !== id);
+      // Auto-recargar cuando quedan 3 o menos perfiles
+      if (next.length <= 3) loadFeed(activeFilters);
+      return next;
+    });
+  };
 
   const handleWatchAd = async () => {
     setWatchingAd(true);

@@ -77,14 +77,15 @@ export const sendImageMessage = async (req, res) => {
   }
 };
 
-// GET /api/messages/:matchId
+// GET /api/messages/:matchId?before=<ISO_timestamp>&limit=50
 export const getMessages = async (req, res) => {
   try {
     const { matchId } = req.params;
     if (!isValidUUID(matchId)) return res.status(400).json({ error: 'matchId inválido' });
     const userId = req.user.id;
+    const limit = Math.min(parseInt(req.query.limit) || 50, 100);
+    const before = req.query.before; // cursor: ISO timestamp
 
-    // Verificar que el usuario pertenece al match
     const { data: match } = await supabase
       .from('matches')
       .select('user1_id, user2_id')
@@ -95,7 +96,7 @@ export const getMessages = async (req, res) => {
       return res.status(403).json({ error: 'No tienes acceso a este chat' });
     }
 
-    const { data: messages, error } = await supabase
+    let query = supabase
       .from('messages')
       .select(`
         id,
@@ -107,19 +108,26 @@ export const getMessages = async (req, res) => {
         sender:profiles!messages_sender_id_fkey(id, full_name, avatar_url)
       `)
       .eq('match_id', matchId)
-      .order('created_at', { ascending: true });
+      .order('created_at', { ascending: false })
+      .limit(limit);
 
+    if (before) query = query.lt('created_at', before);
+
+    const { data: messages, error } = await query;
     if (error) throw error;
 
-    // Marcar mensajes del otro como leídos
-    await supabase
-      .from('messages')
-      .update({ is_read: true })
-      .eq('match_id', matchId)
-      .neq('sender_id', userId)
-      .eq('is_read', false);
+    // Marcar mensajes del otro como leídos (solo en la carga inicial, no en paginación)
+    if (!before) {
+      await supabase
+        .from('messages')
+        .update({ is_read: true })
+        .eq('match_id', matchId)
+        .neq('sender_id', userId)
+        .eq('is_read', false);
+    }
 
-    res.json({ messages: messages || [] });
+    const ordered = (messages || []).reverse();
+    res.json({ messages: ordered, hasMore: (messages || []).length === limit });
   } catch (err) {
     res.status(500).json({ error: 'Error interno del servidor' });
   }
