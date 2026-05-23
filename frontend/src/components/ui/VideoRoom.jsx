@@ -9,10 +9,12 @@ import { useAuthStore } from '../../store/authStore.js';
 import { countryByCode, languageByCode } from '../../lib/geodata.js';
 import { showInterstitial } from '../../lib/admob.js';
 
-function useSearchingCount() {
-  const [count, setCount] = useState(() => Math.floor(Math.random() * 40) + 15);
+function useOnlineCount() {
+  const [count, setCount] = useState(null);
   useEffect(() => {
-    const t = setInterval(() => setCount(c => Math.max(5, c + Math.floor(Math.random() * 7) - 3)), 3000);
+    const fetch = () => api.get('/api/video/online-count').then(({ data }) => setCount(data.count)).catch(() => {});
+    fetch();
+    const t = setInterval(fetch, 30000);
     return () => clearInterval(t);
   }, []);
   return count;
@@ -37,7 +39,7 @@ export default function VideoRoom({ genderFilter, countryFilter, videoCallsRemai
   const interstitialRef = useRef(false);
   const activeRef     = useRef(true);
 
-  const searchingCount = useSearchingCount();
+  const onlineCount = useOnlineCount();
 
   useEffect(() => {
     activeRef.current = true;
@@ -201,10 +203,15 @@ export default function VideoRoom({ genderFilter, countryFilter, videoCallsRemai
             <div className="text-6xl">🎥</div>
             <h3 className="text-xl font-bold text-white">Videollamada Aleatoria</h3>
             <p className="text-gray-400 text-sm">Conecta con alguien nuevo al instante</p>
-            <div className="flex items-center justify-center gap-1.5 text-xs text-gray-500">
-              <FiUsers size={12} />
-              <span><span className="text-green-400 font-semibold">{searchingCount}</span> personas buscando ahora</span>
-            </div>
+            {onlineCount !== null && (
+              <div className="flex items-center justify-center gap-1.5 text-xs text-gray-500">
+                <FiUsers size={12} />
+                <span>
+                  <span className="text-green-400 font-semibold">{onlineCount}</span>
+                  {' '}persona{onlineCount !== 1 ? 's' : ''} online ahora
+                </span>
+              </div>
+            )}
             <button
               onClick={videoCallsRemaining <= 0 ? onLimitReached : findPartner}
               className={`px-8 ${videoCallsRemaining <= 0 ? 'btn-secondary opacity-60' : 'btn-primary'}`}
@@ -231,10 +238,15 @@ export default function VideoRoom({ genderFilter, countryFilter, videoCallsRemai
               </div>
             </div>
             <p className="text-white font-semibold text-lg mb-1">Buscando pareja…</p>
-            <div className="flex items-center justify-center gap-1.5 text-xs text-gray-500 mb-4">
-              <FiUsers size={12} />
-              <span><span className="text-green-400 font-semibold">{searchingCount}</span> personas online</span>
-            </div>
+            {onlineCount !== null && (
+              <div className="flex items-center justify-center gap-1.5 text-xs text-gray-500 mb-4">
+                <FiUsers size={12} />
+                <span>
+                  <span className="text-green-400 font-semibold">{onlineCount}</span>
+                  {' '}persona{onlineCount !== 1 ? 's' : ''} online
+                </span>
+              </div>
+            )}
             <button onClick={() => endCall(false)} className="text-gray-500 text-sm hover:text-white underline underline-offset-2">Cancelar</button>
           </motion.div>
         )}

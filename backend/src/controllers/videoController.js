@@ -126,6 +126,31 @@ async function createNewSession(userId, genderFilter, countryFilter, res) {
   res.json({ sessionId: session.id, channelName: session.channel_name, role: 'host', waiting: true });
 }
 
+// GET /api/video/online-count
+export const getOnlineCount = async (req, res) => {
+  try {
+    const tenMinAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+
+    const { data, error } = await supabase
+      .from('video_sessions')
+      .select('user1_id, user2_id')
+      .in('status', ['waiting', 'active'])
+      .gte('created_at', tenMinAgo);
+
+    if (error) throw error;
+
+    const uniqueUsers = new Set();
+    data?.forEach(s => {
+      if (s.user1_id) uniqueUsers.add(s.user1_id);
+      if (s.user2_id) uniqueUsers.add(s.user2_id);
+    });
+
+    res.json({ count: uniqueUsers.size });
+  } catch (err) {
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
 // DELETE /api/video/end-session
 export const endSession = async (req, res) => {
   try {
