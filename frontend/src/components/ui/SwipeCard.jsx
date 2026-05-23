@@ -4,7 +4,7 @@ import { FiHeart, FiX, FiStar } from 'react-icons/fi';
 import VerifiedBadge from './VerifiedBadge.jsx';
 import { hapticImpact, hapticNotification } from '../../lib/haptics.js';
 
-export default function SwipeCard({ profile, onLike, onDislike, onSuperLike, isPremium }) {
+export default function SwipeCard({ profile, onLike, onDislike, onSuperLike, isPremium, isOnline, compatibilityPct }) {
   const [decision, setDecision] = useState(null);
   const [photoIndex, setPhotoIndex] = useState(0);
   const dragDistanceRef = useRef(0);
@@ -141,12 +141,30 @@ export default function SwipeCard({ profile, onLike, onDislike, onSuperLike, isP
           {profile.is_verified && <VerifiedBadge size={18} />}
         </div>
 
+        {/* Compatibility badge */}
+        {compatibilityPct > 0 && (
+          <div className="absolute top-4 left-4 pointer-events-none">
+            <span className={`text-xs font-bold px-2.5 py-1 rounded-full flex items-center gap-1 ${
+              compatibilityPct >= 70
+                ? 'bg-green-500/90 text-white'
+                : compatibilityPct >= 40
+                ? 'bg-yellow-500/90 text-black'
+                : 'bg-white/20 text-white'
+            }`}>
+              {compatibilityPct}% compatible
+            </span>
+          </div>
+        )}
+
         {/* Profile info */}
         <div className="absolute bottom-0 left-0 right-0 p-6 pointer-events-none">
           <div className="flex items-end justify-between">
             <div>
-              <h2 className="text-2xl font-bold text-white">
+              <h2 className="text-2xl font-bold text-white flex items-center gap-2">
                 {profile.full_name}, <span className="font-light">{profile.age}</span>
+                {isOnline && (
+                  <span className="inline-block w-2.5 h-2.5 rounded-full bg-green-400 shadow-[0_0_6px_rgba(74,222,128,0.8)] flex-shrink-0" />
+                )}
               </h2>
               {profile.bio && (
                 <p className="text-gray-300 text-sm mt-1 line-clamp-2">{profile.bio}</p>

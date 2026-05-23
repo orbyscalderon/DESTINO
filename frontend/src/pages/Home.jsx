@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiFilter, FiX, FiStar, FiPlay, FiPlus, FiRotateCcw, FiZap, FiMapPin } from 'react-icons/fi';
 import SwipeCard from '../components/ui/SwipeCard.jsx';
+import TutorialOverlay from '../components/ui/TutorialOverlay.jsx';
 import { SwipeCardSkeleton } from '../components/ui/Skeleton.jsx';
 import MatchNotification from '../components/ui/MatchNotification.jsx';
 import PremiumModal from '../components/ui/PremiumModal.jsx';
@@ -48,6 +49,7 @@ export default function Home() {
   const [showAddStory, setShowAddStory] = useState(false);
   const storyFileRef = useRef(null);
   const [topMatch, setTopMatch] = useState(null);
+  const [showTutorial, setShowTutorial] = useState(() => !localStorage.getItem('destino_tutorial_done'));
 
   useEffect(() => {
     loadFeed(activeFilters);
@@ -293,6 +295,17 @@ export default function Home() {
 
   const currentProfile = feed[0];
 
+  const isCurrentOnline = currentProfile?.last_active
+    ? (Date.now() - new Date(currentProfile.last_active).getTime()) < 5 * 60 * 1000
+    : false;
+
+  const myInterests = profile?.interests || [];
+  const theirInterests = currentProfile?.interests || [];
+  const commonCount = myInterests.filter(i => theirInterests.includes(i)).length;
+  const compatibilityPct = myInterests.length > 0 && theirInterests.length > 0
+    ? Math.round((commonCount / Math.max(myInterests.length, theirInterests.length)) * 100)
+    : 0;
+
   const filteredCountries = COUNTRIES.filter(c =>
     c.name.toLowerCase().includes(countrySearch.toLowerCase())
   );
@@ -509,6 +522,8 @@ export default function Home() {
                   onDislike={handleDislike}
                   onSuperLike={handleSuperLike}
                   isPremium={profile?.is_premium}
+                  isOnline={isCurrentOnline}
+                  compatibilityPct={compatibilityPct}
                 />
               </motion.div>
 
@@ -789,6 +804,13 @@ export default function Home() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {showTutorial && (
+        <TutorialOverlay onDone={() => {
+          localStorage.setItem('destino_tutorial_done', '1');
+          setShowTutorial(false);
+        }} />
+      )}
 
       {openStoryIdx !== null && storyGroups.length > 0 && (
         <StoryViewer

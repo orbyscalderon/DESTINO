@@ -88,6 +88,13 @@ const uploadLimiter = rateLimit({
   message: { error: 'Demasiadas subidas de archivos, intenta más tarde' },
 });
 
+const likeLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  message: { error: 'Demasiados likes en poco tiempo, espera un momento' },
+  skip: () => process.env.NODE_ENV !== 'production',
+});
+
 app.use('/api', (req, res, next) => {
   if (req.path === '/payments/webhook') return next();
   return generalLimiter(req, res, next);
@@ -95,6 +102,7 @@ app.use('/api', (req, res, next) => {
 app.use('/api/payments/create-checkout', paymentLimiter);
 app.use('/api/video/find-partner', videoLimiter);
 app.use('/api/profiles/avatar', uploadLimiter);
+app.use('/api/matches/like', likeLimiter);
 app.use('/api/profiles/photos', uploadLimiter);
 app.use('/api/payments/photo', paymentLimiter);
 app.use('/api/shows', (req, res, next) => {
