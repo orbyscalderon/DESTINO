@@ -6,6 +6,7 @@ import api from '../lib/api.js';
 import toast from 'react-hot-toast';
 import BlockReportModal from '../components/ui/BlockReportModal.jsx';
 import PaymentModal from '../components/ui/PaymentModal.jsx';
+import AgeVerificationModal from '../components/ui/AgeVerificationModal.jsx';
 import VerifiedBadge from '../components/ui/VerifiedBadge.jsx';
 import TipModal from '../components/ui/TipModal.jsx';
 
@@ -30,11 +31,23 @@ export default function UserProfile() {
   const [galleries, setGalleries]         = useState([]);
   const [openGallery, setOpenGallery]     = useState(null); // { id, title, items: [] }
   const [loadingGallery, setLoadingGallery] = useState(null);
+  const [showAgeModal, setShowAgeModal]     = useState(false);
+  const [photosBlocked, setPhotosBlocked]   = useState(false);
+
+  const loadPhotos = async () => {
+    const phRes = await api.get(`/api/profiles/${userId}/photos`).catch(() => ({ data: { photos: [], requires_age_verification: false } }));
+    if (phRes.data.requires_age_verification) {
+      setPhotosBlocked(true);
+    } else {
+      setPhotos(phRes.data.photos || []);
+      setPhotosBlocked(false);
+    }
+  };
 
   useEffect(() => {
     Promise.all([
       api.get(`/api/profiles/${userId}`),
-      api.get(`/api/profiles/${userId}/photos`).catch(() => ({ data: { photos: [] } })),
+      api.get(`/api/profiles/${userId}/photos`).catch(() => ({ data: { photos: [], requires_age_verification: false } })),
       api.get(`/api/follows/${userId}/status`).catch(() => ({ data: { following: false, followers_count: 0 } })),
       api.get(`/api/posts/user/${userId}?limit=12`).catch(() => ({ data: { posts: [] } })),
       api.get(`/api/creator/${userId}/galleries`).catch(() => ({ data: { galleries: [] } })),
@@ -42,7 +55,11 @@ export default function UserProfile() {
       const p = pRes.data.profile;
       setProfile(p);
       setSubscribed(!!p.is_subscribed);
-      setPhotos(phRes.data.photos || []);
+      if (phRes.data.requires_age_verification) {
+        setPhotosBlocked(true);
+      } else {
+        setPhotos(phRes.data.photos || []);
+      }
       setFollowing(followRes.data.following);
       setFollowersCount(followRes.data.followers_count || 0);
       setUserPosts(postsRes.data.posts || []);
@@ -377,8 +394,23 @@ export default function UserProfile() {
           </div>
         )}
 
+        {/* ── Gate de verificación de edad ────────────────── */}
+        {photosBlocked && (
+          <div className="card p-6 text-center border-red-500/20">
+            <div className="text-4xl mb-3">🔞</div>
+            <p className="text-white font-semibold mb-1">Contenido para adultos</p>
+            <p className="text-gray-500 text-sm mb-4">Este creador publica contenido solo para mayores de 18 años.</p>
+            <button
+              onClick={() => setShowAgeModal(true)}
+              className="btn-primary text-sm px-6 py-2.5"
+            >
+              Verificar mi edad para ver el contenido
+            </button>
+          </div>
+        )}
+
         {/* ── Fotos exclusivas (de pago) ───────────────────── */}
-        {paidPhotos.length > 0 && (
+        {!photosBlocked && paidPhotos.length > 0 && (
           <div>
             <h3 className="text-sm font-semibold text-gray-400 mb-3 flex items-center gap-2">
               <FiLock size={13} /> Fotos exclusivas
@@ -465,7 +497,7 @@ export default function UserProfile() {
         )}
 
         {/* ── Tab: Fotos / Momentos ────────────────────────── */}
-        {(freePhotos.length > 0 || userPosts.length > 0) && (
+        {!photosBlocked && (freePhotos.length > 0 || userPosts.length > 0) && (
           <div>
             <div className="flex gap-0 mb-3 bg-dark-700/60 rounded-xl p-1">
               <button
@@ -580,6 +612,12 @@ export default function UserProfile() {
             userId={userId}
             userName={profile.full_name}
             onClose={() => setShowTipModal(false)}
+          />
+        )}
+        {showAgeModal && (
+          <AgeVerificationModal
+            onVerified={() => { setShowAgeModal(false); loadPhotos(); }}
+            onClose={() => setShowAgeModal(false)}
           />
         )}
       </AnimatePresence>

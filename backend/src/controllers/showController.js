@@ -332,6 +332,14 @@ export const getShowToken = async (req, res) => {
     if (!show) return res.status(404).json({ error: 'Show no encontrado' });
     if (show.status !== 'live') return res.status(400).json({ error: 'El show no está en vivo' });
 
+    // Gate de edad para shows adultos
+    if (show.category === 'adult') {
+      const { data: vp } = await supabase.from('profiles').select('is_adult_creator, age_verified_at').eq('id', userId).single();
+      if (!vp?.is_adult_creator && !vp?.age_verified_at) {
+        return res.status(403).json({ error: 'Debes verificar tu edad para acceder a este contenido', code: 'AGE_VERIFICATION_REQUIRED' });
+      }
+    }
+
     const isHost = show.host_id === userId;
 
     if (!isHost) {
@@ -401,6 +409,14 @@ export const purchaseShowTicket = async (req, res) => {
     if (!show) return res.status(404).json({ error: 'Show no encontrado' });
     if (show.status === 'ended') return res.status(400).json({ error: 'El show ya terminó' });
     if (show.host_id === buyerId) return res.status(400).json({ error: 'No puedes comprar tu propio show' });
+
+    // Gate de edad para shows adultos
+    if (show.category === 'adult') {
+      const { data: vp } = await supabase.from('profiles').select('is_adult_creator, age_verified_at').eq('id', buyerId).single();
+      if (!vp?.is_adult_creator && !vp?.age_verified_at) {
+        return res.status(403).json({ error: 'Debes verificar tu edad para acceder a este contenido', code: 'AGE_VERIFICATION_REQUIRED' });
+      }
+    }
 
     if (show.ticket_price <= 0) {
       return res.status(400).json({ error: 'Este show es gratuito, no necesita ticket' });

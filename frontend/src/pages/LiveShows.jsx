@@ -9,6 +9,7 @@ import {
 } from 'react-icons/fi';
 import { useAuthStore } from '../store/authStore.js';
 import VerifiedBadge from '../components/ui/VerifiedBadge.jsx';
+import AgeVerificationModal from '../components/ui/AgeVerificationModal.jsx';
 import api from '../lib/api.js';
 import toast from 'react-hot-toast';
 
@@ -290,53 +291,6 @@ function ScheduledRow({ show }) {
   );
 }
 
-/* ── Age Verification Modal ──────────────────────────────── */
-const AGE_KEY = 'destino_age_verified';
-
-function AgeModal({ onConfirm, onCancel }) {
-  return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
-    >
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9, y: 20 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.9 }}
-        className="w-full max-w-sm bg-dark-800 border border-white/10 rounded-3xl p-6 text-center"
-      >
-        <div className="w-20 h-20 bg-red-500/10 border border-red-500/20 rounded-3xl flex items-center justify-center mx-auto mb-5">
-          <span className="text-4xl">🔞</span>
-        </div>
-
-        <h2 className="text-xl font-black text-white mb-2">Contenido para adultos</h2>
-        <p className="text-gray-400 text-sm leading-relaxed mb-1">
-          Esta sección contiene material exclusivo para mayores de{' '}
-          <span className="text-white font-bold">18 años</span>.
-        </p>
-        <p className="text-gray-600 text-xs mb-6">
-          Al continuar confirmas que eres mayor de edad y aceptas ver este tipo de contenido.
-        </p>
-
-        <div className="space-y-2">
-          <button onClick={onConfirm} className="btn-primary w-full py-3 text-sm">
-            Tengo 18+ — Continuar
-          </button>
-          <button onClick={onCancel} className="btn-secondary w-full py-3 text-sm">
-            Salir
-          </button>
-        </div>
-
-        <p className="text-gray-700 text-[10px] mt-4 flex items-center justify-center gap-1">
-          <FiAlertTriangle size={10} /> Solo para mayores de edad
-        </p>
-      </motion.div>
-    </motion.div>
-  );
-}
-
 /* ══════════════════════════════════════════════════════════ */
 export default function LiveShows() {
   const { profile } = useAuthStore();
@@ -353,25 +307,18 @@ export default function LiveShows() {
   const [search, setSearch]                 = useState('');
   const [showSearch, setShowSearch]         = useState(false);
 
-  const [showAgeModal, setShowAgeModal]   = useState(false);
+  const [showAgeModal, setShowAgeModal]       = useState(false);
   const [pendingCategory, setPendingCategory] = useState(null);
 
-  const isAgeVerified = () => localStorage.getItem(AGE_KEY) === 'true';
+  const canSeeAdult = !!(profile?.age_verified_at || profile?.is_adult_creator);
 
   const handleCategoryClick = (key) => {
-    if (key === 'adult' && !isAgeVerified()) {
+    if (key === 'adult' && !canSeeAdult) {
       setPendingCategory(key);
       setShowAgeModal(true);
       return;
     }
     setCategoryFilter(prev => prev === key ? 'all' : key);
-  };
-
-  const handleAgeConfirm = () => {
-    localStorage.setItem(AGE_KEY, 'true');
-    setShowAgeModal(false);
-    setCategoryFilter(pendingCategory);
-    setPendingCategory(null);
   };
 
   const loadShows = useCallback(async (silent = false) => {
@@ -767,15 +714,16 @@ export default function LiveShows() {
         </motion.div>
       )}
 
-      {/* ── Age modal ────────────────────────────────────── */}
-      <AnimatePresence>
-        {showAgeModal && (
-          <AgeModal
-            onConfirm={handleAgeConfirm}
-            onCancel={() => { setShowAgeModal(false); setPendingCategory(null); }}
-          />
-        )}
-      </AnimatePresence>
+      {showAgeModal && (
+        <AgeVerificationModal
+          onVerified={() => {
+            setShowAgeModal(false);
+            setCategoryFilter(pendingCategory);
+            setPendingCategory(null);
+          }}
+          onClose={() => { setShowAgeModal(false); setPendingCategory(null); }}
+        />
+      )}
     </div>
   );
 }

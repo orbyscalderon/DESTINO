@@ -10,6 +10,7 @@ import {
   FiCopy,
 } from 'react-icons/fi';
 import GiftPanel from '../components/ui/GiftPanel.jsx';
+import AgeVerificationModal from '../components/ui/AgeVerificationModal.jsx';
 import { useAuthStore } from '../store/authStore.js';
 import { useAds } from '../hooks/useAds.js';
 import { supabase } from '../lib/supabase.js';
@@ -165,6 +166,7 @@ export default function LiveShow() {
   const [pinnedInput, setPinnedInput]     = useState('');
   const [showPinInput, setShowPinInput]   = useState(false);
   const [countdown, setCountdown]         = useState(null);
+  const [showAgeModal, setShowAgeModal]   = useState(false);
   const [peakViewers, setPeakViewers]     = useState(0);
   const liveTimerRef  = useRef(null);
   const audioLevelRef = useRef(null);
@@ -230,7 +232,12 @@ export default function LiveShow() {
       setInterestCount(interestRes.data.interest_count || 0);
       // Banner publicitario para espectadores gratuitos (no para el host)
       if (s.creator_id !== user?.id) showBottomBanner();
-    } catch {
+    } catch (err) {
+      if (err.response?.data?.code === 'AGE_VERIFICATION_REQUIRED') {
+        setShowAgeModal(true);
+        setLoading(false);
+        return;
+      }
       toast.error('Show no encontrado');
       navigate('/shows');
     } finally {
@@ -771,6 +778,16 @@ export default function LiveShow() {
       toast.success('Link copiado');
     }
   };
+
+  // ── Age gate ─────────────────────────────────────────────────────────────────
+  if (showAgeModal) {
+    return (
+      <AgeVerificationModal
+        onVerified={() => { setShowAgeModal(false); setLoading(true); loadShow(); }}
+        onClose={() => navigate('/shows')}
+      />
+    );
+  }
 
   // ── Loading ───────────────────────────────────────────────────────────────────
   if (loading) {
