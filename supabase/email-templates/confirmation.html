@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Confirma tu email — Destino</title>
+</head>
+<body style="margin:0;padding:0;background:#0d0d1a;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#0d0d1a;min-height:100vh;">
+    <tr>
+      <td align="center" style="padding:40px 20px;">
+        <table width="100%" style="max-width:480px;background:#12122a;border-radius:24px;border:1px solid rgba(255,255,255,0.07);overflow:hidden;">
+
+          <!-- Header con gradiente -->
+          <tr>
+            <td style="background:linear-gradient(135deg,#f43f5e,#a855f7);padding:40px 32px 32px;text-align:center;">
+              <div style="font-size:40px;margin-bottom:8px;">💕</div>
+              <h1 style="margin:0;color:#fff;font-size:28px;font-weight:900;letter-spacing:-0.5px;">Destino</h1>
+              <p style="margin:6px 0 0;color:rgba(255,255,255,0.8);font-size:14px;">Conecta con personas increíbles</p>
+            </td>
+          </tr>
+
+          <!-- Cuerpo -->
+          <tr>
+            <td style="padding:36px 32px;">
+              <h2 style="margin:0 0 12px;color:#fff;font-size:20px;font-weight:700;">Confirma tu email</h2>
+              <p style="margin:0 0 28px;color:#9ca3af;font-size:15px;line-height:1.6;">
+                ¡Bienvenido/a a Destino! Haz clic en el botón de abajo para verificar tu dirección de email y activar tu cuenta.
+              </p>
+
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td align="center">
+                    <a href="{{ .ConfirmationURL }}"
+                       style="display:inline-block;background:linear-gradient(135deg,#f43f5e,#a855f7);color:#fff;text-decoration:none;
+                              font-weight:700;font-size:16px;padding:16px 40px;border-radius:16px;letter-spacing:0.3px;">
+                      Confirmar mi email
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="margin:28px 0 0;color:#6b7280;font-size:13px;line-height:1.5;text-align:center;">
+                Este enlace expira en 24 horas.<br />
+                Si no creaste esta cuenta, puedes ignorar este correo.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding:20px 32px;border-top:1px solid rgba(255,255,255,0.06);text-align:center;">
+              <p style="margin:0;color:#4b5563;font-size:12px;">
+                © 2026 Destino · <a href="https://destino-sigma.vercel.app/#/privacy" style="color:#f43f5e;text-decoration:none;">Privacidad</a>
+                · <a href="https://destino-sigma.vercel.app/#/terms" style="color:#f43f5e;text-decoration:none;">Términos</a>
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
