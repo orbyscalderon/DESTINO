@@ -172,7 +172,12 @@ export const sendMessage = async (req, res) => {
     const msgType = ALLOWED_TYPES.includes(type) ? type : 'text';
 
     if (!content?.trim()) return res.status(400).json({ error: 'Mensaje vacío' });
-    const sanitized = content.trim().replace(/<[^>]*>/g, '');
+    // Strip all HTML tags and dangerous protocols
+    const sanitized = content.trim()
+      .replace(/<[^>]*>/g, '')
+      .replace(/javascript:/gi, '')
+      .replace(/data:/gi, '')
+      .replace(/on\w+\s*=/gi, '');
     if (sanitized.length === 0) return res.status(400).json({ error: 'Mensaje vacío' });
     if (msgType === 'text' && sanitized.length > 1000) return res.status(400).json({ error: 'El mensaje no puede superar 1000 caracteres' });
 
@@ -334,26 +339,13 @@ export const unlockPPV = async (req, res) => {
       return res.status(403).json({ error: 'No tienes acceso a este mensaje' });
     }
 
-    // Verificar si ya lo desbloqueó
-    const { data: existing } = await supabase
-      .from('ppv_unlocks')
-      .select('id')
-      .eq('message_id', messageId)
-      .eq('buyer_id', buyerId)
-      .single();
-
-    if (existing) {
-      return res.json({ url: msg.ppv_media_url, already_unlocked: true });
-    }
-
     const coins = msg.ppv_price;
-    await spendCoins(buyerId, coins, 'ppv_spent', messageId);
-
     const amountUSD = coinsToUSD(coins);
     const earningsUSD = creatorCutUSD(coins);
     const platformFee = amountUSD - earningsUSD;
 
-    await supabase.from('ppv_unlocks').insert({
+    // Insert first — unique constraint on (message_id, buyer_id) prevents double-spend
+    const { error: insertErr } = await supabase.from('ppv_unlocks').insert({
       message_id: messageId,
       buyer_id: buyerId,
       seller_id: msg.sender_id,
@@ -362,6 +354,16 @@ export const unlockPPV = async (req, res) => {
       creator_earnings: earningsUSD,
       platform_fee: platformFee,
     });
+
+    // Duplicate = already unlocked (race condition or retry)
+    if (insertErr) {
+      if (insertErr.code === '23505') {
+        return res.json({ url: msg.ppv_media_url, already_unlocked: true });
+      }
+      throw insertErr;
+    }
+
+    await spendCoins(buyerId, coins, 'ppv_spent', messageId);
 
     await addCoins(msg.sender_id, Math.round(coins * 0.7), 'ppv_received', messageId);
     await upsertCreatorEarnings(msg.sender_id, earningsUSD);

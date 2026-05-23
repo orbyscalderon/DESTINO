@@ -116,7 +116,8 @@ export const searchProfiles = async (req, res) => {
     const { q, gender, min_age, max_age, country, is_creator } = req.query;
     if (!q || q.trim().length < 2) return res.json({ profiles: [] });
 
-    const term = q.trim().toLowerCase();
+    // Strip PostgREST special chars to prevent query injection
+    const term = q.trim().toLowerCase().replace(/[%_().,'";\\]/g, '');
     const userId = req.user.id;
 
     // Block list — don't show blocked/blocking users in search
@@ -235,7 +236,7 @@ export const getProfile = async (req, res) => {
   try {
     const { data: profile, error } = await supabase
       .from('profiles')
-      .select('id, username, full_name, age, gender, bio, avatar_url, is_premium, is_verified, country, language, interests, created_at, is_creator, creator_bio, creator_subscription_price, is_adult_creator, stripe_account_status, is_admin, profile_views, boosted_until, last_active, is_incognito')
+      .select('id, username, full_name, age, gender, bio, avatar_url, is_premium, is_verified, country, language, interests, created_at, is_creator, creator_bio, creator_subscription_price, is_adult_creator, profile_views, boosted_until, last_active, is_incognito')
       .eq('id', req.params.id)
       .single();
 
