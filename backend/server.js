@@ -41,6 +41,9 @@ import appealsRoutes from './src/routes/appeals.js';
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Railway / Vercel / cualquier reverse proxy pone el IP real en X-Forwarded-For
+app.set('trust proxy', 1);
+
 // ── Security headers ──────────────────────────────────────────
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
