@@ -37,6 +37,15 @@ export default function Chat() {
     </div>
   );
 
+  if (!match) return (
+    <div className="min-h-screen flex flex-col items-center justify-center gap-4 text-center px-6">
+      <p className="text-4xl">💔</p>
+      <p className="text-white font-semibold">Esta conversación ya no existe</p>
+      <p className="text-gray-500 text-sm">El match pudo haber expirado o fue eliminado.</p>
+      <Link to="/matches" className="btn-primary text-sm px-6">Ver mis matches</Link>
+    </div>
+  );
+
   return (
     <div className="h-[calc(100dvh-80px)] lg:h-screen flex flex-col bg-dark-900">
       {/* Header */}

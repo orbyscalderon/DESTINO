@@ -144,7 +144,7 @@ export const getTopCreators = async (req, res) => {
 // GET /api/profiles/search?q=... — búsqueda de usuarios por nombre/username
 export const searchProfiles = async (req, res) => {
   try {
-    const { q, gender, min_age, max_age, country, is_creator } = req.query;
+    const { q, gender, min_age, max_age, country, language, interests, is_creator } = req.query;
     if (!q || q.trim().length < 2) return res.json({ profiles: [] });
 
     // Strip PostgREST special chars to prevent query injection
@@ -176,7 +176,12 @@ export const searchProfiles = async (req, res) => {
     if (min_age) query = query.gte('age', parseInt(min_age));
     if (max_age) query = query.lte('age', parseInt(max_age));
     if (country) query = query.eq('country', country);
+    if (language) query = query.eq('language', language);
     if (is_creator === 'true') query = query.eq('is_creator', true);
+    if (interests) {
+      const tags = interests.split(',').map(t => t.trim()).filter(Boolean);
+      if (tags.length > 0) query = query.overlaps('interests', tags);
+    }
 
     const { data, error } = await query;
     if (error) throw error;
