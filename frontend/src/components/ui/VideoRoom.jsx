@@ -280,8 +280,15 @@ export default function VideoRoom({ genderFilter, countryFilter, videoCallsRemai
       {/* Partner country badge */}
       {status === 'connected' && partner && (
         <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-black/60 backdrop-blur-sm px-2.5 py-1.5 rounded-xl z-10">
-          {partner.country && <span className="text-base">{countryByCode(partner.country)?.flag}</span>}
-          {partner.language && <span className="text-xs text-white/80">{languageByCode(partner.language)?.name || partner.language}</span>}
+          {partner.country && (
+            <>
+              <span className="text-base leading-none">{countryByCode(partner.country)?.flag}</span>
+              <span className="text-xs text-white font-medium">{countryByCode(partner.country)?.name || partner.country}</span>
+            </>
+          )}
+          {partner.language && (
+            <span className="text-xs text-white/60 border-l border-white/20 pl-1.5">{languageByCode(partner.language)?.name || partner.language}</span>
+          )}
         </div>
       )}
 

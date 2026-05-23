@@ -22,6 +22,14 @@ import {
   toggleIncognito,
   verifyAge,
 } from '../controllers/profileController.js';
+import {
+  uploadProfileVideo,
+  uploadVideoMiddleware,
+  getProfileVideos,
+  deleteProfileVideo,
+  setVideoPricing,
+  purchaseProfileVideo,
+} from '../controllers/profileVideoController.js';
 
 const router = Router();
 
@@ -44,5 +52,12 @@ router.put('/:id', updateProfile);
 router.post('/avatar', uploadMiddleware, uploadAvatar);
 router.post('/photos', uploadPhotoMiddleware, uploadPhoto);
 router.delete('/photos/:photoId', deletePhoto);
+
+// Profile videos
+router.post('/videos', uploadVideoMiddleware, uploadProfileVideo);
+router.get('/:id/videos', getProfileVideos);
+router.delete('/videos/:videoId', deleteProfileVideo);
+router.put('/videos/:videoId/pricing', setVideoPricing);
+router.post('/videos/:videoId/purchase', purchaseProfileVideo);
 
 export default router;

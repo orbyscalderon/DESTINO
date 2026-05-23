@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabase.js';
 import multer from 'multer';
 import { createNotification } from './inAppNotifController.js';
+import { spendCoins, addCoins } from './coinController.js';
 
 const BUCKET = 'DESTINO';
 const ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp', 'video/mp4', 'video/quicktime'];
@@ -39,7 +40,7 @@ export const getFeed = async (req, res) => {
       .from('posts')
       .select(`
         id, caption, media_url, media_type, is_adult, is_subscribers_only,
-        likes_count, comments_count, created_at, status,
+        is_paid, price, likes_count, comments_count, created_at, status,
         author:profiles!user_id(id, full_name, avatar_url, is_verified, is_creator, is_adult_creator)
       `)
       .or(`status.eq.published,and(status.eq.pending_review,user_id.eq.${userId})`)
@@ -71,6 +72,19 @@ export const getFeed = async (req, res) => {
       .eq('status', 'active');
     const subscribedTo = new Set((subs || []).map(s => s.creator_id));
 
+    // Paid posts purchased by viewer
+    const paidPostIds = (posts || []).filter(p => p.is_paid).map(p => p.id);
+    let purchasedPostIds = new Set();
+    if (paidPostIds.length > 0) {
+      const { data: purchases } = await supabase
+        .from('content_purchases')
+        .select('content_id')
+        .eq('buyer_id', userId)
+        .eq('content_type', 'post')
+        .in('content_id', paidPostIds);
+      purchasedPostIds = new Set((purchases || []).map(p => p.content_id));
+    }
+
     const result = (posts || []).map(p => {
       const isOwn = p.author?.id === userId;
       const isSubscribed = subscribedTo.has(p.author?.id);
@@ -86,7 +100,12 @@ export const getFeed = async (req, res) => {
         return { ...p, media_url: null, caption: null, blurred: true, liked: likedIds.has(p.id) };
       }
 
-      return { ...p, liked: likedIds.has(p.id) };
+      // Paid post gating
+      if (p.is_paid && !isOwn && !isSubscribed && !purchasedPostIds.has(p.id)) {
+        return { ...p, media_url: null, locked: true, is_purchased: false, liked: likedIds.has(p.id) };
+      }
+
+      return { ...p, liked: likedIds.has(p.id), is_purchased: p.is_paid ? purchasedPostIds.has(p.id) : undefined };
     });
 
     res.json({ posts: result, hasMore: (posts || []).length === limit });
@@ -116,7 +135,7 @@ export const getUserPosts = async (req, res) => {
 
     let query = supabase
       .from('posts')
-      .select('id, caption, media_url, media_type, is_adult, is_subscribers_only, likes_count, comments_count, created_at')
+      .select('id, caption, media_url, media_type, is_adult, is_subscribers_only, is_paid, price, likes_count, comments_count, created_at')
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
       .limit(limit);
@@ -133,11 +152,26 @@ export const getUserPosts = async (req, res) => {
       likedIds = new Set((likes || []).map(l => l.post_id));
     }
 
+    const paidIds = (posts || []).filter(p => p.is_paid).map(p => p.id);
+    let purchasedIds = new Set();
+    if (paidIds.length > 0 && viewerId !== userId) {
+      const { data: purchases } = await supabase
+        .from('content_purchases')
+        .select('content_id')
+        .eq('buyer_id', viewerId)
+        .eq('content_type', 'post')
+        .in('content_id', paidIds);
+      purchasedIds = new Set((purchases || []).map(p => p.content_id));
+    }
+
     const result = (posts || []).map(p => {
       if (p.is_subscribers_only && !isSubscribed) {
         return { ...p, media_url: null, locked: true, liked: false };
       }
-      return { ...p, liked: likedIds.has(p.id) };
+      if (p.is_paid && viewerId !== userId && !isSubscribed && !purchasedIds.has(p.id)) {
+        return { ...p, media_url: null, locked: true, is_purchased: false, liked: likedIds.has(p.id) };
+      }
+      return { ...p, liked: likedIds.has(p.id), is_purchased: p.is_paid ? (viewerId === userId || purchasedIds.has(p.id)) : undefined };
     });
 
     res.json({ posts: result, hasMore: (posts || []).length === limit });
@@ -150,9 +184,21 @@ export const getUserPosts = async (req, res) => {
 export const createPost = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { caption, is_adult, is_subscribers_only } = req.body;
+    const { caption, is_adult, is_subscribers_only, is_paid, price } = req.body;
     const isAdult = is_adult === 'true' || is_adult === true;
     const subOnly = is_subscribers_only === 'true' || is_subscribers_only === true;
+    const isPaid = is_paid === 'true' || is_paid === true;
+    const coinPrice = isPaid ? Math.max(1, Math.min(9999, parseInt(price) || 0)) : 0;
+
+    if (isPaid && coinPrice < 1) {
+      return res.status(400).json({ error: 'El precio mínimo es 1 coin' });
+    }
+    if (isPaid) {
+      const { data: profile } = await supabase.from('profiles').select('is_creator').eq('id', userId).single();
+      if (!profile?.is_creator) {
+        return res.status(403).json({ error: 'Solo los creadores pueden publicar posts de pago' });
+      }
+    }
 
     // Verificar permisos para contenido adulto
     if (isAdult) {
@@ -205,6 +251,8 @@ export const createPost = async (req, res) => {
         media_type: mediaType,
         is_adult: isAdult,
         is_subscribers_only: subOnly,
+        is_paid: isPaid,
+        price: coinPrice,
         status,
       })
       .select()
@@ -276,6 +324,60 @@ export const getComments = async (req, res) => {
       .limit(50);
     res.json({ comments: comments || [] });
   } catch (err) {
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
+// POST /api/posts/:id/purchase
+export const purchasePost = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const buyerId = req.user.id;
+
+    const { data: post } = await supabase
+      .from('posts')
+      .select('id, user_id, is_paid, price, caption')
+      .eq('id', id)
+      .single();
+
+    if (!post) return res.status(404).json({ error: 'Post no encontrado' });
+    if (!post.is_paid) return res.status(400).json({ error: 'Este post es gratuito' });
+    if (post.user_id === buyerId) return res.status(400).json({ error: 'No puedes comprar tu propio post' });
+
+    const { data: existing } = await supabase
+      .from('content_purchases')
+      .select('id')
+      .eq('buyer_id', buyerId)
+      .eq('content_id', id)
+      .eq('content_type', 'post')
+      .maybeSingle();
+
+    if (existing) return res.status(400).json({ error: 'Ya compraste este post' });
+
+    try {
+      await spendCoins(buyerId, post.price, 'post_purchase');
+    } catch (e) {
+      if (e.code === 'INSUFFICIENT_COINS') {
+        return res.status(400).json({ error: `Coins insuficientes (necesitas ${post.price})`, code: 'INSUFFICIENT_COINS' });
+      }
+      throw e;
+    }
+
+    await supabase.from('content_purchases').insert({
+      buyer_id: buyerId,
+      content_id: id,
+      content_type: 'post',
+      coins_paid: post.price,
+    });
+
+    const creatorShare = Math.floor(post.price * 0.8);
+    if (creatorShare > 0) {
+      await addCoins(post.user_id, creatorShare, 'post_sale').catch(() => {});
+    }
+
+    res.json({ success: true, message: 'Post desbloqueado' });
+  } catch (err) {
+    console.error('purchasePost error:', err.message);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };

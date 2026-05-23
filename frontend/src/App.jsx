@@ -23,7 +23,9 @@ const Login       = lazy(() => import('./pages/Login.jsx'));
 const AuthCallback= lazy(() => import('./pages/AuthCallback.jsx'));
 const Onboarding  = lazy(() => import('./pages/Onboarding.jsx'));
 const Home        = lazy(() => import('./pages/Home.jsx'));
+const Discover    = lazy(() => import('./pages/Discover.jsx'));
 const Matches     = lazy(() => import('./pages/Matches.jsx'));
+const Messages    = lazy(() => import('./pages/Messages.jsx'));
 const Chat        = lazy(() => import('./pages/Chat.jsx'));
 const Video       = lazy(() => import('./pages/Video.jsx'));
 const Profile     = lazy(() => import('./pages/Profile.jsx'));
@@ -212,7 +214,9 @@ export default function App() {
         <Route element={<ProtectedRoute />}>
           <Route path="/onboarding" element={<Onboarding />} />
           <Route path="/home" element={<Home />} />
+          <Route path="/discover" element={<Discover />} />
           <Route path="/matches" element={<Matches />} />
+          <Route path="/messages" element={<Messages />} />
           <Route path="/chat/:matchId" element={<Chat />} />
           <Route path="/video" element={<Video />} />
           <Route path="/profile" element={<Profile />} />

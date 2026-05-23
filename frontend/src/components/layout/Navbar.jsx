@@ -1,25 +1,27 @@
 import { useEffect, useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { FiHome, FiHeart, FiVideo, FiUser, FiZap, FiSearch, FiGrid, FiFilm, FiBell, FiShield, FiSettings, FiBarChart2 } from 'react-icons/fi';
+import { FiHome, FiHeart, FiVideo, FiUser, FiZap, FiSearch, FiGrid, FiFilm, FiBell, FiShield, FiSettings, FiBarChart2, FiCompass, FiMessageCircle } from 'react-icons/fi';
 import { useAuthStore } from '../../store/authStore.js';
 import { useChatStore } from '../../store/chatStore.js';
 import { supabase } from '../../lib/supabase.js';
 import api from '../../lib/api.js';
 
-// Mobile bottom nav (5 items max) — Buscar accesible desde Momentos / sidebar
+// Mobile bottom nav (5 items max)
 const mobileNavItems = [
-  { to: '/home',          icon: FiHome,   label: 'Inicio',    badge: false },
-  { to: '/matches',       icon: FiHeart,  label: 'Matches',   badge: 'chat' },
-  { to: '/moments',       icon: FiGrid,   label: 'Momentos',  badge: false },
-  { to: '/notifications', icon: FiBell,   label: 'Notifs',    badge: 'notifs' },
-  { to: '/profile',       icon: FiUser,   label: 'Perfil',    badge: false },
+  { to: '/home',          icon: FiHome,           label: 'Inicio',    badge: false },
+  { to: '/matches',       icon: FiHeart,          label: 'Matches',   badge: false },
+  { to: '/messages',      icon: FiMessageCircle,  label: 'Mensajes',  badge: 'chat' },
+  { to: '/notifications', icon: FiBell,           label: 'Notifs',    badge: 'notifs' },
+  { to: '/profile',       icon: FiUser,           label: 'Perfil',    badge: false },
 ];
 
 // Desktop sidebar (full list)
 const sidebarNavItems = [
-  { to: '/home',          icon: FiHome,   label: 'Inicio' },
-  { to: '/matches',       icon: FiHeart,  label: 'Matches' },
-  { to: '/moments',       icon: FiGrid,   label: 'Momentos' },
+  { to: '/home',          icon: FiHome,    label: 'Inicio' },
+  { to: '/discover',      icon: FiCompass, label: 'Descubrir' },
+  { to: '/matches',       icon: FiHeart,          label: 'Matches' },
+  { to: '/messages',      icon: FiMessageCircle,  label: 'Mensajes' },
+  { to: '/moments',       icon: FiGrid,           label: 'Momentos' },
   { to: '/search',        icon: FiSearch, label: 'Buscar' },
   { to: '/shows',         icon: FiFilm,   label: 'Shows en vivo' },
   { to: '/adult',         icon: FiShield, label: 'Adultos 18+' },
@@ -124,7 +126,7 @@ export default function Navbar() {
             <NavLink key={to} to={to} className={sidebarLink}>
               <span className="relative">
                 <Icon size={20} />
-                {to === '/matches' && unreadTotal > 0 && (
+                {to === '/messages' && unreadTotal > 0 && (
                   <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 bg-brand-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-0.5">
                     {unreadTotal > 99 ? '99+' : unreadTotal}
                   </span>

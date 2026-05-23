@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
-import { FiArrowLeft, FiHeart, FiX, FiMoreVertical, FiLock, FiZap, FiCheck, FiVideo, FiUserMinus, FiShare2, FiUserPlus, FiUsers, FiGrid, FiMessageCircle, FiGift, FiImage } from 'react-icons/fi';
+import { FiArrowLeft, FiHeart, FiX, FiMoreVertical, FiLock, FiZap, FiCheck, FiVideo, FiUserMinus, FiShare2, FiUserPlus, FiUsers, FiGrid, FiMessageCircle, FiGift, FiImage, FiFilm, FiPlay } from 'react-icons/fi';
 import api from '../lib/api.js';
 import toast from 'react-hot-toast';
 import BlockReportModal from '../components/ui/BlockReportModal.jsx';
@@ -26,7 +26,9 @@ export default function UserProfile() {
   const [followersCount, setFollowersCount] = useState(0);
   const [togglingFollow, setTogglingFollow] = useState(false);
   const [userPosts, setUserPosts] = useState([]);
-  const [postsTab, setPostsTab] = useState('photos'); // 'photos' | 'posts'
+  const [postsTab, setPostsTab] = useState('photos'); // 'photos' | 'posts' | 'videos'
+  const [videos, setVideos] = useState([]);
+  const [buyingVideo, setBuyingVideo] = useState(null);
   const [showTipModal, setShowTipModal]   = useState(false);
   const [galleries, setGalleries]         = useState([]);
   const [openGallery, setOpenGallery]     = useState(null); // { id, title, items: [] }
@@ -51,7 +53,8 @@ export default function UserProfile() {
       api.get(`/api/follows/${userId}/status`).catch(() => ({ data: { following: false, followers_count: 0 } })),
       api.get(`/api/posts/user/${userId}?limit=12`).catch(() => ({ data: { posts: [] } })),
       api.get(`/api/creator/${userId}/galleries`).catch(() => ({ data: { galleries: [] } })),
-    ]).then(([pRes, phRes, followRes, postsRes, galRes]) => {
+      api.get(`/api/profiles/${userId}/videos`).catch(() => ({ data: { videos: [] } })),
+    ]).then(([pRes, phRes, followRes, postsRes, galRes, vidRes]) => {
       const p = pRes.data.profile;
       setProfile(p);
       setSubscribed(!!p.is_subscribed);
@@ -64,6 +67,7 @@ export default function UserProfile() {
       setFollowersCount(followRes.data.followers_count || 0);
       setUserPosts(postsRes.data.posts || []);
       setGalleries(galRes.data.galleries || []);
+      setVideos(vidRes.data.videos || []);
     }).catch(() => toast.error('Perfil no encontrado'))
       .finally(() => setLoading(false));
   }, [userId]);
@@ -143,6 +147,24 @@ export default function UserProfile() {
       toast.error(err.response?.data?.error || 'Error al iniciar el pago');
     } finally {
       setBuyingPhoto(null);
+    }
+  };
+
+  const handleBuyVideo = async (video) => {
+    setBuyingVideo(video.id);
+    try {
+      await api.post(`/api/profiles/videos/${video.id}/purchase`);
+      const { data } = await api.get(`/api/profiles/${userId}/videos`);
+      setVideos(data.videos || []);
+      toast.success('Vídeo desbloqueado');
+    } catch (err) {
+      if (err.response?.data?.code === 'INSUFFICIENT_COINS') {
+        toast.error('Coins insuficientes — recarga en la sección Coins');
+      } else {
+        toast.error(err.response?.data?.error || 'Error al comprar el vídeo');
+      }
+    } finally {
+      setBuyingVideo(null);
     }
   };
 
@@ -496,8 +518,8 @@ export default function UserProfile() {
           </div>
         )}
 
-        {/* ── Tab: Fotos / Momentos ────────────────────────── */}
-        {!photosBlocked && (freePhotos.length > 0 || userPosts.length > 0) && (
+        {/* ── Tab: Fotos / Momentos / Vídeos ──────────────── */}
+        {!photosBlocked && (freePhotos.length > 0 || userPosts.length > 0 || videos.length > 0) && (
           <div>
             <div className="flex gap-0 mb-3 bg-dark-700/60 rounded-xl p-1">
               <button
@@ -516,6 +538,16 @@ export default function UserProfile() {
               >
                 <FiMessageCircle size={12} /> Momentos {userPosts.length > 0 && `(${userPosts.length})`}
               </button>
+              {videos.length > 0 && (
+                <button
+                  onClick={() => setPostsTab('videos')}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium transition-all ${
+                    postsTab === 'videos' ? 'bg-dark-600 text-white' : 'text-gray-500 hover:text-gray-300'
+                  }`}
+                >
+                  <FiFilm size={12} /> Vídeos ({videos.length})
+                </button>
+              )}
             </div>
 
             {postsTab === 'photos' && freePhotos.length > 0 && (
@@ -560,6 +592,47 @@ export default function UserProfile() {
                   ))}
                 </div>
               )
+            )}
+
+            {postsTab === 'videos' && (
+              <div className="grid grid-cols-2 gap-2">
+                {videos.map(vid => {
+                  const unlocked = !!vid.url;
+                  return (
+                    <div key={vid.id} className="relative aspect-video rounded-xl overflow-hidden bg-dark-700">
+                      {unlocked ? (
+                        <>
+                          <video src={vid.url} className="w-full h-full object-cover" preload="metadata" controls />
+                          {vid.title && (
+                            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 p-2">
+                              <p className="text-white text-[10px] font-medium truncate">{vid.title}</p>
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <>
+                          <div className="absolute inset-0 bg-gradient-to-br from-brand-900/60 to-dark-800 flex flex-col items-center justify-center gap-2 p-3">
+                            <FiPlay size={22} className="text-white/60" />
+                            <FiLock size={14} className="text-brand-400" />
+                            {vid.title && <p className="text-white text-[10px] font-medium text-center truncate w-full">{vid.title}</p>}
+                            <div className="flex items-center gap-1 text-yellow-400">
+                              <FiZap size={10} />
+                              <span className="text-xs font-bold">{vid.price} coins</span>
+                            </div>
+                            <button
+                              onClick={() => handleBuyVideo(vid)}
+                              disabled={buyingVideo === vid.id}
+                              className="text-[10px] bg-brand-500 hover:bg-brand-600 text-white px-3 py-1 rounded-lg transition-colors disabled:opacity-60"
+                            >
+                              {buyingVideo === vid.id ? '...' : 'Desbloquear'}
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             )}
           </div>
         )}

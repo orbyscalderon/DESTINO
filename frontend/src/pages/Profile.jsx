@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiCamera, FiEdit2, FiLogOut, FiStar, FiSettings, FiPlus, FiTrash2, FiSearch, FiShield, FiClock, FiLock, FiDollarSign, FiUsers, FiExternalLink, FiZap, FiBarChart2, FiChevronRight, FiMove, FiEyeOff, FiEye, FiShare2 } from 'react-icons/fi';
+import { FiCamera, FiEdit2, FiLogOut, FiStar, FiSettings, FiPlus, FiTrash2, FiSearch, FiShield, FiClock, FiLock, FiDollarSign, FiUsers, FiExternalLink, FiZap, FiBarChart2, FiChevronRight, FiMove, FiEyeOff, FiEye, FiShare2, FiFilm, FiPlay } from 'react-icons/fi';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import VerifiedBadge from '../components/ui/VerifiedBadge.jsx';
 import { useAuthStore } from '../store/authStore.js';
@@ -32,6 +32,12 @@ export default function Profile() {
   const [photos, setPhotos] = useState([]);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [pricingPhoto, setPricingPhoto] = useState(null); // { id, is_paid, price }
+  const [videos, setVideos] = useState([]);
+  const [uploadingVideo, setUploadingVideo] = useState(false);
+  const [pricingVideo, setPricingVideo] = useState(null); // { id, is_paid, price, title }
+  const [videoTab, setVideoTab] = useState('gallery'); // 'gallery' | 'requests'
+  const [videoRequests, setVideoRequests] = useState([]);
+  const [loadingRequests, setLoadingRequests] = useState(false);
   const [form, setForm] = useState({
     username: profile?.username || '',
     full_name: profile?.full_name || '',
@@ -56,6 +62,7 @@ export default function Profile() {
   const [boostSecsLeft, setBoostSecsLeft] = useState(0);
   const fileRef = useRef(null);
   const photoRef = useRef(null);
+  const videoRef = useRef(null);
 
   useEffect(() => {
     if (profile?.streak_count !== undefined) setStreak(profile.streak_count);
@@ -76,6 +83,7 @@ export default function Profile() {
   useEffect(() => {
     if (user?.id) {
       loadPhotos();
+      loadVideos();
       api.get('/api/verification/status')
         .then(({ data }) => setVerificationStatus(data.verification?.status || null))
         .catch(() => {});
@@ -114,6 +122,84 @@ export default function Profile() {
       const { data } = await api.get(`/api/profiles/${user.id}/photos`);
       setPhotos(data.photos || []);
     } catch {}
+  };
+
+  const loadVideos = async () => {
+    try {
+      const { data } = await api.get(`/api/profiles/${user.id}/videos`);
+      setVideos(data.videos || []);
+    } catch {}
+  };
+
+  const loadVideoRequests = async () => {
+    setLoadingRequests(true);
+    try {
+      const { data } = await api.get('/api/video-requests/received');
+      setVideoRequests(data.requests || []);
+    } catch {} finally {
+      setLoadingRequests(false);
+    }
+  };
+
+  const handleVideoUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    e.target.value = '';
+    setUploadingVideo(true);
+    const fd = new FormData();
+    fd.append('video', file);
+    fd.append('title', '');
+    fd.append('is_paid', 'false');
+    fd.append('price', '0');
+    try {
+      await api.post('/api/profiles/videos', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      await loadVideos();
+      toast.success('Video subido');
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Error al subir el video');
+    } finally {
+      setUploadingVideo(false);
+    }
+  };
+
+  const handleDeleteVideo = async (videoId) => {
+    try {
+      await api.delete(`/api/profiles/videos/${videoId}`);
+      setVideos(v => v.filter(vid => vid.id !== videoId));
+      toast.success('Video eliminado');
+    } catch {
+      toast.error('Error al eliminar el video');
+    }
+  };
+
+  const handleSaveVideoPricing = async () => {
+    if (!pricingVideo) return;
+    try {
+      await api.put(`/api/profiles/videos/${pricingVideo.id}/pricing`, {
+        is_paid: pricingVideo.is_paid,
+        price: pricingVideo.price,
+      });
+      setVideos(v => v.map(vid =>
+        vid.id === pricingVideo.id
+          ? { ...vid, is_paid: pricingVideo.is_paid, price: pricingVideo.price }
+          : vid
+      ));
+      setPricingVideo(null);
+      toast.success('Precio actualizado');
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Error al guardar el precio');
+    }
+  };
+
+  const handleVideoRequestAction = async (requestId, action) => {
+    try {
+      if (action === 'accept') await api.put(`/api/video-requests/${requestId}/accept`);
+      if (action === 'reject') await api.put(`/api/video-requests/${requestId}/reject`);
+      await loadVideoRequests();
+      toast.success(action === 'accept' ? 'Solicitud aceptada' : 'Solicitud rechazada');
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Error');
+    }
   };
 
   const handleSave = async () => {
@@ -811,8 +897,8 @@ export default function Profile() {
                   <p className="text-xs text-gray-600 mt-0.5">Las ven las personas en sus matches</p>
                 )}
               </div>
-              <span className={`text-xs font-medium px-2 py-1 rounded-lg ${photos.length >= 20 ? 'bg-brand-500/20 text-brand-400' : 'bg-dark-700 text-gray-500'}`}>
-                {photos.length} / 20
+              <span className="text-xs font-medium px-2 py-1 rounded-lg bg-dark-700 text-gray-500">
+                {photos.length} fotos
               </span>
             </div>
 
@@ -866,22 +952,20 @@ export default function Profile() {
                 </motion.div>
               ))}
 
-              {photos.length < 20 && (
-                <button
-                  onClick={() => photoRef.current.click()}
-                  disabled={uploadingPhoto}
-                  className="aspect-square rounded-xl border-2 border-dashed border-white/10 flex flex-col items-center justify-center gap-1.5 hover:border-brand-500/40 hover:bg-brand-500/5 transition-all"
-                >
-                  {uploadingPhoto ? (
-                    <div className="w-5 h-5 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
-                  ) : (
-                    <>
-                      <FiPlus className="text-gray-500" size={22} />
-                      <span className="text-gray-600 text-[10px]">Agregar</span>
-                    </>
-                  )}
-                </button>
-              )}
+              <button
+                onClick={() => photoRef.current.click()}
+                disabled={uploadingPhoto}
+                className="aspect-square rounded-xl border-2 border-dashed border-white/10 flex flex-col items-center justify-center gap-1.5 hover:border-brand-500/40 hover:bg-brand-500/5 transition-all"
+              >
+                {uploadingPhoto ? (
+                  <div className="w-5 h-5 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <>
+                    <FiPlus className="text-gray-500" size={22} />
+                    <span className="text-gray-600 text-[10px]">Agregar</span>
+                  </>
+                )}
+              </button>
             </div>
 
             <input
@@ -902,6 +986,145 @@ export default function Profile() {
               </Link>
             )}
           </div>
+
+          {/* ── Galería de vídeos (solo creadores) ──────────── */}
+          {profile?.is_creator && (
+            <div className="card p-5 lg:p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="font-semibold text-gray-300 flex items-center gap-2"><FiFilm size={15} /> Vídeos</h3>
+                  <p className="text-xs text-gray-600 mt-0.5">Los fans pueden comprarlos con coins</p>
+                </div>
+                <div className="flex gap-1">
+                  {['gallery','requests'].map(tab => (
+                    <button
+                      key={tab}
+                      onClick={() => { setVideoTab(tab); if (tab === 'requests') loadVideoRequests(); }}
+                      className={`text-xs px-3 py-1.5 rounded-lg transition-all ${videoTab === tab ? 'bg-brand-500 text-white' : 'bg-dark-700 text-gray-400 hover:text-white'}`}
+                    >
+                      {tab === 'gallery' ? 'Mis vídeos' : 'Solicitudes'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {videoTab === 'gallery' && (
+                <>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {videos.map(vid => (
+                      <div key={vid.id} className="relative group aspect-video bg-dark-700 rounded-xl overflow-hidden">
+                        <video
+                          src={vid.url}
+                          className="w-full h-full object-cover"
+                          preload="metadata"
+                        />
+                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                          <FiPlay size={20} className="text-white/70" />
+                        </div>
+                        {vid.is_paid && (
+                          <div className="absolute top-1.5 left-1.5 bg-brand-500 rounded-lg px-1.5 py-0.5 flex items-center gap-0.5">
+                            <FiLock size={8} className="text-white" />
+                            <span className="text-white text-[9px] font-bold">{vid.price}c</span>
+                          </div>
+                        )}
+                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 rounded-xl">
+                          <button
+                            onClick={() => setPricingVideo({ id: vid.id, is_paid: vid.is_paid || false, price: vid.price || '', title: vid.title || '' })}
+                            className="w-8 h-8 bg-brand-500/80 rounded-full flex items-center justify-center hover:bg-brand-500"
+                          >
+                            <FiDollarSign size={12} className="text-white" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteVideo(vid.id)}
+                            className="w-8 h-8 bg-black/70 rounded-full flex items-center justify-center hover:bg-red-500/80"
+                          >
+                            <FiTrash2 size={12} className="text-white" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+
+                    <button
+                      onClick={() => videoRef.current.click()}
+                      disabled={uploadingVideo}
+                      className="aspect-video rounded-xl border-2 border-dashed border-white/10 flex flex-col items-center justify-center gap-1.5 hover:border-brand-500/40 hover:bg-brand-500/5 transition-all"
+                    >
+                      {uploadingVideo ? (
+                        <div className="w-5 h-5 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <>
+                          <FiPlus className="text-gray-500" size={20} />
+                          <span className="text-gray-600 text-[10px]">Subir vídeo</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                  <input
+                    ref={videoRef}
+                    type="file"
+                    accept="video/mp4,video/webm,video/quicktime,video/x-msvideo"
+                    onChange={handleVideoUpload}
+                    className="hidden"
+                  />
+                </>
+              )}
+
+              {videoTab === 'requests' && (
+                <div className="space-y-3">
+                  {loadingRequests ? (
+                    <div className="flex justify-center py-6">
+                      <div className="w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
+                    </div>
+                  ) : videoRequests.length === 0 ? (
+                    <p className="text-center text-gray-500 text-sm py-6">Sin solicitudes pendientes</p>
+                  ) : videoRequests.map(req => (
+                    <div key={req.id} className="bg-dark-700/50 rounded-xl p-3">
+                      <div className="flex items-start gap-3">
+                        <img
+                          src={req.requester?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(req.requester?.full_name || '?')}&size=60&background=1a1a2e&color=f43f5e`}
+                          className="w-9 h-9 rounded-full object-cover shrink-0"
+                          alt=""
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-sm font-semibold text-white truncate">{req.requester?.full_name}</p>
+                            <span className="text-yellow-400 text-xs font-bold shrink-0">{req.price} coins</span>
+                          </div>
+                          {req.message && <p className="text-xs text-gray-400 mt-0.5 line-clamp-2">{req.message}</p>}
+                          <div className="flex items-center gap-2 mt-2">
+                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${
+                              req.status === 'pending' ? 'bg-yellow-500/20 text-yellow-400' :
+                              req.status === 'accepted' ? 'bg-blue-500/20 text-blue-400' :
+                              req.status === 'completed' ? 'bg-green-500/20 text-green-400' :
+                              'bg-red-500/20 text-red-400'
+                            }`}>
+                              {req.status === 'pending' ? 'Pendiente' : req.status === 'accepted' ? 'Aceptada' : req.status === 'completed' ? 'Completada' : 'Rechazada'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      {req.status === 'pending' && (
+                        <div className="flex gap-2 mt-3">
+                          <button
+                            onClick={() => handleVideoRequestAction(req.id, 'reject')}
+                            className="flex-1 py-1.5 rounded-lg bg-dark-600 text-gray-400 text-xs hover:bg-red-500/20 hover:text-red-400 transition-colors"
+                          >
+                            Rechazar
+                          </button>
+                          <button
+                            onClick={() => handleVideoRequestAction(req.id, 'accept')}
+                            className="flex-1 py-1.5 rounded-lg bg-brand-500 text-white text-xs hover:bg-brand-600 transition-colors"
+                          >
+                            Aceptar
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Modal de pricing de foto */}
           {pricingPhoto && (
@@ -941,6 +1164,48 @@ export default function Profile() {
                 <div className="flex gap-3 mt-5">
                   <button onClick={() => setPricingPhoto(null)} className="btn-secondary flex-1">Cancelar</button>
                   <button onClick={handleSavePhotoPricing} className="btn-primary flex-1">Guardar</button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+          {/* Modal de pricing de vídeo */}
+          {pricingVideo && (
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-4">
+              <motion.div
+                initial={{ opacity: 0, y: 40 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="card p-6 w-full max-w-sm"
+              >
+                <h3 className="text-lg font-bold text-white mb-4">Precio del vídeo</h3>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-300 text-sm">Vídeo de pago</span>
+                    <button
+                      onClick={() => setPricingVideo(p => ({ ...p, is_paid: !p.is_paid }))}
+                      className={`w-12 h-6 rounded-full transition-colors relative ${pricingVideo.is_paid ? 'bg-brand-500' : 'bg-dark-600'}`}
+                    >
+                      <span className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${pricingVideo.is_paid ? 'left-7' : 'left-1'}`} />
+                    </button>
+                  </div>
+                  {pricingVideo.is_paid && (
+                    <div className="relative">
+                      <FiZap className="absolute left-3 top-1/2 -translate-y-1/2 text-yellow-400" size={14} />
+                      <input
+                        className="input-field pl-8"
+                        type="number"
+                        placeholder="Precio en coins"
+                        value={pricingVideo.price}
+                        onChange={e => setPricingVideo(p => ({ ...p, price: e.target.value }))}
+                        min="1"
+                        max="9999"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Recibirás el 80% (el 20% es la comisión de la plataforma)</p>
+                    </div>
+                  )}
+                </div>
+                <div className="flex gap-3 mt-5">
+                  <button onClick={() => setPricingVideo(null)} className="btn-secondary flex-1">Cancelar</button>
+                  <button onClick={handleSaveVideoPricing} className="btn-primary flex-1">Guardar</button>
                 </div>
               </motion.div>
             </div>

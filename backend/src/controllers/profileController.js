@@ -27,7 +27,6 @@ export const uploadPhotoMiddleware = (req, res, next) => {
   });
 };
 
-const MAX_PHOTOS = 20;
 const BUCKET = 'DESTINO';
 
 async function uploadToStorage(path, buffer, mimetype) {
@@ -465,10 +464,6 @@ export const uploadPhoto = async (req, res) => {
       .from('profile_photos')
       .select('*', { count: 'exact', head: true })
       .eq('user_id', req.user.id);
-
-    if (count >= MAX_PHOTOS) {
-      return res.status(400).json({ error: `Límite de ${MAX_PHOTOS} fotos alcanzado` });
-    }
 
     const storagePath = `photos/${req.user.id}/${Date.now()}`;
     const url = await uploadToStorage(storagePath, req.file.buffer, req.file.mimetype);

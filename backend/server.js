@@ -37,6 +37,7 @@ import verificationRoutes from './src/routes/verification.js';
 import rtcRoutes from './src/routes/rtc.js';
 import tipRoutes from './src/routes/tips.js';
 import appealsRoutes from './src/routes/appeals.js';
+import videoRequestRoutes from './src/routes/videoRequests.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -104,6 +105,8 @@ app.use('/api/video/find-partner', videoLimiter);
 app.use('/api/profiles/avatar', uploadLimiter);
 app.use('/api/matches/like', likeLimiter);
 app.use('/api/profiles/photos', uploadLimiter);
+app.use('/api/profiles/videos', uploadLimiter);
+app.use('/api/video-requests', uploadLimiter);
 app.use('/api/payments/photo', paymentLimiter);
 app.use('/api/shows', (req, res, next) => {
   if (req.method === 'POST' && req.path.includes('/ticket')) return paymentLimiter(req, res, next);
@@ -139,6 +142,7 @@ app.use('/api/verification', verificationRoutes);
 app.use('/api/rtc', rtcRoutes);
 app.use('/api/tips', tipRoutes);
 app.use('/api/appeals', appealsRoutes);
+app.use('/api/video-requests', videoRequestRoutes);
 
 // ── Health check ──────────────────────────────────────────────
 app.get('/health', (req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
