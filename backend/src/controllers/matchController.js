@@ -4,7 +4,7 @@ import { sendPushToUser } from './notificationController.js';
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const isValidUUID = (v) => UUID_REGEX.test(v);
 
-const DAILY_LIKE_LIMIT = 10;
+const DAILY_LIKE_LIMIT = 50;
 
 // POST /api/matches/like
 export const likeProfile = async (req, res) => {

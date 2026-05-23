@@ -53,6 +53,7 @@ export default function Profile() {
   const [followersCount, setFollowersCount] = useState(0);
   const [coinsBalance, setCoinsBalance] = useState(0);
   const [streak, setStreak] = useState(0);
+  const [boostSecsLeft, setBoostSecsLeft] = useState(0);
   const fileRef = useRef(null);
   const photoRef = useRef(null);
 
@@ -60,6 +61,17 @@ export default function Profile() {
     if (profile?.streak_count !== undefined) setStreak(profile.streak_count);
     if (profile?.is_incognito !== undefined) setIncognito(profile.is_incognito);
   }, [profile?.streak_count, profile?.is_incognito]);
+
+  useEffect(() => {
+    if (!profile?.boosted_until) { setBoostSecsLeft(0); return; }
+    const update = () => {
+      const secs = Math.max(0, Math.floor((new Date(profile.boosted_until) - Date.now()) / 1000));
+      setBoostSecsLeft(secs);
+    };
+    update();
+    const t = setInterval(update, 1000);
+    return () => clearInterval(t);
+  }, [profile?.boosted_until]);
 
   useEffect(() => {
     if (user?.id) {
@@ -328,6 +340,17 @@ export default function Profile() {
                   title={`${streak} días de racha activa`}
                 >
                   🔥 {streak} {streak === 1 ? 'día' : 'días'}
+                </motion.span>
+              )}
+              {boostSecsLeft > 0 && (
+                <motion.span
+                  initial={{ scale: 0.8, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  className="bg-orange-500/20 text-orange-400 text-xs font-bold px-3 py-1 rounded-full border border-orange-500/30 flex items-center gap-1"
+                  title="Boost activo — tu perfil aparece primero"
+                >
+                  <FiZap size={10} />
+                  {`${Math.floor(boostSecsLeft / 60)}:${String(boostSecsLeft % 60).padStart(2, '0')}`}
                 </motion.span>
               )}
             </div>

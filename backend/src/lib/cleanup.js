@@ -58,6 +58,42 @@ async function expireStaleSubscriptions() {
   }
 }
 
+async function expireStaleMatches() {
+  try {
+    const now = new Date().toISOString();
+    const { data: expired } = await supabase
+      .from('matches')
+      .select('id, user1_id, user2_id')
+      .eq('is_match', true)
+      .not('expires_at', 'is', null)
+      .lt('expires_at', now);
+
+    if (!expired?.length) return;
+
+    const ids = expired.map(m => m.id);
+    await supabase.from('matches').delete().in('id', ids);
+
+    for (const m of expired) {
+      createNotification(
+        m.user1_id,
+        'match_expired',
+        '💔 Match expirado',
+        'Un match expiró porque no hubo conversación en 7 días.',
+        {}
+      ).catch(() => {});
+      createNotification(
+        m.user2_id,
+        'match_expired',
+        '💔 Match expirado',
+        'Un match expiró porque no hubo conversación en 7 días.',
+        {}
+      ).catch(() => {});
+    }
+  } catch (err) {
+    console.error('Expire matches error:', err.message);
+  }
+}
+
 async function expireBoosts() {
   try {
     const now = new Date().toISOString();
@@ -96,11 +132,13 @@ export function startCleanupJob() {
   notifyUpcomingRenewals();
   expireStaleSubscriptions();
   expireBoosts();
+  expireStaleMatches();
   setInterval(() => {
     notifyUpcomingRenewals();
     expireStaleSubscriptions();
     expireBoosts();
+    expireStaleMatches();
   }, RENEWAL_CHECK_INTERVAL_MS);
 
-  console.log('🧹 Cleanup job iniciado (sesiones de video cada 30s, renovaciones/boosts cada 6h)');
+  console.log('🧹 Cleanup job iniciado (sesiones de video cada 30s, renovaciones/boosts/matches cada 6h)');
 }
