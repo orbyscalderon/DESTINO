@@ -106,7 +106,6 @@ app.use('/api/profiles/avatar', uploadLimiter);
 app.use('/api/matches/like', likeLimiter);
 app.use('/api/profiles/photos', uploadLimiter);
 app.use('/api/profiles/videos', uploadLimiter);
-app.use('/api/video-requests', uploadLimiter);
 app.use('/api/payments/photo', paymentLimiter);
 app.use('/api/shows', (req, res, next) => {
   if (req.method === 'POST' && req.path.includes('/ticket')) return paymentLimiter(req, res, next);

@@ -987,9 +987,19 @@ export default function Profile() {
             )}
           </div>
 
-          {/* ── Galería de vídeos (solo creadores) ──────────── */}
-          {profile?.is_creator && (
-            <div className="card p-5 lg:p-6">
+          {/* ── Galería de vídeos ──────────────────────────── */}
+          <div className="card p-5 lg:p-6">
+            {!profile?.is_creator ? (
+              <div className="flex flex-col items-center text-center py-4 gap-3">
+                <FiFilm size={28} className="text-gray-700" />
+                <div>
+                  <p className="text-sm font-semibold text-white">Vídeos de pago</p>
+                  <p className="text-xs text-gray-500 mt-0.5">Activa el modo creador para subir y vender vídeos</p>
+                </div>
+                <Link to="/become-creator" className="btn-primary text-xs px-5 py-2">Ser Creador</Link>
+              </div>
+            ) : (
+              <>
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h3 className="font-semibold text-gray-300 flex items-center gap-2"><FiFilm size={15} /> Vídeos</h3>
@@ -1123,8 +1133,9 @@ export default function Profile() {
                   ))}
                 </div>
               )}
-            </div>
-          )}
+            </>
+            )}
+          </div>
 
           {/* Modal de pricing de foto */}
           {pricingPhoto && (

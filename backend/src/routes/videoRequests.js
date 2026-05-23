@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { requireAuth } from '../middleware/auth.js';
+import { authMiddleware as requireAuth } from '../middleware/auth.js';
 import {
   createVideoRequest,
   getReceivedRequests,

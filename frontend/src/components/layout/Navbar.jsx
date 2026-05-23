@@ -17,16 +17,15 @@ const mobileNavItems = [
 
 // Desktop sidebar (full list)
 const sidebarNavItems = [
-  { to: '/home',          icon: FiHome,    label: 'Inicio' },
-  { to: '/discover',      icon: FiCompass, label: 'Descubrir' },
+  { to: '/home',          icon: FiHome,           label: 'Inicio' },
+  { to: '/discover',      icon: FiCompass,        label: 'Descubrir' },
   { to: '/matches',       icon: FiHeart,          label: 'Matches' },
   { to: '/messages',      icon: FiMessageCircle,  label: 'Mensajes' },
-  { to: '/moments',       icon: FiGrid,           label: 'Momentos' },
-  { to: '/search',        icon: FiSearch, label: 'Buscar' },
-  { to: '/shows',         icon: FiFilm,   label: 'Shows en vivo' },
-  { to: '/adult',         icon: FiShield, label: 'Adultos 18+' },
-  { to: '/video',         icon: FiVideo,  label: 'Videollamadas' },
-  { to: '/profile',       icon: FiUser,   label: 'Perfil' },
+  { to: '/search',        icon: FiSearch,         label: 'Buscar' },
+  { to: '/shows',         icon: FiFilm,           label: 'Shows en vivo' },
+  { to: '/adult',         icon: FiShield,         label: 'Adultos 18+' },
+  { to: '/video',         icon: FiVideo,          label: 'Videollamadas' },
+  { to: '/profile',       icon: FiUser,           label: 'Perfil' },
 ];
 
 export default function Navbar() {
