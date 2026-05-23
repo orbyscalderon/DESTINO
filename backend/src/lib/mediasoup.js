@@ -26,8 +26,21 @@ const MEDIA_CODECS = [
   },
 ];
 
-let worker = null;
-const rooms = new Map(); // roomId → Room
+let worker    = null;
+let publicIp  = null;   // cached at startup
+const rooms   = new Map(); // roomId → Room
+
+async function fetchPublicIp() {
+  if (process.env.MEDIASOUP_ANNOUNCED_IP) return process.env.MEDIASOUP_ANNOUNCED_IP;
+  try {
+    const res = await fetch('https://api.ipify.org?format=json');
+    const { ip } = await res.json();
+    return ip;
+  } catch {
+    console.warn('⚠️  mediasoup: no se pudo obtener IP pública — los shows pueden no funcionar externamente');
+    return null;
+  }
+}
 
 // ── Peer ─────────────────────────────────────────────────────────────────────
 class Peer {
@@ -42,7 +55,7 @@ class Peer {
   async createTransport() {
     const listenIps = [{
       ip: process.env.MEDIASOUP_LISTEN_IP || '0.0.0.0',
-      announcedIp: process.env.MEDIASOUP_ANNOUNCED_IP || null,
+      announcedIp: publicIp,
     }];
 
     const transport = await this.router.createWebRtcTransport({
@@ -144,6 +157,9 @@ class Room {
 
 // ── Public API ────────────────────────────────────────────────────────────────
 export async function initMediasoup() {
+  publicIp = await fetchPublicIp();
+  console.log(`📡 mediasoup announced IP: ${publicIp || 'null (solo LAN)'}`);
+
   worker = await mediasoup.createWorker({
     logLevel: 'warn',
     rtcMinPort: parseInt(process.env.MEDIASOUP_MIN_PORT || '40000'),
