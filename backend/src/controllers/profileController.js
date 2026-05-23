@@ -39,6 +39,37 @@ async function uploadToStorage(path, buffer, mimetype) {
   return supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
 }
 
+// GET /api/profiles/geoip — detecta país del usuario por su IP
+export const getGeoIp = async (req, res) => {
+  try {
+    const raw = req.ip || '';
+    // Limpiar IPv6-mapped IPv4 (::ffff:1.2.3.4 → 1.2.3.4)
+    const ip = raw.replace(/^::ffff:/, '');
+
+    // En desarrollo/localhost no hay IP pública que consultar
+    if (!ip || ip === '127.0.0.1' || ip === '::1') {
+      return res.json({ countryCode: null });
+    }
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 3000);
+
+    const response = await fetch(
+      `http://ip-api.com/json/${ip}?fields=status,countryCode`,
+      { signal: controller.signal }
+    );
+    clearTimeout(timeout);
+
+    const data = await response.json();
+    if (data.status === 'success' && data.countryCode) {
+      return res.json({ countryCode: data.countryCode });
+    }
+    res.json({ countryCode: null });
+  } catch {
+    res.json({ countryCode: null }); // falla silenciosamente
+  }
+};
+
 // GET /api/profiles/top-creators — top 3 creadores por categoría ordenados por suscriptores
 export const getTopCreators = async (req, res) => {
   try {

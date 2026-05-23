@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiCamera, FiChevronRight, FiChevronLeft, FiSearch } from 'react-icons/fi';
@@ -77,6 +77,24 @@ export default function Onboarding() {
       setLoading(false);
     }
   };
+
+  // Auto-detectar país por IP al llegar al paso de ubicación
+  useEffect(() => {
+    if (step !== 2 || form.country) return;
+    api.get('/api/profiles/geoip')
+      .then(({ data }) => {
+        if (!data.countryCode) return;
+        const match = COUNTRIES.find(c => c.code === data.countryCode);
+        if (match) {
+          setForm(f => ({
+            ...f,
+            country: match.code,
+            language: match.lang || f.language,
+          }));
+        }
+      })
+      .catch(() => {});
+  }, [step]);
 
   const filteredCountries = COUNTRIES.filter(c =>
     c.name.toLowerCase().includes(countrySearch.toLowerCase())
@@ -205,7 +223,15 @@ export default function Onboarding() {
 
               {/* País */}
               <div className="mb-5">
-                <p className="text-xs text-gray-500 mb-2 uppercase tracking-wide">País</p>
+                <p className="text-xs text-gray-500 mb-2 uppercase tracking-wide flex items-center gap-2">
+                  País
+                  {!form.country && (
+                    <span className="text-[10px] text-brand-400 flex items-center gap-1 normal-case">
+                      <span className="w-1.5 h-1.5 bg-brand-400 rounded-full animate-pulse" />
+                      Detectando ubicación…
+                    </span>
+                  )}
+                </p>
                 {form.country ? (
                   <div className="flex items-center justify-between bg-dark-700 rounded-xl px-3 py-2.5 mb-1">
                     <span className="text-sm text-white">

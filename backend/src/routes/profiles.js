@@ -4,6 +4,7 @@ import {
   getFeed,
   searchProfiles,
   getTopCreators,
+  getGeoIp,
   getProfile,
   updateProfile,
   deleteAccount,
@@ -37,6 +38,7 @@ router.put('/photos/:photoId/pricing', setPhotoPricing);
 router.post('/boost', boostProfile);
 router.put('/incognito', toggleIncognito);
 router.post('/verify-age', verifyAge);
+router.get('/geoip', getGeoIp);
 router.get('/:id', getProfile);
 router.put('/:id', updateProfile);
 router.post('/avatar', uploadMiddleware, uploadAvatar);
