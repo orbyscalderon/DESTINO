@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiSend, FiLock, FiCheck, FiGlobe, FiImage, FiZap, FiX, FiCornerUpLeft, FiClock, FiSearch, FiMic, FiPlay, FiPause, FiTrash2, FiPin } from 'react-icons/fi';
+import { FiSend, FiLock, FiCheck, FiGlobe, FiImage, FiZap, FiX, FiCornerUpLeft, FiClock, FiSearch, FiMic, FiPlay, FiPause, FiTrash2, FiBookmark } from 'react-icons/fi';
 
 function DoubleCheck({ isRead, light = false }) {
   const color = isRead ? 'text-blue-400' : light ? 'text-white/40' : 'text-gray-600';
@@ -557,7 +557,7 @@ export default function ChatWindow({ matchId, otherUser }) {
             className="overflow-hidden shrink-0"
           >
             <div className="flex items-center gap-2 px-4 py-1.5 bg-brand-500/10 border-b border-brand-500/20">
-              <FiPin size={11} className="text-brand-400 shrink-0" />
+              <FiBookmark size={11} className="text-brand-400 shrink-0" />
               <p className="text-xs text-gray-300 truncate flex-1">
                 <span className="text-brand-400 font-medium">Fijado: </span>
                 {pinnedMsg.content || '🎤 Voz'}
@@ -594,7 +594,7 @@ export default function ChatWindow({ matchId, otherUser }) {
               <div className="py-1">
                 <button onClick={() => handlePinMessage(msgMenu.id)}
                   className="w-full flex items-center gap-3 px-3 py-2 text-sm text-gray-300 hover:bg-white/5 rounded-xl">
-                  <FiPin size={14} /> Fijar mensaje
+                  <FiBookmark size={14} /> Fijar mensaje
                 </button>
                 {msgMenu.isMe && (
                   <button onClick={() => handleDeleteMessage(msgMenu.id, true)}
