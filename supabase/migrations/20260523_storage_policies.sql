@@ -77,11 +77,11 @@ WITH CHECK (
 -- ── 2c. Update y Delete: solo el propietario o service_role ──────────
 CREATE POLICY "DESTINO: owner update"
 ON storage.objects FOR UPDATE TO authenticated
-USING (bucket_id = 'DESTINO' AND owner = auth.uid()::text);
+USING (bucket_id = 'DESTINO' AND owner = auth.uid());
 
 CREATE POLICY "DESTINO: owner delete"
 ON storage.objects FOR DELETE TO authenticated
-USING (bucket_id = 'DESTINO' AND owner = auth.uid()::text);
+USING (bucket_id = 'DESTINO' AND owner = auth.uid());
 
 -- ── 2d. service_role tiene acceso total ──────────────────────────────
 CREATE POLICY "DESTINO: service_role all"
