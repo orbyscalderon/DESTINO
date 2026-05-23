@@ -7,6 +7,7 @@ import { useAuthStore } from '../store/authStore.js';
 import api from '../lib/api.js';
 import toast from 'react-hot-toast';
 import { COUNTRIES, LANGUAGES, countryByCode, languageByCode } from '../lib/geodata.js';
+import FlagImg from '../components/ui/FlagImg.jsx';
 import { compressAvatar, compressImage } from '../lib/imageCompressor.js';
 
 const INTEREST_OPTIONS = [
@@ -738,8 +739,9 @@ export default function Profile() {
                       </div>
                     )}
                     {form.country && (
-                      <p className="text-xs text-brand-400">
-                        {countryByCode(form.country)?.flag} {countryByCode(form.country)?.name}
+                      <p className="text-xs text-brand-400 flex items-center gap-1.5">
+                        <FlagImg code={form.country} className="w-5 h-3.5 rounded-sm object-cover" />
+                        {countryByCode(form.country)?.name}
                       </p>
                     )}
                   </div>
@@ -837,8 +839,9 @@ export default function Profile() {
                     {profile?.country && (
                       <div className="bg-dark-700/50 rounded-xl px-4 py-3">
                         <p className="text-xs text-gray-500 mb-0.5">País</p>
-                        <p className="text-white font-medium">
-                          {countryByCode(profile.country)?.flag} {countryByCode(profile.country)?.name}
+                        <p className="text-white font-medium flex items-center gap-1.5">
+                          <FlagImg code={profile.country} className="w-5 h-3.5 rounded-sm object-cover" />
+                          {countryByCode(profile.country)?.name}
                         </p>
                       </div>
                     )}

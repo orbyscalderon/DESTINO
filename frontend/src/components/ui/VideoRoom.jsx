@@ -8,6 +8,7 @@ import { supabase } from '../../lib/supabase.js';
 import { useAuthStore } from '../../store/authStore.js';
 import { countryByCode, languageByCode } from '../../lib/geodata.js';
 import { showInterstitial } from '../../lib/admob.js';
+import FlagImg from './FlagImg.jsx';
 
 function useOnlineCount() {
   const [count, setCount] = useState(null);
@@ -282,7 +283,7 @@ export default function VideoRoom({ genderFilter, countryFilter, videoCallsRemai
         <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-black/60 backdrop-blur-sm px-2.5 py-1.5 rounded-xl z-10">
           {partner.country && (
             <>
-              <span className="text-base leading-none">{countryByCode(partner.country)?.flag}</span>
+              <FlagImg code={partner.country} className="w-6 h-4 rounded-sm object-cover shrink-0" />
               <span className="text-xs text-white font-medium">{countryByCode(partner.country)?.name || partner.country}</span>
             </>
           )}

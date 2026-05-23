@@ -6,6 +6,7 @@ import VideoRoom from '../components/ui/VideoRoom.jsx';
 import PremiumModal from '../components/ui/PremiumModal.jsx';
 import { useAuthStore } from '../store/authStore.js';
 import { COUNTRIES } from '../lib/geodata.js';
+import FlagImg from '../components/ui/FlagImg.jsx';
 import api from '../lib/api.js';
 
 const GENDER_OPTIONS = [
@@ -199,7 +200,7 @@ export default function Video() {
               </button>
               {countryFilter !== 'any' && selectedCountry && (
                 <div className="flex-1 py-2 rounded-xl text-sm font-medium bg-brand-500/20 border border-brand-500/30 text-brand-300 flex items-center justify-center gap-1.5">
-                  <span className="text-base">{selectedCountry.flag}</span>
+                  <FlagImg code={selectedCountry.code} className="w-5 h-3.5 rounded-sm object-cover" />
                   <span className="text-xs truncate">{selectedCountry.name}</span>
                 </div>
               )}
@@ -253,13 +254,13 @@ export default function Video() {
                       key={c.code}
                       onClick={() => selectCountry(c.code)}
                       title={c.name}
-                      className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs transition-all border ${
+                      className={`flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs transition-all border ${
                         countryFilter === c.code
                           ? 'bg-brand-500/20 border-brand-500/40 text-brand-300'
                           : 'bg-dark-700 border-white/5 text-gray-300 hover:bg-dark-600'
                       }`}
                     >
-                      <span className="text-sm">{c.flag}</span>
+                      <FlagImg code={c.code} className="w-5 h-3.5 rounded-sm object-cover shrink-0" />
                       <span>{c.name}</span>
                     </button>
                   ))}
@@ -275,13 +276,13 @@ export default function Video() {
                     key={c.code}
                     onClick={() => selectCountry(c.code)}
                     title={c.name}
-                    className={`flex flex-col items-center gap-0.5 py-2 px-1 rounded-xl transition-all border text-center ${
+                    className={`flex flex-col items-center gap-1 py-2 px-1 rounded-xl transition-all border text-center ${
                       countryFilter === c.code
                         ? 'bg-brand-500/20 border-brand-500/50 ring-1 ring-brand-500/40'
                         : 'bg-dark-700 border-white/5 hover:bg-dark-600 hover:border-white/10'
                     }`}
                   >
-                    <span className="text-2xl leading-none">{c.flag}</span>
+                    <FlagImg code={c.code} className="w-8 h-5 rounded-sm object-cover" />
                     <span className={`text-[10px] leading-tight w-full truncate ${
                       countryFilter === c.code ? 'text-brand-300 font-semibold' : 'text-gray-400'
                     }`}>{c.name}</span>
