@@ -546,7 +546,13 @@ export default function Settings() {
           </button>
         </div>
 
-        <p className="text-center text-gray-600 text-xs mt-8">Destino v1.0.0 · {SUPPORT_EMAIL}</p>
+        <div className="mt-8 flex flex-wrap justify-center gap-x-5 gap-y-1 text-xs text-gray-600">
+          <Link to="/help" className="hover:text-brand-400 transition-colors">Centro de ayuda</Link>
+          <Link to="/terms" className="hover:text-brand-400 transition-colors">Términos</Link>
+          <Link to="/privacy" className="hover:text-brand-400 transition-colors">Privacidad</Link>
+          <a href={`mailto:${SUPPORT_EMAIL}`} className="hover:text-brand-400 transition-colors">{SUPPORT_EMAIL}</a>
+        </div>
+        <p className="text-center text-gray-700 text-xs mt-2">Destino v1.0.0</p>
       </div>
     </div>
   );

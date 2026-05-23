@@ -33,6 +33,7 @@ const Settings      = lazy(() => import('./pages/Settings.jsx'));
 const Admin         = lazy(() => import('./pages/Admin.jsx'));
 const Privacy       = lazy(() => import('./pages/Privacy.jsx'));
 const Terms         = lazy(() => import('./pages/Terms.jsx'));
+const Help          = lazy(() => import('./pages/Help.jsx'));
 const NotFound      = lazy(() => import('./pages/NotFound.jsx'));
 const BecomeCreator = lazy(() => import('./pages/BecomeCreator.jsx'));
 const CreatorDashboard = lazy(() => import('./pages/CreatorDashboard.jsx'));
@@ -203,6 +204,7 @@ export default function App() {
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/privacy" element={<Privacy />} />
         <Route path="/terms" element={<Terms />} />
+        <Route path="/help" element={<Help />} />
         <Route path="/403" element={<Error403 />} />
         <Route path="/500" element={<Error500 />} />
 
