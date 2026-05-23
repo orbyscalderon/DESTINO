@@ -94,7 +94,7 @@ export default function AdultCreators() {
                   initial={{ opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.04 }}
-                  onClick={() => navigate(`/user/${c.id}`)}
+                  onClick={() => navigate(`/profile/${c.id}`)}
                   className="card overflow-hidden text-left hover:border-brand-500/30 transition-colors"
                 >
                   <div className="relative h-36 bg-dark-700">
