@@ -8,6 +8,7 @@ import {
   getWhoLikedMe,
   getLikesCount,
   addBonusLikes,
+  undoLastSwipe,
 } from '../controllers/matchController.js';
 
 const router = Router();
@@ -16,6 +17,7 @@ router.use(authMiddleware);
 
 router.post('/like', likeProfile);
 router.post('/dislike', dislikeProfile);
+router.post('/undo', premiumMiddleware, undoLastSwipe);
 router.post('/likes/add', addBonusLikes);
 router.get('/likes/count', getLikesCount);
 router.get('/', getMatches);

@@ -1,11 +1,6 @@
-import agoraToken from 'agora-access-token';
-const { RtcTokenBuilder, RtcRole } = agoraToken;
 import { supabase } from '../lib/supabase.js';
 import { v4 as uuidv4 } from 'uuid';
-import dotenv from 'dotenv';
-dotenv.config();
 
-const TOKEN_EXPIRY = 3600;
 const VIDEO_CALL_LIMIT = 5;
 
 async function getVideoCallsToday(userId) {
@@ -34,28 +29,6 @@ export const getVideoUsageToday = async (req, res) => {
       limit: profile?.is_premium ? null : VIDEO_CALL_LIMIT,
       is_premium: !!profile?.is_premium,
     });
-  } catch (err) {
-    res.status(500).json({ error: 'Error interno del servidor' });
-  }
-};
-
-// POST /api/video/token — generar token de Agora para unirse a un canal
-export const generateToken = async (req, res) => {
-  try {
-    const { channelName, uid } = req.body;
-
-    if (!channelName) return res.status(400).json({ error: 'channelName requerido' });
-    if (!/^[a-zA-Z0-9_-]{1,64}$/.test(channelName)) return res.status(400).json({ error: 'channelName inválido' });
-
-    const appId = process.env.AGORA_APP_ID;
-    const appCertificate = process.env.AGORA_APP_CERTIFICATE;
-    const expireTime = Math.floor(Date.now() / 1000) + TOKEN_EXPIRY;
-
-    const token = RtcTokenBuilder.buildTokenWithUid(
-      appId, appCertificate, channelName, uid || 0, RtcRole.PUBLISHER, expireTime
-    );
-
-    res.json({ token, appId, channelName, uid: uid || 0 });
   } catch (err) {
     res.status(500).json({ error: 'Error interno del servidor' });
   }
@@ -175,63 +148,3 @@ export const endSession = async (req, res) => {
   }
 };
 
-// POST /api/video/direct-call — llamada directa a un usuario con match (solo Premium)
-export const directCall = async (req, res) => {
-  try {
-    const callerId = req.user.id;
-    const { matchId } = req.body;
-
-    if (!matchId) return res.status(400).json({ error: 'matchId requerido' });
-
-    // Solo usuarios premium pueden iniciar llamadas directas
-    const { data: callerProfile } = await supabase
-      .from('profiles')
-      .select('is_premium, full_name, avatar_url')
-      .eq('id', callerId)
-      .single();
-
-    if (!callerProfile?.is_premium) {
-      return res.status(403).json({
-        error: 'Las llamadas directas son exclusivas Premium',
-        code: 'PREMIUM_REQUIRED',
-      });
-    }
-
-    // Verificar que existe el match y el caller pertenece a él
-    const { data: match } = await supabase
-      .from('matches')
-      .select('user1_id, user2_id, is_match')
-      .eq('id', matchId)
-      .single();
-
-    if (!match?.is_match || (match.user1_id !== callerId && match.user2_id !== callerId)) {
-      return res.status(403).json({ error: 'No tienes acceso a esta llamada' });
-    }
-
-    const calleeId = match.user1_id === callerId ? match.user2_id : match.user1_id;
-    const channelName = `call_${matchId.replace(/-/g, '').substring(0, 24)}`;
-    const uid = Math.floor(Math.random() * 100000);
-    const expireTime = Math.floor(Date.now() / 1000) + TOKEN_EXPIRY;
-
-    const token = RtcTokenBuilder.buildTokenWithUid(
-      process.env.AGORA_APP_ID,
-      process.env.AGORA_APP_CERTIFICATE,
-      channelName,
-      uid,
-      RtcRole.PUBLISHER,
-      expireTime
-    );
-
-    res.json({
-      channelName,
-      token,
-      appId: process.env.AGORA_APP_ID,
-      uid,
-      calleeId,
-      callerName: callerProfile.full_name,
-      callerAvatar: callerProfile.avatar_url,
-    });
-  } catch (err) {
-    res.status(500).json({ error: 'Error interno del servidor' });
-  }
-};

@@ -1,6 +1,8 @@
 import { useState, useRef } from 'react';
 import { motion, useMotionValue, useTransform } from 'framer-motion';
 import { FiHeart, FiX, FiStar } from 'react-icons/fi';
+import VerifiedBadge from './VerifiedBadge.jsx';
+import { hapticImpact, hapticNotification } from '../../lib/haptics.js';
 
 export default function SwipeCard({ profile, onLike, onDislike, onSuperLike, isPremium }) {
   const [decision, setDecision] = useState(null);
@@ -38,16 +40,19 @@ export default function SwipeCard({ profile, onLike, onDislike, onSuperLike, isP
   };
 
   const triggerLike = () => {
+    hapticNotification('Success');
     setDecision('like');
     setTimeout(() => onLike(profile.id), 400);
   };
 
   const triggerDislike = () => {
+    hapticImpact('Light');
     setDecision('dislike');
     setTimeout(() => onDislike(profile.id), 400);
   };
 
   const triggerSuperLike = () => {
+    hapticNotification('Success');
     setDecision('superlike');
     setTimeout(() => onSuperLike(profile.id), 400);
   };
@@ -123,16 +128,17 @@ export default function SwipeCard({ profile, onLike, onDislike, onSuperLike, isP
 
         {/* Badges */}
         <div className="absolute top-4 right-4 flex gap-2 pointer-events-none">
+          {profile.boosted_until && new Date(profile.boosted_until) > new Date() && (
+            <span className="bg-brand-500/90 text-white text-xs font-bold px-2 py-1 rounded-full flex items-center gap-1">
+              ⚡ Destacado
+            </span>
+          )}
           {profile.is_premium && (
             <span className="bg-yellow-500/90 text-black text-xs font-bold px-2 py-1 rounded-full flex items-center gap-1">
               <FiStar size={10} /> PREMIUM
             </span>
           )}
-          {profile.is_verified && (
-            <span className="bg-blue-500/90 text-white text-xs font-bold px-2 py-1 rounded-full">
-              ✓ VERIFICADO
-            </span>
-          )}
+          {profile.is_verified && <VerifiedBadge size={18} />}
         </div>
 
         {/* Profile info */}

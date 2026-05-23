@@ -1,17 +1,19 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link, useOutletContext, useNavigate } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { FiArrowLeft, FiPhone, FiLock, FiMoreVertical } from 'react-icons/fi';
 import { AnimatePresence } from 'framer-motion';
 import ChatWindow from '../components/ui/ChatWindow.jsx';
 import BlockReportModal from '../components/ui/BlockReportModal.jsx';
 import { useAuthStore } from '../store/authStore.js';
+import { useCallStore } from '../store/callStore.js';
 import api from '../lib/api.js';
 
 export default function Chat() {
   const { matchId } = useParams();
-  const { initiateCall } = useOutletContext() || {};
   const { profile } = useAuthStore();
+  const { setCalling } = useCallStore();
   const navigate = useNavigate();
+  const [initiatingCall, setInitiatingCall] = useState(false);
   const [match, setMatch] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showBlockModal, setShowBlockModal] = useState(false);
@@ -67,11 +69,28 @@ export default function Chat() {
         {match?.other && (
           profile?.is_premium ? (
             <button
-              onClick={() => initiateCall?.(matchId, match.other)}
+              disabled={initiatingCall}
+              onClick={async () => {
+                setInitiatingCall(true);
+                try {
+                  const { data } = await api.post(`/api/rtc/call/${matchId}/init`);
+                  setCalling({ roomId: data.roomId, matchId, calleeId: data.calleeId });
+                  navigate(`/call/${matchId}`);
+                } catch (err) {
+                  import('react-hot-toast').then(({ default: toast }) =>
+                    toast.error(err.response?.data?.error || 'No se pudo iniciar la llamada')
+                  );
+                } finally {
+                  setInitiatingCall(false);
+                }
+              }}
               title="Videollamada"
-              className="w-9 h-9 rounded-xl bg-dark-700 flex items-center justify-center text-green-400 hover:bg-green-500/20 hover:text-green-300 transition-colors"
+              className="w-9 h-9 rounded-xl bg-dark-700 flex items-center justify-center text-green-400 hover:bg-green-500/20 hover:text-green-300 transition-colors disabled:opacity-50"
             >
-              <FiPhone size={16} />
+              {initiatingCall
+                ? <div className="w-4 h-4 border-2 border-green-400 border-t-transparent rounded-full animate-spin" />
+                : <FiPhone size={16} />
+              }
             </button>
           ) : (
             <Link

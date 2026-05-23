@@ -8,7 +8,14 @@ import toast from 'react-hot-toast';
 import { COUNTRIES, LANGUAGES } from '../lib/geodata.js';
 import { compressAvatar } from '../lib/imageCompressor.js';
 
-const STEP_LABELS = ['Foto', 'Sobre ti', 'Ubicación', 'Bio'];
+const STEP_LABELS = ['Foto', 'Sobre ti', 'Ubicación', 'Bio', 'Intereses'];
+
+const ALL_INTERESTS = [
+  '🎵 Música', '✈️ Viajes', '💪 Fitness', '🎮 Gaming',
+  '📸 Fotografía', '🍷 Vinos', '🎬 Cine', '📚 Libros',
+  '🍕 Gastronomía', '🎨 Arte', '🐾 Mascotas', '⚽ Deportes',
+  '🌿 Naturaleza', '💃 Baile', '🧘 Yoga', '🎤 Música en vivo',
+];
 
 export default function Onboarding() {
   const navigate = useNavigate();
@@ -20,7 +27,7 @@ export default function Onboarding() {
   const [countrySearch, setCountrySearch] = useState('');
   const [form, setForm] = useState({
     username: '', fullName: '', age: '', gender: '', bio: '',
-    country: '', language: 'es',
+    country: '', language: 'es', interests: [],
   });
 
   const handlePhotoChange = async (e) => {
@@ -58,6 +65,7 @@ export default function Onboarding() {
         bio: form.bio,
         country: form.country || null,
         language: form.language || 'es',
+        interests: form.interests,
       });
 
       await fetchProfile(user.id);
@@ -296,6 +304,50 @@ export default function Onboarding() {
 
               <div className="flex gap-3 mt-6">
                 <button onClick={() => setStep(2)} className="w-10 h-10 rounded-xl bg-dark-700 flex items-center justify-center text-gray-400 hover:text-white shrink-0">
+                  <FiChevronLeft />
+                </button>
+                <button onClick={() => setStep(4)} className="btn-primary flex-1 flex items-center justify-center gap-2">
+                  Continuar <FiChevronRight />
+                </button>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Paso 4: Intereses */}
+          {step === 4 && (
+            <motion.div key="interests" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }}>
+              <h2 className="text-2xl font-bold mb-1">¿Qué te apasiona?</h2>
+              <p className="text-gray-400 text-sm mb-1">Elige hasta 8 intereses para encontrar personas afines</p>
+              <p className="text-gray-600 text-xs mb-5">Puedes cambiarlos después en tu perfil</p>
+
+              <div className="flex flex-wrap gap-2 mb-6">
+                {ALL_INTERESTS.map(tag => {
+                  const selected = form.interests.includes(tag);
+                  return (
+                    <button
+                      key={tag}
+                      type="button"
+                      onClick={() => setForm(f => ({
+                        ...f,
+                        interests: selected
+                          ? f.interests.filter(t => t !== tag)
+                          : f.interests.length < 8 ? [...f.interests, tag] : f.interests,
+                      }))}
+                      className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
+                        selected
+                          ? 'bg-brand-500 text-white'
+                          : 'bg-dark-700 text-gray-400 hover:bg-dark-600'
+                      }`}
+                    >
+                      {tag}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-gray-600 text-xs mb-4 text-right">{form.interests.length}/8 seleccionados</p>
+
+              <div className="flex gap-3">
+                <button onClick={() => setStep(3)} className="w-10 h-10 rounded-xl bg-dark-700 flex items-center justify-center text-gray-400 hover:text-white shrink-0">
                   <FiChevronLeft />
                 </button>
                 <button onClick={handleFinish} disabled={loading} className="btn-primary flex-1">

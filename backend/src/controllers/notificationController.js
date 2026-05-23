@@ -45,6 +45,38 @@ export const unsubscribe = async (req, res) => {
   }
 };
 
+// GET /api/notifications/prefs
+export const getNotifPrefs = async (req, res) => {
+  try {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('notification_prefs')
+      .eq('id', req.user.id)
+      .single();
+    res.json({ prefs: profile?.notification_prefs || {} });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// PUT /api/notifications/prefs
+export const updateNotifPrefs = async (req, res) => {
+  try {
+    const allowed = ['matches', 'messages', 'likes', 'shows', 'rewards'];
+    const prefs = {};
+    for (const key of allowed) {
+      if (typeof req.body[key] === 'boolean') prefs[key] = req.body[key];
+    }
+    await supabase
+      .from('profiles')
+      .update({ notification_prefs: prefs })
+      .eq('id', req.user.id);
+    res.json({ prefs });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 // Función interna — enviar push a un usuario
 export const sendPushToUser = async (userId, payload) => {
   if (!VAPID_PUBLIC || !VAPID_PRIVATE) return;

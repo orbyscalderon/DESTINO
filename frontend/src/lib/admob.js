@@ -25,13 +25,14 @@ let BannerAdSize, BannerAdPosition, AdLoadInfo;
 async function loadPlugin() {
   if (!isNative() || AdMob) return;
   try {
-    const mod = await import('@capacitor-community/admob');
+    // new Function evita que Vite analice el import en tiempo de build
+    const mod = await new Function('return import("@capacitor-community/admob")')();
     AdMob = mod.AdMob;
     BannerAdSize = mod.BannerAdSize;
     BannerAdPosition = mod.BannerAdPosition;
     AdLoadInfo = mod.AdLoadInfo;
   } catch {
-    // Plugin no instalado — ignorar
+    // Plugin no instalado o entorno web — ignorar
   }
 }
 

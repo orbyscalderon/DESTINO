@@ -1,3 +1,44 @@
+const CACHE_NAME = 'destino-v2';
+const APP_SHELL = ['/'];
+
+// ── Install: cache app shell ──────────────────────────────────────────────────
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL))
+  );
+  self.skipWaiting();
+});
+
+// ── Activate: delete old caches ───────────────────────────────────────────────
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((keys) =>
+      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
+    )
+  );
+  self.clients.claim();
+});
+
+// ── Fetch: stale-while-revalidate for static, network-only for API ────────────
+self.addEventListener('fetch', (event) => {
+  if (event.request.method !== 'GET') return;
+  const url = new URL(event.request.url);
+  // Never cache API, Supabase, or cross-origin requests
+  if (url.pathname.startsWith('/api/') || !url.origin.startsWith(self.location.origin)) return;
+
+  event.respondWith(
+    caches.open(CACHE_NAME).then(async (cache) => {
+      const cached = await cache.match(event.request);
+      const networkFetch = fetch(event.request).then((res) => {
+        if (res.ok) cache.put(event.request, res.clone());
+        return res;
+      }).catch(() => cached);
+      return cached || networkFetch;
+    })
+  );
+});
+
+// ── Push notifications ────────────────────────────────────────────────────────
 self.addEventListener('push', (event) => {
   if (!event.data) return;
   const data = event.data.json();
@@ -13,6 +54,7 @@ self.addEventListener('push', (event) => {
   );
 });
 
+// ── Notification click ────────────────────────────────────────────────────────
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const url = event.notification.data?.url || '/';

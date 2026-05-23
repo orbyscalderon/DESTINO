@@ -77,7 +77,11 @@ export const likeProfile = async (req, res) => {
     if (existingMatch) {
       const { error } = await supabase
         .from('matches')
-        .update({ user2_liked: true, is_match: true })
+        .update({
+          user2_liked: true,
+          is_match: true,
+          expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+        })
         .eq('id', existingMatch.id);
 
       if (error) throw error;
@@ -220,6 +224,7 @@ export const getMatches = async (req, res) => {
         id,
         is_match,
         created_at,
+        expires_at,
         user1_id,
         user2_id,
         user1:profiles!matches_user1_id_fkey(id, full_name, avatar_url, is_premium, is_verified, last_active, country, language),
@@ -231,11 +236,19 @@ export const getMatches = async (req, res) => {
 
     if (error) throw error;
 
-    const normalized = matches?.map(m => ({
-      id: m.id,
-      created_at: m.created_at,
-      other: m.user1_id === userId ? m.user2 : m.user1,
-    })) || [];
+    const ONLINE_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
+    const normalized = matches?.map(m => {
+      const other = m.user1_id === userId ? m.user2 : m.user1;
+      const isOnline = other?.last_active
+        ? (Date.now() - new Date(other.last_active).getTime()) < ONLINE_THRESHOLD_MS
+        : false;
+      return {
+        id: m.id,
+        created_at: m.created_at,
+        expires_at: m.expires_at,
+        other: { ...other, is_online: isOnline },
+      };
+    }) || [];
 
     if (normalized.length === 0) return res.json({ matches: [] });
 
@@ -243,7 +256,7 @@ export const getMatches = async (req, res) => {
 
     const { data: msgData } = await supabase
       .from('messages')
-      .select('match_id, content, image_url, created_at, sender_id, is_read')
+      .select('match_id, content, type, image_url, audio_url, created_at, sender_id, is_read')
       .in('match_id', matchIds)
       .order('created_at', { ascending: false });
 
@@ -252,8 +265,11 @@ export const getMatches = async (req, res) => {
 
     (msgData || []).forEach(msg => {
       if (!lastMsgMap[msg.match_id]) {
+        let preview = msg.content;
+        if (msg.image_url) preview = '📷 Foto';
+        else if (msg.type === 'voice') preview = '🎤 Mensaje de voz';
         lastMsgMap[msg.match_id] = {
-          content: msg.image_url ? '📷 Foto' : msg.content,
+          content: preview,
           created_at: msg.created_at,
           sender_id: msg.sender_id,
         };
@@ -263,11 +279,16 @@ export const getMatches = async (req, res) => {
       }
     });
 
-    const result = normalized.map(m => ({
-      ...m,
-      last_message: lastMsgMap[m.id] || null,
-      unread_count: unreadMap[m.id] || 0,
-    }));
+    const result = normalized.map(m => {
+      const hasMessages = !!lastMsgMap[m.id];
+      const expiresAt = m.expires_at && !hasMessages ? m.expires_at : null;
+      return {
+        ...m,
+        expires_at: expiresAt,
+        last_message: lastMsgMap[m.id] || null,
+        unread_count: unreadMap[m.id] || 0,
+      };
+    });
 
     result.sort((a, b) => {
       const aDate = a.last_message?.created_at || a.created_at;
@@ -325,6 +346,50 @@ export const addBonusLikes = async (req, res) => {
     const remaining = Math.max(0, totalLimit - (used || 0));
 
     res.json({ remaining, bonus: newBonus });
+  } catch (err) {
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
+// POST /api/matches/undo — deshacer el último swipe (solo premium)
+export const undoLastSwipe = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { targetUserId } = req.body;
+
+    if (!targetUserId) return res.status(400).json({ error: 'targetUserId requerido' });
+    if (!isValidUUID(targetUserId)) return res.status(400).json({ error: 'targetUserId inválido' });
+
+    // Case 1: user1_id = userId (user initiated the swipe)
+    const { data: row1 } = await supabase
+      .from('matches')
+      .select('id, is_match')
+      .eq('user1_id', userId)
+      .eq('user2_id', targetUserId)
+      .single();
+
+    if (row1) {
+      await supabase.from('matches').delete().eq('id', row1.id);
+      return res.json({ undone: true });
+    }
+
+    // Case 2: user liked back on an existing record (user1_id = target, user2_id = userId)
+    const { data: row2 } = await supabase
+      .from('matches')
+      .select('id')
+      .eq('user1_id', targetUserId)
+      .eq('user2_id', userId)
+      .single();
+
+    if (row2) {
+      await supabase
+        .from('matches')
+        .update({ user2_liked: false, is_match: false })
+        .eq('id', row2.id);
+      return res.json({ undone: true });
+    }
+
+    res.json({ undone: false });
   } catch (err) {
     res.status(500).json({ error: 'Error interno del servidor' });
   }

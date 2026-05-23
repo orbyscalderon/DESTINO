@@ -89,6 +89,12 @@ export default function Login() {
             </button>
           </div>
 
+          <div className="text-right">
+            <Link to="/forgot-password" className="text-sm text-brand-400 hover:text-brand-300">
+              ¿Olvidaste tu contraseña?
+            </Link>
+          </div>
+
           <button type="submit" disabled={loading} className="btn-primary w-full">
             {loading ? 'Entrando...' : 'Iniciar sesión'}
           </button>

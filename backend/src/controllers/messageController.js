@@ -1,19 +1,40 @@
 import { supabase } from '../lib/supabase.js';
 import { sendPushToUser } from './notificationController.js';
+import { spendCoins, addCoins, coinsToUSD, creatorCutUSD } from './coinController.js';
+import { createNotification } from './inAppNotifController.js';
+import { upsertCreatorEarnings } from './showController.js';
 import multer from 'multer';
 
-const ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+const ALLOWED_IMAGE_MIME = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+const ALLOWED_AUDIO_MIME = ['audio/webm', 'audio/mp4', 'audio/ogg', 'audio/mpeg', 'audio/wav'];
+
 const chatImageUpload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    if (ALLOWED_MIME.includes(file.mimetype)) cb(null, true);
+    if (ALLOWED_IMAGE_MIME.includes(file.mimetype)) cb(null, true);
     else cb(new Error('Solo se permiten imágenes'), false);
   },
 });
 export const chatImageMiddleware = (req, res, next) => {
   chatImageUpload.single('image')(req, res, (err) => {
     if (err?.code === 'LIMIT_FILE_SIZE') return res.status(400).json({ error: 'La imagen no puede superar 10 MB' });
+    if (err) return res.status(400).json({ error: err.message });
+    next();
+  });
+};
+
+const chatAudioUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (ALLOWED_AUDIO_MIME.includes(file.mimetype)) cb(null, true);
+    else cb(new Error('Formato de audio no soportado'), false);
+  },
+});
+export const chatAudioMiddleware = (req, res, next) => {
+  chatAudioUpload.single('audio')(req, res, (err) => {
+    if (err?.code === 'LIMIT_FILE_SIZE') return res.status(400).json({ error: 'El audio no puede superar 10 MB' });
     if (err) return res.status(400).json({ error: err.message });
     next();
   });
@@ -102,10 +123,17 @@ export const getMessages = async (req, res) => {
         id,
         sender_id,
         content,
+        type,
         image_url,
+        audio_url,
+        audio_duration_s,
         created_at,
         is_read,
-        sender:profiles!messages_sender_id_fkey(id, full_name, avatar_url)
+        read_at,
+        is_ppv,
+        ppv_price,
+        sender:profiles!messages_sender_id_fkey(id, full_name, avatar_url),
+        reactions:message_reactions(id, user_id, emoji)
       `)
       .eq('match_id', matchId)
       .order('created_at', { ascending: false })
@@ -116,11 +144,11 @@ export const getMessages = async (req, res) => {
     const { data: messages, error } = await query;
     if (error) throw error;
 
-    // Marcar mensajes del otro como leídos (solo en la carga inicial, no en paginación)
+    // Marcar mensajes del otro como leídos con timestamp
     if (!before) {
       await supabase
         .from('messages')
-        .update({ is_read: true })
+        .update({ is_read: true, read_at: new Date().toISOString() })
         .eq('match_id', matchId)
         .neq('sender_id', userId)
         .eq('is_read', false);
@@ -136,14 +164,17 @@ export const getMessages = async (req, res) => {
 // POST /api/messages — enviar mensaje (pasa por messageLimitMiddleware primero)
 export const sendMessage = async (req, res) => {
   try {
-    const { matchId, content } = req.body;
+    const { matchId, content, type } = req.body;
     if (!matchId || !isValidUUID(matchId)) return res.status(400).json({ error: 'matchId inválido' });
     const userId = req.user.id;
+
+    const ALLOWED_TYPES = ['text', 'gif'];
+    const msgType = ALLOWED_TYPES.includes(type) ? type : 'text';
 
     if (!content?.trim()) return res.status(400).json({ error: 'Mensaje vacío' });
     const sanitized = content.trim().replace(/<[^>]*>/g, '');
     if (sanitized.length === 0) return res.status(400).json({ error: 'Mensaje vacío' });
-    if (sanitized.length > 1000) return res.status(400).json({ error: 'El mensaje no puede superar 1000 caracteres' });
+    if (msgType === 'text' && sanitized.length > 1000) return res.status(400).json({ error: 'El mensaje no puede superar 1000 caracteres' });
 
     // Verificar pertenencia al match
     const { data: match } = await supabase
@@ -159,14 +190,17 @@ export const sendMessage = async (req, res) => {
     // Insertar mensaje
     const { data: message, error } = await supabase
       .from('messages')
-      .insert({ match_id: matchId, sender_id: userId, content: sanitized })
+      .insert({ match_id: matchId, sender_id: userId, content: sanitized, type: msgType })
       .select(`
-        id, sender_id, content, created_at, is_read,
+        id, sender_id, content, type, created_at, is_read,
         sender:profiles!messages_sender_id_fkey(id, full_name, avatar_url)
       `)
       .single();
 
     if (error) throw error;
+
+    // Clear match expiry when conversation starts
+    await supabase.from('matches').update({ expires_at: null }).eq('id', matchId).not('expires_at', 'is', null);
 
     // Enviar push notification al destinatario
     const recipientId = match.user1_id === userId ? match.user2_id : match.user1_id;
@@ -204,6 +238,360 @@ export const sendMessage = async (req, res) => {
     }
 
     res.json({ message, remaining });
+  } catch (err) {
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
+// POST /api/messages/ppv — enviar mensaje PPV (contenido bloqueado con precio en coins)
+export const sendPPVMessage = async (req, res) => {
+  try {
+    const { matchId, caption, ppv_price } = req.body;
+    const userId = req.user.id;
+
+    if (!matchId || !isValidUUID(matchId)) return res.status(400).json({ error: 'matchId inválido' });
+
+    const price = parseInt(ppv_price);
+    if (!price || price < 1 || price > 10000) return res.status(400).json({ error: 'Precio inválido (1–10000 coins)' });
+
+    // Verificar que es creador
+    const { data: profile } = await supabase.from('profiles').select('is_creator').eq('id', userId).single();
+    if (!profile?.is_creator) return res.status(403).json({ error: 'Solo los creadores pueden enviar mensajes PPV' });
+
+    const { data: match } = await supabase
+      .from('matches')
+      .select('user1_id, user2_id, is_match')
+      .eq('id', matchId)
+      .single();
+
+    if (!match?.is_match || (match.user1_id !== userId && match.user2_id !== userId)) {
+      return res.status(403).json({ error: 'No tienes acceso a este chat' });
+    }
+
+    let ppvMediaUrl = null;
+    if (req.file) {
+      const storagePath = `ppv/${matchId}/${userId}-${Date.now()}`;
+      const { error: uploadError } = await supabase.storage
+        .from(BUCKET)
+        .upload(storagePath, req.file.buffer, { contentType: req.file.mimetype, upsert: false });
+      if (uploadError) throw uploadError;
+      ppvMediaUrl = supabase.storage.from(BUCKET).getPublicUrl(storagePath).data.publicUrl;
+    }
+
+    const { data: message, error } = await supabase
+      .from('messages')
+      .insert({
+        match_id: matchId,
+        sender_id: userId,
+        content: caption?.trim() || '🔒 Contenido exclusivo',
+        is_ppv: true,
+        ppv_price: price,
+        ppv_media_url: ppvMediaUrl,
+      })
+      .select(`id, sender_id, content, is_ppv, ppv_price, created_at, is_read,
+        sender:profiles!messages_sender_id_fkey(id, full_name, avatar_url)`)
+      .single();
+
+    if (error) throw error;
+
+    const recipientId = match.user1_id === userId ? match.user2_id : match.user1_id;
+    sendPushToUser(recipientId, {
+      title: 'Nuevo mensaje exclusivo',
+      body: `🔒 ${price} coins para desbloquear`,
+      url: `/chat/${matchId}`,
+    }).catch(() => {});
+
+    res.json({ message });
+  } catch (err) {
+    console.error('sendPPVMessage error:', err.message);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
+// POST /api/messages/ppv/:messageId/unlock — desbloquear mensaje PPV
+export const unlockPPV = async (req, res) => {
+  try {
+    const { messageId } = req.params;
+    const buyerId = req.user.id;
+
+    const { data: msg } = await supabase
+      .from('messages')
+      .select('id, sender_id, is_ppv, ppv_price, ppv_media_url, match_id')
+      .eq('id', messageId)
+      .single();
+
+    if (!msg || !msg.is_ppv) return res.status(404).json({ error: 'Mensaje PPV no encontrado' });
+    if (msg.sender_id === buyerId) return res.status(400).json({ error: 'No puedes desbloquear tu propio contenido' });
+
+    // Verificar que el comprador pertenece al match
+    const { data: match } = await supabase
+      .from('matches')
+      .select('user1_id, user2_id')
+      .eq('id', msg.match_id)
+      .single();
+
+    if (!match || (match.user1_id !== buyerId && match.user2_id !== buyerId)) {
+      return res.status(403).json({ error: 'No tienes acceso a este mensaje' });
+    }
+
+    // Verificar si ya lo desbloqueó
+    const { data: existing } = await supabase
+      .from('ppv_unlocks')
+      .select('id')
+      .eq('message_id', messageId)
+      .eq('buyer_id', buyerId)
+      .single();
+
+    if (existing) {
+      return res.json({ url: msg.ppv_media_url, already_unlocked: true });
+    }
+
+    const coins = msg.ppv_price;
+    await spendCoins(buyerId, coins, 'ppv_spent', messageId);
+
+    const amountUSD = coinsToUSD(coins);
+    const earningsUSD = creatorCutUSD(coins);
+    const platformFee = amountUSD - earningsUSD;
+
+    await supabase.from('ppv_unlocks').insert({
+      message_id: messageId,
+      buyer_id: buyerId,
+      seller_id: msg.sender_id,
+      coins_spent: coins,
+      amount_usd: amountUSD,
+      creator_earnings: earningsUSD,
+      platform_fee: platformFee,
+    });
+
+    await addCoins(msg.sender_id, Math.round(coins * 0.7), 'ppv_received', messageId);
+    await upsertCreatorEarnings(msg.sender_id, earningsUSD);
+
+    const { data: buyer } = await supabase.from('profiles').select('full_name').eq('id', buyerId).single();
+    createNotification(
+      msg.sender_id,
+      'ppv',
+      '¡Alguien desbloqueó tu mensaje!',
+      `${buyer?.full_name} pagó ${coins} coins`,
+      { message_id: messageId }
+    );
+    sendPushToUser(msg.sender_id, {
+      title: '¡Mensaje desbloqueado!',
+      body: `${buyer?.full_name} pagó ${coins} coins`,
+      url: `/chat/${msg.match_id}`,
+    }).catch(() => {});
+
+    res.json({ url: msg.ppv_media_url });
+  } catch (err) {
+    if (err?.code === 'INSUFFICIENT_COINS') {
+      return res.status(400).json({ error: 'Saldo de coins insuficiente', code: 'INSUFFICIENT_COINS' });
+    }
+    console.error('unlockPPV error:', err.message);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
+// POST /api/messages/voice — enviar mensaje de voz
+export const sendVoiceMessage = async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No se recibió audio' });
+    const { matchId, duration } = req.body;
+    if (!matchId || !isValidUUID(matchId)) return res.status(400).json({ error: 'matchId inválido' });
+    const userId = req.user.id;
+
+    const { data: match } = await supabase
+      .from('matches')
+      .select('user1_id, user2_id, is_match')
+      .eq('id', matchId)
+      .single();
+    if (!match?.is_match || (match.user1_id !== userId && match.user2_id !== userId)) {
+      return res.status(403).json({ error: 'No tienes acceso a este chat' });
+    }
+
+    const ext = req.file.mimetype.includes('ogg') ? 'ogg' : 'webm';
+    const storagePath = `chat-audio/${matchId}/${userId}-${Date.now()}.${ext}`;
+    const { error: uploadError } = await supabase.storage
+      .from(BUCKET)
+      .upload(storagePath, req.file.buffer, { contentType: req.file.mimetype, upsert: false });
+    if (uploadError) throw uploadError;
+
+    const audioUrl = supabase.storage.from(BUCKET).getPublicUrl(storagePath).data.publicUrl;
+
+    const { data: message, error } = await supabase
+      .from('messages')
+      .insert({
+        match_id: matchId,
+        sender_id: userId,
+        content: '',
+        type: 'voice',
+        audio_url: audioUrl,
+        audio_duration_s: parseInt(duration) || null,
+      })
+      .select(`id, sender_id, content, type, audio_url, audio_duration_s, created_at, is_read,
+        sender:profiles!messages_sender_id_fkey(id, full_name, avatar_url)`)
+      .single();
+    if (error) throw error;
+
+    const recipientId = match.user1_id === userId ? match.user2_id : match.user1_id;
+    const { data: sp } = await supabase.from('profiles').select('full_name').eq('id', userId).single();
+    sendPushToUser(recipientId, {
+      title: sp?.full_name || 'Nuevo mensaje',
+      body: '🎤 Mensaje de voz',
+      url: `/chat/${matchId}`,
+    }).catch(() => {});
+
+    res.json({ message });
+  } catch (err) {
+    console.error('sendVoiceMessage error:', err.message);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
+// POST /api/messages/:id/reactions — añadir/quitar reacción
+export const toggleReaction = async (req, res) => {
+  try {
+    const { id: messageId } = req.params;
+    const userId = req.user.id;
+    const { emoji } = req.body;
+
+    if (!emoji || emoji.length > 8) return res.status(400).json({ error: 'Emoji inválido' });
+
+    // Verify user belongs to the match
+    const { data: msg } = await supabase
+      .from('messages')
+      .select('match_id')
+      .eq('id', messageId)
+      .single();
+    if (!msg) return res.status(404).json({ error: 'Mensaje no encontrado' });
+
+    const { data: match } = await supabase
+      .from('matches')
+      .select('user1_id, user2_id')
+      .eq('id', msg.match_id)
+      .single();
+    if (!match || (match.user1_id !== userId && match.user2_id !== userId)) {
+      return res.status(403).json({ error: 'No autorizado' });
+    }
+
+    // Toggle: if exists → delete, if not → insert
+    const { data: existing } = await supabase
+      .from('message_reactions')
+      .select('id')
+      .eq('message_id', messageId)
+      .eq('user_id', userId)
+      .single();
+
+    if (existing) {
+      await supabase.from('message_reactions').delete().eq('id', existing.id);
+      return res.json({ action: 'removed' });
+    }
+
+    await supabase.from('message_reactions').insert({ message_id: messageId, user_id: userId, emoji });
+    res.json({ action: 'added' });
+  } catch (err) {
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
+// DELETE /api/messages/:id — borrar mensaje
+export const deleteMessage = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { id: messageId } = req.params;
+    const { forAll } = req.body; // boolean
+
+    const { data: msg } = await supabase
+      .from('messages').select('sender_id, match_id').eq('id', messageId).single();
+    if (!msg) return res.status(404).json({ error: 'Mensaje no encontrado' });
+
+    // Verify user is participant
+    const { data: match } = await supabase
+      .from('matches').select('user1_id, user2_id').eq('id', msg.match_id).single();
+    if (!match || (match.user1_id !== userId && match.user2_id !== userId)) {
+      return res.status(403).json({ error: 'No autorizado' });
+    }
+
+    if (forAll && msg.sender_id === userId) {
+      await supabase.from('messages').update({ deleted_for_all: true, content: '' }).eq('id', messageId);
+      return res.json({ action: 'deleted_for_all' });
+    }
+
+    // Soft-delete for self only
+    if (msg.sender_id === userId) {
+      await supabase.from('messages').update({ deleted_for_sender: true }).eq('id', messageId);
+    } else {
+      // Recipient can also hide for themselves (future: deleted_for_recipient column)
+      await supabase.from('messages').update({ deleted_for_sender: true }).eq('id', messageId);
+    }
+    res.json({ action: 'deleted_for_me' });
+  } catch (err) {
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
+// PUT /api/messages/:matchId/pin — pin a message in a match
+export const pinMessage = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { matchId } = req.params;
+    const { messageId } = req.body;
+
+    const { data: match } = await supabase
+      .from('matches').select('user1_id, user2_id').eq('id', matchId).single();
+    if (!match || (match.user1_id !== userId && match.user2_id !== userId)) {
+      return res.status(403).json({ error: 'No autorizado' });
+    }
+
+    await supabase.from('pinned_messages').upsert(
+      { match_id: matchId, message_id: messageId, pinned_by: userId },
+      { onConflict: 'match_id' }
+    );
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
+// DELETE /api/messages/:matchId/pin — unpin
+export const unpinMessage = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { matchId } = req.params;
+
+    const { data: match } = await supabase
+      .from('matches').select('user1_id, user2_id').eq('id', matchId).single();
+    if (!match || (match.user1_id !== userId && match.user2_id !== userId)) {
+      return res.status(403).json({ error: 'No autorizado' });
+    }
+
+    await supabase.from('pinned_messages').delete().eq('match_id', matchId);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
+// GET /api/messages/:matchId/pin — get pinned message
+export const getPinnedMessage = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { matchId } = req.params;
+
+    const { data: match } = await supabase
+      .from('matches').select('user1_id, user2_id').eq('id', matchId).single();
+    if (!match || (match.user1_id !== userId && match.user2_id !== userId)) {
+      return res.status(403).json({ error: 'No autorizado' });
+    }
+
+    const { data: pin } = await supabase
+      .from('pinned_messages')
+      .select(`
+        message_id,
+        message:messages!message_id(id, content, type, sender_id, created_at)
+      `)
+      .eq('match_id', matchId)
+      .single();
+
+    res.json({ pinned: pin?.message || null });
   } catch (err) {
     res.status(500).json({ error: 'Error interno del servidor' });
   }

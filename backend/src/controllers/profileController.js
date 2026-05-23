@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase.js';
+import { spendCoins } from './coinController.js';
 import multer from 'multer';
 
 const ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
@@ -38,12 +39,127 @@ async function uploadToStorage(path, buffer, mimetype) {
   return supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
 }
 
+// GET /api/profiles/top-creators — top 3 creadores por categoría ordenados por suscriptores
+export const getTopCreators = async (req, res) => {
+  try {
+    const CATEGORIES = ['music', 'dance', 'comedy', 'chat', 'gaming', 'fitness', 'cooking', 'art', 'adult'];
+    const CATEGORY_META = {
+      adult:   { label: 'Adulto',  emoji: '🔞' },
+      music:   { label: 'Música',  emoji: '🎵' },
+      dance:   { label: 'Baile',   emoji: '💃' },
+      comedy:  { label: 'Comedia', emoji: '😂' },
+      chat:    { label: 'Chat',    emoji: '💬' },
+      gaming:  { label: 'Gaming',  emoji: '🎮' },
+      fitness: { label: 'Fitness', emoji: '💪' },
+      cooking: { label: 'Cocina',  emoji: '🍳' },
+      art:     { label: 'Arte',    emoji: '🎨' },
+    };
+
+    const { data: showData } = await supabase
+      .from('live_shows')
+      .select('host_id, category')
+      .not('host_id', 'is', null);
+
+    // category → Set de host_id
+    const catMap = {};
+    (showData || []).forEach(s => {
+      if (!CATEGORIES.includes(s.category)) return;
+      if (!catMap[s.category]) catMap[s.category] = new Set();
+      catMap[s.category].add(s.host_id);
+    });
+
+    const creatorIds = [...new Set((showData || []).map(s => s.host_id).filter(Boolean))];
+
+    if (creatorIds.length === 0) return res.json({ categories: [] });
+
+    const [{ data: profiles }, { data: subData }] = await Promise.all([
+      supabase
+        .from('profiles')
+        .select('id, full_name, username, avatar_url, is_verified, is_creator, is_premium')
+        .in('id', creatorIds)
+        .eq('is_creator', true),
+      supabase
+        .from('creator_subscriptions')
+        .select('creator_id')
+        .eq('status', 'active')
+        .in('creator_id', creatorIds),
+    ]);
+
+    const subCount = {};
+    (subData || []).forEach(s => { subCount[s.creator_id] = (subCount[s.creator_id] || 0) + 1; });
+
+    const profileMap = {};
+    (profiles || []).forEach(p => { profileMap[p.id] = p; });
+
+    const categories = CATEGORIES
+      .map(cat => {
+        const hostIds = [...(catMap[cat] || new Set())];
+        const creators = hostIds
+          .map(id => profileMap[id])
+          .filter(Boolean)
+          .sort((a, b) => (subCount[b.id] || 0) - (subCount[a.id] || 0))
+          .slice(0, 3)
+          .map(p => ({ ...p, subscriber_count: subCount[p.id] || 0 }));
+        return { key: cat, ...CATEGORY_META[cat], creators };
+      })
+      .filter(c => c.creators.length > 0);
+
+    res.json({ categories });
+  } catch {
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
+// GET /api/profiles/search?q=... — búsqueda de usuarios por nombre/username
+export const searchProfiles = async (req, res) => {
+  try {
+    const { q, gender, min_age, max_age, country, is_creator } = req.query;
+    if (!q || q.trim().length < 2) return res.json({ profiles: [] });
+
+    const term = q.trim().toLowerCase();
+    const userId = req.user.id;
+
+    // Block list — don't show blocked/blocking users in search
+    const [{ data: blockedRows }, { data: blockedByRows }] = await Promise.all([
+      supabase.from('blocked_users').select('blocked_id').eq('blocker_id', userId),
+      supabase.from('blocked_users').select('blocker_id').eq('blocked_id', userId),
+    ]);
+    const excludeIds = [
+      userId,
+      ...(blockedRows?.map(r => r.blocked_id) || []),
+      ...(blockedByRows?.map(r => r.blocker_id) || []),
+    ];
+
+    let query = supabase
+      .from('profiles')
+      .select('id, full_name, username, avatar_url, is_verified, is_creator, is_premium, country, age, gender')
+      .or(`full_name.ilike.%${term}%,username.ilike.%${term}%`)
+      .not('id', 'in', `(${excludeIds.join(',')})`)
+      // CRITICAL: never show adult creator profiles in general search
+      .or('is_adult_creator.is.null,is_adult_creator.eq.false')
+      .or('is_incognito.is.null,is_incognito.eq.false')
+      .limit(30);
+
+    if (gender && gender !== 'all') query = query.eq('gender', gender);
+    if (min_age) query = query.gte('age', parseInt(min_age));
+    if (max_age) query = query.lte('age', parseInt(max_age));
+    if (country) query = query.eq('country', country);
+    if (is_creator === 'true') query = query.eq('is_creator', true);
+
+    const { data, error } = await query;
+    if (error) throw error;
+    res.json({ profiles: data || [] });
+  } catch (err) {
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
 // GET /api/profiles/feed
 export const getFeed = async (req, res) => {
   try {
     const userId = req.user.id;
     const limit = parseInt(req.query.limit) || 20;
-    const { gender, minAge, maxAge, country, language } = req.query;
+    const { gender, minAge, maxAge, country, language, interests } = req.query;
 
     const [
       { data: seenMatches },
@@ -69,9 +185,11 @@ export const getFeed = async (req, res) => {
 
     let query = supabase
       .from('profiles')
-      .select('id, username, full_name, age, gender, bio, avatar_url, is_premium, is_verified, country, language')
+      .select('id, username, full_name, age, gender, bio, avatar_url, is_premium, is_verified, country, language, interests')
       .not('id', 'in', `(${seenIds.join(',')})`)
       .not('username', 'is', null)
+      .or('is_adult_creator.is.null,is_adult_creator.eq.false')
+      .or('is_incognito.is.null,is_incognito.eq.false')
       .order('is_premium', { ascending: false })
       .limit(limit);
 
@@ -80,6 +198,10 @@ export const getFeed = async (req, res) => {
     if (maxAge) query = query.lte('age', parseInt(maxAge));
     if (country) query = query.eq('country', country);
     if (language) query = query.eq('language', language);
+    if (interests) {
+      const tags = interests.split(',').map(t => t.trim()).filter(Boolean);
+      if (tags.length > 0) query = query.overlaps('interests', tags);
+    }
 
     const { data: profiles, error } = await query;
 
@@ -113,32 +235,61 @@ export const getProfile = async (req, res) => {
   try {
     const { data: profile, error } = await supabase
       .from('profiles')
-      .select('id, username, full_name, age, gender, bio, avatar_url, is_premium, is_verified, country, language, created_at')
+      .select('id, username, full_name, age, gender, bio, avatar_url, is_premium, is_verified, country, language, interests, created_at, is_creator, creator_bio, creator_subscription_price, is_adult_creator, stripe_account_status, is_admin, profile_views, boosted_until, last_active, is_incognito')
       .eq('id', req.params.id)
       .single();
 
     if (error || !profile) return res.status(404).json({ error: 'Perfil no encontrado' });
 
-    const { data: photos } = await supabase
-      .from('profile_photos')
-      .select('id, url, position')
-      .eq('user_id', req.params.id)
-      .order('position', { ascending: true });
+    const viewerId = req.user?.id;
+    const [photosResult, subResult] = await Promise.all([
+      supabase
+        .from('profile_photos')
+        .select('id, url, position')
+        .eq('user_id', req.params.id)
+        .order('position', { ascending: true }),
+      profile.is_creator && profile.creator_subscription_price
+        ? supabase
+            .from('creator_subscriptions')
+            .select('id')
+            .eq('subscriber_id', viewerId)
+            .eq('creator_id', req.params.id)
+            .eq('status', 'active')
+            .maybeSingle()
+        : Promise.resolve({ data: null }),
+    ]);
 
-    res.json({ profile: { ...profile, photos: photos || [] } });
+    // Increment view counter (fire-and-forget, skip self-views)
+    if (viewerId && viewerId !== req.params.id) {
+      supabase.rpc('increment_profile_views', { target_user_id: req.params.id }).catch(() => {});
+    }
+
+    res.json({
+      profile: {
+        ...profile,
+        photos: photosResult.data || [],
+        is_subscribed: !!subResult.data,
+      },
+    });
   } catch (err) {
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
 
-// PUT /api/profiles/:id
 export const updateProfile = async (req, res) => {
   try {
     if (req.params.id !== req.user.id) {
       return res.status(403).json({ error: 'No autorizado' });
     }
 
-    const { username, full_name, age, gender, bio, country, language } = req.body;
+    const { username, full_name, bio, country } = req.body;
+    // Tratar empty strings como "no enviado"
+    const age      = req.body.age      !== '' ? req.body.age      : undefined;
+    const gender   = req.body.gender   !== '' ? req.body.gender   : undefined;
+    const language = req.body.language !== '' ? req.body.language : undefined;
+    const height   = req.body.height   !== '' ? req.body.height   : undefined;
+    const zodiac   = req.body.zodiac   !== '' ? req.body.zodiac   : undefined;
+    const interests = Array.isArray(req.body.interests) ? req.body.interests.slice(0, 8) : undefined;
 
     if (username !== undefined) {
       if (!/^[a-z0-9_]{3,20}$/.test(username)) {
@@ -179,17 +330,24 @@ export const updateProfile = async (req, res) => {
         ...(bio !== undefined && { bio }),
         ...(country !== undefined && { country }),
         ...(language !== undefined && { language }),
+        ...(height !== undefined && { height: parseInt(height) || null }),
+        ...(zodiac !== undefined && { zodiac }),
+        ...(interests !== undefined && { interests }),
         last_active: new Date(),
       })
       .eq('id', req.user.id)
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error('updateProfile supabase error:', error);
+      throw error;
+    }
 
     res.json({ profile });
   } catch (err) {
-    res.status(500).json({ error: 'Error interno del servidor' });
+    console.error('updateProfile error:', err?.message || err);
+    res.status(500).json({ error: err?.message || 'Error interno del servidor' });
   }
 };
 
@@ -217,6 +375,29 @@ export const heartbeat = async (req, res) => {
       .update({ last_active: new Date().toISOString() })
       .eq('id', req.user.id);
     res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
+// PUT /api/profiles/incognito — activar/desactivar modo incógnito
+export const toggleIncognito = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { enabled } = req.body;
+    await supabase.from('profiles').update({ is_incognito: !!enabled }).eq('id', userId);
+    res.json({ is_incognito: !!enabled });
+  } catch (err) {
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
+// POST /api/profiles/verify-age — consumer declares 18+ consent
+export const verifyAge = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    await supabase.from('profiles').update({ age_verified_at: new Date().toISOString() }).eq('id', userId);
+    res.json({ age_verified_at: new Date().toISOString() });
   } catch (err) {
     res.status(500).json({ error: 'Error interno del servidor' });
   }
@@ -302,6 +483,90 @@ export const deleteAccount = async (req, res) => {
   }
 };
 
+// GET /api/profiles/:id/photos — ahora incluye is_paid y price; oculta la URL si es de pago y el viewer no la compró
+export const getPhotosForViewer = async (req, res) => {
+  try {
+    const ownerId = req.params.id;
+    const viewerId = req.user?.id;
+
+    const { data: photos, error } = await supabase
+      .from('profile_photos')
+      .select('id, url, position, created_at, is_paid, price')
+      .eq('user_id', ownerId)
+      .order('position', { ascending: true });
+
+    if (error) throw error;
+
+    // Si el viewer es el dueño, devolver todo
+    if (viewerId === ownerId) {
+      return res.json({ photos: photos || [] });
+    }
+
+    // Para fotos de pago, verificar qué compró el viewer
+    const paidIds = (photos || []).filter(p => p.is_paid).map(p => p.id);
+    let purchasedIds = new Set();
+
+    if (paidIds.length > 0 && viewerId) {
+      const { data: purchases } = await supabase
+        .from('content_purchases')
+        .select('content_id')
+        .eq('buyer_id', viewerId)
+        .eq('content_type', 'photo')
+        .in('content_id', paidIds);
+
+      purchasedIds = new Set((purchases || []).map(p => p.content_id));
+    }
+
+    const result = (photos || []).map(p => {
+      if (!p.is_paid) return p;
+      const purchased = purchasedIds.has(p.id);
+      return {
+        ...p,
+        url: purchased ? p.url : null, // ocultar URL si no compró
+        is_purchased: purchased,
+      };
+    });
+
+    res.json({ photos: result });
+  } catch (err) {
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
+// PUT /api/profiles/photos/:photoId/pricing — el creador establece precio de una foto
+export const setPhotoPricing = async (req, res) => {
+  try {
+    const { photoId } = req.params;
+    const { is_paid, price } = req.body;
+
+    const { data: photo } = await supabase
+      .from('profile_photos')
+      .select('id, user_id')
+      .eq('id', photoId)
+      .single();
+
+    if (!photo) return res.status(404).json({ error: 'Foto no encontrada' });
+    if (photo.user_id !== req.user.id) return res.status(403).json({ error: 'No autorizado' });
+
+    const parsedPrice = parseFloat(price) || 0;
+    if (is_paid && (parsedPrice <= 0 || parsedPrice > 999)) {
+      return res.status(400).json({ error: 'El precio debe ser entre $0.01 y $999' });
+    }
+
+    await supabase
+      .from('profile_photos')
+      .update({
+        is_paid: !!is_paid,
+        price: is_paid ? parsedPrice : null,
+      })
+      .eq('id', photoId);
+
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
 // DELETE /api/profiles/photos/:photoId
 export const deletePhoto = async (req, res) => {
   try {
@@ -324,6 +589,48 @@ export const deletePhoto = async (req, res) => {
     if (error) throw error;
 
     res.json({ message: 'Foto eliminada' });
+  } catch (err) {
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
+// PUT /api/profiles/photos/order — reordenar fotos
+export const reorderPhotos = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { photoIds } = req.body;
+    if (!Array.isArray(photoIds)) return res.status(400).json({ error: 'photoIds debe ser un array' });
+
+    await Promise.all(
+      photoIds.map((id, idx) =>
+        supabase.from('profile_photos').update({ sort_order: idx }).eq('id', id).eq('user_id', userId)
+      )
+    );
+
+    res.json({ message: 'Orden actualizado' });
+  } catch (err) {
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
+// POST /api/profiles/boost — activar boost de visibilidad
+export const boostProfile = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const BOOST_COST = 50;
+
+    try {
+      await spendCoins(userId, BOOST_COST, 'boost');
+    } catch (e) {
+      if (e.code === 'INSUFFICIENT_COINS') {
+        return res.status(400).json({ error: 'Coins insuficientes (necesitas 50 coins)', code: 'INSUFFICIENT_COINS' });
+      }
+      throw e;
+    }
+
+    await supabase.from('profiles').update({ boosted_until: new Date(Date.now() + 30 * 60 * 1000) }).eq('id', userId);
+
+    res.json({ message: 'Boost activado por 30 minutos', cost: BOOST_COST });
   } catch (err) {
     res.status(500).json({ error: 'Error interno del servidor' });
   }

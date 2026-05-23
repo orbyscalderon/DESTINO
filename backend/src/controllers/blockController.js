@@ -74,7 +74,7 @@ export const reportUser = async (req, res) => {
     if (!reason?.trim()) return res.status(400).json({ error: 'reason requerido' });
     if (reportedId === reporterId) return res.status(400).json({ error: 'No puedes reportarte a ti mismo' });
 
-    const validReasons = ['spam', 'inappropriate', 'harassment', 'fake', 'other'];
+    const validReasons = ['spam', 'inappropriate', 'harassment', 'fake', 'other', 'fake_profile', 'hate_speech', 'underage'];
     if (!validReasons.includes(reason)) return res.status(400).json({ error: 'Motivo inválido' });
 
     const { error } = await supabase

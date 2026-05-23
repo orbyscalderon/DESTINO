@@ -15,6 +15,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 import { startCleanupJob } from './src/lib/cleanup.js';
+import { initMediasoup } from './src/lib/mediasoup.js';
 import profileRoutes from './src/routes/profiles.js';
 import matchRoutes from './src/routes/matches.js';
 import messageRoutes from './src/routes/messages.js';
@@ -24,6 +25,18 @@ import adminRoutes from './src/routes/admin.js';
 import blockRoutes from './src/routes/blocks.js';
 import notificationRoutes from './src/routes/notifications.js';
 import translationRoutes from './src/routes/translation.js';
+import showRoutes from './src/routes/shows.js';
+import creatorRoutes from './src/routes/creator.js';
+import coinRoutes from './src/routes/coins.js';
+import storyRoutes from './src/routes/stories.js';
+import postRoutes from './src/routes/posts.js';
+import followRoutes from './src/routes/follows.js';
+import withdrawalRoutes from './src/routes/withdrawals.js';
+import referralRoutes from './src/routes/referrals.js';
+import verificationRoutes from './src/routes/verification.js';
+import rtcRoutes from './src/routes/rtc.js';
+import tipRoutes from './src/routes/tips.js';
+import appealsRoutes from './src/routes/appeals.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -36,15 +49,22 @@ app.use(helmet({
 
 // ── CORS ──────────────────────────────────────────────────────
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  origin: (origin, cb) => {
+    // En desarrollo permitir cualquier origen local (localhost, IPs de red)
+    if (!origin) return cb(null, true); // curl / server-to-server
+    if (process.env.NODE_ENV !== 'production') return cb(null, true);
+    const allowed = process.env.FRONTEND_URL || 'http://localhost:5173';
+    cb(origin === allowed ? null : new Error('CORS'), origin === allowed);
+  },
   credentials: true,
 }));
 
 // ── Rate limiters ─────────────────────────────────────────────
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100,
+  max: process.env.NODE_ENV === 'production' ? 200 : 2000,
   message: { error: 'Demasiadas solicitudes, intenta más tarde' },
+  skip: () => process.env.NODE_ENV !== 'production', // sin límite en desarrollo
 });
 
 const paymentLimiter = rateLimit({
@@ -70,10 +90,14 @@ app.use('/api', (req, res, next) => {
   return generalLimiter(req, res, next);
 });
 app.use('/api/payments/create-checkout', paymentLimiter);
-app.use('/api/video/token', videoLimiter);
 app.use('/api/video/find-partner', videoLimiter);
 app.use('/api/profiles/avatar', uploadLimiter);
 app.use('/api/profiles/photos', uploadLimiter);
+app.use('/api/payments/photo', paymentLimiter);
+app.use('/api/shows', (req, res, next) => {
+  if (req.method === 'POST' && req.path.includes('/ticket')) return paymentLimiter(req, res, next);
+  return next(); // generalLimiter ya aplicado en /api arriba
+});
 
 // ── Raw body para Stripe Webhook ──────────────────────────────
 app.use('/api/payments/webhook', express.raw({ type: 'application/json' }));
@@ -92,6 +116,18 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/blocks', blockRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/translate', translationRoutes);
+app.use('/api/shows', showRoutes);
+app.use('/api/creator', creatorRoutes);
+app.use('/api/coins', coinRoutes);
+app.use('/api/stories', storyRoutes);
+app.use('/api/posts', postRoutes);
+app.use('/api/follows', followRoutes);
+app.use('/api/withdrawals', withdrawalRoutes);
+app.use('/api/referrals', referralRoutes);
+app.use('/api/verification', verificationRoutes);
+app.use('/api/rtc', rtcRoutes);
+app.use('/api/tips', tipRoutes);
+app.use('/api/appeals', appealsRoutes);
 
 // ── Health check ──────────────────────────────────────────────
 app.get('/health', (req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
@@ -119,6 +155,7 @@ app.listen(PORT, () => {
   }
 
   startCleanupJob();
+  initMediasoup().catch(err => console.error('mediasoup init failed:', err));
 });
 
 export default app;

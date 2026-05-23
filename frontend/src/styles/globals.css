@@ -63,4 +63,23 @@
   .gradient-text {
     @apply bg-gradient-to-r from-brand-500 to-pink-400 bg-clip-text text-transparent;
   }
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Light mode: invert dark UI to light */
+html.light {
+  filter: invert(1) hue-rotate(180deg);
+}
+html.light img,
+html.light video,
+html.light canvas,
+html.light [data-no-invert] {
+  filter: invert(1) hue-rotate(180deg);
 }

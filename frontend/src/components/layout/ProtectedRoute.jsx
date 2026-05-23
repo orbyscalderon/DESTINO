@@ -1,15 +1,10 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
-import { AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '../../store/authStore.js';
 import Navbar from './Navbar.jsx';
-import { useCallManager } from '../../hooks/useCallManager.js';
-import IncomingCallModal from '../ui/IncomingCallModal.jsx';
-import DirectCallRoom from '../ui/DirectCallRoom.jsx';
 
 export default function ProtectedRoute() {
   const { user, loading, profile } = useAuthStore();
   const location = useLocation();
-  const { callStatus, incomingCall, activeCall, initiateCall, acceptCall, declineCall, endCall } = useCallManager();
 
   if (loading) {
     return (
@@ -24,6 +19,12 @@ export default function ProtectedRoute() {
 
   if (!user) return <Navigate to="/" replace />;
 
+  // Bloquear acceso hasta verificar email (excepto Google OAuth que ya está verificado)
+  const isEmailProvider = user.app_metadata?.provider === 'email';
+  if (isEmailProvider && !user.email_confirmed_at && location.pathname !== '/verify-email') {
+    return <Navigate to="/verify-email" replace />;
+  }
+
   if (profile && !profile.username && location.pathname !== '/onboarding') {
     return <Navigate to="/onboarding" replace />;
   }
@@ -31,28 +32,9 @@ export default function ProtectedRoute() {
   return (
     <>
       <Navbar />
-      {/* Mobile: pb-20 deja espacio para el navbar fijo. Desktop: ml-64 deja espacio para el sidebar. */}
       <div className="min-h-screen bg-dark-900 pb-20 lg:pb-0 lg:ml-64">
-        <Outlet context={{ initiateCall }} />
+        <Outlet />
       </div>
-
-      {/* Modal de llamada entrante */}
-      <AnimatePresence>
-        {callStatus === 'ringing' && incomingCall && (
-          <IncomingCallModal
-            call={incomingCall}
-            onAccept={acceptCall}
-            onDecline={declineCall}
-          />
-        )}
-      </AnimatePresence>
-
-      {/* Sala de llamada activa (overlay full-screen) */}
-      <AnimatePresence>
-        {(callStatus === 'calling' || callStatus === 'connected') && activeCall && (
-          <DirectCallRoom onEnd={endCall} />
-        )}
-      </AnimatePresence>
     </>
   );
 }
