@@ -490,17 +490,37 @@ export const getPhotosForViewer = async (req, res) => {
     const ownerId = req.params.id;
     const viewerId = req.user?.id;
 
-    const { data: photos, error } = await supabase
-      .from('profile_photos')
-      .select('id, url, position, created_at, is_paid, price')
-      .eq('user_id', ownerId)
-      .order('position', { ascending: true });
+    const [{ data: photos, error }, { data: ownerProfile }] = await Promise.all([
+      supabase
+        .from('profile_photos')
+        .select('id, url, position, created_at, is_paid, price')
+        .eq('user_id', ownerId)
+        .order('position', { ascending: true }),
+      supabase
+        .from('profiles')
+        .select('is_adult_creator')
+        .eq('id', ownerId)
+        .single(),
+    ]);
 
     if (error) throw error;
 
     // Si el viewer es el dueño, devolver todo
     if (viewerId === ownerId) {
       return res.json({ photos: photos || [] });
+    }
+
+    // Si el creador es adulto, verificar que el viewer tiene verificación de edad
+    if (ownerProfile?.is_adult_creator) {
+      const { data: vp } = await supabase
+        .from('profiles')
+        .select('is_adult_creator, age_verified_at')
+        .eq('id', viewerId)
+        .single();
+      const canSeeAdult = vp?.is_adult_creator || !!vp?.age_verified_at;
+      if (!canSeeAdult) {
+        return res.json({ photos: [], requires_age_verification: true });
+      }
     }
 
     // Para fotos de pago, verificar qué compró el viewer

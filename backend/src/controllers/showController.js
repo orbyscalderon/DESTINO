@@ -13,6 +13,20 @@ const VALID_CATEGORIES = ['music', 'dance', 'comedy', 'chat', 'gaming', 'fitness
 export const listShows = async (req, res) => {
   try {
     const { type, status = 'live', category } = req.query;
+    const userId = req.user.id;
+
+    // Verificar si el viewer puede ver contenido adulto
+    const { data: viewerProfile } = await supabase
+      .from('profiles')
+      .select('is_adult_creator, age_verified_at')
+      .eq('id', userId)
+      .single();
+    const canSeeAdult = viewerProfile?.is_adult_creator || !!viewerProfile?.age_verified_at;
+
+    // Si solicita categoría adult explícitamente pero no tiene acceso → vacío
+    if (category === 'adult' && !canSeeAdult) {
+      return res.json({ shows: [], requires_age_verification: true });
+    }
 
     let query = supabase
       .from('live_shows')
@@ -54,8 +68,9 @@ export const listShows = async (req, res) => {
 
     const shows = (data || [])
       .map(s => ({ ...s, viewer_count: ticketCounts[s.id] || 0 }))
+      // Filtrar shows adultos para usuarios sin verificación de edad
+      .filter(s => s.category !== 'adult' || canSeeAdult)
       .sort((a, b) => {
-        // Adult shows always last
         if (a.category === 'adult' && b.category !== 'adult') return 1;
         if (b.category === 'adult' && a.category !== 'adult') return -1;
         return b.viewer_count - a.viewer_count;
@@ -85,6 +100,19 @@ export const getShow = async (req, res) => {
       .single();
 
     if (error || !show) return res.status(404).json({ error: 'Show no encontrado' });
+
+    // Bloquear acceso a shows adultos para usuarios sin verificación
+    if (show.category === 'adult') {
+      const { data: vp } = await supabase
+        .from('profiles')
+        .select('is_adult_creator, age_verified_at')
+        .eq('id', userId)
+        .single();
+      const canSeeAdult = vp?.is_adult_creator || !!vp?.age_verified_at;
+      if (!canSeeAdult) {
+        return res.status(403).json({ error: 'Debes verificar tu edad para acceder a este contenido', code: 'AGE_VERIFICATION_REQUIRED' });
+      }
+    }
 
     const isHost = show.host.id === userId;
 

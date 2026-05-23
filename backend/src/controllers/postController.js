@@ -83,7 +83,7 @@ export const getFeed = async (req, res) => {
 
       // Ocultar contenido adulto si el viewer no está en modo adulto
       if (p.is_adult && !canSeeAdult && !isSubscribed) {
-        return { ...p, media_url: null, blurred: true, liked: likedIds.has(p.id) };
+        return { ...p, media_url: null, caption: null, blurred: true, liked: likedIds.has(p.id) };
       }
 
       return { ...p, liked: likedIds.has(p.id) };
