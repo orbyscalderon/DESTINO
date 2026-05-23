@@ -6,17 +6,18 @@ const RETRY_BASE_MS   = 1500;
 
 export class RtcSession {
   constructor(roomId) {
-    this.roomId        = roomId;
-    this.device        = new Device();
-    this.sendTransport = null;
-    this.recvTransport = null;
-    this.producers     = { audio: null, video: null };
-    this.consumers     = new Map();
-    this._retries      = 0;
-    this._localStream  = null;   // kept for reconnect
-    this.onReconnecting = null;  // () => void
-    this.onReconnected  = null;  // () => void
-    this.onFailed       = null;  // () => void
+    this.roomId              = roomId;
+    this.device              = new Device();
+    this.sendTransport       = null;
+    this.recvTransport       = null;
+    this.producers           = { audio: null, video: null };
+    this.consumers           = new Map();
+    this.consumedProducerIds = new Set();
+    this._retries            = 0;
+    this._localStream        = null;
+    this.onReconnecting      = null;
+    this.onReconnected       = null;
+    this.onFailed            = null;
   }
 
   async init() {
@@ -53,10 +54,11 @@ export class RtcSession {
       for (const c of this.consumers.values()) c.close();
       this.sendTransport?.close();
       this.recvTransport?.close();
-      this.sendTransport = null;
-      this.recvTransport = null;
-      this.producers = { audio: null, video: null };
-      this.consumers = new Map();
+      this.sendTransport       = null;
+      this.recvTransport       = null;
+      this.producers           = { audio: null, video: null };
+      this.consumers           = new Map();
+      this.consumedProducerIds = new Set();
 
       await this.init();
       if (this._localStream) await this.publishStream(this._localStream);
@@ -125,6 +127,9 @@ export class RtcSession {
 
   // ── Consume a single producer ───────────────────────────────────────────────
   async consumeProducer(producerId) {
+    if (this.consumedProducerIds.has(producerId)) return null;
+    this.consumedProducerIds.add(producerId);
+
     await this._ensureRecvTransport();
 
     const { data } = await api.post(`/api/rtc/rooms/${this.roomId}/consume`, {
