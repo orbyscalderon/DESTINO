@@ -3,13 +3,14 @@ import api from './api.js';
 
 export class LiveKitSession {
   constructor(roomName) {
-    this.roomName           = roomName;
-    this.room               = new Room();
-    this.onReconnecting     = null;
-    this.onReconnected      = null;
-    this.onFailed           = null;
-    this.onRemoteTrack      = null; // (track: RemoteTrack) => void
-    this.onParticipantLeft  = null; // () => void
+    this.roomName          = roomName;
+    this.room              = new Room();
+    this.onReconnecting    = null;
+    this.onReconnected     = null;
+    this.onFailed          = null;
+    this.onRemoteTrack     = null; // (track: RemoteTrack) => void
+    this.onParticipantLeft = null; // () => void
+    this.onLocalVideo      = null; // (mediaStreamTrack) => void — local camera preview
   }
 
   async join(canPublish = true) {
@@ -32,7 +33,26 @@ export class LiveKitSession {
       this.onParticipantLeft?.();
     });
 
+    // Notify when local camera track is published so the preview can show it
+    this.room.on(RoomEvent.LocalTrackPublished, (pub) => {
+      if (pub.track?.kind === Track.Kind.Video && pub.track.mediaStreamTrack) {
+        this.onLocalVideo?.(pub.track.mediaStreamTrack);
+      }
+    });
+
     await this.room.connect(data.wsUrl, data.token);
+
+    if (canPublish) {
+      // Let LiveKit manage track creation — avoids raw-track simulcast failures
+      await this.room.localParticipant.setMicrophoneEnabled(true);
+      await this.room.localParticipant.setCameraEnabled(true);
+
+      // Provide local video track immediately if already published
+      const camPub = this.room.localParticipant.getTrackPublication(Track.Source.Camera);
+      if (camPub?.track?.mediaStreamTrack) {
+        this.onLocalVideo?.(camPub.track.mediaStreamTrack);
+      }
+    }
 
     // Deliver tracks already present (late joiner)
     this.room.remoteParticipants.forEach(participant => {
@@ -44,18 +64,6 @@ export class LiveKitSession {
     });
   }
 
-  async publishStream(stream) {
-    const videoTrack = stream.getVideoTracks()[0];
-    const audioTrack = stream.getAudioTracks()[0];
-
-    if (audioTrack) {
-      await this.room.localParticipant.publishTrack(audioTrack);
-    }
-    if (videoTrack) {
-      await this.room.localParticipant.publishTrack(videoTrack, { simulcast: true });
-    }
-  }
-
   setMic(enabled) {
     this.room.localParticipant.setMicrophoneEnabled(enabled);
   }
@@ -64,16 +72,8 @@ export class LiveKitSession {
     this.room.localParticipant.setCameraEnabled(enabled);
   }
 
-  async replaceVideoTrack(newTrack) {
-    const pub = Array.from(this.room.localParticipant.trackPublications.values())
-      .find(p => p.kind === Track.Kind.Video);
-    if (pub?.track) await pub.track.replaceTrack(newTrack);
-  }
-
-  async replaceAudioTrack(newTrack) {
-    const pub = Array.from(this.room.localParticipant.trackPublications.values())
-      .find(p => p.kind === Track.Kind.Audio);
-    if (pub?.track) await pub.track.replaceTrack(newTrack);
+  async switchCamera(deviceId) {
+    await this.room.switchActiveDevice('videoinput', deviceId);
   }
 
   async leave() {

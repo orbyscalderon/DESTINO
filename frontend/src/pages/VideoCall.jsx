@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiPhoneOff, FiMic, FiMicOff, FiVideo, FiVideoOff, FiRotateCw } from 'react-icons/fi';
 import { supabase } from '../lib/supabase.js';
@@ -8,8 +8,9 @@ import api from '../lib/api.js';
 import toast from 'react-hot-toast';
 
 export default function VideoCall() {
-  const { matchId } = useParams();
-  const navigate    = useNavigate();
+  const { matchId }  = useParams();
+  const navigate     = useNavigate();
+  const location     = useLocation();
 
   const [callStatus,  setCallStatus]  = useState('connecting');
   const [micOn,       setMicOn]       = useState(true);
@@ -21,7 +22,6 @@ export default function VideoCall() {
   const sessionRef     = useRef(null);
   const localVidRef    = useRef(null);
   const remoteVidRef   = useRef(null);
-  const localStream    = useRef(null);
   const timerRef       = useRef(null);
   const camerasRef     = useRef([]);
   const roomChannelRef = useRef(null);
@@ -29,8 +29,6 @@ export default function VideoCall() {
 
   const endCall = useCallback(async () => {
     clearInterval(timerRef.current);
-    localStream.current?.getTracks().forEach(t => t.stop());
-    localStream.current = null;
     await sessionRef.current?.leave().catch(() => {});
     sessionRef.current = null;
     supabase.removeChannel(roomChannelRef.current).catch(() => {});
@@ -43,35 +41,38 @@ export default function VideoCall() {
 
     const init = async () => {
       try {
-        // 1. Notify callee (caller) or just get roomId (callee path)
-        const { data } = await api.post(`/api/rtc/call/${matchId}/init`).catch(async () => {
-          const roomId = `call_${matchId.replace(/-/g, '')}`;
-          return { data: { roomId, calleeId: null } };
-        });
+        // 1. Get roomId — prefer state passed by caller/callee navigation to avoid double-init
+        let roomId = location.state?.roomId;
+        if (!roomId) {
+          const { data } = await api.post(`/api/rtc/call/${matchId}/init`).catch(async () => {
+            return { data: { roomId: `call_${matchId.replace(/-/g, '')}`, calleeId: null } };
+          });
+          roomId = data.roomId;
+        }
         if (!active) return;
-        const roomId = data.roomId;
 
         // 2. Load remote user info
         const { data: matchData } = await api.get('/api/matches').catch(() => ({ data: {} }));
         const match = matchData.matches?.find(m => m.id === matchId);
         if (match?.other) setRemoteUser(match.other);
 
-        // 3. Get local media
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
-        if (!active) { stream.getTracks().forEach(t => t.stop()); return; }
-        localStream.current = stream;
-        if (localVidRef.current) localVidRef.current.srcObject = stream;
-
-        const devices = await navigator.mediaDevices.enumerateDevices();
+        // 3. Detect multiple cameras for flip button
+        const devices = await navigator.mediaDevices.enumerateDevices().catch(() => []);
         const cams = devices.filter(d => d.kind === 'videoinput');
         camerasRef.current = cams;
         setMultiCam(cams.length > 1);
 
-        // 4. Init LiveKit session
+        // 4. Init LiveKit session — LiveKit manages camera/mic internally
         const session = new LiveKitSession(roomId);
         session.onReconnecting = () => toast.loading('Reconectando…', { id: 'rtc-reconnect' });
         session.onReconnected  = () => toast.success('Reconectado', { id: 'rtc-reconnect' });
         session.onFailed       = () => { if (active) endCall(); };
+
+        // Local camera preview via LiveKit-managed track
+        session.onLocalVideo = (mediaStreamTrack) => {
+          if (!active || !localVidRef.current) return;
+          localVidRef.current.srcObject = new MediaStream([mediaStreamTrack]);
+        };
 
         session.onRemoteTrack = (track) => {
           if (!active) return;
@@ -92,8 +93,8 @@ export default function VideoCall() {
         };
 
         sessionRef.current = session;
+        // join() connects AND enables camera+mic via LiveKit's own API
         await session.join(true);
-        await session.publishStream(stream);
 
         // 5. Supabase channel — only for call rejection signaling
         const ch = supabase
@@ -131,22 +132,13 @@ export default function VideoCall() {
   };
 
   const flipCamera = async () => {
-    if (camerasRef.current.length < 2 || !localStream.current) return;
-    const current = localStream.current.getVideoTracks()[0];
-    const currentId = current?.getSettings?.()?.deviceId;
-    const idx  = camerasRef.current.findIndex(c => c.deviceId === currentId);
+    if (camerasRef.current.length < 2) return;
+    const currentDevice = localVidRef.current?.srcObject
+      ?.getVideoTracks()[0]?.getSettings()?.deviceId;
+    const idx  = camerasRef.current.findIndex(c => c.deviceId === currentDevice);
     const next = camerasRef.current[(idx + 1) % camerasRef.current.length];
     try {
-      const newStream = await navigator.mediaDevices.getUserMedia({
-        audio: false,
-        video: { deviceId: { exact: next.deviceId } },
-      });
-      const newTrack = newStream.getVideoTracks()[0];
-      await sessionRef.current?.replaceVideoTrack(newTrack);
-      current?.stop();
-      if (localVidRef.current) {
-        localVidRef.current.srcObject = new MediaStream([newTrack, ...localStream.current.getAudioTracks()]);
-      }
+      await sessionRef.current?.switchCamera(next.deviceId);
     } catch {}
   };
 

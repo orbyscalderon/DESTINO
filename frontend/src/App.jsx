@@ -118,7 +118,7 @@ function IncomingCallListener() {
   const handleAccept = () => {
     clearTimeout(channelRef.current?.__declineTimer);
     resetCall();
-    navigate(`/call/${incomingCall.matchId}`);
+    navigate(`/call/${incomingCall.matchId}`, { state: { roomId: incomingCall.roomId } });
   };
 
   const handleDecline = async () => {

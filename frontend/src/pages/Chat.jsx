@@ -84,7 +84,7 @@ export default function Chat() {
                 try {
                   const { data } = await api.post(`/api/rtc/call/${matchId}/init`);
                   setCalling({ roomId: data.roomId, matchId, calleeId: data.calleeId });
-                  navigate(`/call/${matchId}`);
+                  navigate(`/call/${matchId}`, { state: { roomId: data.roomId } });
                 } catch (err) {
                   import('react-hot-toast').then(({ default: toast }) =>
                     toast.error(err.response?.data?.error || 'No se pudo iniciar la llamada')
