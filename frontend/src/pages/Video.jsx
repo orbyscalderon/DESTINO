@@ -314,7 +314,7 @@ export default function Video() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="h-[500px] lg:h-[600px]"
+          className="h-[600px] lg:h-[720px]"
         >
           <VideoRoom
             genderFilter={genderFilter}
