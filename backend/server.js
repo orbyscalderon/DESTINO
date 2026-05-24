@@ -15,7 +15,6 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 import { startCleanupJob } from './src/lib/cleanup.js';
-import { initMediasoup } from './src/lib/mediasoup.js';
 import profileRoutes from './src/routes/profiles.js';
 import matchRoutes from './src/routes/matches.js';
 import messageRoutes from './src/routes/messages.js';
@@ -171,7 +170,6 @@ app.listen(PORT, () => {
   }
 
   startCleanupJob();
-  initMediasoup().catch(err => console.error('mediasoup init failed:', err));
 });
 
 export default app;

@@ -3,40 +3,38 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiPhoneOff, FiMic, FiMicOff, FiVideo, FiVideoOff, FiRotateCw } from 'react-icons/fi';
 import { supabase } from '../lib/supabase.js';
-import { useAuthStore } from '../store/authStore.js';
-import { RtcSession } from '../lib/mediasoupClient.js';
+import { LiveKitSession } from '../lib/livekitSession.js';
 import api from '../lib/api.js';
 import toast from 'react-hot-toast';
 
 export default function VideoCall() {
   const { matchId } = useParams();
   const navigate    = useNavigate();
-  const { user }    = useAuthStore();
 
-  const [callStatus,  setCallStatus]  = useState('connecting'); // connecting | active | ended
+  const [callStatus,  setCallStatus]  = useState('connecting');
   const [micOn,       setMicOn]       = useState(true);
   const [camOn,       setCamOn]       = useState(true);
   const [remoteUser,  setRemoteUser]  = useState(null);
   const [duration,    setDuration]    = useState(0);
   const [multiCam,    setMultiCam]    = useState(false);
 
-  const sessionRef    = useRef(null);    // RtcSession
-  const localVidRef   = useRef(null);
-  const remoteVidRef  = useRef(null);
-  const localStream   = useRef(null);
-  const timerRef      = useRef(null);
-  const camerasRef    = useRef([]);
+  const sessionRef     = useRef(null);
+  const localVidRef    = useRef(null);
+  const remoteVidRef   = useRef(null);
+  const localStream    = useRef(null);
+  const timerRef       = useRef(null);
+  const camerasRef     = useRef([]);
   const roomChannelRef = useRef(null);
-  const containerRef  = useRef(null);
+  const containerRef   = useRef(null);
 
-  const endCall = useCallback(async (reason = 'ended') => {
+  const endCall = useCallback(async () => {
     clearInterval(timerRef.current);
     localStream.current?.getTracks().forEach(t => t.stop());
+    localStream.current = null;
     await sessionRef.current?.leave().catch(() => {});
-    roomChannelRef.current?.send({
-      type: 'broadcast', event: 'call_end', payload: { reason },
-    }).catch(() => {});
+    sessionRef.current = null;
     supabase.removeChannel(roomChannelRef.current).catch(() => {});
+    roomChannelRef.current = null;
     setCallStatus('ended');
   }, []);
 
@@ -45,92 +43,69 @@ export default function VideoCall() {
 
     const init = async () => {
       try {
-        // 1. Get room info — which room to join and who we're calling
+        // 1. Notify callee (caller) or just get roomId (callee path)
         const { data } = await api.post(`/api/rtc/call/${matchId}/init`).catch(async () => {
-          // If 403 (not the caller, we're the callee being redirected here)
-          // Just join — roomId is deterministic
           const roomId = `call_${matchId.replace(/-/g, '')}`;
           return { data: { roomId, calleeId: null } };
         });
-
         if (!active) return;
         const roomId = data.roomId;
 
-        // Load remote user info
-        const { data: matchData } = await api.get('/api/matches');
+        // 2. Load remote user info
+        const { data: matchData } = await api.get('/api/matches').catch(() => ({ data: {} }));
         const match = matchData.matches?.find(m => m.id === matchId);
         if (match?.other) setRemoteUser(match.other);
 
-        // 2. Get local media
+        // 3. Get local media
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
         if (!active) { stream.getTracks().forEach(t => t.stop()); return; }
         localStream.current = stream;
+        if (localVidRef.current) localVidRef.current.srcObject = stream;
 
-        if (localVidRef.current) {
-          localVidRef.current.srcObject = stream;
-        }
-
-        // Check for multiple cameras (flip button)
         const devices = await navigator.mediaDevices.enumerateDevices();
         const cams = devices.filter(d => d.kind === 'videoinput');
         camerasRef.current = cams;
         setMultiCam(cams.length > 1);
 
-        // 3. Init mediasoup session
-        const session = new RtcSession(roomId);
+        // 4. Init LiveKit session
+        const session = new LiveKitSession(roomId);
         session.onReconnecting = () => toast.loading('Reconectando…', { id: 'rtc-reconnect' });
         session.onReconnected  = () => toast.success('Reconectado', { id: 'rtc-reconnect' });
-        session.onFailed       = () => { toast.error('Se perdió la conexión'); endCall('connection_failed'); };
+        session.onFailed       = () => { if (active) endCall(); };
+
+        session.onRemoteTrack = (track) => {
+          if (!active) return;
+          if (track.kind === 'video' && remoteVidRef.current) {
+            remoteVidRef.current.srcObject = new MediaStream([track.mediaStreamTrack]);
+            setCallStatus('active');
+            timerRef.current = setInterval(() => setDuration(d => d + 1), 1000);
+          }
+          if (track.kind === 'audio') {
+            const el = new Audio();
+            el.srcObject = new MediaStream([track.mediaStreamTrack]);
+            el.play().catch(() => {});
+          }
+        };
+
+        session.onParticipantLeft = () => {
+          if (active) endCall();
+        };
+
         sessionRef.current = session;
-        await session.init();
+        await session.join(true);
         await session.publishStream(stream);
 
-        // 4. Subscribe to room events (remote peer joining / call end)
+        // 5. Supabase channel — only for call rejection signaling
         const ch = supabase
           .channel(`room_events_${roomId}`)
-          .on('broadcast', { event: 'new_producer' }, async ({ payload }) => {
-            if (!active || payload.peerId === user.id) return;
-            // A new producer appeared — consume it
-            const { track, kind } = await session.consumeProducer(payload.producerId);
-            if (kind === 'video' && remoteVidRef.current) {
-              const s = new MediaStream([track]);
-              remoteVidRef.current.srcObject = s;
-              setCallStatus('active');
-              timerRef.current = setInterval(() => setDuration(d => d + 1), 1000);
-            }
-            if (kind === 'audio') {
-              const audioEl = new Audio();
-              audioEl.srcObject = new MediaStream([track]);
-              audioEl.play().catch(() => {});
-            }
-          })
-          .on('broadcast', { event: 'call_end' },  () => active && endCall('remote_ended'))
           .on('broadcast', { event: 'call_rejected' }, () => {
             if (!active) return;
             toast.error('Llamada rechazada');
-            endCall('rejected');
+            endCall();
           })
-          .on('broadcast', { event: 'peer_left' }, () => active && endCall('remote_left'))
           .subscribe();
-
         roomChannelRef.current = ch;
 
-        // 5. Consume already-existing producers (callee joining after caller)
-        const tracks = await session.consumeAll();
-        if (!active) return;
-
-        if (tracks.video && remoteVidRef.current) {
-          remoteVidRef.current.srcObject = new MediaStream([tracks.video]);
-          setCallStatus('active');
-          timerRef.current = setInterval(() => setDuration(d => d + 1), 1000);
-        }
-        if (tracks.audio) {
-          const audioEl = new Audio();
-          audioEl.srcObject = new MediaStream([tracks.audio]);
-          audioEl.play().catch(() => {});
-        }
-
-        // If no remote producers yet, stay in connecting state until new_producer fires
       } catch (err) {
         if (!active) return;
         toast.error(err.response?.data?.error || 'No se pudo conectar la llamada');
@@ -141,7 +116,7 @@ export default function VideoCall() {
     init();
     return () => {
       active = false;
-      endCall('cleanup');
+      endCall();
     };
   }, [matchId]);
 
@@ -167,11 +142,11 @@ export default function VideoCall() {
         video: { deviceId: { exact: next.deviceId } },
       });
       const newTrack = newStream.getVideoTracks()[0];
-      if (sessionRef.current?.producers.video) {
-        await sessionRef.current.producers.video.replaceTrack({ track: newTrack });
-      }
+      await sessionRef.current?.replaceVideoTrack(newTrack);
       current?.stop();
-      if (localVidRef.current) localVidRef.current.srcObject = new MediaStream([newTrack, ...localStream.current.getAudioTracks()]);
+      if (localVidRef.current) {
+        localVidRef.current.srcObject = new MediaStream([newTrack, ...localStream.current.getAudioTracks()]);
+      }
     } catch {}
   };
 
@@ -198,19 +173,14 @@ export default function VideoCall() {
   return (
     <div ref={containerRef} className="min-h-screen bg-dark-900 relative overflow-hidden">
       {/* Remote video (background) */}
-      <video
-        ref={remoteVidRef}
-        autoPlay
-        playsInline
+      <video ref={remoteVidRef} autoPlay playsInline
         className="absolute inset-0 w-full h-full object-cover bg-dark-800"
       />
 
       {/* Local video (draggable thumbnail) */}
       <motion.video
         ref={localVidRef}
-        autoPlay
-        playsInline
-        muted
+        autoPlay playsInline muted
         drag
         dragConstraints={containerRef}
         className="absolute top-4 right-4 w-28 h-40 rounded-2xl overflow-hidden bg-dark-700 border border-white/10 z-10 shadow-2xl cursor-grab active:cursor-grabbing object-cover"
@@ -219,8 +189,7 @@ export default function VideoCall() {
       {/* Connecting overlay */}
       <AnimatePresence>
         {callStatus === 'connecting' && (
-          <motion.div
-            key="connecting"
+          <motion.div key="connecting"
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, transition: { duration: 0.4 } }}
             className="absolute inset-0 z-30 bg-dark-900 flex flex-col items-center justify-center"
           >
@@ -280,7 +249,7 @@ export default function VideoCall() {
           </button>
         )}
 
-        <button onClick={() => endCall('user_ended')}
+        <button onClick={endCall}
           className="w-16 h-16 rounded-full bg-red-600 hover:bg-red-700 flex items-center justify-center transition-colors shadow-xl"
         >
           <FiPhoneOff size={26} className="text-white" />

@@ -93,7 +93,7 @@ export const getShow = async (req, res) => {
       .from('live_shows')
       .select(`
         id, title, description, show_type, ticket_price, status,
-        channel_name, cover_url, scheduled_at, started_at, ended_at, category,
+        cover_url, scheduled_at, started_at, ended_at, category,
         host:profiles!host_id(id, full_name, avatar_url, is_verified, creator_bio)
       `)
       .eq('id', id)
@@ -218,7 +218,7 @@ export const startShow = async (req, res) => {
 
     const { data: show } = await supabase
       .from('live_shows')
-      .select('host_id, status, channel_name')
+      .select('host_id, status')
       .eq('id', id)
       .single();
 
@@ -226,11 +226,9 @@ export const startShow = async (req, res) => {
     if (show.host_id !== hostId) return res.status(403).json({ error: 'No autorizado' });
     if (show.status === 'ended') return res.status(400).json({ error: 'El show ya terminó' });
 
-    const channelName = show.channel_name || `show_${id.replace(/-/g, '').substring(0, 20)}`;
-
     const { data: updated } = await supabase
       .from('live_shows')
-      .update({ status: 'live', channel_name: channelName, started_at: new Date().toISOString() })
+      .update({ status: 'live', started_at: new Date().toISOString() })
       .eq('id', id)
       .select()
       .single();
@@ -325,7 +323,7 @@ export const getShowToken = async (req, res) => {
 
     const { data: show } = await supabase
       .from('live_shows')
-      .select('host_id, status, channel_name, ticket_price, show_type')
+      .select('host_id, status, ticket_price, show_type, category')
       .eq('id', id)
       .single();
 
