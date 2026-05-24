@@ -314,35 +314,38 @@ export const getProfile = async (req, res) => {
       .eq('id', req.params.id)
       .single();
 
-    if (error || !profile) return res.status(404).json({ error: 'Perfil no encontrado' });
+    if (error || !profile) {
+      console.error('[getProfile] not found:', error?.message);
+      return res.status(404).json({ error: 'Perfil no encontrado' });
+    }
 
     const viewerId = req.user?.id;
 
-    // Use allSettled so a sub-query failure never blocks the profile response
-    const [photosSettled, subSettled] = await Promise.allSettled([
-      supabase
+    // Photos — simple sequential, never throws
+    let photos = [];
+    try {
+      const { data: photoData } = await supabase
         .from('profile_photos')
-        .select('id, url, position, is_paid, price, storage_path')
+        .select('id, url, position, is_paid, price')
         .eq('user_id', req.params.id)
-        .order('position', { ascending: true })
-        .then(r => r.error
-          // Fallback: try order_index if position doesn't exist
-          ? supabase.from('profile_photos').select('id, url, order_index as position, is_paid, price, storage_path').eq('user_id', req.params.id).order('order_index', { ascending: true })
-          : r
-        ),
-      profile.is_creator && profile.creator_subscription_price
-        ? supabase
-            .from('creator_subscriptions')
-            .select('id')
-            .eq('subscriber_id', viewerId)
-            .eq('creator_id', req.params.id)
-            .eq('status', 'active')
-            .maybeSingle()
-        : Promise.resolve({ data: null }),
-    ]);
+        .order('position', { ascending: true });
+      photos = photoData || [];
+    } catch (_) { /* tabla o columna faltante — se ignora */ }
 
-    const photos     = photosSettled.status === 'fulfilled' ? (photosSettled.value?.data || []) : [];
-    const subData    = subSettled.status   === 'fulfilled' ? subSettled.value?.data : null;
+    // Subscription check — only when relevant
+    let isSubscribed = false;
+    try {
+      if (profile.is_creator && profile.creator_subscription_price && viewerId) {
+        const { data: subData } = await supabase
+          .from('creator_subscriptions')
+          .select('id')
+          .eq('subscriber_id', viewerId)
+          .eq('creator_id', req.params.id)
+          .eq('status', 'active')
+          .maybeSingle();
+        isSubscribed = !!subData;
+      }
+    } catch (_) { /* tabla faltante — se ignora */ }
 
     // Increment view counter (fire-and-forget, skip self-views)
     if (viewerId && viewerId !== req.params.id) {
@@ -350,14 +353,10 @@ export const getProfile = async (req, res) => {
     }
 
     res.json({
-      profile: {
-        ...profile,
-        photos,
-        is_subscribed: !!subData,
-      },
+      profile: { ...profile, photos, is_subscribed: isSubscribed },
     });
   } catch (err) {
-    console.error('[getProfile]', err);
+    console.error('[getProfile] unexpected error:', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
