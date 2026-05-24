@@ -299,6 +299,12 @@ export default function LiveShow() {
         addGiftAnimation(payload.emoji, payload.senderName);
         if (role === 'host') setTotalCoinsEarned(c => c + Math.round((payload.coins || 0) * 0.8));
       })
+      .on('broadcast', { event: 'show_ended' }, () => {
+        if (role !== 'host') {
+          toast('El show terminó', { icon: '📺' });
+          navigate('/shows');
+        }
+      })
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
           await ch.track({ userId: user?.id, role, ts: Date.now() }).catch(() => {});
@@ -589,9 +595,16 @@ export default function LiveShow() {
       screenTrackRef.current.stop();
       screenTrackRef.current = null;
     }
+    // 1. Mark as ended in DB FIRST — so viewers land on correct status
+    try { await api.post(`/api/shows/${id}/end`); } catch {}
+    // 2. Notify viewers via Supabase channel before disconnecting LiveKit
+    await chatChannelRef.current?.send({
+      type: 'broadcast', event: 'show_ended', payload: {},
+    }).catch(() => {});
+    // 3. Then disconnect LiveKit and leave channels
     leaveShowChannel();
     await leaveShow();
-    try { await api.post(`/api/shows/${id}/end`); toast.success('Show terminado'); } catch {}
+    toast.success('Show terminado');
     navigate('/shows');
   };
 

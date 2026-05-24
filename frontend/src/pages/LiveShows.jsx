@@ -343,7 +343,13 @@ export default function LiveShows() {
     loadShows();
     api.get('/api/shows/leaderboard').then(({ data }) => setLeaderboard(data.creators || [])).catch(() => {});
     const interval = setInterval(() => loadShows(true), 30000);
-    return () => clearInterval(interval);
+    // Refetch when user returns to this tab (e.g. after a show ends)
+    const onVisible = () => { if (document.visibilityState === 'visible') loadShows(true); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
   }, [loadShows]);
 
   /* ── Derived ── */
