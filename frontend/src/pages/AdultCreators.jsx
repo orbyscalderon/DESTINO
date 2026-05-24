@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiSearch, FiUsers, FiStar, FiGlobe, FiWifi, FiX, FiSliders } from 'react-icons/fi';
+import { FiSearch, FiUsers, FiStar, FiGlobe, FiWifi, FiX, FiSliders, FiChevronRight } from 'react-icons/fi';
 import api from '../lib/api.js';
 import AgeGate, { isAgeVerified } from '../components/ui/AgeGate.jsx';
 import VerifiedBadge from '../components/ui/VerifiedBadge.jsx';
@@ -9,7 +9,7 @@ import FlagImg from '../components/ui/FlagImg.jsx';
 import { COUNTRIES } from '../lib/geodata.js';
 
 const GENDER_TABS = [
-  { id: '',       label: 'Todos'    },
+  { id: '',       label: 'Todas'    },
   { id: 'female', label: 'Chicas'   },
   { id: 'male',   label: 'Chicos'   },
   { id: 'other',  label: 'Trans / NB'},
@@ -25,11 +25,31 @@ function isOnline(lastActive) {
   return Date.now() - new Date(lastActive).getTime() < 5 * 60 * 1000;
 }
 
-function CreatorCard({ c, onClick }) {
+function LiveBadge() {
+  return (
+    <span className="flex items-center gap-1 bg-red-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wide">
+      <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" /> En Vivo
+    </span>
+  );
+}
+
+function OnlineBadge() {
+  return (
+    <span className="flex items-center gap-1 bg-green-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase">
+      <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" /> Online
+    </span>
+  );
+}
+
+function CreatorCard({ c, onClick, large = false }) {
   const online = isOnline(c.last_active);
   const countryName = c.country
     ? (COUNTRIES.find(co => co.value === c.country || co.label === c.country)?.label || c.country)
     : null;
+
+  const thumb = c.is_live && c.live_show?.cover_url
+    ? c.live_show.cover_url
+    : (c.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(c.full_name || 'C')}&size=400&background=1a1a2e&color=f43f5e`);
 
   return (
     <motion.button
@@ -37,31 +57,37 @@ function CreatorCard({ c, onClick }) {
       animate={{ opacity: 1, scale: 1 }}
       whileTap={{ scale: 0.97 }}
       onClick={onClick}
-      className="relative aspect-[3/4] rounded-xl overflow-hidden bg-dark-700 group w-full"
+      className={`relative rounded-xl overflow-hidden bg-dark-700 group w-full ${large ? 'aspect-[4/5]' : 'aspect-[3/4]'}`}
     >
-      {/* Photo */}
       <img
-        src={c.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(c.full_name || 'C')}&size=400&background=1a1a2e&color=f43f5e`}
+        src={thumb}
         alt=""
         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
         loading="lazy"
       />
 
-      {/* Gradient */}
+      {/* Dark gradient */}
       <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/10 to-transparent" />
 
       {/* Top badges */}
       <div className="absolute top-2 left-2 right-2 flex items-start justify-between">
-        {online ? (
-          <span className="flex items-center gap-1 bg-green-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
-            <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" /> EN LÍNEA
-          </span>
-        ) : <span />}
+        <div>
+          {c.is_live ? <LiveBadge /> : online ? <OnlineBadge /> : <span />}
+        </div>
         <div className="flex flex-col items-end gap-1">
           {c.is_verified && <VerifiedBadge size={14} />}
           {countryName && <FlagImg country={c.country} size={16} className="rounded-sm" />}
         </div>
       </div>
+
+      {/* Live show title overlay */}
+      {c.is_live && c.live_show?.title && (
+        <div className="absolute top-8 left-2 right-2">
+          <p className="text-white text-[9px] bg-black/60 rounded px-1.5 py-0.5 truncate">
+            {c.live_show.title}
+          </p>
+        </div>
+      )}
 
       {/* Bottom info */}
       <div className="absolute bottom-0 left-0 right-0 px-2.5 pb-2.5">
@@ -85,6 +111,23 @@ function CreatorCard({ c, onClick }) {
   );
 }
 
+function SectionHeader({ title, count, color = 'text-gray-400', dot, onSeeAll }) {
+  return (
+    <div className="flex items-center justify-between mb-2">
+      <h2 className={`text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 ${color}`}>
+        {dot && <span className={`w-2 h-2 rounded-full animate-pulse ${dot}`} />}
+        {title}
+        {count > 0 && <span className="font-normal opacity-60">· {count}</span>}
+      </h2>
+      {onSeeAll && (
+        <button onClick={onSeeAll} className="text-brand-400 text-[10px] flex items-center gap-0.5 hover:text-brand-300">
+          Ver todo <FiChevronRight size={11} />
+        </button>
+      )}
+    </div>
+  );
+}
+
 export default function AdultCreators() {
   const navigate = useNavigate();
   const [verified, setVerified] = useState(isAgeVerified);
@@ -95,6 +138,7 @@ export default function AdultCreators() {
   const [country, setCountry]     = useState('');
   const [sort, setSort]           = useState('new');
   const [onlineOnly, setOnlineOnly] = useState(false);
+  const [liveOnly, setLiveOnly]   = useState(false);
   const [page, setPage]           = useState(0);
   const [hasMore, setHasMore]     = useState(false);
   const [showFilters, setShowFilters] = useState(false);
@@ -137,16 +181,27 @@ export default function AdultCreators() {
     load({ p: next }, true);
   };
 
-  const activeFilters = (country ? 1 : 0) + (onlineOnly ? 1 : 0);
+  const activeFilters = (country ? 1 : 0) + (onlineOnly ? 1 : 0) + (liveOnly ? 1 : 0);
+
+  // Derived sections
+  const liveCreators    = creators.filter(c => c.is_live);
+  const onlineCreators  = creators.filter(c => !c.is_live && isOnline(c.last_active));
+  const allCreators     = liveOnly
+    ? liveCreators
+    : onlineOnly
+      ? creators.filter(c => c.is_live || isOnline(c.last_active))
+      : creators;
 
   if (!verified) return <AgeGate onVerified={() => setVerified(true)} />;
+
+  const isFiltered = query || gender || country || onlineOnly || liveOnly;
 
   return (
     <div className="min-h-screen pb-24 bg-dark-900">
       {/* ── Header ─────────────────────────────────── */}
       <div className="sticky top-0 z-20 bg-dark-900/95 backdrop-blur-md border-b border-white/5">
-        {/* Title + controls */}
-        <div className="flex items-center gap-2 px-4 pt-6 pb-2">
+        {/* Search + filter toggle */}
+        <div className="flex items-center gap-2 px-4 pt-5 pb-2">
           <div className="flex-1 relative">
             <FiSearch size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
             <input
@@ -161,8 +216,6 @@ export default function AdultCreators() {
               </button>
             )}
           </div>
-
-          {/* Filter toggle */}
           <button
             onClick={() => setShowFilters(v => !v)}
             className={`relative w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${
@@ -185,9 +238,7 @@ export default function AdultCreators() {
               key={tab.id}
               onClick={() => { setGender(tab.id); setPage(0); }}
               className={`shrink-0 px-4 py-1.5 rounded-full text-xs font-semibold transition-colors ${
-                gender === tab.id
-                  ? 'bg-brand-500 text-white'
-                  : 'bg-dark-700 text-gray-400 hover:text-white'
+                gender === tab.id ? 'bg-brand-500 text-white' : 'bg-dark-700 text-gray-400 hover:text-white'
               }`}
             >
               {tab.label}
@@ -206,9 +257,19 @@ export default function AdultCreators() {
             >
               <div className="px-4 py-3 space-y-3">
                 <div className="flex gap-2 flex-wrap">
+                  {/* Live only */}
+                  <button
+                    onClick={() => { setLiveOnly(v => !v); setOnlineOnly(false); }}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                      liveOnly ? 'bg-red-600/20 border border-red-500/40 text-red-400' : 'bg-dark-700 text-gray-400'
+                    }`}
+                  >
+                    <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" /> En Vivo
+                  </button>
+
                   {/* Online only */}
                   <button
-                    onClick={() => setOnlineOnly(v => !v)}
+                    onClick={() => { setOnlineOnly(v => !v); setLiveOnly(false); }}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
                       onlineOnly ? 'bg-green-500/20 border border-green-500/40 text-green-400' : 'bg-dark-700 text-gray-400'
                     }`}
@@ -255,69 +316,110 @@ export default function AdultCreators() {
         </AnimatePresence>
       </div>
 
-      {/* ── Grid ───────────────────────────────────── */}
+      {/* ── Content ────────────────────────────────── */}
       <div className="px-3 pt-3">
+
+        {/* Loading skeleton */}
         {loading && creators.length === 0 ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
             {[...Array(12)].map((_, i) => (
               <div key={i} className="aspect-[3/4] rounded-xl bg-dark-700 animate-pulse" />
             ))}
           </div>
-        ) : creators.length === 0 ? (
+
+        ) : allCreators.length === 0 ? (
           <div className="text-center py-20">
             <p className="text-4xl mb-3">🔍</p>
             <p className="text-gray-500 text-sm">No se encontraron creadores</p>
-            {(gender || country || onlineOnly) && (
+            {(gender || country || onlineOnly || liveOnly) && (
               <button
-                onClick={() => { setGender(''); setCountry(''); setOnlineOnly(false); }}
+                onClick={() => { setGender(''); setCountry(''); setOnlineOnly(false); setLiveOnly(false); }}
                 className="mt-3 text-brand-400 text-sm hover:text-brand-300"
               >
                 Limpiar filtros
               </button>
             )}
           </div>
-        ) : (
-          <>
-            {/* Online now section */}
-            {!onlineOnly && creators.some(c => isOnline(c.last_active)) && (
-              <div className="mb-4">
-                <h2 className="text-xs font-bold text-green-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                  <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" /> En línea ahora
-                </h2>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-                  {creators.filter(c => isOnline(c.last_active)).slice(0, 4).map(c => (
-                    <CreatorCard key={c.id} c={c} onClick={() => navigate(`/profile/${c.id}`)} />
-                  ))}
-                </div>
-              </div>
-            )}
 
-            {/* All creators */}
-            <div className="mb-2">
-              <h2 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
-                {onlineOnly ? 'En línea' : 'Todos los creadores'} · {creators.length}{hasMore ? '+' : ''}
-              </h2>
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
-              {creators.map(c => (
+        ) : isFiltered ? (
+          /* ── Filtered view: single flat grid ── */
+          <>
+            <SectionHeader title="Resultados" count={allCreators.length} color="text-gray-400" />
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 mb-6">
+              {allCreators.map(c => (
                 <CreatorCard key={c.id} c={c} onClick={() => navigate(`/profile/${c.id}`)} />
               ))}
             </div>
-
-            {hasMore && (
-              <div className="flex justify-center mt-6">
-                <button
-                  onClick={loadMore}
-                  disabled={loading}
-                  className="btn-secondary text-sm px-8 py-2.5 disabled:opacity-50"
-                >
-                  {loading ? (
-                    <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
-                  ) : 'Ver más'}
-                </button>
-              </div>
-            )}
           </>
+
+        ) : (
+          /* ── Default sections view ── */
+          <>
+            {/* LIVE NOW */}
+            {liveCreators.length > 0 && (
+              <section className="mb-6">
+                <SectionHeader
+                  title="En Vivo Ahora"
+                  count={liveCreators.length}
+                  color="text-red-400"
+                  dot="bg-red-500"
+                  onSeeAll={liveCreators.length > 6 ? () => setLiveOnly(true) : null}
+                />
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                  {liveCreators.slice(0, 8).map(c => (
+                    <CreatorCard key={c.id} c={c} onClick={() => navigate(`/profile/${c.id}`)} large />
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* ONLINE NOW (not live) */}
+            {onlineCreators.length > 0 && (
+              <section className="mb-6">
+                <SectionHeader
+                  title="En Línea Ahora"
+                  count={onlineCreators.length}
+                  color="text-green-400"
+                  dot="bg-green-400"
+                  onSeeAll={onlineCreators.length > 6 ? () => setOnlineOnly(true) : null}
+                />
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
+                  {onlineCreators.slice(0, 10).map(c => (
+                    <CreatorCard key={c.id} c={c} onClick={() => navigate(`/profile/${c.id}`)} />
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* ALL CREATORS */}
+            <section>
+              <SectionHeader
+                title="Todos los Creadores"
+                count={creators.length}
+                color="text-gray-500"
+              />
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
+                {creators.map(c => (
+                  <CreatorCard key={c.id} c={c} onClick={() => navigate(`/profile/${c.id}`)} />
+                ))}
+              </div>
+            </section>
+          </>
+        )}
+
+        {/* Load more */}
+        {hasMore && !isFiltered && (
+          <div className="flex justify-center mt-6">
+            <button
+              onClick={loadMore}
+              disabled={loading}
+              className="btn-secondary text-sm px-8 py-2.5 disabled:opacity-50"
+            >
+              {loading ? (
+                <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+              ) : 'Ver más'}
+            </button>
+          </div>
         )}
       </div>
     </div>
