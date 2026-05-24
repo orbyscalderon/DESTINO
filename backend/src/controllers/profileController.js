@@ -307,11 +307,16 @@ export const getFeed = async (req, res) => {
 
 // GET /api/profiles/:id
 export const getProfile = async (req, res) => {
+  const targetId = req.params.id;
+  const viewerId = req.user?.id;
+  let _step = 'init';
+
   try {
+    _step = 'query_profile';
     const { data: profile, error } = await supabase
       .from('profiles')
       .select('*')
-      .eq('id', req.params.id)
+      .eq('id', targetId)
       .single();
 
     if (error || !profile) {
@@ -319,45 +324,54 @@ export const getProfile = async (req, res) => {
       return res.status(404).json({ error: 'Perfil no encontrado' });
     }
 
-    const viewerId = req.user?.id;
-
-    // Photos — simple sequential, never throws
+    _step = 'query_photos';
     let photos = [];
-    try {
-      const { data: photoData } = await supabase
+    const { data: photoData, error: photoErr } = await supabase
+      .from('profile_photos')
+      .select('id, url, position, is_paid, price')
+      .eq('user_id', targetId)
+      .order('position', { ascending: true });
+
+    if (photoErr) {
+      // Retry without optional columns
+      const { data: photoFallback } = await supabase
         .from('profile_photos')
-        .select('id, url, position, is_paid, price')
-        .eq('user_id', req.params.id)
-        .order('position', { ascending: true });
+        .select('id, url')
+        .eq('user_id', targetId);
+      photos = photoFallback || [];
+    } else {
       photos = photoData || [];
-    } catch (_) { /* tabla o columna faltante — se ignora */ }
-
-    // Subscription check — only when relevant
-    let isSubscribed = false;
-    try {
-      if (profile.is_creator && profile.creator_subscription_price && viewerId) {
-        const { data: subData } = await supabase
-          .from('creator_subscriptions')
-          .select('id')
-          .eq('subscriber_id', viewerId)
-          .eq('creator_id', req.params.id)
-          .eq('status', 'active')
-          .maybeSingle();
-        isSubscribed = !!subData;
-      }
-    } catch (_) { /* tabla faltante — se ignora */ }
-
-    // Increment view counter (fire-and-forget, skip self-views)
-    if (viewerId && viewerId !== req.params.id) {
-      supabase.rpc('increment_profile_views', { target_user_id: req.params.id }).catch(() => {});
     }
 
+    _step = 'query_subscription';
+    let isSubscribed = false;
+    if (profile.is_creator && profile.creator_subscription_price && viewerId) {
+      const { data: subData } = await supabase
+        .from('creator_subscriptions')
+        .select('id')
+        .eq('subscriber_id', viewerId)
+        .eq('creator_id', targetId)
+        .eq('status', 'active')
+        .maybeSingle();
+      isSubscribed = !!subData;
+    }
+
+    _step = 'increment_views';
+    if (viewerId && viewerId !== targetId) {
+      supabase.rpc('increment_profile_views', { target_user_id: targetId }).catch(() => {});
+    }
+
+    _step = 'send_response';
     res.json({
       profile: { ...profile, photos, is_subscribed: isSubscribed },
     });
   } catch (err) {
-    console.error('[getProfile] unexpected error:', err);
-    res.status(500).json({ error: 'Error interno del servidor', _debug: err?.message });
+    console.error(`[getProfile] error at step="${_step}":`, err?.message, err?.stack);
+    res.status(500).json({
+      error: 'Error interno del servidor',
+      _debug: err?.message,
+      _step,
+    });
   }
 };
 

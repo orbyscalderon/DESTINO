@@ -71,8 +71,10 @@ export default function UserProfile() {
       setUserPosts(postsRes.data.posts || []);
       setGalleries(galRes.data.galleries || []);
       setVideos(vidRes.data.videos || []);
-    }).catch(() => toast.error('Perfil no encontrado'))
-      .finally(() => setLoading(false));
+    }).catch((err) => {
+      console.error('[UserProfile] load error:', err?.response?.status, JSON.stringify(err?.response?.data));
+      toast.error('Perfil no encontrado');
+    }).finally(() => setLoading(false));
   }, [userId]);
 
   const handleToggleFollow = async () => {
