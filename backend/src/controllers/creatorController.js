@@ -122,7 +122,7 @@ export const getCreatorDashboard = async (req, res) => {
         // subconsulta simulada: obtener IDs de shows del creador
         (await supabase.from('live_shows').select('id').eq('host_id', creatorId)).data?.map(s => s.id) || []
       ).order('purchased_at', { ascending: false }).limit(20),
-      supabase.from('creator_payouts').select('*').eq('creator_id', creatorId).order('created_at', { ascending: false }).limit(10),
+      supabase.from('withdrawal_requests').select('*').eq('creator_id', creatorId).order('created_at', { ascending: false }).limit(10),
     ]);
 
     // Sales de fotos
@@ -248,11 +248,11 @@ export const requestPayout = async (req, res) => {
 
     // Registrar el payout y actualizar total_paid_out
     await Promise.all([
-      supabase.from('creator_payouts').insert({
+      supabase.from('withdrawal_requests').insert({
         creator_id: creatorId,
-        amount: requestedAmount,
-        stripe_transfer_id: transfer.id,
-        status: 'completed',
+        amount_usd: requestedAmount,
+        payout_details: transfer.id,
+        status: 'paid',
       }),
       supabase.from('creator_earnings')
         .update({

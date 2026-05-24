@@ -29,7 +29,7 @@ export const sendTip = async (req, res) => {
 
     // Deduct coins from sender atomically
     const { data: deducted, error: deductErr } = await supabase
-      .rpc('spend_coins', { p_user_id: fromId, p_amount: coins, p_description: `Propina a ${toProfile.full_name}` });
+      .rpc('spend_coins', { p_user_id: fromId, p_amount: coins });
 
     if (deductErr || !deducted) {
       return res.status(400).json({ error: 'Monedas insuficientes', code: 'INSUFFICIENT_COINS' });
@@ -62,8 +62,8 @@ export const sendTip = async (req, res) => {
 
     // Record tip
     await supabase.from('profile_tips').insert({
-      from_user_id: fromId,
-      to_user_id: toId,
+      sender_id: fromId,
+      recipient_id: toId,
       amount_coins: coins,
       message: message?.trim()?.substring(0, 200) || null,
     });
@@ -89,9 +89,9 @@ export const getTipsReceived = async (req, res) => {
       .from('profile_tips')
       .select(`
         id, amount_coins, message, created_at,
-        sender:profiles!from_user_id(id, full_name, avatar_url)
+        sender:profiles!sender_id(id, full_name, avatar_url)
       `)
-      .eq('to_user_id', userId)
+      .eq('recipient_id', userId)
       .order('created_at', { ascending: false })
       .limit(50);
 

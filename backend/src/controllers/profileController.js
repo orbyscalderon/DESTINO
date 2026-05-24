@@ -718,7 +718,7 @@ export const reorderPhotos = async (req, res) => {
 
     await Promise.all(
       photoIds.map((id, idx) =>
-        supabase.from('profile_photos').update({ sort_order: idx }).eq('id', id).eq('user_id', userId)
+        supabase.from('profile_photos').update({ position: idx }).eq('id', id).eq('user_id', userId)
       )
     );
 
