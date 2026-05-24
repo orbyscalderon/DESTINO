@@ -95,7 +95,7 @@ export default function VideoRoom({ genderFilter, countryFilter, videoCallsRemai
     };
 
     rtcRef.current = rtc;
-    await rtc.join(true);
+    await rtc.join(true, { skipAutoMedia: true });
     await rtc.publishStream(stream);
 
     if (!sessionData.waiting) {
@@ -384,7 +384,7 @@ export default function VideoRoom({ genderFilter, countryFilter, videoCallsRemai
 
           <button
             onClick={() => endCall(false)}
-            className="w-13 h-13 w-12 h-12 rounded-full bg-red-600 hover:bg-red-700 flex items-center justify-center text-white shadow-lg shadow-red-900/40 transition-colors"
+            className="w-12 h-12 rounded-full bg-red-600 hover:bg-red-700 flex items-center justify-center text-white shadow-lg shadow-red-900/40 transition-colors"
           >
             <FiPhoneOff size={20} />
           </button>
