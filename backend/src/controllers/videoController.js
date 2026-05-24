@@ -137,7 +137,7 @@ export const getOnlineCount = async (req, res) => {
       .in('status', ['waiting', 'active'])
       .gte('created_at', tenMinAgo);
 
-    if (error) throw error;
+    if (error) { res.json({ count: 0 }); return; }
 
     const uniqueUsers = new Set();
     data?.forEach(s => {
@@ -146,8 +146,8 @@ export const getOnlineCount = async (req, res) => {
     });
 
     res.json({ count: uniqueUsers.size });
-  } catch (err) {
-    res.status(500).json({ error: 'Error interno del servidor' });
+  } catch {
+    res.json({ count: 0 });
   }
 };
 

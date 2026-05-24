@@ -94,16 +94,6 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Legal footer */}
-      <footer className="py-8 px-6 border-t border-white/5 text-center">
-        <p className="text-gray-600 text-xs">
-          © {new Date().getFullYear()} Destino ·{' '}
-          <Link to="/privacy" className="hover:text-gray-400 transition-colors">Privacidad</Link>
-          {' · '}
-          <Link to="/terms" className="hover:text-gray-400 transition-colors">Términos</Link>
-        </p>
-      </footer>
-
       {/* Premium CTA */}
       <section className="py-20 px-6">
         <motion.div
@@ -120,6 +110,16 @@ export default function Landing() {
           </Link>
         </motion.div>
       </section>
+
+      {/* Legal footer */}
+      <footer className="py-8 px-6 border-t border-white/5 text-center">
+        <p className="text-gray-600 text-xs">
+          © {new Date().getFullYear()} Destino ·{' '}
+          <Link to="/privacy" className="hover:text-gray-400 transition-colors">Privacidad</Link>
+          {' · '}
+          <Link to="/terms" className="hover:text-gray-400 transition-colors">Términos</Link>
+        </p>
+      </footer>
     </div>
   );
 }
