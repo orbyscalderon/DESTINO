@@ -83,6 +83,11 @@ export class LiveKitSession {
     await this.room.switchActiveDevice('videoinput', deviceId);
   }
 
+  getLocalVideoTrack() {
+    const camPub = this.room.localParticipant.getTrackPublication(Track.Source.Camera);
+    return camPub?.track?.mediaStreamTrack ?? null;
+  }
+
   async leave() {
     this._leaving = true;
     await this.room.disconnect();

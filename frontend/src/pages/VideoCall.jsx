@@ -24,6 +24,7 @@ export default function VideoCall() {
   const remoteVidRef   = useRef(null);
   const timerRef       = useRef(null);
   const camerasRef     = useRef([]);
+  const camIndexRef    = useRef(0);
   const roomChannelRef = useRef(null);
   const containerRef   = useRef(null);
 
@@ -133,12 +134,15 @@ export default function VideoCall() {
 
   const flipCamera = async () => {
     if (camerasRef.current.length < 2) return;
-    const currentDevice = localVidRef.current?.srcObject
-      ?.getVideoTracks()[0]?.getSettings()?.deviceId;
-    const idx  = camerasRef.current.findIndex(c => c.deviceId === currentDevice);
-    const next = camerasRef.current[(idx + 1) % camerasRef.current.length];
+    const nextIdx = (camIndexRef.current + 1) % camerasRef.current.length;
+    const next = camerasRef.current[nextIdx];
     try {
       await sessionRef.current?.switchCamera(next.deviceId);
+      camIndexRef.current = nextIdx;
+      const newTrack = sessionRef.current?.getLocalVideoTrack();
+      if (newTrack && localVidRef.current) {
+        localVidRef.current.srcObject = new MediaStream([newTrack]);
+      }
     } catch {}
   };
 
