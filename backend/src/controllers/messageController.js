@@ -41,6 +41,8 @@ export const chatAudioMiddleware = (req, res, next) => {
 };
 
 const BUCKET = 'DESTINO';
+const PPV_BUCKET = 'DESTINO-PPV';   // bucket privado; acceso solo via signed URLs
+const PPV_SIGNED_URL_TTL = 3600;    // 1 hora
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const isValidUUID = (v) => UUID_REGEX.test(v);
@@ -275,12 +277,12 @@ export const sendPPVMessage = async (req, res) => {
 
     let ppvMediaUrl = null;
     if (req.file) {
-      const storagePath = `ppv/${matchId}/${userId}-${Date.now()}`;
+      const storagePath = `${matchId}/${userId}-${Date.now()}`;
       const { error: uploadError } = await supabase.storage
-        .from(BUCKET)
+        .from(PPV_BUCKET)
         .upload(storagePath, req.file.buffer, { contentType: req.file.mimetype, upsert: false });
       if (uploadError) throw uploadError;
-      ppvMediaUrl = supabase.storage.from(BUCKET).getPublicUrl(storagePath).data.publicUrl;
+      ppvMediaUrl = storagePath; // guardamos el path, NO la URL pública
     }
 
     const { data: message, error } = await supabase
@@ -344,6 +346,18 @@ export const unlockPPV = async (req, res) => {
     const earningsUSD = creatorCutUSD(coins);
     const platformFee = amountUSD - earningsUSD;
 
+    const generatePPVUrl = async (rawUrl) => {
+      if (!rawUrl) return null;
+      // Rows anteriores al fix guardan la URL pública completa → devolverla tal cual (legacy)
+      if (rawUrl.startsWith('http')) return rawUrl;
+      // Rows nuevos guardan solo el path → generar signed URL con expiración
+      const { data, error } = await supabase.storage
+        .from(PPV_BUCKET)
+        .createSignedUrl(rawUrl, PPV_SIGNED_URL_TTL);
+      if (error) throw error;
+      return data.signedUrl;
+    };
+
     // Insert first — unique constraint on (message_id, buyer_id) prevents double-spend
     const { error: insertErr } = await supabase.from('ppv_unlocks').insert({
       message_id: messageId,
@@ -358,7 +372,7 @@ export const unlockPPV = async (req, res) => {
     // Duplicate = already unlocked (race condition or retry)
     if (insertErr) {
       if (insertErr.code === '23505') {
-        return res.json({ url: msg.ppv_media_url, already_unlocked: true });
+        return res.json({ url: await generatePPVUrl(msg.ppv_media_url), already_unlocked: true });
       }
       throw insertErr;
     }
@@ -382,7 +396,7 @@ export const unlockPPV = async (req, res) => {
       url: `/chat/${msg.match_id}`,
     }).catch(() => {});
 
-    res.json({ url: msg.ppv_media_url });
+    res.json({ url: await generatePPVUrl(msg.ppv_media_url) });
   } catch (err) {
     if (err?.code === 'INSUFFICIENT_COINS') {
       return res.status(400).json({ error: 'Saldo de coins insuficiente', code: 'INSUFFICIENT_COINS' });

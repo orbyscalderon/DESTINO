@@ -112,6 +112,7 @@ export default function LiveShow() {
   const [loading, setLoading]         = useState(true);
   const [joining, setJoining]         = useState(false);
   const [inShow, setInShow]           = useState(false);
+  const [pendingViewerTracks, setPendingViewerTracks] = useState(null);
   const [isLive, setIsLive]           = useState(false);
   const [muted, setMuted]             = useState(false);
   const [cameraOff, setCameraOff]     = useState(false);
@@ -216,6 +217,20 @@ export default function LiveShow() {
       hideBottomBanner();
     };
   }, []);
+
+  // Apply pending viewer tracks once the video element is in the DOM (inShow=true)
+  useEffect(() => {
+    if (!inShow || !pendingViewerTracks) return;
+    if (pendingViewerTracks.video && hostVideoRef.current) {
+      hostVideoRef.current.srcObject = new MediaStream([pendingViewerTracks.video]);
+    }
+    if (pendingViewerTracks.audio) {
+      const el = new Audio();
+      el.srcObject = new MediaStream([pendingViewerTracks.audio]);
+      el.play().catch(() => {});
+    }
+    setPendingViewerTracks(null);
+  }, [inShow, pendingViewerTracks]);
 
   const loadShow = async () => {
     try {
@@ -585,16 +600,10 @@ export default function LiveShow() {
         })
         .subscribe(async (status) => {
           if (status !== 'SUBSCRIBED') return;
-          // Consume producers already in the room
+          // Use setPendingViewerTracks so the useEffect applies them once
+          // hostVideoRef.current is available (inShow=true re-render).
           const tracks = await rtc.consumeAll().catch(() => null);
-          if (tracks?.video && hostVideoRef.current) {
-            hostVideoRef.current.srcObject = new MediaStream([tracks.video]);
-          }
-          if (tracks?.audio) {
-            const el = new Audio();
-            el.srcObject = new MediaStream([tracks.audio]);
-            el.play().catch(() => {});
-          }
+          if (tracks) setPendingViewerTracks(tracks);
         });
       roomEventsChRef.current = roomEventsCh;
 
