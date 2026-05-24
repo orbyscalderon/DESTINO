@@ -23,7 +23,23 @@ export const createTransport = async (req, res) => {
     const room   = await getOrCreateRoom(roomId);
     const peer   = room.getOrCreatePeer(peerId);
     const params = await peer.createTransport();
-    res.json(params);
+
+    // ICE servers for NAT traversal — clients use these to connect back to mediasoup.
+    // When Railway blocks UDP ports, TURN relay over TCP is the fallback.
+    const iceServers = [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' },
+    ];
+
+    if (process.env.TURN_URL) {
+      iceServers.push({
+        urls:       process.env.TURN_URL,
+        username:   process.env.TURN_USERNAME   || '',
+        credential: process.env.TURN_CREDENTIAL || '',
+      });
+    }
+
+    res.json({ ...params, iceServers });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

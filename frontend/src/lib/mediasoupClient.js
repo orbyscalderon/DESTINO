@@ -74,7 +74,12 @@ export class RtcSession {
     if (this.sendTransport) return;
 
     const { data } = await api.post(`/api/rtc/rooms/${this.roomId}/transport`);
-    this.sendTransport = this.device.createSendTransport(data);
+    const { iceServers, ...transportParams } = data;
+
+    this.sendTransport = this.device.createSendTransport({
+      ...transportParams,
+      iceServers: iceServers || [],
+    });
     this._watchTransport(this.sendTransport);
 
     this.sendTransport.on('connect', ({ dtlsParameters }, cb, eb) => {
@@ -93,7 +98,12 @@ export class RtcSession {
     if (this.recvTransport) return;
 
     const { data } = await api.post(`/api/rtc/rooms/${this.roomId}/transport`);
-    this.recvTransport = this.device.createRecvTransport(data);
+    const { iceServers, ...transportParams } = data;
+
+    this.recvTransport = this.device.createRecvTransport({
+      ...transportParams,
+      iceServers: iceServers || [],
+    });
     this._watchTransport(this.recvTransport);
 
     this.recvTransport.on('connect', ({ dtlsParameters }, cb, eb) => {
