@@ -278,12 +278,19 @@ export const getProfile = async (req, res) => {
     if (error || !profile) return res.status(404).json({ error: 'Perfil no encontrado' });
 
     const viewerId = req.user?.id;
-    const [photosResult, subResult] = await Promise.all([
+
+    // Use allSettled so a sub-query failure never blocks the profile response
+    const [photosSettled, subSettled] = await Promise.allSettled([
       supabase
         .from('profile_photos')
-        .select('id, url, position')
+        .select('id, url, position, is_paid, price, storage_path')
         .eq('user_id', req.params.id)
-        .order('position', { ascending: true }),
+        .order('position', { ascending: true })
+        .then(r => r.error
+          // Fallback: try order_index if position doesn't exist
+          ? supabase.from('profile_photos').select('id, url, order_index as position, is_paid, price, storage_path').eq('user_id', req.params.id).order('order_index', { ascending: true })
+          : r
+        ),
       profile.is_creator && profile.creator_subscription_price
         ? supabase
             .from('creator_subscriptions')
@@ -295,6 +302,9 @@ export const getProfile = async (req, res) => {
         : Promise.resolve({ data: null }),
     ]);
 
+    const photos     = photosSettled.status === 'fulfilled' ? (photosSettled.value?.data || []) : [];
+    const subData    = subSettled.status   === 'fulfilled' ? subSettled.value?.data : null;
+
     // Increment view counter (fire-and-forget, skip self-views)
     if (viewerId && viewerId !== req.params.id) {
       supabase.rpc('increment_profile_views', { target_user_id: req.params.id }).catch(() => {});
@@ -303,11 +313,12 @@ export const getProfile = async (req, res) => {
     res.json({
       profile: {
         ...profile,
-        photos: photosResult.data || [],
-        is_subscribed: !!subResult.data,
+        photos,
+        is_subscribed: !!subData,
       },
     });
   } catch (err) {
+    console.error('[getProfile]', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
