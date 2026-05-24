@@ -25,7 +25,7 @@ export default function ProtectedRoute() {
     return <Navigate to="/verify-email" replace />;
   }
 
-  if (profile && !profile.username && location.pathname !== '/onboarding') {
+  if ((!profile || !profile.username) && location.pathname !== '/onboarding') {
     return <Navigate to="/onboarding" replace />;
   }
 

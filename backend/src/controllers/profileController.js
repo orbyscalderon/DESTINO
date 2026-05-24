@@ -421,7 +421,8 @@ export const updateProfile = async (req, res) => {
 
     const { data: profile, error } = await supabase
       .from('profiles')
-      .update({
+      .upsert({
+        id: req.user.id,
         ...(username !== undefined && { username }),
         ...(full_name !== undefined && { full_name: full_name.trim() }),
         ...(parsedAge !== undefined && { age: parsedAge }),
@@ -433,8 +434,7 @@ export const updateProfile = async (req, res) => {
         ...(zodiac !== undefined && { zodiac }),
         ...(interests !== undefined && { interests }),
         last_active: new Date(),
-      })
-      .eq('id', req.user.id)
+      }, { onConflict: 'id' })
       .select()
       .single();
 
