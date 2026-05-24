@@ -191,6 +191,11 @@ export default function LiveShow() {
   const localVideoRef   = useRef(null);
   const previewVideoRef = useRef(null);
 
+  // Refs to track live state and role for cleanup/pagehide (avoid stale closures)
+  const isLiveRef    = useRef(false);
+  const isHostRef    = useRef(false);
+  const authTokenRef = useRef(null);
+
   // Scroll chat to bottom
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -207,14 +212,50 @@ export default function LiveShow() {
     loadShow();
   }, [id]);
 
+  // Keep refs in sync so cleanup handlers always see current values
+  useEffect(() => { isLiveRef.current = isLive; }, [isLive]);
+  useEffect(() => {
+    if (show) isHostRef.current = show.host?.id === user?.id;
+  }, [show, user?.id]);
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      authTokenRef.current = session?.access_token ?? null;
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
+      authTokenRef.current = session?.access_token ?? null;
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // Cleanup on React unmount (SPA navigation away)
   useEffect(() => {
     return () => {
+      if (isLiveRef.current && isHostRef.current) {
+        api.post(`/api/shows/${id}/end`).catch(() => {});
+      }
       cleanupPreviewTracks();
       leaveShowChannel();
       leaveShow();
       hideBottomBanner();
     };
   }, []);
+
+  // End show if host closes the browser tab / window
+  useEffect(() => {
+    const handlePageHide = (e) => {
+      if (e.persisted || !isLiveRef.current || !isHostRef.current) return;
+      const token = authTokenRef.current;
+      if (!token) return;
+      const base = import.meta.env.DEV ? '' : (import.meta.env.VITE_API_URL ?? '');
+      fetch(`${base}/api/shows/${id}/end`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        keepalive: true,
+      }).catch(() => {});
+    };
+    window.addEventListener('pagehide', handlePageHide);
+    return () => window.removeEventListener('pagehide', handlePageHide);
+  }, [id]);
 
   // Apply pending viewer tracks once the video element is in the DOM (inShow=true)
   useEffect(() => {
@@ -589,6 +630,7 @@ export default function LiveShow() {
   };
 
   const handleEndShow = async () => {
+    isLiveRef.current = false; // prevent double-end from cleanup on unmount
     clearInterval(liveTimerRef.current);
     clearInterval(audioLevelRef.current);
     if (screenTrackRef.current) {
