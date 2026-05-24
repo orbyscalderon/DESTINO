@@ -36,11 +36,8 @@ CREATE TABLE IF NOT EXISTS daily_message_count (
 CREATE INDEX IF NOT EXISTS idx_daily_msg_user_date ON daily_message_count(user_id, date);
 
 ALTER TABLE daily_message_count ENABLE ROW LEVEL SECURITY;
-DO $$ BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='daily_message_count' AND policyname='service_role_all') THEN
-    EXECUTE 'CREATE POLICY service_role_all ON daily_message_count FOR ALL TO service_role USING (true) WITH CHECK (true)';
-  END IF;
-END $$;
+DROP POLICY IF EXISTS service_role_all ON daily_message_count;
+CREATE POLICY service_role_all ON daily_message_count FOR ALL TO service_role USING (true) WITH CHECK (true);
 
 -- 3. RPC: incrementar contador de mensajes diarios (upsert atómico)
 DROP FUNCTION IF EXISTS increment_message_count(UUID);
