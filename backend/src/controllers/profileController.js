@@ -271,7 +271,7 @@ export const getProfile = async (req, res) => {
   try {
     const { data: profile, error } = await supabase
       .from('profiles')
-      .select('id, username, full_name, age, gender, bio, avatar_url, is_premium, is_verified, country, language, interests, created_at, is_creator, creator_bio, creator_subscription_price, is_adult_creator, profile_views, boosted_until, last_active, is_incognito')
+      .select('*')
       .eq('id', req.params.id)
       .single();
 
