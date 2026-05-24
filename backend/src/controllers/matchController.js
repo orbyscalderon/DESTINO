@@ -227,8 +227,8 @@ export const getMatches = async (req, res) => {
         expires_at,
         user1_id,
         user2_id,
-        user1:profiles!matches_user1_id_fkey(id, full_name, avatar_url, is_premium, is_verified, last_active, country, language),
-        user2:profiles!matches_user2_id_fkey(id, full_name, avatar_url, is_premium, is_verified, last_active, country, language)
+        user1:profiles!user1_id(id, full_name, avatar_url, is_premium, is_verified, last_active, country, language),
+        user2:profiles!user2_id(id, full_name, avatar_url, is_premium, is_verified, last_active, country, language)
       `)
       .eq('is_match', true)
       .or(`user1_id.eq.${userId},user2_id.eq.${userId}`)
@@ -406,7 +406,7 @@ export const getWhoLikedMe = async (req, res) => {
         id,
         is_super_like,
         created_at,
-        user1:profiles!matches_user1_id_fkey(id, full_name, avatar_url, is_verified)
+        user1:profiles!user1_id(id, full_name, avatar_url, is_verified)
       `)
       .eq('user2_id', userId)
       .eq('user1_liked', true)

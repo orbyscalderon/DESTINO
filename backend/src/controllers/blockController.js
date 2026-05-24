@@ -52,7 +52,7 @@ export const getBlockedUsers = async (req, res) => {
   try {
     const { data, error } = await supabase
       .from('blocked_users')
-      .select('blocked_id, created_at, profile:profiles!blocked_users_blocked_id_fkey(id, full_name, avatar_url)')
+      .select('blocked_id, created_at, profile:profiles!blocked_id(id, full_name, avatar_url)')
       .eq('blocker_id', req.user.id)
       .order('created_at', { ascending: false });
 

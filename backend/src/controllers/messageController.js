@@ -81,7 +81,7 @@ export const sendImageMessage = async (req, res) => {
       .from('messages')
       .insert({ match_id: matchId, sender_id: userId, content: '', image_url: imageUrl })
       .select(`id, sender_id, content, image_url, created_at, is_read,
-        sender:profiles!messages_sender_id_fkey(id, full_name, avatar_url)`)
+        sender:profiles!sender_id(id, full_name, avatar_url)`)
       .single();
 
     if (error) throw error;
@@ -134,7 +134,7 @@ export const getMessages = async (req, res) => {
         read_at,
         is_ppv,
         ppv_price,
-        sender:profiles!messages_sender_id_fkey(id, full_name, avatar_url),
+        sender:profiles!sender_id(id, full_name, avatar_url),
         reactions:message_reactions(id, user_id, emoji)
       `)
       .eq('match_id', matchId)
@@ -200,7 +200,7 @@ export const sendMessage = async (req, res) => {
       .insert({ match_id: matchId, sender_id: userId, content: sanitized, type: msgType })
       .select(`
         id, sender_id, content, type, created_at, is_read,
-        sender:profiles!messages_sender_id_fkey(id, full_name, avatar_url)
+        sender:profiles!sender_id(id, full_name, avatar_url)
       `)
       .single();
 
@@ -296,7 +296,7 @@ export const sendPPVMessage = async (req, res) => {
         ppv_media_url: ppvMediaUrl,
       })
       .select(`id, sender_id, content, is_ppv, ppv_price, created_at, is_read,
-        sender:profiles!messages_sender_id_fkey(id, full_name, avatar_url)`)
+        sender:profiles!sender_id(id, full_name, avatar_url)`)
       .single();
 
     if (error) throw error;
@@ -443,7 +443,7 @@ export const sendVoiceMessage = async (req, res) => {
         audio_duration_s: parseInt(duration) || null,
       })
       .select(`id, sender_id, content, type, audio_url, audio_duration_s, created_at, is_read,
-        sender:profiles!messages_sender_id_fkey(id, full_name, avatar_url)`)
+        sender:profiles!sender_id(id, full_name, avatar_url)`)
       .single();
     if (error) throw error;
 

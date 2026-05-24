@@ -102,7 +102,7 @@ export const getReceivedRequests = async (req, res) => {
       .from('video_requests')
       .select(`
         id, message, price, status, created_at, expires_at, completed_at, video_url,
-        requester:profiles!video_requests_requester_id_fkey(id, full_name, username, avatar_url, is_premium)
+        requester:profiles!requester_id(id, full_name, username, avatar_url, is_premium)
       `)
       .eq('creator_id', creatorId)
       .order('created_at', { ascending: false });
@@ -128,7 +128,7 @@ export const getSentRequests = async (req, res) => {
       .from('video_requests')
       .select(`
         id, message, price, status, created_at, expires_at, completed_at, video_url,
-        creator:profiles!video_requests_creator_id_fkey(id, full_name, username, avatar_url, is_creator, is_premium)
+        creator:profiles!creator_id(id, full_name, username, avatar_url, is_creator, is_premium)
       `)
       .eq('requester_id', requesterId)
       .order('created_at', { ascending: false });

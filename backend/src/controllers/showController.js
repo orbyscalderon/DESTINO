@@ -590,7 +590,7 @@ export const sendTip = async (req, res) => {
     // Registrar tip
     await supabase.from('show_tips').insert({
       show_id: id,
-      tipper_id: tipperId,
+      sender_id: tipperId,
       creator_id: show.host_id,
       coins_spent: coinsAmount,
       amount_usd: amountUSD,
@@ -694,12 +694,12 @@ export const getShowTippers = async (req, res) => {
     const { id } = req.params;
 
     const [{ data: tips }, { data: gifts }] = await Promise.all([
-      supabase.from('show_tips').select('tipper_id, coins_spent').eq('show_id', id),
+      supabase.from('show_tips').select('sender_id, coins_spent').eq('show_id', id),
       supabase.from('show_gifts').select('sender_id, coins_spent').eq('show_id', id),
     ]);
 
     const totals = {};
-    (tips || []).forEach(t => { totals[t.tipper_id] = (totals[t.tipper_id] || 0) + t.coins_spent; });
+    (tips || []).forEach(t => { totals[t.sender_id] = (totals[t.sender_id] || 0) + t.coins_spent; });
     (gifts || []).forEach(g => { totals[g.sender_id] = (totals[g.sender_id] || 0) + g.coins_spent; });
 
     const sorted = Object.entries(totals)
