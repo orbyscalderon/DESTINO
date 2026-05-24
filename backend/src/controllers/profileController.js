@@ -358,7 +358,7 @@ export const getProfile = async (req, res) => {
 
     _step = 'increment_views';
     if (viewerId && viewerId !== targetId) {
-      supabase.rpc('increment_profile_views', { target_user_id: targetId }).catch(() => {});
+      supabase.rpc('increment_profile_views', { target_user_id: targetId }).then(null, () => {});
     }
 
     _step = 'send_response';

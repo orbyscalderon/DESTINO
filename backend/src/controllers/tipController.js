@@ -44,21 +44,21 @@ export const sendTip = async (req, res) => {
         { onConflict: 'creator_id', ignoreDuplicates: false }
       );
     // Try RPC increment instead (if available)
-    await supabase.rpc('increment_creator_earnings', { p_creator_id: toId, p_amount: earningsUSD }).catch(() => {
+    try {
+      await supabase.rpc('increment_creator_earnings', { p_creator_id: toId, p_amount: earningsUSD });
+    } catch {
       // Fallback: manual increment
-      supabase.from('creator_earnings')
+      const { data: e } = await supabase.from('creator_earnings')
         .select('total_earned, available_balance')
         .eq('creator_id', toId)
-        .single()
-        .then(({ data: e }) => {
-          if (e) {
-            supabase.from('creator_earnings').update({
-              total_earned: parseFloat(e.total_earned || 0) + earningsUSD,
-              available_balance: parseFloat(e.available_balance || 0) + earningsUSD,
-            }).eq('creator_id', toId);
-          }
-        });
-    });
+        .single();
+      if (e) {
+        await supabase.from('creator_earnings').update({
+          total_earned: parseFloat(e.total_earned || 0) + earningsUSD,
+          available_balance: parseFloat(e.available_balance || 0) + earningsUSD,
+        }).eq('creator_id', toId);
+      }
+    }
 
     // Record tip
     await supabase.from('profile_tips').insert({
