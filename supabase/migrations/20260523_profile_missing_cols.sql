@@ -26,14 +26,12 @@ CREATE INDEX IF NOT EXISTS idx_profiles_boosted_until ON profiles(boosted_until)
 ALTER TABLE profile_photos ADD COLUMN IF NOT EXISTS position integer DEFAULT 0;
 ALTER TABLE profile_photos ADD COLUMN IF NOT EXISTS is_paid  boolean DEFAULT false;
 ALTER TABLE profile_photos ADD COLUMN IF NOT EXISTS price    integer DEFAULT 0;
--- Si la columna se llamaba order_index, copiar los valores
-DO $$
-BEGIN
-  IF EXISTS (SELECT 1 FROM information_schema.columns
-             WHERE table_name='profile_photos' AND column_name='order_index') THEN
-    UPDATE profile_photos SET position = order_index WHERE position = 0;
-  END IF;
-END $$;
+-- Copiar order_index → position si la columna vieja existe
+UPDATE profile_photos SET position = order_index WHERE position = 0
+  AND EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name='profile_photos' AND column_name='order_index'
+  );
 
 -- RPC para incrementar profile_views atómicamente
 CREATE OR REPLACE FUNCTION increment_profile_views(target_user_id UUID)

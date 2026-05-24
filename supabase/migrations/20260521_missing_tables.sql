@@ -22,11 +22,8 @@ CREATE INDEX IF NOT EXISTS idx_video_sessions_user2     ON video_sessions(user2_
 CREATE INDEX IF NOT EXISTS idx_video_sessions_started   ON video_sessions(started_at);
 
 ALTER TABLE video_sessions ENABLE ROW LEVEL SECURITY;
-DO $$ BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='video_sessions' AND policyname='service_role_all') THEN
-    EXECUTE 'CREATE POLICY service_role_all ON video_sessions FOR ALL TO service_role USING (true) WITH CHECK (true)';
-  END IF;
-END $$;
+DROP POLICY IF EXISTS service_role_all ON video_sessions;
+CREATE POLICY service_role_all ON video_sessions FOR ALL TO service_role USING (true) WITH CHECK (true);
 
 -- 2. Contador de mensajes diarios para usuarios free
 CREATE TABLE IF NOT EXISTS daily_message_count (

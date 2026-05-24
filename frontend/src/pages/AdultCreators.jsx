@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiSearch, FiUsers, FiStar, FiGlobe, FiWifi, FiX, FiSliders, FiChevronRight } from 'react-icons/fi';
 import api from '../lib/api.js';
@@ -128,9 +128,46 @@ function SectionHeader({ title, count, color = 'text-gray-400', dot, onSeeAll })
   );
 }
 
+function ShowCard({ show }) {
+  return (
+    <Link to={`/shows/${show.id}`}>
+      <motion.div
+        initial={{ opacity: 0, scale: 0.97 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="relative aspect-[4/5] rounded-xl overflow-hidden bg-dark-700 group"
+      >
+        {show.cover_url
+          ? <img src={show.cover_url} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" />
+          : <div className="w-full h-full bg-gradient-to-br from-red-900/40 to-pink-900/30 flex items-center justify-center"><span className="text-4xl opacity-40">🔞</span></div>
+        }
+        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/10 to-transparent" />
+        <div className="absolute top-2 left-2">
+          <span className="flex items-center gap-1 bg-red-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
+            <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" /> EN VIVO
+          </span>
+        </div>
+        {show.viewer_count > 0 && (
+          <div className="absolute top-2 right-2">
+            <span className="bg-black/60 text-gray-300 text-[9px] px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
+              <FiUsers size={7} /> {show.viewer_count}
+            </span>
+          </div>
+        )}
+        <div className="absolute bottom-0 left-0 right-0 px-2.5 pb-2.5">
+          <p className="text-white font-semibold text-xs truncate">{show.title || 'Show en vivo'}</p>
+          {show.host?.full_name && (
+            <p className="text-gray-400 text-[9px] truncate mt-0.5">{show.host.full_name}</p>
+          )}
+        </div>
+      </motion.div>
+    </Link>
+  );
+}
+
 export default function AdultCreators() {
   const navigate = useNavigate();
   const [verified, setVerified] = useState(isAgeVerified);
+  const [liveShows, setLiveShows] = useState([]);
   const [creators, setCreators]   = useState([]);
   const [loading, setLoading]     = useState(false);
   const [query, setQuery]         = useState('');
@@ -163,7 +200,11 @@ export default function AdultCreators() {
   }, [query, gender, country, sort, onlineOnly]);
 
   useEffect(() => {
-    if (verified) load({ q: '', g: gender, c: country, s: sort, o: onlineOnly, p: 0 });
+    if (!verified) return;
+    load({ q: '', g: gender, c: country, s: sort, o: onlineOnly, p: 0 });
+    api.get('/api/shows?category=adult&status=live')
+      .then(({ data }) => setLiveShows(data.shows || []))
+      .catch(() => {});
   }, [verified, gender, sort, onlineOnly, country]);
 
   const handleSearch = (val) => {
@@ -355,7 +396,22 @@ export default function AdultCreators() {
         ) : (
           /* ── Default sections view ── */
           <>
-            {/* LIVE NOW */}
+            {/* ADULT LIVE SHOWS */}
+            {liveShows.length > 0 && (
+              <section className="mb-6">
+                <SectionHeader
+                  title="Shows en Vivo"
+                  count={liveShows.length}
+                  color="text-red-400"
+                  dot="bg-red-500"
+                />
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                  {liveShows.map(s => <ShowCard key={s.id} show={s} />)}
+                </div>
+              </section>
+            )}
+
+            {/* LIVE NOW (creators) */}
             {liveCreators.length > 0 && (
               <section className="mb-6">
                 <SectionHeader

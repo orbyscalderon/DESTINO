@@ -9,13 +9,11 @@ import {
 } from 'react-icons/fi';
 import { useAuthStore } from '../store/authStore.js';
 import VerifiedBadge from '../components/ui/VerifiedBadge.jsx';
-import AgeVerificationModal from '../components/ui/AgeVerificationModal.jsx';
 import api from '../lib/api.js';
 import toast from 'react-hot-toast';
 
 /* ── Categorías ──────────────────────────────────────────── */
 export const SHOW_CATEGORIES = [
-  { key: 'adult',   label: 'Adulto',  emoji: '🔞' },
   { key: 'music',   label: 'Música',  emoji: '🎵' },
   { key: 'dance',   label: 'Baile',   emoji: '💃' },
   { key: 'comedy',  label: 'Comedia', emoji: '😂' },
@@ -307,17 +305,7 @@ export default function LiveShows() {
   const [search, setSearch]                 = useState('');
   const [showSearch, setShowSearch]         = useState(false);
 
-  const [showAgeModal, setShowAgeModal]       = useState(false);
-  const [pendingCategory, setPendingCategory] = useState(null);
-
-  const canSeeAdult = !!(profile?.age_verified_at || profile?.is_adult_creator);
-
   const handleCategoryClick = (key) => {
-    if (key === 'adult' && !canSeeAdult) {
-      setPendingCategory(key);
-      setShowAgeModal(true);
-      return;
-    }
     setCategoryFilter(prev => prev === key ? 'all' : key);
   };
 
@@ -353,8 +341,8 @@ export default function LiveShows() {
   }, [loadShows]);
 
   /* ── Derived ── */
-  const liveShows = shows.filter(s => s.status === 'live');
-  const upcomingShows = shows.filter(s => s.status === 'scheduled');
+  const liveShows = shows.filter(s => s.status === 'live' && s.category !== 'adult');
+  const upcomingShows = shows.filter(s => s.status === 'scheduled' && s.category !== 'adult');
 
   const filteredLive = liveShows.filter(s =>
     !search || s.title.toLowerCase().includes(search.toLowerCase()) ||
@@ -484,9 +472,7 @@ export default function LiveShows() {
                 className={`flex items-center gap-1.5 px-3 py-2 rounded-2xl text-xs font-semibold whitespace-nowrap shrink-0 transition-all ${
                   categoryFilter === key
                     ? 'bg-brand-500 text-white shadow-lg shadow-brand-500/20'
-                    : key === 'adult'
-                      ? 'bg-red-500/10 text-red-400/80 hover:bg-red-500/20 border border-red-500/20'
-                      : 'bg-dark-700 text-gray-400 hover:text-white hover:bg-dark-600'
+                    : 'bg-dark-700 text-gray-400 hover:text-white hover:bg-dark-600'
                 }`}
               >
                 {emoji} {label}
@@ -720,16 +706,6 @@ export default function LiveShows() {
         </motion.div>
       )}
 
-      {showAgeModal && (
-        <AgeVerificationModal
-          onVerified={() => {
-            setShowAgeModal(false);
-            setCategoryFilter(pendingCategory);
-            setPendingCategory(null);
-          }}
-          onClose={() => { setShowAgeModal(false); setPendingCategory(null); }}
-        />
-      )}
     </div>
   );
 }
