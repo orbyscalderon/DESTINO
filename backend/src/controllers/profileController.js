@@ -357,7 +357,7 @@ export const getProfile = async (req, res) => {
     });
   } catch (err) {
     console.error('[getProfile] unexpected error:', err);
-    res.status(500).json({ error: 'Error interno del servidor' });
+    res.status(500).json({ error: 'Error interno del servidor', _debug: err?.message });
   }
 };
 
