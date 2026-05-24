@@ -479,6 +479,24 @@ export default function LiveShow() {
       await rtc.init();
       await rtc.publishStream(stream);
 
+      // Announce producers to viewers via Supabase Realtime
+      // (server-side broadcast is unreliable without an active subscription)
+      const hostCh = supabase
+        .channel(`room_events_${roomId}`)
+        .subscribe(async (status) => {
+          if (status !== 'SUBSCRIBED') return;
+          for (const [kind, producer] of Object.entries(rtc.producers)) {
+            if (producer && !producer.closed) {
+              await hostCh.send({
+                type: 'broadcast',
+                event: 'new_producer',
+                payload: { producerId: producer.id, peerId: user?.id, kind },
+              });
+            }
+          }
+        });
+      roomEventsChRef.current = hostCh;
+
       // VU meter via Web Audio API
       try {
         const audioCtx = new AudioContext();
@@ -540,38 +558,44 @@ export default function LiveShow() {
       rtcRef.current = rtc;
       await rtc.init();
 
-      // Consume existing producers (host may already be live)
-      const tracks = await rtc.consumeAll();
-      if (tracks.video && hostVideoRef.current) {
-        hostVideoRef.current.srcObject = new MediaStream([tracks.video]);
-      }
-      if (tracks.audio) {
-        const el = new Audio();
-        el.srcObject = new MediaStream([tracks.audio]);
-        el.play().catch(() => {});
-      }
+      const attachViewerTrack = (result) => {
+        if (!result) return;
+        if (result.kind === 'video' && hostVideoRef.current) {
+          hostVideoRef.current.srcObject = new MediaStream([result.track]);
+        }
+        if (result.kind === 'audio') {
+          const el = new Audio();
+          el.srcObject = new MediaStream([result.track]);
+          el.play().catch(() => {});
+        }
+      };
 
-      // Subscribe to new producers and host leaving
+      // Subscribe first, then consume inside callback — fixes race condition
       const roomEventsCh = supabase
         .channel(`room_events_${roomId}`)
         .on('broadcast', { event: 'new_producer' }, async ({ payload }) => {
           try {
             const result = await rtc.consumeProducer(payload.producerId);
-            if (result.kind === 'video' && hostVideoRef.current) {
-              hostVideoRef.current.srcObject = new MediaStream([result.track]);
-            }
-            if (result.kind === 'audio') {
-              const el = new Audio();
-              el.srcObject = new MediaStream([result.track]);
-              el.play().catch(() => {});
-            }
+            attachViewerTrack(result);
           } catch {}
         })
         .on('broadcast', { event: 'peer_left' }, () => {
           toast('El show terminó', { icon: '📺' });
           navigate('/shows');
         })
-        .subscribe();
+        .subscribe(async (status) => {
+          if (status !== 'SUBSCRIBED') return;
+          // Consume producers already in the room
+          const tracks = await rtc.consumeAll().catch(() => null);
+          if (tracks?.video && hostVideoRef.current) {
+            hostVideoRef.current.srcObject = new MediaStream([tracks.video]);
+          }
+          if (tracks?.audio) {
+            const el = new Audio();
+            el.srcObject = new MediaStream([tracks.audio]);
+            el.play().catch(() => {});
+          }
+        });
       roomEventsChRef.current = roomEventsCh;
 
       joinShowChannel(id, 'viewer');
