@@ -116,15 +116,33 @@ export default function VideoRoom({ genderFilter, countryFilter, videoCallsRemai
         setStatus('ended');
         clearInterval(timerRef.current);
       })
-      .subscribe(async (status) => {
-        if (status !== 'SUBSCRIBED' || !activeRef.current) return;
+      .subscribe(async (channelStatus) => {
+        if (channelStatus !== 'SUBSCRIBED' || !activeRef.current) return;
+
+        // Announce own producers so the waiting peer can consume them
         for (const [kind, producer] of Object.entries(rtcRef.current?.producers ?? {})) {
           if (producer && !producer.closed) {
-            ch.send({
+            await ch.send({
               type: 'broadcast',
               event: 'new_producer',
               payload: { producerId: producer.id, peerId: user?.id, kind },
             });
+          }
+        }
+
+        // Retry consumeAll in case the first call ran before the partner published
+        // (race condition when both users start at the same time)
+        if (!remoteVidRef.current?.srcObject) {
+          const retry = await rtcRef.current?.consumeAll().catch(() => null);
+          if (retry?.video && remoteVidRef.current) {
+            remoteVidRef.current.srcObject = new MediaStream([retry.video]);
+            setStatus('connected');
+            timerRef.current = setInterval(() => setCallDuration(d => d + 1), 1000);
+          }
+          if (retry?.audio) {
+            const el = new Audio();
+            el.srcObject = new MediaStream([retry.audio]);
+            el.play().catch(() => {});
           }
         }
       });

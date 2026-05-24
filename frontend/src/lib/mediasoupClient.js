@@ -155,7 +155,7 @@ export class RtcSession {
     const tracks = { audio: null, video: null };
     for (const { producerId, kind } of data.producers) {
       const result = await this.consumeProducer(producerId);
-      tracks[kind] = result.track;
+      if (result) tracks[kind] = result.track; // null = already consumed, skip
     }
     return tracks; // { audio: MediaStreamTrack|null, video: MediaStreamTrack|null }
   }
