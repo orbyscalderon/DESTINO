@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiBell, FiArrowLeft, FiCheck, FiZap, FiHeart, FiMessageCircle, FiVideo, FiDollarSign, FiUsers, FiLock, FiShield, FiRadio } from 'react-icons/fi';
+import { FiBell, FiArrowLeft, FiCheck, FiZap, FiHeart, FiMessageCircle, FiVideo, FiDollarSign, FiUsers, FiLock, FiShield, FiRadio, FiUserPlus, FiX } from 'react-icons/fi';
 import api from '../lib/api.js';
 import toast from 'react-hot-toast';
 
 const TYPE_CONFIG = {
   tip:                 { icon: FiZap,           color: 'text-yellow-400', bg: 'bg-yellow-500/10' },
   match:               { icon: FiHeart,          color: 'text-brand-400',  bg: 'bg-brand-500/10' },
+  friend_request:      { icon: FiUserPlus,       color: 'text-blue-400',   bg: 'bg-blue-500/10'  },
   message:             { icon: FiMessageCircle,  color: 'text-blue-400',   bg: 'bg-blue-500/10'  },
   ppv_unlock:          { icon: FiLock,           color: 'text-purple-400', bg: 'bg-purple-500/10'},
   subscription:        { icon: FiUsers,          color: 'text-green-400',  bg: 'bg-green-500/10' },
@@ -36,6 +37,8 @@ export default function Notifications() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [marking, setMarking] = useState(false);
+  const [friendProcessing, setFriendProcessing] = useState({}); // { notifId: 'accepting'|'rejecting' }
+  const [friendHandled, setFriendHandled] = useState(new Set());
 
   useEffect(() => {
     loadNotifications();
@@ -74,6 +77,40 @@ export default function Notifications() {
       setNotifications(prev => prev.map(n => n.id === notif.id ? { ...n, is_read: true } : n));
       setUnreadCount(prev => Math.max(0, prev - 1));
     } catch {}
+  };
+
+  const handleAcceptFriend = async (notif) => {
+    const fromUserId = notif.data?.from_user_id;
+    if (!fromUserId) return;
+    setFriendProcessing(prev => ({ ...prev, [notif.id]: 'accepting' }));
+    try {
+      await api.post('/api/video/add-friend', { targetUserId: fromUserId });
+      setFriendHandled(prev => new Set([...prev, notif.id]));
+      if (!notif.is_read) {
+        await api.put(`/api/notifications/in-app/${notif.id}/read`).catch(() => {});
+        setNotifications(prev => prev.map(n => n.id === notif.id ? { ...n, is_read: true } : n));
+        setUnreadCount(prev => Math.max(0, prev - 1));
+      }
+      toast.success('¡Amigo agregado! Ya pueden chatear 💬');
+    } catch {
+      toast.error('No se pudo aceptar la solicitud');
+    } finally {
+      setFriendProcessing(prev => { const s = { ...prev }; delete s[notif.id]; return s; });
+    }
+  };
+
+  const handleRejectFriend = async (notif) => {
+    setFriendProcessing(prev => ({ ...prev, [notif.id]: 'rejecting' }));
+    try {
+      setFriendHandled(prev => new Set([...prev, notif.id]));
+      if (!notif.is_read) {
+        await api.put(`/api/notifications/in-app/${notif.id}/read`).catch(() => {});
+        setNotifications(prev => prev.map(n => n.id === notif.id ? { ...n, is_read: true } : n));
+        setUnreadCount(prev => Math.max(0, prev - 1));
+      }
+    } finally {
+      setFriendProcessing(prev => { const s = { ...prev }; delete s[notif.id]; return s; });
+    }
   };
 
   if (loading) return (
@@ -146,6 +183,38 @@ export default function Notifications() {
                     </p>
                     {notif.body && (
                       <p className="text-xs text-gray-500 mt-0.5 truncate">{notif.body}</p>
+                    )}
+                    {notif.type === 'friend_request' && notif.data?.from_user_id && (
+                      <div className="flex gap-2 mt-2" onClick={e => e.stopPropagation()}>
+                        {friendHandled.has(notif.id) ? (
+                          <span className="text-xs text-gray-500 flex items-center gap-1">
+                            <FiCheck size={12} className="text-green-400" /> Respondida
+                          </span>
+                        ) : (
+                          <>
+                            <button
+                              onClick={() => handleAcceptFriend(notif)}
+                              disabled={!!friendProcessing[notif.id]}
+                              className="flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-green-500/20 border border-green-500/40 text-green-400 hover:bg-green-500/30 disabled:opacity-50 transition-colors"
+                            >
+                              {friendProcessing[notif.id] === 'accepting'
+                                ? <div className="w-3 h-3 border border-green-400 border-t-transparent rounded-full animate-spin" />
+                                : <FiCheck size={12} />}
+                              Aceptar
+                            </button>
+                            <button
+                              onClick={() => handleRejectFriend(notif)}
+                              disabled={!!friendProcessing[notif.id]}
+                              className="flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-dark-600 border border-dark-500 text-gray-400 hover:text-gray-300 disabled:opacity-50 transition-colors"
+                            >
+                              {friendProcessing[notif.id] === 'rejecting'
+                                ? <div className="w-3 h-3 border border-gray-400 border-t-transparent rounded-full animate-spin" />
+                                : <FiX size={12} />}
+                              Ignorar
+                            </button>
+                          </>
+                        )}
+                      </div>
                     )}
                   </div>
 

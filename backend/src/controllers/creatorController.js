@@ -635,20 +635,35 @@ export const discoverAdultCreators = async (req, res) => {
       }
     }
 
-    const q = req.query.q?.trim();
-    const page = Math.max(0, parseInt(req.query.page) || 0);
-    const limit = 20;
+    const q          = req.query.q?.trim();
+    const gender     = req.query.gender;   // 'male' | 'female' | 'other'
+    const country    = req.query.country;  // country code / name
+    const onlineOnly = req.query.online === 'true';
+    const sort       = req.query.sort || 'new'; // 'new' | 'popular'
+    const page       = Math.max(0, parseInt(req.query.page) || 0);
+    const limit      = 24;
 
     let query = supabase
       .from('profiles')
-      .select('id, full_name, avatar_url, is_verified, creator_bio, creator_subscription_price, created_at')
+      .select('id, full_name, avatar_url, is_verified, creator_bio, creator_subscription_price, created_at, gender, country, last_active')
       .eq('is_creator', true)
       .eq('is_adult_creator', true)
       .or('is_incognito.is.null,is_incognito.eq.false')
-      .order('created_at', { ascending: false })
       .range(page * limit, (page + 1) * limit - 1);
 
-    if (q) query = query.ilike('full_name', `%${q}%`);
+    if (sort === 'popular') {
+      query = query.order('created_at', { ascending: false }); // will be re-sorted by sub count below
+    } else {
+      query = query.order('created_at', { ascending: false });
+    }
+
+    if (q)          query = query.ilike('full_name', `%${q}%`);
+    if (gender)     query = query.eq('gender', gender);
+    if (country)    query = query.eq('country', country);
+    if (onlineOnly) {
+      const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+      query = query.gte('last_active', fiveMinAgo);
+    }
 
     const { data, error } = await query;
     if (error) throw error;
@@ -665,10 +680,10 @@ export const discoverAdultCreators = async (req, res) => {
       (counts || []).forEach(r => { subMap[r.creator_id] = (subMap[r.creator_id] || 0) + 1; });
     }
 
-    res.json({
-      creators: (data || []).map(c => ({ ...c, subscribers_count: subMap[c.id] || 0 })),
-      hasMore: (data || []).length === limit,
-    });
+    let result = (data || []).map(c => ({ ...c, subscribers_count: subMap[c.id] || 0 }));
+    if (sort === 'popular') result.sort((a, b) => b.subscribers_count - a.subscribers_count);
+
+    res.json({ creators: result, hasMore: result.length === limit });
   } catch (err) {
     res.status(500).json({ error: 'Error interno del servidor' });
   }

@@ -1,92 +1,74 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../lib/supabase.js';
 import toast from 'react-hot-toast';
 
+async function redirectByProfile(userId, type, navigate) {
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('username')
+    .eq('id', userId)
+    .single();
+
+  if (type === 'recovery') {
+    navigate('/settings?reset=true', { replace: true });
+  } else {
+    navigate(profile?.username ? '/home' : '/onboarding', { replace: true });
+  }
+}
+
 export default function AuthCallback() {
   const navigate = useNavigate();
   const location = useLocation();
+  const doneRef = useRef(false);
 
   useEffect(() => {
-    let done = false;
+    // detectSessionInUrl: true — Supabase already processed (or is processing) the URL.
+    // We just need to wait for the SIGNED_IN event or check for an existing session.
 
-    const redirectByProfile = async (session) => {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('username')
-        .eq('id', session.user.id)
-        .single();
-      navigate(profile?.username ? '/home' : '/onboarding', { replace: true });
+    const params = new URLSearchParams(location.search);
+    const urlParams = new URLSearchParams(window.location.search);
+    const type = params.get('type') ?? urlParams.get('type');
+
+    const finish = async (session) => {
+      if (doneRef.current) return;
+      doneRef.current = true;
+      await redirectByProfile(session.user.id, type, navigate);
     };
 
-    const finish = async (session, type) => {
-      if (done) return;
-      done = true;
-      if (session.user?.recovery_sent_at || type === 'recovery') {
-        navigate('/settings?reset=true', { replace: true });
-      } else {
-        await redirectByProfile(session);
+    // 1. Check if session is already available (Supabase may have auto-processed the URL)
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) finish(session);
+    });
+
+    // 2. Listen for sign-in event (fires when Supabase finishes processing the callback)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session?.user) {
+        finish(session);
       }
-    };
+    });
 
-    const handleCallback = async () => {
-      // Con HashRouter, Supabase puede devolver el código en dos lugares:
-      //   · location.search  → dentro del hash:  /#/auth/callback?code=xxx
-      //   · window.location.search → antes del hash: /?code=xxx#/auth/callback
-      const hashParams = new URLSearchParams(location.search);
-      const urlParams  = new URLSearchParams(window.location.search);
-      const get = (key) => hashParams.get(key) ?? urlParams.get(key);
+    // 3. Check for explicit errors in the URL
+    const error = params.get('error') ?? urlParams.get('error');
+    if (error) {
+      const desc = params.get('error_description') ?? urlParams.get('error_description') ?? error;
+      toast.error(desc.replace(/\+/g, ' '));
+      navigate('/login', { replace: true });
+    }
 
-      const error = get('error');
-      if (error) {
-        toast.error((get('error_description') || error).replace(/\+/g, ' '));
-        navigate('/login', { replace: true });
-        return;
-      }
-
-      const code = get('code');
-      const type = get('type');
-
-      if (code) {
-        // Verificar si la sesión ya fue establecida antes de intercambiar el código.
-        // React StrictMode ejecuta los efectos dos veces en desarrollo; sin esta
-        // comprobación, la segunda ejecución consume el code verifier ya usado y falla.
-        const { data: { session: existing } } = await supabase.auth.getSession();
-        if (existing?.user) {
-          await finish(existing, type);
-          return;
-        }
-
-        const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
-        if (exchangeError) {
-          // Puede que una ejecución concurrente ya estableció la sesión
-          const { data: { session: concurrent } } = await supabase.auth.getSession();
-          if (concurrent?.user) {
-            await finish(concurrent, type);
-            return;
-          }
-          console.error('[AuthCallback] error:', exchangeError.message);
-          toast.error('No se pudo iniciar sesión. Intenta de nuevo.');
-          navigate('/login', { replace: true });
-          return;
-        }
-        if (data.session) {
-          await finish(data.session, type);
-          return;
-        }
-      }
-
-      // Sin código: sesión activa o confirmación de email ya procesada
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        await finish(session, type);
-      } else {
-        toast.error('No se pudo establecer la sesión. Intenta de nuevo.');
+    // 4. Timeout fallback — if nothing happens in 12s, abort
+    const timeout = setTimeout(() => {
+      if (!doneRef.current) {
+        doneRef.current = true;
+        toast.error('No se pudo iniciar sesión. Intenta de nuevo.');
         navigate('/login', { replace: true });
       }
-    };
+    }, 12000);
 
-    handleCallback();
+    return () => {
+      subscription.unsubscribe();
+      clearTimeout(timeout);
+    };
   }, [navigate, location.search]);
 
   return (

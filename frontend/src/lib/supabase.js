@@ -25,7 +25,7 @@ export const supabase = createClient(
   {
     auth: {
       flowType: 'pkce',
-      detectSessionInUrl: false,
+      detectSessionInUrl: true,
       storage: dualStorage,
     },
   }

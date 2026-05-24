@@ -633,15 +633,15 @@ export default function Profile() {
           )}
 
           {/* Seguidores */}
-          {followersCount > 0 && (
-            <div className="card p-4 flex items-center gap-3">
-              <FiUsers className="text-brand-400" size={18} />
-              <div>
-                <p className="text-sm font-medium text-white">{followersCount.toLocaleString()} seguidores</p>
-                <p className="text-xs text-gray-500">Personas que te siguen</p>
-              </div>
+          <div className="card p-4 flex items-center gap-3">
+            <FiUsers className="text-brand-400" size={18} />
+            <div>
+              <p className="text-sm font-medium text-white">{followersCount.toLocaleString()} seguidores</p>
+              <p className="text-xs text-gray-500">
+                {followersCount === 0 ? 'Aún no tienes seguidores' : 'Personas que te siguen'}
+              </p>
             </div>
-          )}
+          </div>
         </div>
 
         {/* Columna derecha: info + galería */}

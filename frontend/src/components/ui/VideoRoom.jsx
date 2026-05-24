@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiMic, FiMicOff, FiVideo, FiVideoOff, FiPhoneOff, FiSkipForward, FiUsers } from 'react-icons/fi';
+import { FiMic, FiMicOff, FiVideo, FiVideoOff, FiPhoneOff, FiSkipForward, FiUsers, FiUserPlus, FiCheck } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import api from '../../lib/api.js';
 import { LiveKitSession } from '../../lib/livekitSession.js';
@@ -30,6 +30,8 @@ export default function VideoRoom({ genderFilter, countryFilter, videoCallsRemai
   const [callDuration,  setCallDuration]  = useState(0);
   const [skipping,      setSkipping]      = useState(false);
   const [localActive,   setLocalActive]   = useState(false);
+  const [partnerId,     setPartnerId]     = useState(null);
+  const [friendReq,     setFriendReq]     = useState('idle'); // 'idle'|'sending'|'sent'|'done'
 
   const rtcRef          = useRef(null);
   const localVidRef     = useRef(null);
@@ -61,7 +63,10 @@ export default function VideoRoom({ genderFilter, countryFilter, videoCallsRemai
 
   const startCall = async (sessionData) => {
     const roomName = `video_${sessionData.sessionId.replace(/-/g, '')}`;
-    if (sessionData.partner) setPartner(sessionData.partner);
+    if (sessionData.partner) {
+      setPartner(sessionData.partner);
+      if (sessionData.partner.id) setPartnerId(sessionData.partner.id);
+    }
 
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
     if (!activeRef.current) { stream.getTracks().forEach(t => t.stop()); return; }
@@ -80,6 +85,16 @@ export default function VideoRoom({ genderFilter, countryFilter, videoCallsRemai
         remoteVidRef.current.srcObject = new MediaStream([track.mediaStreamTrack]);
         setStatus('connected');
         timerRef.current = setInterval(() => setCallDuration(d => d + 1), 1000);
+        // Host: fetch partner info so the add-friend button can work
+        if (sessionData.role === 'host' && sessionData.sessionId) {
+          api.get(`/api/video/session/${sessionData.sessionId}/partner`)
+            .then(({ data: pd }) => {
+              if (pd.partner && activeRef.current) {
+                setPartner(pd.partner);
+                setPartnerId(pd.partner.id);
+              }
+            }).catch(() => {});
+        }
       }
       if (track.kind === 'audio') {
         const el = new Audio();
@@ -103,10 +118,33 @@ export default function VideoRoom({ genderFilter, countryFilter, videoCallsRemai
     }
   };
 
+  const addFriend = async () => {
+    if (!partnerId || friendReq !== 'idle') return;
+    setFriendReq('sending');
+    try {
+      const { data } = await api.post('/api/video/add-friend', {
+        targetUserId: partnerId,
+        sessionId: session?.sessionId,
+      });
+      if (data.status === 'already_friends' || data.status === 'matched') {
+        setFriendReq('done');
+        toast.success('¡Ya son amigos! Pueden chatear 💬');
+      } else {
+        setFriendReq('sent');
+        toast.success('Solicitud enviada');
+      }
+    } catch {
+      setFriendReq('idle');
+      toast.error('No se pudo enviar la solicitud');
+    }
+  };
+
   const findPartner = async () => {
     if (videoCallsRemaining <= 0) { onLimitReached?.(); return; }
     setStatus('searching');
     setCallDuration(0);
+    setPartnerId(null);
+    setFriendReq('idle');
     clearInterval(timerRef.current);
     try {
       const { data } = await api.post('/api/video/find-partner', { genderFilter, countryFilter });
@@ -388,6 +426,29 @@ export default function VideoRoom({ genderFilter, countryFilter, videoCallsRemai
           >
             <FiPhoneOff size={20} />
           </button>
+
+          {/* Agregar amigo */}
+          {partnerId && (
+            <button
+              onClick={addFriend}
+              disabled={friendReq !== 'idle'}
+              title={friendReq === 'sent' ? 'Solicitud enviada' : friendReq === 'done' ? 'Ya son amigos' : 'Agregar amigo'}
+              className={`w-11 h-11 rounded-full flex items-center justify-center transition-all ${
+                friendReq === 'sent' || friendReq === 'done'
+                  ? 'bg-green-500/20 border border-green-500/40 text-green-400 cursor-default'
+                  : friendReq === 'sending'
+                  ? 'bg-blue-500/20 border border-blue-500/40 text-blue-300 opacity-60 cursor-default'
+                  : 'bg-blue-500/20 border border-blue-500/40 text-blue-400 hover:bg-blue-500/30'
+              }`}
+            >
+              {friendReq === 'sent' || friendReq === 'done'
+                ? <FiCheck size={18} />
+                : friendReq === 'sending'
+                ? <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+                : <FiUserPlus size={18} />
+              }
+            </button>
+          )}
 
           <button
             onClick={toggleCam}

@@ -1,7 +1,23 @@
+import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 
 export default function NotFound() {
+  useEffect(() => {
+    // Safety net: if the user lands here with OAuth callback params
+    // (e.g. Supabase implicit flow puts tokens in the hash directly),
+    // redirect them to the auth callback page so it can process the session.
+    const rawHash = window.location.hash.replace(/^#/, '');
+    const hasTokens = rawHash.includes('access_token=') || rawHash.includes('type=signup') || rawHash.includes('type=recovery');
+    const hasCode   = window.location.search.includes('code=');
+
+    if (hasTokens || hasCode) {
+      // Move everything to /#/auth/callback so AuthCallback can process it
+      const search = window.location.search || (hasTokens ? `?${rawHash}` : '');
+      window.location.replace(`${window.location.origin}/#/auth/callback${search}`);
+    }
+  }, []);
+
   return (
     <div className="min-h-screen bg-dark-900 flex items-center justify-center px-6">
       <motion.div

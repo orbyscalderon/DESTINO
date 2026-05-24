@@ -70,10 +70,20 @@ export const createVideoRequest = async (req, res) => {
       .single();
 
     if (error) {
-      // Refund if DB insert failed
       await addCoins(requesterId, coinPrice, 'video_request_refund').catch(() => {});
       throw error;
     }
+
+    // Notify creator
+    const { data: requesterProfile } = await supabase
+      .from('profiles').select('full_name').eq('id', requesterId).single();
+    await supabase.from('in_app_notifications').insert({
+      user_id: creator_id,
+      type: 'boost',
+      title: `${requesterProfile?.full_name || 'Alguien'} quiere encargarte un video`,
+      body: message?.trim() ? message.trim().substring(0, 80) : `Ofrecen ${coinPrice} monedas`,
+      data: { request_id: request.id, from_user_id: requesterId, price: coinPrice },
+    }).catch(() => {});
 
     res.status(201).json({ request });
   } catch (err) {
