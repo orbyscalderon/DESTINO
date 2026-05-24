@@ -13,7 +13,9 @@ import api from '../lib/api.js';
 import toast from 'react-hot-toast';
 
 /* ── Categorías ──────────────────────────────────────────── */
+// Lista completa — incluye 'adult' para que CreatorDashboard pueda crear shows adultos
 export const SHOW_CATEGORIES = [
+  { key: 'adult',   label: 'Adulto',  emoji: '🔞' },
   { key: 'music',   label: 'Música',  emoji: '🎵' },
   { key: 'dance',   label: 'Baile',   emoji: '💃' },
   { key: 'comedy',  label: 'Comedia', emoji: '😂' },
@@ -23,6 +25,9 @@ export const SHOW_CATEGORIES = [
   { key: 'cooking', label: 'Cocina',  emoji: '🍳' },
   { key: 'art',     label: 'Arte',    emoji: '🎨' },
 ];
+
+// Solo categorías visibles en el feed público (sin adulto)
+const PUBLIC_SHOW_CATEGORIES = SHOW_CATEGORIES.filter(c => c.key !== 'adult');
 
 export function categoryLabel(key) {
   return SHOW_CATEGORIES.find(c => c.key === key) || { label: key, emoji: '📺' };
@@ -463,7 +468,7 @@ export default function LiveShows() {
             ✨ Todas
           </button>
 
-          {SHOW_CATEGORIES.map(({ key, label, emoji }) => {
+          {PUBLIC_SHOW_CATEGORIES.map(({ key, label, emoji }) => {
             const count = shows.filter(s => s.category === key && s.status === 'live').length;
             return (
               <button
