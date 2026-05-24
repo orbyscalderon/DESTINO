@@ -227,7 +227,7 @@ export default function VideoRoom({ genderFilter, countryFilter, videoCallsRemai
       <div className="flex-1 flex flex-col sm:flex-row min-h-0">
 
         {/* LEFT — local camera / idle screen */}
-        <div className="relative flex-1 bg-[#111] sm:border-r border-white/5 order-last sm:order-first overflow-hidden">
+        <div className="relative flex-1 bg-[#111] sm:border-r border-white/5 order-first sm:order-last overflow-hidden">
 
           {/* Live camera feed */}
           <video
@@ -300,7 +300,7 @@ export default function VideoRoom({ genderFilter, countryFilter, videoCallsRemai
         </div>
 
         {/* RIGHT — remote video / status */}
-        <div className="relative flex-1 bg-[#0a0a0a] order-first sm:order-last overflow-hidden">
+        <div className="relative flex-1 bg-[#0a0a0a] order-last sm:order-first overflow-hidden">
 
           {/* Remote video */}
           <video
