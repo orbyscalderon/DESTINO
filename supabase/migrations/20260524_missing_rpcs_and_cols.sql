@@ -88,9 +88,6 @@ ALTER TABLE creator_galleries
   ADD COLUMN IF NOT EXISTS cover_url    text,
   ADD COLUMN IF NOT EXISTS items_count  integer NOT NULL DEFAULT 0;
 
--- Migrar price → price_coins para registros existentes
-UPDATE creator_galleries SET price_coins = price WHERE price_coins = 0 AND price > 0;
-
 -- Sincronizar items_count con registros existentes
 UPDATE creator_galleries cg
 SET items_count = (
