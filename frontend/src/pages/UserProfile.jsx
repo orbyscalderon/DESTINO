@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
-import { FiArrowLeft, FiHeart, FiX, FiMoreVertical, FiLock, FiZap, FiCheck, FiVideo, FiUserMinus, FiShare2, FiUserPlus, FiUsers, FiGrid, FiMessageCircle, FiGift, FiImage, FiFilm, FiPlay } from 'react-icons/fi';
+import { FiArrowLeft, FiHeart, FiX, FiMoreVertical, FiLock, FiZap, FiCheck, FiVideo, FiUserMinus, FiShare2, FiUserPlus, FiUsers, FiGrid, FiMessageCircle, FiGift, FiImage, FiFilm, FiPlay, FiSend } from 'react-icons/fi';
 import api from '../lib/api.js';
 import toast from 'react-hot-toast';
 import BlockReportModal from '../components/ui/BlockReportModal.jsx';
@@ -35,6 +35,9 @@ export default function UserProfile() {
   const [loadingGallery, setLoadingGallery] = useState(null);
   const [showAgeModal, setShowAgeModal]     = useState(false);
   const [photosBlocked, setPhotosBlocked]   = useState(false);
+  const [showRequestModal, setShowRequestModal] = useState(false);
+  const [requestForm, setRequestForm]           = useState({ message: '', price: 50 });
+  const [sendingRequest, setSendingRequest]     = useState(false);
 
   const loadPhotos = async () => {
     const phRes = await api.get(`/api/profiles/${userId}/photos`).catch(() => ({ data: { photos: [], requires_age_verification: false } }));
@@ -222,6 +225,26 @@ export default function UserProfile() {
     }
   };
 
+  const handleSendVideoRequest = async () => {
+    if (!requestForm.message.trim()) { toast.error('Escribe un mensaje para el creador'); return; }
+    if (requestForm.price < 10)      { toast.error('El precio mínimo es 10 monedas'); return; }
+    setSendingRequest(true);
+    try {
+      await api.post('/api/video-requests', { creator_id: userId, message: requestForm.message.trim(), price: requestForm.price });
+      toast.success('Solicitud enviada. Monedas en escrow hasta la entrega.');
+      setShowRequestModal(false);
+      setRequestForm({ message: '', price: 50 });
+    } catch (err) {
+      if (err.response?.data?.code === 'INSUFFICIENT_COINS') {
+        toast.error('Monedas insuficientes — recarga en la sección Monedas');
+      } else {
+        toast.error(err.response?.data?.error || 'Error al enviar la solicitud');
+      }
+    } finally {
+      setSendingRequest(false);
+    }
+  };
+
   const handleShare = async () => {
     const shareData = {
       title: `${profile.full_name} en Destino`,
@@ -379,6 +402,15 @@ export default function UserProfile() {
               >
                 <FiGift className="text-yellow-400 mx-auto mb-1" size={18} />
                 <p className="text-xs text-gray-400">Propina</p>
+              </button>
+
+              {/* Encargar video */}
+              <button
+                onClick={() => setShowRequestModal(true)}
+                className="flex-1 min-w-[80px] bg-dark-700 rounded-xl p-3 text-center hover:bg-dark-600 transition-colors"
+              >
+                <FiSend className="text-brand-400 mx-auto mb-1" size={18} />
+                <p className="text-xs text-gray-400">Encargar</p>
               </button>
 
               {/* Suscripción mensual */}
@@ -727,6 +759,86 @@ export default function UserProfile() {
             </div>
           </motion.div>
         )}
+      {/* ── Modal: encargar video ───────────────────────────── */}
+      {showRequestModal && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 bg-black/80 flex items-end sm:items-center justify-center p-4"
+          onClick={(e) => { if (e.target === e.currentTarget) setShowRequestModal(false); }}
+        >
+          <motion.div
+            initial={{ y: 60, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 60, opacity: 0 }}
+            className="w-full max-w-md bg-dark-800 rounded-2xl p-6 space-y-4"
+          >
+            <div className="flex items-center justify-between">
+              <h3 className="text-white font-bold text-lg">Encargar video</h3>
+              <button onClick={() => setShowRequestModal(false)} className="text-gray-500 hover:text-white">
+                <FiX size={20} />
+              </button>
+            </div>
+
+            <p className="text-gray-400 text-sm">
+              Describe qué quieres que <span className="text-white font-medium">{profile?.full_name}</span> grabe para ti.
+              Las monedas quedan en escrow y se liberan cuando entregue el video.
+            </p>
+
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block">Mensaje para el creador</label>
+                <textarea
+                  rows={4}
+                  placeholder="Describe el video que quieres recibir..."
+                  value={requestForm.message}
+                  onChange={e => setRequestForm(f => ({ ...f, message: e.target.value }))}
+                  maxLength={500}
+                  className="w-full bg-dark-700 border border-white/10 rounded-xl px-3 py-2.5 text-white text-sm placeholder-gray-600 resize-none focus:outline-none focus:border-brand-500/50"
+                />
+                <p className="text-right text-[10px] text-gray-600 mt-0.5">{requestForm.message.length}/500</p>
+              </div>
+
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block">Precio ofrecido (monedas)</label>
+                <div className="flex gap-2 items-center">
+                  <input
+                    type="number"
+                    min={10}
+                    max={10000}
+                    value={requestForm.price}
+                    onChange={e => setRequestForm(f => ({ ...f, price: Math.max(10, parseInt(e.target.value) || 10) }))}
+                    className="flex-1 bg-dark-700 border border-white/10 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-brand-500/50"
+                  />
+                  <FiZap className="text-yellow-400 shrink-0" size={18} />
+                </div>
+                <p className="text-[11px] text-gray-600 mt-1">El creador recibe el 80% si acepta y entrega el video.</p>
+              </div>
+            </div>
+
+            <div className="flex gap-3 pt-1">
+              <button
+                onClick={() => setShowRequestModal(false)}
+                className="flex-1 py-3 rounded-xl bg-dark-700 text-gray-400 text-sm font-semibold hover:bg-dark-600 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSendVideoRequest}
+                disabled={sendingRequest}
+                className="flex-1 py-3 rounded-xl bg-brand-500 text-white text-sm font-semibold hover:bg-brand-600 transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
+              >
+                {sendingRequest
+                  ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  : <><FiSend size={14} /> Enviar solicitud</>
+                }
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+
       </AnimatePresence>
     </div>
   );

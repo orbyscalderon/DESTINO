@@ -47,6 +47,7 @@ const Search        = lazy(() => import('./pages/Search.jsx'));
 const Notifications   = lazy(() => import('./pages/Notifications.jsx'));
 const VideoCall       = lazy(() => import('./pages/VideoCall.jsx'));
 const AdultCreators   = lazy(() => import('./pages/AdultCreators.jsx'));
+const VideoRequests   = lazy(() => import('./pages/VideoRequests.jsx'));
 const VerifyEmail     = lazy(() => import('./pages/VerifyEmail.jsx'));
 const ForgotPassword  = lazy(() => import('./pages/ForgotPassword.jsx'));
 const Error403        = lazy(() => import('./pages/Error403.jsx'));
@@ -234,6 +235,7 @@ export default function App() {
           <Route path="/notifications" element={<Notifications />} />
           <Route path="/call/:matchId" element={<VideoCall />} />
           <Route path="/adult" element={<AdultCreators />} />
+          <Route path="/video-requests" element={<VideoRequests />} />
         </Route>
 
         {/* 404 */}
