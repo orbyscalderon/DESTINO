@@ -721,7 +721,7 @@ export const getCreatorGalleries = async (req, res) => {
       const { data: purchases } = await supabase
         .from('gallery_purchases')
         .select('gallery_id')
-        .eq('user_id', viewerId)
+        .eq('buyer_id', viewerId)
         .in('gallery_id', galleryIds);
       purchasedSet = new Set((purchases || []).map(p => p.gallery_id));
     }
@@ -758,7 +758,7 @@ export const getGalleryItems = async (req, res) => {
         .from('gallery_purchases')
         .select('id')
         .eq('gallery_id', id)
-        .eq('user_id', viewerId)
+        .eq('buyer_id', viewerId)
         .single();
 
       if (!purchase) return res.status(403).json({ error: 'Galería bloqueada', code: 'GALLERY_LOCKED' });
@@ -766,12 +766,13 @@ export const getGalleryItems = async (req, res) => {
 
     const { data: items, error } = await supabase
       .from('gallery_items')
-      .select('id, media_url, media_type, thumbnail_url, order_index')
+      .select('id, url, type, created_at')
       .eq('gallery_id', id)
-      .order('order_index', { ascending: true });
+      .order('created_at', { ascending: true });
 
     if (error) throw error;
-    res.json({ items: items || [] });
+    const mapped = (items || []).map(i => ({ ...i, media_url: i.url, media_type: i.type }));
+    res.json({ items: mapped });
   } catch (err) {
     res.status(500).json({ error: 'Error interno del servidor' });
   }
@@ -838,11 +839,10 @@ export const addGalleryItem = async (req, res) => {
       .from('gallery_items')
       .insert({
         gallery_id: galleryId,
-        media_url: mediaUrl,
-        media_type: isVideo ? 'video' : 'image',
-        order_index: (gallery.items_count || 0),
+        url: mediaUrl,
+        type: isVideo ? 'video' : 'photo',
       })
-      .select()
+      .select('id, url, type, created_at')
       .single();
 
     if (error) throw error;
@@ -851,7 +851,7 @@ export const addGalleryItem = async (req, res) => {
       .update({ items_count: (gallery.items_count || 0) + 1, cover_url: gallery.cover_url || mediaUrl })
       .eq('id', galleryId);
 
-    res.json({ item });
+    res.json({ item: { ...item, media_url: item.url, media_type: item.type } });
   } catch (err) {
     res.status(500).json({ error: 'Error interno del servidor' });
   }
@@ -893,7 +893,7 @@ export const unlockGallery = async (req, res) => {
 
     const { data: existing } = await supabase
       .from('gallery_purchases')
-      .select('id').eq('gallery_id', galleryId).eq('user_id', userId).single();
+      .select('id').eq('gallery_id', galleryId).eq('buyer_id', userId).single();
     if (existing) return res.status(400).json({ error: 'Ya tienes acceso a esta galería' });
 
     // Deduct coins
@@ -904,7 +904,7 @@ export const unlockGallery = async (req, res) => {
     });
     if (!deducted) return res.status(400).json({ error: 'Monedas insuficientes', code: 'INSUFFICIENT_COINS' });
 
-    await supabase.from('gallery_purchases').insert({ gallery_id: galleryId, user_id: userId, coins_paid: gallery.price_coins });
+    await supabase.from('gallery_purchases').insert({ gallery_id: galleryId, buyer_id: userId, amount_coins: gallery.price_coins });
 
     // Credit creator earnings
     const earningsUSD = gallery.price_coins * 0.05 * 0.8;
