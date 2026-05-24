@@ -2,7 +2,9 @@ import { supabase } from './supabase.js';
 import { createNotification } from '../controllers/inAppNotifController.js';
 
 const STALE_SESSION_MINUTES = 5;
+const MAX_LIVE_SHOW_HOURS = 6;
 const CLEANUP_INTERVAL_MS = 30 * 1000;
+const LIVE_SHOW_CLEANUP_INTERVAL_MS = 5 * 60 * 1000; // every 5 minutes
 const RENEWAL_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000; // every 6 hours
 
 async function cleanStaleVideoSessions() {
@@ -125,9 +127,38 @@ async function expireBoosts() {
   }
 }
 
+async function cleanStaleLiveShows() {
+  const now = new Date().toISOString();
+  const cutoff = new Date(Date.now() - MAX_LIVE_SHOW_HOURS * 60 * 60 * 1000).toISOString();
+
+  // Expire shows live for more than MAX_LIVE_SHOW_HOURS
+  const { error: e1 } = await supabase
+    .from('live_shows')
+    .update({ status: 'ended', ended_at: now })
+    .eq('status', 'live')
+    .not('started_at', 'is', null)
+    .lt('started_at', cutoff);
+
+  if (e1) console.error('Cleanup stale live shows error:', e1.message);
+
+  // Expire shows marked live but started_at never set (stuck in transition)
+  const stuckCutoff = new Date(Date.now() - 30 * 60 * 1000).toISOString(); // 30 min grace
+  const { error: e2 } = await supabase
+    .from('live_shows')
+    .update({ status: 'ended', ended_at: now })
+    .eq('status', 'live')
+    .is('started_at', null)
+    .lt('created_at', stuckCutoff);
+
+  if (e2) console.error('Cleanup stuck live shows error:', e2.message);
+}
+
 export function startCleanupJob() {
   cleanStaleVideoSessions();
   setInterval(cleanStaleVideoSessions, CLEANUP_INTERVAL_MS);
+
+  cleanStaleLiveShows();
+  setInterval(cleanStaleLiveShows, LIVE_SHOW_CLEANUP_INTERVAL_MS);
 
   notifyUpcomingRenewals();
   expireStaleSubscriptions();
@@ -140,5 +171,5 @@ export function startCleanupJob() {
     expireStaleMatches();
   }, RENEWAL_CHECK_INTERVAL_MS);
 
-  console.log('🧹 Cleanup job iniciado (sesiones de video cada 30s, renovaciones/boosts/matches cada 6h)');
+  console.log('🧹 Cleanup job iniciado (sesiones de video cada 30s, shows cada 5min, renovaciones/boosts/matches cada 6h)');
 }
