@@ -14,7 +14,7 @@ import AgeVerificationModal from '../components/ui/AgeVerificationModal.jsx';
 import { useAuthStore } from '../store/authStore.js';
 import { useAds } from '../hooks/useAds.js';
 import { supabase } from '../lib/supabase.js';
-import { RtcSession } from '../lib/mediasoupClient.js';
+import { LiveKitSession } from '../lib/livekitSession.js';
 import api from '../lib/api.js';
 import toast from 'react-hot-toast';
 import PaymentModal from '../components/ui/PaymentModal.jsx';
@@ -183,11 +183,10 @@ export default function LiveShow() {
   const [selectedCameraId, setSelectedCameraId] = useState('');
   const [selectedMicId, setSelectedMicId]       = useState('');
 
-  // Refs: mediasoup + streams
+  // Refs: LiveKit + streams
   const rtcRef          = useRef(null);
   const localStreamRef  = useRef(null);
   const previewStreamRef = useRef(null);
-  const roomEventsChRef = useRef(null);
   const hostVideoRef    = useRef(null);
   const localVideoRef   = useRef(null);
   const previewVideoRef = useRef(null);
@@ -211,7 +210,6 @@ export default function LiveShow() {
   useEffect(() => {
     return () => {
       cleanupPreviewTracks();
-      cleanupRoomEvents();
       leaveShowChannel();
       leaveShow();
       hideBottomBanner();
@@ -316,13 +314,6 @@ export default function LiveShow() {
     if (chatChannelRef.current) {
       supabase.removeChannel(chatChannelRef.current);
       chatChannelRef.current = null;
-    }
-  };
-
-  const cleanupRoomEvents = () => {
-    if (roomEventsChRef.current) {
-      supabase.removeChannel(roomEventsChRef.current);
-      roomEventsChRef.current = null;
     }
   };
 
@@ -488,29 +479,11 @@ export default function LiveShow() {
       previewStreamRef.current = null;
       if (localVideoRef.current) localVideoRef.current.srcObject = stream;
 
-      // Init mediasoup and publish
-      const rtc = new RtcSession(roomId);
+      // Init LiveKit and publish
+      const rtc = new LiveKitSession(roomId);
       rtcRef.current = rtc;
-      await rtc.init();
+      await rtc.join(true);
       await rtc.publishStream(stream);
-
-      // Announce producers to viewers via Supabase Realtime
-      // (server-side broadcast is unreliable without an active subscription)
-      const hostCh = supabase
-        .channel(`room_events_${roomId}`)
-        .subscribe(async (status) => {
-          if (status !== 'SUBSCRIBED') return;
-          for (const [kind, producer] of Object.entries(rtc.producers)) {
-            if (producer && !producer.closed) {
-              await hostCh.send({
-                type: 'broadcast',
-                event: 'new_producer',
-                payload: { producerId: producer.id, peerId: user?.id, kind },
-              });
-            }
-          }
-        });
-      roomEventsChRef.current = hostCh;
 
       // VU meter via Web Audio API
       try {
@@ -569,43 +542,26 @@ export default function LiveShow() {
       await api.get(`/api/shows/${id}/token`);
       const roomId = `show_${id.replace(/-/g, '')}`;
 
-      const rtc = new RtcSession(roomId);
-      rtcRef.current = rtc;
-      await rtc.init();
+      const rtc = new LiveKitSession(roomId);
 
-      const attachViewerTrack = (result) => {
-        if (!result) return;
-        if (result.kind === 'video' && hostVideoRef.current) {
-          hostVideoRef.current.srcObject = new MediaStream([result.track]);
+      // Use pendingViewerTracks so the useEffect applies tracks once
+      // hostVideoRef.current is mounted (inShow=true re-render).
+      rtc.onRemoteTrack = (track) => {
+        if (track.kind === 'video') {
+          setPendingViewerTracks(prev => ({ ...(prev || {}), video: track.mediaStreamTrack }));
         }
-        if (result.kind === 'audio') {
-          const el = new Audio();
-          el.srcObject = new MediaStream([result.track]);
-          el.play().catch(() => {});
+        if (track.kind === 'audio') {
+          setPendingViewerTracks(prev => ({ ...(prev || {}), audio: track.mediaStreamTrack }));
         }
       };
 
-      // Subscribe first, then consume inside callback — fixes race condition
-      const roomEventsCh = supabase
-        .channel(`room_events_${roomId}`)
-        .on('broadcast', { event: 'new_producer' }, async ({ payload }) => {
-          try {
-            const result = await rtc.consumeProducer(payload.producerId);
-            attachViewerTrack(result);
-          } catch {}
-        })
-        .on('broadcast', { event: 'peer_left' }, () => {
-          toast('El show terminó', { icon: '📺' });
-          navigate('/shows');
-        })
-        .subscribe(async (status) => {
-          if (status !== 'SUBSCRIBED') return;
-          // Use setPendingViewerTracks so the useEffect applies them once
-          // hostVideoRef.current is available (inShow=true re-render).
-          const tracks = await rtc.consumeAll().catch(() => null);
-          if (tracks) setPendingViewerTracks(tracks);
-        });
-      roomEventsChRef.current = roomEventsCh;
+      rtc.onParticipantLeft = () => {
+        toast('El show terminó', { icon: '📺' });
+        navigate('/shows');
+      };
+
+      rtcRef.current = rtc;
+      await rtc.join(false); // viewer: subscribe only
 
       joinShowChannel(id, 'viewer');
       setInShow(true);
@@ -633,7 +589,6 @@ export default function LiveShow() {
       screenTrackRef.current.stop();
       screenTrackRef.current = null;
     }
-    cleanupRoomEvents();
     leaveShowChannel();
     await leaveShow();
     try { await api.post(`/api/shows/${id}/end`); toast.success('Show terminado'); } catch {}
@@ -692,7 +647,6 @@ export default function LiveShow() {
   };
 
   const handleLeave = async () => {
-    cleanupRoomEvents();
     leaveShowChannel();
     await leaveShow();
     navigate('/shows');

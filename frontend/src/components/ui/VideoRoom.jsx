@@ -3,8 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { FiMic, FiMicOff, FiVideo, FiVideoOff, FiPhoneOff, FiSkipForward, FiUsers } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import api from '../../lib/api.js';
-import { RtcSession } from '../../lib/mediasoupClient.js';
-import { supabase } from '../../lib/supabase.js';
+import { LiveKitSession } from '../../lib/livekitSession.js';
 import { useAuthStore } from '../../store/authStore.js';
 import { countryByCode, languageByCode } from '../../lib/geodata.js';
 import { showInterstitial } from '../../lib/admob.js';
@@ -22,7 +21,7 @@ function useOnlineCount() {
 }
 
 export default function VideoRoom({ genderFilter, countryFilter, videoCallsRemaining = Infinity, onLimitReached, onCallStarted }) {
-  const { user, profile } = useAuthStore();
+  const { profile } = useAuthStore();
   const [session,       setSession]       = useState(null);
   const [status,        setStatus]        = useState('idle');
   const [micOn,         setMicOn]         = useState(true);
@@ -37,7 +36,6 @@ export default function VideoRoom({ genderFilter, countryFilter, videoCallsRemai
   const remoteVidRef    = useRef(null);
   const localStream     = useRef(null);
   const timerRef        = useRef(null);
-  const roomChRef       = useRef(null);
   const interstitialRef = useRef(false);
   const activeRef       = useRef(true);
 
@@ -59,23 +57,10 @@ export default function VideoRoom({ genderFilter, countryFilter, videoCallsRemai
     setLocalActive(false);
     await rtcRef.current?.leave().catch(() => {});
     rtcRef.current = null;
-    supabase.removeChannel(roomChRef.current).catch(() => {});
-    roomChRef.current = null;
-  };
-
-  const attachRemoteTracks = (tracks) => {
-    if (tracks.video && remoteVidRef.current) {
-      remoteVidRef.current.srcObject = new MediaStream([tracks.video]);
-    }
-    if (tracks.audio) {
-      const el = new Audio();
-      el.srcObject = new MediaStream([tracks.audio]);
-      el.play().catch(() => {});
-    }
   };
 
   const startCall = async (sessionData) => {
-    const roomId = `video_${sessionData.sessionId.replace(/-/g, '')}`;
+    const roomName = `video_${sessionData.sessionId.replace(/-/g, '')}`;
     if (sessionData.partner) setPartner(sessionData.partner);
 
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
@@ -84,76 +69,36 @@ export default function VideoRoom({ genderFilter, countryFilter, videoCallsRemai
     setLocalActive(true);
     if (localVidRef.current) localVidRef.current.srcObject = stream;
 
-    const rtc = new RtcSession(roomId);
+    const rtc = new LiveKitSession(roomName);
     rtc.onReconnecting = () => toast.loading('Reconectando…', { id: 'rtc-reconnect' });
     rtc.onReconnected  = () => toast.success('Reconectado', { id: 'rtc-reconnect' });
     rtc.onFailed       = () => { toast.error('Se perdió la conexión'); setStatus('ended'); };
+
+    rtc.onRemoteTrack = (track) => {
+      if (!activeRef.current) return;
+      if (track.kind === 'video' && remoteVidRef.current) {
+        remoteVidRef.current.srcObject = new MediaStream([track.mediaStreamTrack]);
+        setStatus('connected');
+        timerRef.current = setInterval(() => setCallDuration(d => d + 1), 1000);
+      }
+      if (track.kind === 'audio') {
+        const el = new Audio();
+        el.srcObject = new MediaStream([track.mediaStreamTrack]);
+        el.play().catch(() => {});
+      }
+    };
+
+    rtc.onParticipantLeft = () => {
+      if (!activeRef.current) return;
+      setStatus('ended');
+      clearInterval(timerRef.current);
+    };
+
     rtcRef.current = rtc;
-    await rtc.init();
+    await rtc.join(true);
     await rtc.publishStream(stream);
 
-    // Server-side broadcast silently fails (no subscription). Fix: client announces
-    // its own producers once the Realtime channel is open.
-    const ch = supabase
-      .channel(`room_events_${roomId}`)
-      .on('broadcast', { event: 'new_producer' }, async ({ payload }) => {
-        if (!activeRef.current || payload.peerId === user?.id) return;
-        const result = await rtcRef.current?.consumeProducer(payload.producerId);
-        if (!result) return;
-        if (result.kind === 'video' && remoteVidRef.current) {
-          remoteVidRef.current.srcObject = new MediaStream([result.track]);
-          setStatus('connected');
-          timerRef.current = setInterval(() => setCallDuration(d => d + 1), 1000);
-        }
-        if (result.kind === 'audio') {
-          const el = new Audio();
-          el.srcObject = new MediaStream([result.track]);
-          el.play().catch(() => {});
-        }
-      })
-      .on('broadcast', { event: 'peer_left' }, () => {
-        if (!activeRef.current) return;
-        setStatus('ended');
-        clearInterval(timerRef.current);
-      })
-      .subscribe(async (channelStatus) => {
-        if (channelStatus !== 'SUBSCRIBED' || !activeRef.current) return;
-
-        // Announce own producers so the waiting peer can consume them
-        for (const [kind, producer] of Object.entries(rtcRef.current?.producers ?? {})) {
-          if (producer && !producer.closed) {
-            await ch.send({
-              type: 'broadcast',
-              event: 'new_producer',
-              payload: { producerId: producer.id, peerId: user?.id, kind },
-            });
-          }
-        }
-
-        // Retry consumeAll in case the first call ran before the partner published
-        // (race condition when both users start at the same time)
-        if (!remoteVidRef.current?.srcObject) {
-          const retry = await rtcRef.current?.consumeAll().catch(() => null);
-          if (retry?.video && remoteVidRef.current) {
-            remoteVidRef.current.srcObject = new MediaStream([retry.video]);
-            setStatus('connected');
-            timerRef.current = setInterval(() => setCallDuration(d => d + 1), 1000);
-          }
-          if (retry?.audio) {
-            const el = new Audio();
-            el.srcObject = new MediaStream([retry.audio]);
-            el.play().catch(() => {});
-          }
-        }
-      });
-    roomChRef.current = ch;
-
-    const tracks = await rtc.consumeAll();
-    if (tracks.video || tracks.audio) {
-      attachRemoteTracks(tracks);
-      setStatus('connected');
-      timerRef.current = setInterval(() => setCallDuration(d => d + 1), 1000);
-    } else if (!sessionData.waiting) {
+    if (!sessionData.waiting) {
       setStatus('connected');
     }
   };
