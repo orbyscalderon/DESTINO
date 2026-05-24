@@ -87,45 +87,47 @@ export default function AdultCreators() {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
               {creators.map((c, i) => (
                 <motion.button
                   key={c.id}
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.04 }}
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: i * 0.03 }}
                   onClick={() => navigate(`/profile/${c.id}`)}
-                  className="card overflow-hidden text-left hover:border-brand-500/30 transition-colors"
+                  className="relative aspect-[3/4] rounded-xl overflow-hidden bg-dark-700 group"
                 >
-                  <div className="relative h-36 bg-dark-700">
-                    <img
-                      src={c.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(c.full_name || 'C')}&size=300&background=1a1a2e&color=f43f5e`}
-                      alt=""
-                      className="w-full h-full object-cover"
-                      loading="lazy"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-dark-900 via-transparent" />
-                    {c.is_verified && (
-                      <div className="absolute top-2 right-2">
-                        <VerifiedBadge size={16} />
-                      </div>
-                    )}
-                  </div>
-                  <div className="p-3 space-y-1.5">
-                    <p className="text-white font-semibold text-sm truncate">{c.full_name}</p>
-                    {c.creator_bio && (
-                      <p className="text-gray-500 text-[11px] line-clamp-2">{c.creator_bio}</p>
-                    )}
-                    <div className="flex items-center justify-between text-[10px]">
-                      <span className="text-gray-600 flex items-center gap-1">
-                        <FiUsers size={9} /> {c.subscribers_count || 0}
+                  {/* Photo */}
+                  <img
+                    src={c.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(c.full_name || 'C')}&size=400&background=1a1a2e&color=f43f5e`}
+                    alt=""
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    loading="lazy"
+                  />
+
+                  {/* Gradient overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
+
+                  {/* Verified badge */}
+                  {c.is_verified && (
+                    <div className="absolute top-1.5 right-1.5">
+                      <VerifiedBadge size={13} />
+                    </div>
+                  )}
+
+                  {/* Info at bottom */}
+                  <div className="absolute bottom-0 left-0 right-0 px-2 pb-2">
+                    <p className="text-white font-semibold text-xs truncate leading-tight">{c.full_name}</p>
+                    <div className="flex items-center justify-between mt-0.5">
+                      <span className="text-gray-400 text-[9px] flex items-center gap-0.5">
+                        <FiUsers size={8} /> {c.subscribers_count || 0}
                       </span>
                       {c.creator_subscription_price ? (
-                        <span className="bg-brand-500/20 text-brand-400 font-semibold px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
-                          <FiStar size={8} /> ${parseFloat(c.creator_subscription_price).toFixed(2)}/mes
+                        <span className="text-brand-400 text-[9px] font-semibold flex items-center gap-0.5">
+                          <FiStar size={8} /> ${parseFloat(c.creator_subscription_price).toFixed(2)}
                         </span>
                       ) : (
-                        <span className="text-gray-600">Gratis</span>
+                        <span className="text-green-400 text-[9px]">Gratis</span>
                       )}
                     </div>
                   </div>
