@@ -14,7 +14,7 @@ export class LiveKitSession {
     this.onLocalVideo      = null;
   }
 
-  async join(canPublish = true) {
+  async join(canPublish = true, { skipAutoMedia = false } = {}) {
     const { data } = await api.post('/api/livekit/token', {
       roomName:   this.roomName,
       canPublish,
@@ -43,7 +43,7 @@ export class LiveKitSession {
 
     await this.room.connect(data.wsUrl, data.token);
 
-    if (canPublish) {
+    if (canPublish && !skipAutoMedia) {
       // Wrap separately so a camera/mic permission error doesn't kill the whole call
       try {
         await this.room.localParticipant.setMicrophoneEnabled(true);
@@ -69,6 +69,43 @@ export class LiveKitSession {
         }
       });
     });
+  }
+
+  // Publish tracks from a pre-acquired MediaStream (shows — host controls device/quality)
+  async publishStream(stream) {
+    const audioTrack = stream.getAudioTracks()[0];
+    const videoTrack = stream.getVideoTracks()[0];
+    if (audioTrack) {
+      try {
+        await this.room.localParticipant.publishTrack(audioTrack, {
+          source: Track.Source.Microphone,
+        });
+      } catch (e) { console.warn('No se pudo publicar audio:', e); }
+    }
+    if (videoTrack) {
+      try {
+        await this.room.localParticipant.publishTrack(videoTrack, {
+          source:    Track.Source.Camera,
+          simulcast: false,
+        });
+        this.onLocalVideo?.(videoTrack);
+      } catch (e) { console.warn('No se pudo publicar video:', e); }
+    }
+  }
+
+  async replaceVideoTrack(mediaStreamTrack) {
+    const camPub = this.room.localParticipant.getTrackPublication(Track.Source.Camera);
+    if (camPub?.track) {
+      await camPub.track.replaceTrack(mediaStreamTrack);
+      this.onLocalVideo?.(mediaStreamTrack);
+    }
+  }
+
+  async replaceAudioTrack(mediaStreamTrack) {
+    const micPub = this.room.localParticipant.getTrackPublication(Track.Source.Microphone);
+    if (micPub?.track) {
+      await micPub.track.replaceTrack(mediaStreamTrack);
+    }
   }
 
   setMic(enabled) {

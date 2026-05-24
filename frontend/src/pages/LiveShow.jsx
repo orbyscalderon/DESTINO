@@ -526,10 +526,10 @@ export default function LiveShow() {
       previewStreamRef.current = null;
       if (localVideoRef.current) localVideoRef.current.srcObject = stream;
 
-      // Init LiveKit and publish
+      // Init LiveKit and publish — skipAutoMedia: host already has the stream from pre-show
       const rtc = new LiveKitSession(roomId);
       rtcRef.current = rtc;
-      await rtc.join(true);
+      await rtc.join(true, { skipAutoMedia: true });
       await rtc.publishStream(stream);
 
       // VU meter via Web Audio API
