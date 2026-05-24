@@ -820,7 +820,7 @@ export const addGalleryItem = async (req, res) => {
 
     const { data: gallery } = await supabase
       .from('creator_galleries')
-      .select('creator_id, items_count')
+      .select('creator_id, items_count, cover_url')
       .eq('id', galleryId)
       .single();
 
@@ -853,7 +853,8 @@ export const addGalleryItem = async (req, res) => {
 
     res.json({ item: { ...item, media_url: item.url, media_type: item.type } });
   } catch (err) {
-    res.status(500).json({ error: 'Error interno del servidor' });
+    console.error('addGalleryItem error:', err?.message, err?.code, err?.details);
+    res.status(500).json({ error: 'Error interno del servidor', detail: err?.message });
   }
 };
 
