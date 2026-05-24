@@ -128,7 +128,7 @@ export default function Video() {
       )}
 
       {/* Layout */}
-      <div className="max-w-7xl mx-auto lg:grid lg:grid-cols-[260px_1fr] lg:gap-6 lg:items-start">
+      <div className="w-full lg:grid lg:grid-cols-[240px_1fr] lg:gap-4 lg:items-start">
 
         {/* ── Panel izquierdo: filtros ── */}
         <div className="mb-4 lg:mb-0 space-y-4">
