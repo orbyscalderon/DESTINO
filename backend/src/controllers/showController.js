@@ -836,7 +836,7 @@ export const getLeaderboard = async (req, res) => {
 
     const { data: tips } = await supabase
       .from('show_tips')
-      .select('creator_id, coins, show_id')
+      .select('creator_id, coins_spent, show_id')
       .gte('created_at', startOfMonth.toISOString());
 
     const { data: gifts } = await supabase
@@ -847,7 +847,7 @@ export const getLeaderboard = async (req, res) => {
     const totals = {};
     for (const t of tips || []) {
       if (!totals[t.creator_id]) totals[t.creator_id] = { total_coins: 0, shows: new Set(), total_viewers: 0 };
-      totals[t.creator_id].total_coins += t.coins || 0;
+      totals[t.creator_id].total_coins += t.coins_spent || 0;
       if (t.show_id) totals[t.creator_id].shows.add(t.show_id);
     }
     for (const g of gifts || []) {

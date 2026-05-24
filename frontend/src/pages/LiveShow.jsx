@@ -244,7 +244,7 @@ export default function LiveShow() {
       setInterested(interestRes.data.interested);
       setInterestCount(interestRes.data.interest_count || 0);
       // Banner publicitario para espectadores gratuitos (no para el host)
-      if (s.creator_id !== user?.id) showBottomBanner();
+      if (s.host?.id !== user?.id) showBottomBanner();
     } catch (err) {
       if (err.response?.data?.code === 'AGE_VERIFICATION_REQUIRED') {
         setShowAgeModal(true);
