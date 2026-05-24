@@ -161,9 +161,10 @@ export const searchProfiles = async (req, res) => {
       ...(blockedByRows?.map(r => r.blocker_id) || []),
     ];
 
+    // SECURITY: these two filters are mandatory — never remove them
     let query = supabase
       .from('profiles')
-      .select('id, full_name, username, avatar_url, is_verified, is_creator, is_premium, country, age, gender')
+      .select('*')
       .or(`full_name.ilike.%${term}%,username.ilike.%${term}%`)
       .not('id', 'in', `(${excludeIds.join(',')})`)
       // CRITICAL: never show adult creator profiles in general search
@@ -182,10 +183,24 @@ export const searchProfiles = async (req, res) => {
       if (tags.length > 0) query = query.overlaps('interests', tags);
     }
 
-    const { data, error } = await query;
-    if (error) throw error;
+    let { data, error } = await query;
+
+    if (error) {
+      console.error('[searchProfiles] primary query error:', error.message);
+      const fallback = await supabase
+        .from('profiles')
+        .select('*')
+        .or(`full_name.ilike.%${term}%,username.ilike.%${term}%`)
+        .not('id', 'in', `(${excludeIds.join(',')})`)
+        .limit(30);
+      if (fallback.error) throw fallback.error;
+      // Re-apply security filters in JS
+      data = (fallback.data || []).filter(p => !p.is_adult_creator && !p.is_incognito);
+    }
+
     res.json({ profiles: data || [] });
   } catch (err) {
+    console.error('[searchProfiles]', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
@@ -219,14 +234,14 @@ export const getFeed = async (req, res) => {
       userId,
     ];
 
+    // SECURITY: these two filters are mandatory — never remove them
     let query = supabase
       .from('profiles')
-      .select('id, username, full_name, age, gender, bio, avatar_url, is_premium, is_verified, country, language, interests')
+      .select('*')
       .not('id', 'in', `(${seenIds.join(',')})`)
-      .not('username', 'is', null)
+      .not('full_name', 'is', null)
       .or('is_adult_creator.is.null,is_adult_creator.eq.false')
       .or('is_incognito.is.null,is_incognito.eq.false')
-      .order('is_premium', { ascending: false })
       .limit(limit);
 
     if (gender && gender !== 'all') query = query.eq('gender', gender);
@@ -239,20 +254,43 @@ export const getFeed = async (req, res) => {
       if (tags.length > 0) query = query.overlaps('interests', tags);
     }
 
-    const { data: profiles, error } = await query;
+    let { data: profiles, error } = await query;
 
-    if (error) throw error;
+    // If query failed (likely a missing column like is_adult_creator/is_incognito),
+    // retry with a safer filter that works even on minimal schema
+    if (error) {
+      console.error('[getFeed] primary query error:', error.message);
+      const fallback = await supabase
+        .from('profiles')
+        .select('*')
+        .not('id', 'in', `(${seenIds.join(',')})`)
+        .not('full_name', 'is', null)
+        .limit(limit);
+      if (fallback.error) throw fallback.error;
+      // Re-apply security filter in JavaScript when DB columns are missing
+      profiles = (fallback.data || []).filter(p =>
+        !p.is_adult_creator && !p.is_incognito
+      );
+    }
 
     const profileIds = (profiles || []).map(p => p.id);
     let photosByUser = {};
     if (profileIds.length > 0) {
-      const { data: photos } = await supabase
+      // Try position first, fallback to order_index
+      let photosQuery = await supabase
         .from('profile_photos')
         .select('user_id, id, url, position')
         .in('user_id', profileIds)
         .order('position', { ascending: true });
 
-      (photos || []).forEach(photo => {
+      if (photosQuery.error) {
+        photosQuery = await supabase
+          .from('profile_photos')
+          .select('user_id, id, url')
+          .in('user_id', profileIds);
+      }
+
+      (photosQuery.data || []).forEach(photo => {
         if (!photosByUser[photo.user_id]) photosByUser[photo.user_id] = [];
         photosByUser[photo.user_id].push({ id: photo.id, url: photo.url });
       });
@@ -262,6 +300,7 @@ export const getFeed = async (req, res) => {
       profiles: (profiles || []).map(p => ({ ...p, photos: photosByUser[p.id] || [] })),
     });
   } catch (err) {
+    console.error('[getFeed]', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
