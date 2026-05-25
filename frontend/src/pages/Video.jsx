@@ -137,7 +137,7 @@ export default function Video() {
           <div className="card p-5">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-semibold text-gray-300">Género</h3>
-              {!profile?.is_premium && (
+              {!profile?.premium_tier === 'premium' || profile?.premium_tier === 'vip' && (
                 <button
                   onClick={() => setShowPremiumModal(true)}
                   className="flex items-center gap-1 text-xs text-yellow-400 hover:text-yellow-300 transition-colors"
@@ -148,7 +148,7 @@ export default function Video() {
             </div>
             <div className="grid grid-cols-2 gap-2">
               {GENDER_OPTIONS.map(({ value, label, emoji }) => {
-                const locked = !profile?.is_premium && value !== 'any';
+                const locked = !profile?.premium_tier === 'premium' || profile?.premium_tier === 'vip' && value !== 'any';
                 return (
                   <button
                     key={value}
@@ -302,7 +302,7 @@ export default function Video() {
             </p>
           </div>
 
-          {profile?.is_premium && (
+          {profile?.premium_tier === 'premium' || profile?.premium_tier === 'vip' && (
             <div className="card p-4 border-yellow-500/20 bg-yellow-500/5">
               <p className="text-yellow-400 text-xs font-medium">⚡ Premium activo</p>
               <p className="text-gray-500 text-xs mt-1">Filtros de género y país desbloqueados</p>

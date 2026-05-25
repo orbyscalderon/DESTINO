@@ -479,11 +479,21 @@ export const heartbeat = async (req, res) => {
   }
 };
 
-// PUT /api/profiles/incognito — activar/desactivar modo incógnito
+// PUT /api/profiles/incognito — activar/desactivar modo incógnito (requiere Premium+)
 export const toggleIncognito = async (req, res) => {
   try {
     const userId = req.user.id;
     const { enabled } = req.body;
+
+    if (enabled) {
+      const { data: profile } = await supabase
+        .from('profiles').select('premium_tier').eq('id', userId).single();
+      const isPremium = profile?.premium_tier === 'premium' || profile?.premium_tier === 'vip';
+      if (!isPremium) {
+        return res.status(403).json({ error: 'El modo incógnito requiere Plan Premium o VIP', code: 'PREMIUM_REQUIRED' });
+      }
+    }
+
     await supabase.from('profiles').update({ is_incognito: !!enabled }).eq('id', userId);
     res.json({ is_incognito: !!enabled });
   } catch (err) {

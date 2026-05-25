@@ -15,17 +15,17 @@ export const listShows = async (req, res) => {
     const { type, status = 'live', category } = req.query;
     const userId = req.user.id;
 
-    // Verificar si el viewer puede ver contenido adulto
+    // Verificar si el viewer puede ver contenido adulto (VIP o creador adulto)
     const { data: viewerProfile } = await supabase
       .from('profiles')
-      .select('is_adult_creator, age_verified_at')
+      .select('is_adult_creator, premium_tier')
       .eq('id', userId)
       .single();
-    const canSeeAdult = viewerProfile?.is_adult_creator || !!viewerProfile?.age_verified_at;
+    const canSeeAdult = viewerProfile?.is_adult_creator || viewerProfile?.premium_tier === 'vip';
 
     // Si solicita categoría adult explícitamente pero no tiene acceso → vacío
     if (category === 'adult' && !canSeeAdult) {
-      return res.json({ shows: [], requires_age_verification: true });
+      return res.json({ shows: [], requires_vip: true });
     }
 
     let query = supabase
@@ -101,16 +101,16 @@ export const getShow = async (req, res) => {
 
     if (error || !show) return res.status(404).json({ error: 'Show no encontrado' });
 
-    // Bloquear acceso a shows adultos para usuarios sin verificación
+    // Bloquear acceso a shows adultos: requiere Plan VIP (o ser el creador adulto)
     if (show.category === 'adult') {
       const { data: vp } = await supabase
         .from('profiles')
-        .select('is_adult_creator, age_verified_at')
+        .select('is_adult_creator, premium_tier')
         .eq('id', userId)
         .single();
-      const canSeeAdult = vp?.is_adult_creator || !!vp?.age_verified_at;
+      const canSeeAdult = vp?.is_adult_creator || vp?.premium_tier === 'vip';
       if (!canSeeAdult) {
-        return res.status(403).json({ error: 'Debes verificar tu edad para acceder a este contenido', code: 'AGE_VERIFICATION_REQUIRED' });
+        return res.status(403).json({ error: 'Los shows adultos requieren Plan VIP', code: 'VIP_REQUIRED' });
       }
     }
 

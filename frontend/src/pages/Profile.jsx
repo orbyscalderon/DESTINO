@@ -338,14 +338,19 @@ export default function Profile() {
   };
 
   const handleToggleIncognito = async () => {
-    setTogglingIncognito(true);
     const next = !incognito;
+    const isPremium = profile?.premium_tier === 'premium' || profile?.premium_tier === 'vip';
+    if (next && !isPremium) {
+      toast.error('El modo incógnito requiere Plan Premium o VIP');
+      return;
+    }
+    setTogglingIncognito(true);
     try {
       await api.put('/api/profiles/incognito', { enabled: next });
       setIncognito(next);
       toast.success(next ? 'Modo incógnito activado — no aparecerás en búsquedas' : 'Modo incógnito desactivado');
-    } catch {
-      toast.error('Error al cambiar el modo');
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Error al cambiar el modo');
     } finally {
       setTogglingIncognito(false);
     }
@@ -414,8 +419,13 @@ export default function Profile() {
 
             {/* Badges */}
             <div className="flex justify-center flex-wrap gap-2 mb-4">
-              {profile?.is_premium && (
+              {profile?.premium_tier === 'vip' && (
                 <span className="bg-yellow-500/20 text-yellow-400 text-xs font-bold px-3 py-1 rounded-full border border-yellow-500/30">
+                  👑 VIP
+                </span>
+              )}
+              {profile?.premium_tier === 'premium' && (
+                <span className="bg-brand-500/20 text-brand-400 text-xs font-bold px-3 py-1 rounded-full border border-brand-500/30">
                   ⚡ Premium
                 </span>
               )}
@@ -574,20 +584,20 @@ export default function Profile() {
             </Link>
           </div>
 
-          {/* CTA Premium */}
-          {!profile?.is_premium && (
+          {/* CTA upgrade */}
+          {(!profile?.premium_tier || profile?.premium_tier === 'basic') && (
             <Link to="/premium" className="card p-4 flex items-center gap-3 hover:border-yellow-500/30 transition-colors bg-gradient-to-r from-yellow-500/5 to-orange-500/5">
               <div className="w-10 h-10 bg-yellow-500/20 rounded-xl flex items-center justify-center shrink-0">
                 <FiStar className="text-yellow-400" />
               </div>
               <div>
-                <p className="font-medium text-white text-sm">Hazte Premium</p>
-                <p className="text-gray-500 text-xs">Matches ilimitados · Ver quién te dio like</p>
+                <p className="font-medium text-white text-sm">Ver planes Premium y VIP</p>
+                <p className="text-gray-500 text-xs">Matches ilimitados · Ver quién te dio like · Contenido exclusivo</p>
               </div>
             </Link>
           )}
 
-          {/* Verificación de identidad — solo usuarios Premium */}
+          {/* Verificación de identidad — solo usuarios Premium+ */}
           {profile?.is_premium && !profile?.is_verified && (
             <div className="card p-4">
               {verificationStatus === 'pending' ? (

@@ -5,13 +5,30 @@ import { upsertCreatorEarnings } from './showController.js';
 const PLATFORM_FEE_RATE = 0.30;
 
 const PREMIUM_PRICE_ID = process.env.STRIPE_PRICE_ID;
+const VIP_PRICE_ID     = process.env.STRIPE_VIP_PRICE_ID;
 
 const stripeNotConfigured = (res) =>
   res.status(503).json({ error: 'Pagos no configurados aún', code: 'STRIPE_NOT_CONFIGURED' });
 
+const getTierFromPriceId = (priceId) => {
+  if (priceId && priceId === VIP_PRICE_ID)     return 'vip';
+  if (priceId && priceId === PREMIUM_PRICE_ID) return 'premium';
+  return 'basic';
+};
+
+const getPriceIdForPlan = (plan) => {
+  if (plan === 'vip')     return VIP_PRICE_ID || PREMIUM_PRICE_ID;
+  return PREMIUM_PRICE_ID;
+};
+
 // POST /api/payments/create-checkout
+// Body: { plan: 'premium' | 'vip' }
 export const createCheckout = async (req, res) => {
   if (!stripe || !PREMIUM_PRICE_ID) return stripeNotConfigured(res);
+
+  const plan = req.body.plan === 'vip' ? 'vip' : 'premium';
+  const priceId = getPriceIdForPlan(plan);
+  if (!priceId) return stripeNotConfigured(res);
 
   try {
     const userId = req.user.id;
@@ -42,12 +59,12 @@ export const createCheckout = async (req, res) => {
       customer: customerId,
       mode: 'subscription',
       payment_method_types: ['card'],
-      line_items: [{ price: PREMIUM_PRICE_ID, quantity: 1 }],
-      success_url: `${process.env.FRONTEND_URL}/#/premium?success=true`,
+      line_items: [{ price: priceId, quantity: 1 }],
+      success_url: `${process.env.FRONTEND_URL}/#/premium?success=true&plan=${plan}`,
       cancel_url: `${process.env.FRONTEND_URL}/#/premium?canceled=true`,
-      metadata: { supabase_user_id: userId },
+      metadata: { supabase_user_id: userId, plan },
       subscription_data: {
-        metadata: { supabase_user_id: userId },
+        metadata: { supabase_user_id: userId, plan },
       },
     });
 
@@ -82,10 +99,12 @@ export const handleWebhook = async (req, res) => {
         if (!userId) break;
 
         const isActive = sub.status === 'active' || sub.status === 'trialing';
+        const priceId  = sub.items?.data?.[0]?.price?.id;
+        const tier     = isActive ? getTierFromPriceId(priceId) : 'basic';
 
         await supabase
           .from('profiles')
-          .update({ is_premium: isActive, stripe_subscription_id: sub.id })
+          .update({ is_premium: isActive, premium_tier: tier, stripe_subscription_id: sub.id })
           .eq('id', userId);
 
         await supabase.from('subscriptions').upsert({
@@ -93,6 +112,7 @@ export const handleWebhook = async (req, res) => {
           stripe_subscription_id: sub.id,
           stripe_customer_id: sub.customer,
           status: sub.status,
+          plan: tier,
           current_period_end: new Date(sub.current_period_end * 1000).toISOString(),
           updated_at: new Date().toISOString(),
         }, { onConflict: 'stripe_subscription_id' });
@@ -107,12 +127,12 @@ export const handleWebhook = async (req, res) => {
 
         await supabase
           .from('profiles')
-          .update({ is_premium: false, stripe_subscription_id: null })
+          .update({ is_premium: false, premium_tier: 'basic', stripe_subscription_id: null })
           .eq('id', userId);
 
         await supabase
           .from('subscriptions')
-          .update({ status: 'canceled', updated_at: new Date().toISOString() })
+          .update({ status: 'canceled', plan: 'basic', updated_at: new Date().toISOString() })
           .eq('stripe_subscription_id', sub.id);
 
         break;
@@ -282,7 +302,7 @@ export const handleWebhook = async (req, res) => {
         if (!userId) break;
         await supabase
           .from('profiles')
-          .update({ is_premium: false })
+          .update({ is_premium: false, premium_tier: 'basic' })
           .eq('id', userId);
         await supabase
           .from('subscriptions')
@@ -295,13 +315,15 @@ export const handleWebhook = async (req, res) => {
         const sub = event.data.object;
         const userId = getUserIdFromEvent(sub);
         if (!userId) break;
+        const priceId = sub.items?.data?.[0]?.price?.id;
+        const tier    = getTierFromPriceId(priceId);
         await supabase
           .from('profiles')
-          .update({ is_premium: true })
+          .update({ is_premium: true, premium_tier: tier })
           .eq('id', userId);
         await supabase
           .from('subscriptions')
-          .update({ status: 'active', updated_at: new Date().toISOString() })
+          .update({ status: 'active', plan: tier, updated_at: new Date().toISOString() })
           .eq('stripe_subscription_id', sub.id);
         break;
       }
@@ -323,12 +345,12 @@ export const createIdentitySession = async (req, res) => {
 
     const { data: profile } = await supabase
       .from('profiles')
-      .select('is_verified, is_premium')
+      .select('is_verified, premium_tier')
       .eq('id', userId)
       .single();
 
-    if (!profile?.is_premium) {
-      return res.status(403).json({ error: 'La verificación de identidad es exclusiva para usuarios Premium' });
+    if (!profile?.premium_tier || profile.premium_tier === 'basic') {
+      return res.status(403).json({ error: 'La verificación de identidad requiere Plan Premium o VIP', code: 'PREMIUM_REQUIRED' });
     }
 
     if (profile?.is_verified) {

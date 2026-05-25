@@ -23,13 +23,15 @@ async function getVideoCallsToday(userId) {
 export const getVideoUsageToday = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { data: profile } = await supabase.from('profiles').select('is_premium').eq('id', userId).single();
+    const { data: profile } = await supabase.from('profiles').select('premium_tier').eq('id', userId).single();
+    const isPremium = profile?.premium_tier === 'premium' || profile?.premium_tier === 'vip';
     const count = await getVideoCallsToday(userId);
     res.json({
       count,
-      remaining: profile?.is_premium ? null : Math.max(0, VIDEO_CALL_LIMIT - count),
-      limit: profile?.is_premium ? null : VIDEO_CALL_LIMIT,
-      is_premium: !!profile?.is_premium,
+      remaining: isPremium ? null : Math.max(0, VIDEO_CALL_LIMIT - count),
+      limit: isPremium ? null : VIDEO_CALL_LIMIT,
+      is_premium: isPremium,
+      premium_tier: profile?.premium_tier || 'basic',
     });
   } catch (err) {
     res.status(500).json({ error: 'Error interno del servidor' });
@@ -42,13 +44,14 @@ export const findPartner = async (req, res) => {
     const userId = req.user.id;
     const { genderFilter, countryFilter } = req.body;
 
-    const { data: profile } = await supabase.from('profiles').select('is_premium').eq('id', userId).single();
+    const { data: profile } = await supabase.from('profiles').select('premium_tier').eq('id', userId).single();
+    const isPremium = profile?.premium_tier === 'premium' || profile?.premium_tier === 'vip';
 
-    if (genderFilter && genderFilter !== 'any' && !profile?.is_premium) {
+    if (genderFilter && genderFilter !== 'any' && !isPremium) {
       return res.status(403).json({ error: 'El filtro de género es exclusivo Premium', code: 'PREMIUM_REQUIRED' });
     }
 
-    if (!profile?.is_premium) {
+    if (!isPremium) {
       const callsToday = await getVideoCallsToday(userId);
       if (callsToday >= VIDEO_CALL_LIMIT) {
         return res.status(403).json({

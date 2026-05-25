@@ -43,7 +43,7 @@ export const getUsers = async (req, res) => {
 
     let query = supabase
       .from('profiles')
-      .select('id, full_name, username, avatar_url, is_premium, is_verified, is_creator, is_adult_creator, is_admin, coins_balance, created_at')
+      .select('id, full_name, username, avatar_url, is_premium, premium_tier, is_verified, is_creator, is_adult_creator, is_admin, coins_balance, created_at')
       .order('created_at', { ascending: false })
       .range(page * limit, (page + 1) * limit - 1);
 
@@ -118,11 +118,31 @@ export const setUserPremium = async (req, res) => {
   try {
     const { userId, isPremium } = req.body;
     if (!userId || typeof isPremium !== 'boolean') return res.status(400).json({ error: 'Parámetros inválidos' });
-    const { error } = await supabase.from('profiles').update({ is_premium: isPremium }).eq('id', userId);
+    const tier = isPremium ? 'premium' : 'basic';
+    const { error } = await supabase.from('profiles')
+      .update({ is_premium: isPremium, premium_tier: tier }).eq('id', userId);
     if (error) throw error;
     res.json({ message: `Premium ${isPremium ? 'activado' : 'desactivado'}` });
   } catch (err) {
     console.error('setUserPremium error:', err?.message || err);
+    res.status(500).json({ error: err?.message || 'Error interno del servidor' });
+  }
+};
+
+// PATCH /api/admin/users/tier
+export const setUserTier = async (req, res) => {
+  try {
+    const { userId, tier } = req.body;
+    if (!userId || !['basic', 'premium', 'vip'].includes(tier)) {
+      return res.status(400).json({ error: "tier debe ser 'basic', 'premium' o 'vip'" });
+    }
+    const isPremium = tier !== 'basic';
+    const { error } = await supabase.from('profiles')
+      .update({ premium_tier: tier, is_premium: isPremium }).eq('id', userId);
+    if (error) throw error;
+    res.json({ message: `Tier actualizado a ${tier}` });
+  } catch (err) {
+    console.error('setUserTier error:', err?.message || err);
     res.status(500).json({ error: err?.message || 'Error interno del servidor' });
   }
 };

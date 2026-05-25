@@ -19,11 +19,11 @@ export const likeProfile = async (req, res) => {
     // Obtener perfil del usuario (premium check)
     const { data: myProfile } = await supabase
       .from('profiles')
-      .select('is_premium, full_name')
+      .select('premium_tier, full_name')
       .eq('id', userId)
       .single();
 
-    const isPremium = myProfile?.is_premium;
+    const isPremium = myProfile?.premium_tier === 'premium' || myProfile?.premium_tier === 'vip';
 
     // Super like requiere Premium
     if (isSuperLike && !isPremium) {
@@ -177,11 +177,12 @@ export const getLikesCount = async (req, res) => {
 
     const { data: profile } = await supabase
       .from('profiles')
-      .select('is_premium')
+      .select('premium_tier')
       .eq('id', userId)
       .single();
 
-    if (profile?.is_premium) {
+    const isPremium = profile?.premium_tier === 'premium' || profile?.premium_tier === 'vip';
+    if (isPremium) {
       return res.json({ count: 0, limit: DAILY_LIKE_LIMIT, remaining: null });
     }
 
@@ -342,11 +343,12 @@ export const addBonusLikes = async (req, res) => {
 
     const { data: profile } = await supabase
       .from('profiles')
-      .select('is_premium')
+      .select('premium_tier')
       .eq('id', userId)
       .single();
 
-    if (profile?.is_premium) return res.json({ remaining: null });
+    const isPremiumUser = profile?.premium_tier === 'premium' || profile?.premium_tier === 'vip';
+    if (isPremiumUser) return res.json({ remaining: null });
 
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);

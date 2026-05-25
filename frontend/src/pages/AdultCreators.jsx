@@ -6,6 +6,7 @@ import { FiSearch, FiUsers, FiStar, FiGlobe, FiWifi, FiX, FiSliders, FiChevronRi
 import api from '../lib/api.js';
 import AgeGate, { isAgeVerified } from '../components/ui/AgeGate.jsx';
 import VerifiedBadge from '../components/ui/VerifiedBadge.jsx';
+import { useAuthStore } from '../store/authStore.js';
 import FlagImg from '../components/ui/FlagImg.jsx';
 import { COUNTRIES } from '../lib/geodata.js';
 
@@ -167,6 +168,8 @@ function ShowCard({ show }) {
 
 export default function AdultCreators() {
   const navigate = useNavigate();
+  const { profile } = useAuthStore();
+  const isVip = profile?.premium_tier === 'vip' || profile?.is_adult_creator;
   const [verified, setVerified] = useState(isAgeVerified);
   const [liveShows, setLiveShows] = useState([]);
   const [creators, setCreators]   = useState([]);
@@ -233,6 +236,24 @@ export default function AdultCreators() {
     : onlineOnly
       ? creators.filter(c => c.is_live || isOnline(c.last_active))
       : creators;
+
+  if (!isVip) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center px-6 text-center gap-4">
+        <div className="text-5xl">👑</div>
+        <h2 className="text-2xl font-black text-white">Sección VIP</h2>
+        <p className="text-gray-400 text-sm max-w-xs">
+          El acceso a creadores adultos está disponible exclusivamente para el Plan VIP.
+        </p>
+        <button
+          onClick={() => navigate('/premium')}
+          className="bg-yellow-500 hover:bg-yellow-400 text-black font-bold rounded-xl px-8 py-3 transition-colors"
+        >
+          Ver Plan VIP
+        </button>
+      </div>
+    );
+  }
 
   if (!verified) return <AgeGate onVerified={() => setVerified(true)} />;
 

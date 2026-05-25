@@ -3,7 +3,7 @@ import { authMiddleware } from '../middleware/auth.js';
 import { isAdmin } from '../middleware/admin.js';
 import {
   getStats, getUsers, getCreators, getShows,
-  setUserPremium, setUserVerified, setUserCreator, setUserAdult,
+  setUserPremium, setUserTier, setUserVerified, setUserCreator, setUserAdult,
   deleteUser,
   getWithdrawals, processWithdrawal,
   getVerifications, processVerification,
@@ -20,6 +20,7 @@ router.get('/creators', getCreators);
 router.get('/shows',    getShows);
 
 router.patch('/users/premium',  setUserPremium);
+router.patch('/users/tier',     setUserTier);
 router.patch('/users/verified', setUserVerified);
 router.patch('/users/creator',  setUserCreator);
 router.patch('/users/adult',    setUserAdult);

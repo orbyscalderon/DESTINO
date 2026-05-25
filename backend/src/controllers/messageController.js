@@ -222,15 +222,16 @@ export const sendMessage = async (req, res) => {
       url: `/chat/${matchId}`,
     }).catch(() => {});
 
-    // Incrementar contador diario (solo usuarios no premium)
+    // Incrementar contador diario (solo usuarios básicos)
     const { data: profile } = await supabase
       .from('profiles')
-      .select('is_premium')
+      .select('premium_tier')
       .eq('id', userId)
       .single();
 
+    const isPremium = profile?.premium_tier === 'premium' || profile?.premium_tier === 'vip';
     let remaining = null;
-    if (!profile?.is_premium) {
+    if (!isPremium) {
       const today = new Date().toISOString().split('T')[0];
       await supabase.rpc('increment_message_count', { p_user_id: userId });
 
