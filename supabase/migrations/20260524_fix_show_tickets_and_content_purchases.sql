@@ -29,9 +29,4 @@ ALTER TABLE content_purchases
   ADD COLUMN IF NOT EXISTS platform_fee numeric(10,2) DEFAULT 0,
   ADD COLUMN IF NOT EXISTS amount_paid  numeric(10,2) DEFAULT 0;
 
--- Rellenar content_id/content_type desde photo_id para filas existentes
-UPDATE content_purchases SET
-  content_id   = photo_id,
-  content_type = 'profile_photo',
-  coins_paid   = COALESCE(coins_spent, 0)
-WHERE content_id IS NULL AND photo_id IS NOT NULL;
+-- content_id/content_type/coins_paid ya existen en esta instancia de la tabla
