@@ -25,6 +25,9 @@ export default function UserProfile() {
   const [following, setFollowing]         = useState(false);
   const [followersCount, setFollowersCount] = useState(0);
   const [togglingFollow, setTogglingFollow] = useState(false);
+  const [showFollowers, setShowFollowers]   = useState(false);
+  const [followers, setFollowers]           = useState([]);
+  const [loadingFollowers, setLoadingFollowers] = useState(false);
   const [userPosts, setUserPosts] = useState([]);
   const [postsTab, setPostsTab] = useState('photos'); // 'photos' | 'posts' | 'videos'
   const [videos, setVideos] = useState([]);
@@ -326,9 +329,21 @@ export default function UserProfile() {
             {profile.is_creator && (
               <span className="bg-brand-500/80 text-white text-xs font-bold px-2 py-0.5 rounded-full">Creador</span>
             )}
-            <span className="bg-dark-700/80 text-gray-300 text-xs font-medium px-2 py-0.5 rounded-full flex items-center gap-1">
-              <FiUsers size={9} /> {followersCount.toLocaleString()}
-            </span>
+            <button
+              onClick={async () => {
+                setShowFollowers(true);
+                if (followers.length > 0) return;
+                setLoadingFollowers(true);
+                try {
+                  const { data } = await api.get(`/api/follows/${userId}/followers`);
+                  setFollowers(data.followers || []);
+                } catch { }
+                setLoadingFollowers(false);
+              }}
+              className="bg-dark-700/80 text-gray-300 text-xs font-medium px-2 py-0.5 rounded-full flex items-center gap-1 hover:bg-dark-600 transition-colors"
+            >
+              <FiUsers size={9} /> {followersCount.toLocaleString()} seguidores
+            </button>
             {profile.profile_views > 0 && (
               <span className="bg-dark-700/80 text-gray-300 text-xs font-medium px-2 py-0.5 rounded-full">
                 👁 {profile.profile_views.toLocaleString()}
@@ -839,6 +854,31 @@ export default function UserProfile() {
             </div>
           </motion.div>
         </motion.div>
+      )}
+
+      {/* Modal seguidores */}
+      {showFollowers && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 px-4" onClick={() => setShowFollowers(false)}>
+          <div className="bg-dark-800 rounded-2xl w-full max-w-sm max-h-[70vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
+              <p className="text-white font-semibold text-sm">Seguidores · {followersCount.toLocaleString()}</p>
+              <button onClick={() => setShowFollowers(false)} className="text-gray-500 hover:text-white"><FiX size={18} /></button>
+            </div>
+            <div className="overflow-y-auto flex-1 px-4 py-2">
+              {loadingFollowers ? (
+                <div className="flex justify-center py-8"><div className="w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" /></div>
+              ) : followers.length === 0 ? (
+                <p className="text-center text-gray-500 text-sm py-8">Sin seguidores aún</p>
+              ) : followers.map(f => (
+                <Link key={f.id} to={`/profile/${f.id}`} onClick={() => setShowFollowers(false)} className="flex items-center gap-3 py-2.5 hover:bg-white/5 rounded-xl px-2 -mx-2 transition-colors">
+                  <img src={f.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(f.full_name||'U')}&size=64&background=1a1a2e&color=f43f5e`} className="w-9 h-9 rounded-full object-cover shrink-0" alt="" />
+                  <p className="text-white text-sm font-medium truncate">{f.full_name}</p>
+                  {f.is_verified && <span className="text-brand-400 text-xs ml-auto shrink-0">✓</span>}
+                </Link>
+              ))}
+            </div>
+          </div>
+        </div>
       )}
 
       </AnimatePresence>

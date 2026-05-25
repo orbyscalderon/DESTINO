@@ -48,6 +48,12 @@ export default function Settings() {
   const [mfaCode, setMfaCode] = useState('');
   const [mfaVerifying, setMfaVerifying] = useState(false);
   const [mfaUnenrolling, setMfaUnenrolling] = useState(false);
+  // Appeals
+  const [appeals, setAppeals] = useState([]);
+  const [loadingAppeals, setLoadingAppeals] = useState(false);
+  const [showAppeals, setShowAppeals] = useState(false);
+  const [appealForm, setAppealForm] = useState({ content_type: 'post', content_id: '', reason: '' });
+  const [submittingAppeal, setSubmittingAppeal] = useState(false);
 
   useEffect(() => {
     api.get('/api/referrals/code')
@@ -87,6 +93,36 @@ export default function Settings() {
       toast.error('Error al desbloquear');
     } finally {
       setUnblocking(null);
+    }
+  };
+
+  const handleLoadAppeals = async () => {
+    if (appeals.length > 0 || loadingAppeals) { setShowAppeals(v => !v); return; }
+    setLoadingAppeals(true);
+    setShowAppeals(true);
+    try {
+      const { data } = await api.get('/api/appeals');
+      setAppeals(data.appeals || []);
+    } catch {
+      toast.error('Error al cargar apelaciones');
+    } finally {
+      setLoadingAppeals(false);
+    }
+  };
+
+  const handleSubmitAppeal = async () => {
+    if (!appealForm.content_id.trim()) return toast.error('Ingresa el ID del contenido');
+    if (appealForm.reason.trim().length < 10) return toast.error('La razón debe tener al menos 10 caracteres');
+    setSubmittingAppeal(true);
+    try {
+      const { data } = await api.post('/api/appeals', appealForm);
+      setAppeals(prev => [data.appeal, ...prev]);
+      setAppealForm(f => ({ ...f, content_id: '', reason: '' }));
+      toast.success('Apelación enviada');
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Error al enviar apelación');
+    } finally {
+      setSubmittingAppeal(false);
     }
   };
 
@@ -512,6 +548,84 @@ export default function Settings() {
                         >
                           {unblocking === u.id ? '…' : 'Desbloquear'}
                         </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Apelaciones */}
+          <div className="card overflow-hidden">
+            <button
+              onClick={handleLoadAppeals}
+              className="flex items-center gap-3 w-full p-4 text-left hover:bg-white/5 transition-colors"
+            >
+              <FiShield className="text-brand-400" size={18} />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-white">Apelaciones</p>
+                <p className="text-xs text-gray-500">Apelar contenido moderado</p>
+              </div>
+              {showAppeals ? <FiChevronUp size={16} className="text-gray-500" /> : <FiChevronDown size={16} className="text-gray-500" />}
+            </button>
+            {showAppeals && (
+              <div className="border-t border-white/5 p-4 space-y-4">
+                <div className="space-y-2">
+                  <select
+                    className="input-field text-sm py-2 w-full"
+                    value={appealForm.content_type}
+                    onChange={e => setAppealForm(f => ({ ...f, content_type: e.target.value }))}
+                  >
+                    <option value="post">Publicación</option>
+                    <option value="profile">Perfil</option>
+                    <option value="show">Show</option>
+                    <option value="photo">Foto</option>
+                    <option value="video">Video</option>
+                  </select>
+                  <input
+                    className="input-field text-sm py-2 w-full"
+                    placeholder="ID del contenido"
+                    value={appealForm.content_id}
+                    onChange={e => setAppealForm(f => ({ ...f, content_id: e.target.value.trim() }))}
+                  />
+                  <textarea
+                    className="input-field text-sm py-2 w-full resize-none"
+                    placeholder="Razón (mínimo 10 caracteres)"
+                    rows={3}
+                    value={appealForm.reason}
+                    onChange={e => setAppealForm(f => ({ ...f, reason: e.target.value }))}
+                  />
+                  <button
+                    onClick={handleSubmitAppeal}
+                    disabled={submittingAppeal}
+                    className="btn-primary w-full py-2 text-sm disabled:opacity-50"
+                  >
+                    {submittingAppeal ? 'Enviando...' : 'Enviar apelación'}
+                  </button>
+                </div>
+                {loadingAppeals ? (
+                  <div className="flex justify-center py-4">
+                    <div className="w-5 h-5 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
+                  </div>
+                ) : appeals.length === 0 ? (
+                  <p className="text-center text-gray-600 text-sm py-2">Sin apelaciones aún</p>
+                ) : (
+                  <div className="space-y-2 max-h-60 overflow-y-auto">
+                    {appeals.map(a => (
+                      <div key={a.id} className="bg-dark-700 rounded-xl p-3">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs text-gray-400 capitalize">{a.content_type}</span>
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                            a.status === 'approved' ? 'bg-green-500/20 text-green-400' :
+                            a.status === 'rejected' ? 'bg-red-500/20 text-red-400' :
+                            'bg-yellow-500/20 text-yellow-400'
+                          }`}>
+                            {a.status === 'approved' ? 'Aprobada' : a.status === 'rejected' ? 'Rechazada' : 'Pendiente'}
+                          </span>
+                        </div>
+                        <p className="text-white text-xs truncate">{a.reason}</p>
+                        {a.admin_note && <p className="text-gray-500 text-xs mt-1 italic">{a.admin_note}</p>}
                       </div>
                     ))}
                   </div>

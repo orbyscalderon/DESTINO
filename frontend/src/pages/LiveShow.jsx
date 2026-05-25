@@ -151,6 +151,7 @@ export default function LiveShow() {
 
   // Moderation (host)
   const [showModeration, setShowModeration] = useState(false);
+  const [bannedUsers, setBannedUsers] = useState(new Map()); // userId -> name
 
   // Interest (viewer, scheduled shows)
   const [interested, setInterested]       = useState(false);
@@ -801,9 +802,20 @@ export default function LiveShow() {
     try {
       await api.post(`/api/shows/${id}/ban/${msg.userId}`);
       setChatMessages(prev => prev.filter(m => m.userId !== msg.userId));
+      setBannedUsers(prev => new Map(prev).set(msg.userId, msg.name));
       toast.success(`${msg.name} baneado del chat`);
     } catch {
       toast.error('Error al banear');
+    }
+  };
+
+  const handleUnbanUser = async (userId, name) => {
+    try {
+      await api.delete(`/api/shows/${id}/ban/${userId}`);
+      setBannedUsers(prev => { const m = new Map(prev); m.delete(userId); return m; });
+      toast.success(`${name} desbaneado`);
+    } catch {
+      toast.error('Error al desbanear');
     }
   };
 
@@ -1225,9 +1237,10 @@ export default function LiveShow() {
                           <span className="text-white text-xs flex-1 truncate">
                             <span className="text-brand-300 font-medium">{msg.name}:</span> {msg.text}
                           </span>
-                          {msg.userId && msg.userId !== user?.id && (
+                          {msg.userId && msg.userId !== user?.id && !bannedUsers.has(msg.userId) && (
                             <button onClick={() => handleBanUser(msg)}
                               className="w-6 h-6 rounded-full bg-red-500/20 hover:bg-red-500/40 flex items-center justify-center shrink-0"
+                              title="Banear"
                             >
                               <FiSlash size={10} className="text-red-400" />
                             </button>
@@ -1236,6 +1249,23 @@ export default function LiveShow() {
                       ))
                     }
                   </div>
+                  {bannedUsers.size > 0 && (
+                    <div className="bg-dark-700 rounded-xl p-3 mt-2">
+                      <p className="text-xs font-bold text-white mb-2 flex items-center gap-1"><FiRotateCw size={10} className="text-orange-400" /> Baneados ({bannedUsers.size})</p>
+                      {[...bannedUsers.entries()].map(([uid, name]) => (
+                        <div key={uid} className="flex items-center gap-2 py-1">
+                          <span className="text-gray-300 text-xs flex-1 truncate">{name}</span>
+                          <button
+                            onClick={() => handleUnbanUser(uid, name)}
+                            className="w-6 h-6 rounded-full bg-green-500/20 hover:bg-green-500/40 flex items-center justify-center shrink-0"
+                            title="Desbanear"
+                          >
+                            <FiRotateCw size={10} className="text-green-400" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </motion.div>
               )}
             </AnimatePresence>

@@ -228,6 +228,10 @@ export default function CreatorDashboard() {
   // CSV export
   const [exporting, setExporting]       = useState(false);
 
+  // Tips received
+  const [tips, setTips]               = useState([]);
+  const [tipsTotal, setTipsTotal]     = useState(0);
+
   // Withdrawals
   const [earnings, setEarnings]       = useState(null);
   const [withdrawals, setWithdrawals] = useState([]);
@@ -270,12 +274,13 @@ export default function CreatorDashboard() {
     if (!silent) setLoading(true);
     else setRefreshing(true);
     try {
-      const [dashRes, analyticsRes, postAnalyticsRes, earningsRes, withdrawalsRes] = await Promise.all([
+      const [dashRes, analyticsRes, postAnalyticsRes, earningsRes, withdrawalsRes, tipsRes] = await Promise.all([
         api.get('/api/creator/dashboard'),
         api.get('/api/creator/analytics'),
         api.get('/api/creator/post-analytics').catch(() => ({ data: null })),
         api.get('/api/withdrawals/earnings').catch(() => ({ data: null })),
         api.get('/api/withdrawals').catch(() => ({ data: [] })),
+        api.get('/api/tips/received').catch(() => ({ data: { tips: [], total_coins: 0 } })),
       ]);
       setData(dashRes.data);
       setAnalytics(analyticsRes.data);
@@ -284,6 +289,8 @@ export default function CreatorDashboard() {
       setBio(dashRes.data.profile?.creator_bio ?? '');
       setEarnings(earningsRes.data);
       setWithdrawals(withdrawalsRes.data?.withdrawals || []);
+      setTips(tipsRes.data?.tips || []);
+      setTipsTotal(tipsRes.data?.total_coins || 0);
     } catch {
       toast.error('Error al cargar el panel');
     } finally {
@@ -1185,6 +1192,39 @@ export default function CreatorDashboard() {
                   </div>
                 </div>
               )}
+
+              {/* Historial de propinas */}
+              <div className="card p-5 mb-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-bold text-white flex items-center gap-2 text-sm">
+                    <FiStar size={14} className="text-green-400" /> Propinas recibidas
+                  </h3>
+                  <span className="text-yellow-400 text-sm font-bold">⚡{tipsTotal}</span>
+                </div>
+                {tips.length === 0 ? (
+                  <p className="text-center text-gray-600 text-sm py-4">Sin propinas aún</p>
+                ) : (
+                  <div className="space-y-0 max-h-64 overflow-y-auto">
+                    {tips.map(t => (
+                      <div key={t.id} className="flex items-center gap-3 py-2.5 border-b border-white/5 last:border-0">
+                        <img
+                          src={t.sender?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(t.sender?.full_name || 'U')}&size=60&background=1a1a2e&color=f43f5e`}
+                          className="w-8 h-8 rounded-full object-cover shrink-0"
+                          alt=""
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-white text-xs font-medium truncate">{t.sender?.full_name || 'Usuario'}</p>
+                          {t.message && <p className="text-gray-500 text-xs truncate">{t.message}</p>}
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="text-yellow-400 text-xs font-bold">⚡{t.amount_coins}</p>
+                          <p className="text-gray-600 text-[10px]">{new Date(t.created_at).toLocaleDateString()}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
 
               {/* Si no tiene Stripe activo */}
               {!isStripeActive ? (
