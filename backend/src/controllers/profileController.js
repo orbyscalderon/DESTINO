@@ -614,16 +614,16 @@ export const getPhotosForViewer = async (req, res) => {
       return res.json({ photos: photos || [] });
     }
 
-    // Si el creador es adulto, verificar que el viewer tiene verificación de edad
+    // Si el creador es adulto, verificar que el viewer tiene tier VIP o también es creador adulto
     if (ownerProfile?.is_adult_creator) {
       const { data: vp } = await supabase
         .from('profiles')
-        .select('is_adult_creator, age_verified_at')
+        .select('is_adult_creator, premium_tier')
         .eq('id', viewerId)
         .single();
-      const canSeeAdult = vp?.is_adult_creator || !!vp?.age_verified_at;
+      const canSeeAdult = vp?.is_adult_creator || vp?.premium_tier === 'vip';
       if (!canSeeAdult) {
-        return res.json({ photos: [], requires_age_verification: true });
+        return res.json({ photos: [], requires_vip: true });
       }
     }
 

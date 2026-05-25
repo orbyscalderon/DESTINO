@@ -267,7 +267,8 @@ export default function Navbar() {
                 </p>
                 <p className="text-xs text-gray-500 truncate">@{profile.username}</p>
               </div>
-              {profile.is_premium && <span className="text-yellow-400 text-sm shrink-0">⚡</span>}
+              {profile.premium_tier === 'vip' && <span className="text-yellow-400 text-sm shrink-0">👑</span>}
+              {profile.premium_tier === 'premium' && <span className="text-brand-400 text-sm shrink-0">⚡</span>}
             </NavLink>
           </div>
         )}

@@ -43,8 +43,8 @@ export default function UserProfile() {
   const [sendingRequest, setSendingRequest]     = useState(false);
 
   const loadPhotos = async () => {
-    const phRes = await api.get(`/api/profiles/${userId}/photos`).catch(() => ({ data: { photos: [], requires_age_verification: false } }));
-    if (phRes.data.requires_age_verification) {
+    const phRes = await api.get(`/api/profiles/${userId}/photos`).catch(() => ({ data: { photos: [], requires_vip: false } }));
+    if (phRes.data.requires_vip || phRes.data.requires_age_verification) {
       setPhotosBlocked(true);
     } else {
       setPhotos(phRes.data.photos || []);
@@ -64,7 +64,7 @@ export default function UserProfile() {
       const p = pRes.data.profile;
       setProfile(p);
       setSubscribed(!!p.is_subscribed);
-      if (phRes.data.requires_age_verification) {
+      if (phRes.data.requires_vip || phRes.data.requires_age_verification) {
         setPhotosBlocked(true);
       } else {
         setPhotos(phRes.data.photos || []);
@@ -471,17 +471,17 @@ export default function UserProfile() {
           </div>
         )}
 
-        {/* ── Gate de verificación de edad ────────────────── */}
+        {/* ── Gate VIP para contenido adulto ───────────────── */}
         {photosBlocked && (
-          <div className="card p-6 text-center border-red-500/20">
-            <div className="text-4xl mb-3">🔞</div>
-            <p className="text-white font-semibold mb-1">Contenido para adultos</p>
-            <p className="text-gray-500 text-sm mb-4">Este creador publica contenido solo para mayores de 18 años.</p>
+          <div className="card p-6 text-center border-yellow-500/20 bg-yellow-500/5">
+            <div className="text-4xl mb-3">👑</div>
+            <p className="text-white font-semibold mb-1">Contenido exclusivo VIP</p>
+            <p className="text-gray-500 text-sm mb-4">Este creador publica contenido solo para miembros VIP.</p>
             <button
-              onClick={() => setShowAgeModal(true)}
-              className="btn-primary text-sm px-6 py-2.5"
+              onClick={() => navigate('/premium')}
+              className="bg-yellow-500 hover:bg-yellow-400 text-black font-bold text-sm px-6 py-2.5 rounded-xl transition-colors"
             >
-              Verificar mi edad para ver el contenido
+              Ver plan VIP 👑
             </button>
           </div>
         )}

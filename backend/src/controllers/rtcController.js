@@ -11,11 +11,11 @@ export const initiateCall = async (req, res) => {
     const callerId = req.user.id;
     const { data: caller } = await supabase
       .from('profiles')
-      .select('is_premium, full_name, avatar_url')
+      .select('premium_tier, full_name, avatar_url')
       .eq('id', callerId)
       .single();
 
-    if (!caller?.is_premium) {
+    if (!caller?.premium_tier || caller.premium_tier === 'basic') {
       return res.status(403).json({ error: 'Llamadas directas son exclusivas Premium', code: 'PREMIUM_REQUIRED' });
     }
 

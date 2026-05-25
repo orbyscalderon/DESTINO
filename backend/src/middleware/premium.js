@@ -5,11 +5,11 @@ export const premiumMiddleware = async (req, res, next) => {
   try {
     const { data: profile } = await supabase
       .from('profiles')
-      .select('is_premium')
+      .select('premium_tier')
       .eq('id', req.user.id)
       .single();
 
-    if (!profile?.is_premium) {
+    if (!profile?.premium_tier || profile.premium_tier === 'basic') {
       return res.status(403).json({
         error: 'Función exclusiva Premium',
         code: 'PREMIUM_REQUIRED',

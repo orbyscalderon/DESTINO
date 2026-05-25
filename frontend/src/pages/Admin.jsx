@@ -259,8 +259,8 @@ export default function Admin() {
                   disabled={bulkLoading}
                   onClick={async () => {
                     setBulkLoading(true);
-                    await Promise.all([...selectedUsers].map(id => api.patch('/api/admin/users/premium', { userId: id, value: true }).catch(() => {})));
-                    setUsers(p => p.map(u => selectedUsers.has(u.id) ? { ...u, is_premium: true } : u));
+                    await Promise.all([...selectedUsers].map(id => api.patch('/api/admin/users/premium', { userId: id, isPremium: true }).catch(() => {})));
+                    setUsers(p => p.map(u => selectedUsers.has(u.id) ? { ...u, is_premium: true, premium_tier: 'premium' } : u));
                     setSelectedUsers(new Set());
                     setBulkLoading(false);
                     toast.success('Premium aplicado');

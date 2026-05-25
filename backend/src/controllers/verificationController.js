@@ -25,11 +25,11 @@ export const startVerification = async (req, res) => {
 
     const { data: profile } = await supabase
       .from('profiles')
-      .select('is_premium, is_verified')
+      .select('premium_tier, is_verified')
       .eq('id', userId)
       .single();
 
-    if (!profile?.is_premium) {
+    if (!profile?.premium_tier || profile.premium_tier === 'basic') {
       return res.status(403).json({ error: 'La verificación de identidad es exclusiva para usuarios Premium', code: 'PREMIUM_REQUIRED' });
     }
 

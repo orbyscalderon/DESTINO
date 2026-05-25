@@ -10,11 +10,11 @@ export const messageLimitMiddleware = async (req, res, next) => {
     // Usuarios premium tienen chat ilimitado
     const { data: profile } = await supabase
       .from('profiles')
-      .select('is_premium')
+      .select('premium_tier')
       .eq('id', userId)
       .single();
 
-    if (profile?.is_premium) return next();
+    if (profile?.premium_tier && profile.premium_tier !== 'basic') return next();
 
     const today = new Date().toISOString().split('T')[0];
 
