@@ -94,6 +94,7 @@ export const getShow = async (req, res) => {
       .select(`
         id, title, description, show_type, ticket_price, status,
         cover_url, scheduled_at, started_at, ended_at, category,
+        private_rate, exclusive_rate, min_private_minutes,
         host:profiles!host_id(id, full_name, avatar_url, is_verified, creator_bio)
       `)
       .eq('id', id)
@@ -149,7 +150,8 @@ export const getShow = async (req, res) => {
 export const createShow = async (req, res) => {
   try {
     const hostId = req.user.id;
-    const { title, description, show_type, ticket_price, cover_url, scheduled_at, category = 'chat', tip_goal } = req.body;
+    const { title, description, show_type, ticket_price, cover_url, scheduled_at, category = 'chat', tip_goal,
+            private_rate, exclusive_rate, min_private_minutes } = req.body;
 
     if (!title?.trim()) return res.status(400).json({ error: 'El título es obligatorio' });
     if (!['broadcast', 'private'].includes(show_type)) {
@@ -197,6 +199,9 @@ export const createShow = async (req, res) => {
         status: 'scheduled',
         category,
         tip_goal: tip_goal ? parseFloat(tip_goal) : null,
+        private_rate: Math.max(5, Math.min(500, parseInt(private_rate) || 20)),
+        exclusive_rate: Math.max(5, Math.min(500, parseInt(exclusive_rate) || 35)),
+        min_private_minutes: Math.max(1, Math.min(60, parseInt(min_private_minutes) || 3)),
       })
       .select()
       .single();
@@ -892,15 +897,27 @@ export async function upsertCreatorEarnings(creatorId, amount) {
 
 // ── SHOW PRIVADO ──────────────────────────────────────────────────────────────
 
-const PRIVATE_RATES = { private: 20, exclusive: 35 }; // coins/min
-
 // POST /api/shows/:id/private/validate — verifica saldo antes de iniciar
 export const validatePrivateShow = async (req, res) => {
   try {
     const viewerId = req.user.id;
     const { type = 'private' } = req.body;
-    const rate = PRIVATE_RATES[type] || PRIVATE_RATES.private;
-    const minMinutes = 3;
+    const showId = req.params.id;
+
+    const { data: show } = await supabase
+      .from('live_shows')
+      .select('private_rate, exclusive_rate, min_private_minutes, status')
+      .eq('id', showId)
+      .single();
+
+    if (!show || show.status !== 'live') {
+      return res.status(400).json({ error: 'Show no activo', code: 'SHOW_ENDED' });
+    }
+
+    const rate = type === 'exclusive'
+      ? (show.exclusive_rate ?? 35)
+      : (show.private_rate ?? 20);
+    const minMinutes = show.min_private_minutes ?? 3;
     const required = rate * minMinutes;
 
     const { data: profile } = await supabase
@@ -919,7 +936,7 @@ export const validatePrivateShow = async (req, res) => {
       });
     }
 
-    res.json({ ok: true, rate, balance });
+    res.json({ ok: true, rate, minMinutes, balance });
   } catch {
     res.status(500).json({ error: 'Error interno del servidor' });
   }
@@ -931,17 +948,20 @@ export const privateShowTick = async (req, res) => {
     const viewerId = req.user.id;
     const { type = 'private' } = req.body;
     const showId = req.params.id;
-    const rate = PRIVATE_RATES[type] || PRIVATE_RATES.private;
 
     const { data: show } = await supabase
       .from('live_shows')
-      .select('host_id, status')
+      .select('host_id, status, private_rate, exclusive_rate')
       .eq('id', showId)
       .single();
 
     if (!show || show.status !== 'live') {
       return res.status(400).json({ error: 'Show no activo', code: 'SHOW_ENDED' });
     }
+
+    const rate = type === 'exclusive'
+      ? (show.exclusive_rate ?? 35)
+      : (show.private_rate ?? 20);
 
     // Deducir del viewer
     await spendCoins(viewerId, rate, 'private_show');

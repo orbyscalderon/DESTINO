@@ -850,9 +850,10 @@ export default function LiveShow() {
 
   const handleRequestPrivate = async (type) => {
     setPrivateModal(false);
-    const rate = type === 'exclusive' ? 35 : 20;
+    let rate;
     try {
-      await api.post(`/api/shows/${id}/private/validate`, { type });
+      const { data } = await api.post(`/api/shows/${id}/private/validate`, { type });
+      rate = data.rate;
     } catch (err) {
       toast.error(err.response?.data?.error || 'Saldo insuficiente');
       return;
@@ -1804,9 +1805,9 @@ export default function LiveShow() {
                       <FiVideo className="text-purple-300" size={18} />
                     </div>
                     <p className="text-white font-bold text-sm mb-0.5">Privado</p>
-                    <p className="text-purple-300 font-black text-lg">20 <span className="text-sm font-normal text-gray-400">coins/min</span></p>
+                    <p className="text-purple-300 font-black text-lg">{show?.private_rate ?? 20} <span className="text-sm font-normal text-gray-400">coins/min</span></p>
                     <p className="text-gray-500 text-xs mt-2">Solo tú y el host</p>
-                    <p className="text-gray-600 text-[10px]">Mín. 3 minutos</p>
+                    <p className="text-gray-600 text-[10px]">Mín. {show?.min_private_minutes ?? 3} minutos</p>
                   </button>
 
                   {/* Exclusivo */}
@@ -1819,14 +1820,14 @@ export default function LiveShow() {
                       <FiCamera className="text-pink-300" size={18} />
                     </div>
                     <p className="text-white font-bold text-sm mb-0.5">Exclusivo</p>
-                    <p className="text-pink-300 font-black text-lg">35 <span className="text-sm font-normal text-gray-400">coins/min</span></p>
+                    <p className="text-pink-300 font-black text-lg">{show?.exclusive_rate ?? 35} <span className="text-sm font-normal text-gray-400">coins/min</span></p>
                     <p className="text-gray-400 text-xs mt-2">Cam2Cam disponible</p>
                     <p className="text-gray-600 text-[10px]">Nadie puede espiar</p>
                   </button>
                 </div>
 
                 <p className="text-gray-600 text-[11px] text-center mt-4">
-                  Balance: <span className="text-gray-400">{coinBalance} coins</span> · La sesión empieza al ser aceptado
+                  Balance: <span className="text-gray-400">{coinBalance} coins</span> · Mín. {show?.min_private_minutes ?? 3} min · Sesión empieza al ser aceptado
                 </p>
               </motion.div>
             </motion.div>

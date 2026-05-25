@@ -243,6 +243,7 @@ export default function CreatorDashboard() {
   const [newShow, setNewShow] = useState({
     title: '', description: '', show_type: 'broadcast',
     ticket_price: '', category: 'chat', scheduled_at: '', tip_goal: '',
+    private_rate: '20', exclusive_rate: '35', min_private_minutes: '3',
   });
   const [creatingShow, setCreatingShow] = useState(false);
 
@@ -327,7 +328,7 @@ export default function CreatorDashboard() {
       });
       toast.success('Show creado exitosamente');
       setShowModal(false);
-      setNewShow({ title: '', description: '', show_type: 'broadcast', ticket_price: '', category: 'chat', scheduled_at: '', tip_goal: '' });
+      setNewShow({ title: '', description: '', show_type: 'broadcast', ticket_price: '', category: 'chat', scheduled_at: '', tip_goal: '', private_rate: '20', exclusive_rate: '35', min_private_minutes: '3' });
       loadDashboard(true);
     } catch (err) {
       toast.error(err.response?.data?.error || 'Error al crear el show');
@@ -1691,6 +1692,45 @@ export default function CreatorDashboard() {
                     />
                   </div>
                   <p className="text-gray-600 text-xs mt-1">Muestra una barra de progreso a tus viewers</p>
+                </div>
+
+                {/* Tarifas show privado */}
+                <div className="border border-purple-500/20 rounded-2xl p-4 bg-purple-500/5 space-y-3">
+                  <p className="text-purple-300 text-xs font-semibold flex items-center gap-1.5">
+                    🔒 Show Privado — Tus tarifas
+                  </p>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <label className="text-gray-400 text-xs mb-1 block">Privado (coins/min)</label>
+                      <input
+                        className="input-field text-sm py-2 text-center"
+                        type="number" min="5" max="500"
+                        value={newShow.private_rate}
+                        onChange={e => setNewShow(s => ({ ...s, private_rate: e.target.value }))}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-gray-400 text-xs mb-1 block">Exclusivo (coins/min)</label>
+                      <input
+                        className="input-field text-sm py-2 text-center"
+                        type="number" min="5" max="500"
+                        value={newShow.exclusive_rate}
+                        onChange={e => setNewShow(s => ({ ...s, exclusive_rate: e.target.value }))}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-gray-400 text-xs mb-1 block">Tiempo mín. (min)</label>
+                      <input
+                        className="input-field text-sm py-2 text-center"
+                        type="number" min="1" max="60"
+                        value={newShow.min_private_minutes}
+                        onChange={e => setNewShow(s => ({ ...s, min_private_minutes: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+                  <p className="text-gray-600 text-[10px]">
+                    Tú recibes el 70% · Privado: {newShow.private_rate || 20} = {Math.round((newShow.private_rate || 20) * 0.7)} coins/min · Exclusivo: {newShow.exclusive_rate || 35} = {Math.round((newShow.exclusive_rate || 35) * 0.7)} coins/min
+                  </p>
                 </div>
               </div>
 
