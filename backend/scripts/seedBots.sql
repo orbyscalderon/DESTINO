@@ -4,11 +4,8 @@
 -- Idempotente: ON CONFLICT DO NOTHING evita duplicados si se corre dos veces
 -- =============================================================================
 
--- 1) Deshabilitar trigger para evitar conflicto con handle_new_user
---    (el trigger falla si la tabla profiles tiene columnas NOT NULL sin default)
-ALTER TABLE auth.users DISABLE TRIGGER on_auth_user_created;
-
--- 2) Insertar los usuarios en auth.users
+-- PASO 1: Insertar usuarios en auth.users
+-- raw_user_meta_data incluye todos los campos que handle_new_user pueda necesitar
 INSERT INTO auth.users (
   id, instance_id, email, encrypted_password, email_confirmed_at,
   raw_user_meta_data, raw_app_meta_data,
@@ -18,79 +15,77 @@ INSERT INTO auth.users (
   (gen_random_uuid(), '00000000-0000-0000-0000-000000000000',
    'valentina.garcia@destino-bot.com',
    crypt('Destino@Bot2025!#', gen_salt('bf')), NOW(),
-   '{"full_name":"Valentina García","avatar_url":"https://randomuser.me/api/portraits/women/1.jpg"}'::jsonb,
+   '{"full_name":"Valentina García","username":"valentina_gc","avatar_url":"https://randomuser.me/api/portraits/women/1.jpg","age":23,"gender":"female"}'::jsonb,
    '{"provider":"email","providers":["email"]}'::jsonb,
-   'authenticated', 'authenticated', NOW(), NOW(), '', '', '', ''),
+   'authenticated','authenticated', NOW(), NOW(), '','','',''),
 
   (gen_random_uuid(), '00000000-0000-0000-0000-000000000000',
    'isabella.martinez@destino-bot.com',
    crypt('Destino@Bot2025!#', gen_salt('bf')), NOW(),
-   '{"full_name":"Isabella Martínez","avatar_url":"https://randomuser.me/api/portraits/women/2.jpg"}'::jsonb,
+   '{"full_name":"Isabella Martínez","username":"isa_mtz","avatar_url":"https://randomuser.me/api/portraits/women/2.jpg","age":26,"gender":"female"}'::jsonb,
    '{"provider":"email","providers":["email"]}'::jsonb,
-   'authenticated', 'authenticated', NOW(), NOW(), '', '', '', ''),
+   'authenticated','authenticated', NOW(), NOW(), '','','',''),
 
   (gen_random_uuid(), '00000000-0000-0000-0000-000000000000',
    'camila.rodriguez@destino-bot.com',
    crypt('Destino@Bot2025!#', gen_salt('bf')), NOW(),
-   '{"full_name":"Camila Rodríguez","avatar_url":"https://randomuser.me/api/portraits/women/3.jpg"}'::jsonb,
+   '{"full_name":"Camila Rodríguez","username":"cami_rod","avatar_url":"https://randomuser.me/api/portraits/women/3.jpg","age":22,"gender":"female"}'::jsonb,
    '{"provider":"email","providers":["email"]}'::jsonb,
-   'authenticated', 'authenticated', NOW(), NOW(), '', '', '', ''),
+   'authenticated','authenticated', NOW(), NOW(), '','','',''),
 
   (gen_random_uuid(), '00000000-0000-0000-0000-000000000000',
    'sofia.herrera@destino-bot.com',
    crypt('Destino@Bot2025!#', gen_salt('bf')), NOW(),
-   '{"full_name":"Sofía Herrera","avatar_url":"https://randomuser.me/api/portraits/women/4.jpg"}'::jsonb,
+   '{"full_name":"Sofía Herrera","username":"sofi_hrr","avatar_url":"https://randomuser.me/api/portraits/women/4.jpg","age":25,"gender":"female"}'::jsonb,
    '{"provider":"email","providers":["email"]}'::jsonb,
-   'authenticated', 'authenticated', NOW(), NOW(), '', '', '', ''),
+   'authenticated','authenticated', NOW(), NOW(), '','','',''),
 
   (gen_random_uuid(), '00000000-0000-0000-0000-000000000000',
    'daniela.torres@destino-bot.com',
    crypt('Destino@Bot2025!#', gen_salt('bf')), NOW(),
-   '{"full_name":"Daniela Torres","avatar_url":"https://randomuser.me/api/portraits/women/5.jpg"}'::jsonb,
+   '{"full_name":"Daniela Torres","username":"dani_trs","avatar_url":"https://randomuser.me/api/portraits/women/5.jpg","age":28,"gender":"female"}'::jsonb,
    '{"provider":"email","providers":["email"]}'::jsonb,
-   'authenticated', 'authenticated', NOW(), NOW(), '', '', '', ''),
+   'authenticated','authenticated', NOW(), NOW(), '','','',''),
 
   (gen_random_uuid(), '00000000-0000-0000-0000-000000000000',
    'alejandra.flores@destino-bot.com',
    crypt('Destino@Bot2025!#', gen_salt('bf')), NOW(),
-   '{"full_name":"Alejandra Flores","avatar_url":"https://randomuser.me/api/portraits/women/6.jpg"}'::jsonb,
+   '{"full_name":"Alejandra Flores","username":"ale_flores","avatar_url":"https://randomuser.me/api/portraits/women/6.jpg","age":21,"gender":"female"}'::jsonb,
    '{"provider":"email","providers":["email"]}'::jsonb,
-   'authenticated', 'authenticated', NOW(), NOW(), '', '', '', ''),
+   'authenticated','authenticated', NOW(), NOW(), '','','',''),
 
   (gen_random_uuid(), '00000000-0000-0000-0000-000000000000',
    'natalia.ramirez@destino-bot.com',
    crypt('Destino@Bot2025!#', gen_salt('bf')), NOW(),
-   '{"full_name":"Natalia Ramírez","avatar_url":"https://randomuser.me/api/portraits/women/7.jpg"}'::jsonb,
+   '{"full_name":"Natalia Ramírez","username":"nati_rmz","avatar_url":"https://randomuser.me/api/portraits/women/7.jpg","age":27,"gender":"female"}'::jsonb,
    '{"provider":"email","providers":["email"]}'::jsonb,
-   'authenticated', 'authenticated', NOW(), NOW(), '', '', '', ''),
+   'authenticated','authenticated', NOW(), NOW(), '','','',''),
 
   (gen_random_uuid(), '00000000-0000-0000-0000-000000000000',
    'gabriela.castro@destino-bot.com',
    crypt('Destino@Bot2025!#', gen_salt('bf')), NOW(),
-   '{"full_name":"Gabriela Castro","avatar_url":"https://randomuser.me/api/portraits/women/8.jpg"}'::jsonb,
+   '{"full_name":"Gabriela Castro","username":"gabi_cst","avatar_url":"https://randomuser.me/api/portraits/women/8.jpg","age":24,"gender":"female"}'::jsonb,
    '{"provider":"email","providers":["email"]}'::jsonb,
-   'authenticated', 'authenticated', NOW(), NOW(), '', '', '', ''),
+   'authenticated','authenticated', NOW(), NOW(), '','','',''),
 
   (gen_random_uuid(), '00000000-0000-0000-0000-000000000000',
    'luciana.morales@destino-bot.com',
    crypt('Destino@Bot2025!#', gen_salt('bf')), NOW(),
-   '{"full_name":"Luciana Morales","avatar_url":"https://randomuser.me/api/portraits/women/9.jpg"}'::jsonb,
+   '{"full_name":"Luciana Morales","username":"luci_mrl","avatar_url":"https://randomuser.me/api/portraits/women/9.jpg","age":29,"gender":"female"}'::jsonb,
    '{"provider":"email","providers":["email"]}'::jsonb,
-   'authenticated', 'authenticated', NOW(), NOW(), '', '', '', ''),
+   'authenticated','authenticated', NOW(), NOW(), '','','',''),
 
   (gen_random_uuid(), '00000000-0000-0000-0000-000000000000',
    'mariana.vargas@destino-bot.com',
    crypt('Destino@Bot2025!#', gen_salt('bf')), NOW(),
-   '{"full_name":"Mariana Vargas","avatar_url":"https://randomuser.me/api/portraits/women/10.jpg"}'::jsonb,
+   '{"full_name":"Mariana Vargas","username":"mari_vrg","avatar_url":"https://randomuser.me/api/portraits/women/10.jpg","age":23,"gender":"female"}'::jsonb,
    '{"provider":"email","providers":["email"]}'::jsonb,
-   'authenticated', 'authenticated', NOW(), NOW(), '', '', '', '')
+   'authenticated','authenticated', NOW(), NOW(), '','','','')
 
 ON CONFLICT (email) DO NOTHING;
 
--- 3) Re-habilitar trigger
-ALTER TABLE auth.users ENABLE TRIGGER on_auth_user_created;
 
--- 4) Insertar perfiles usando los IDs que se acaban de crear
+-- PASO 2: Upsert perfiles completos (por si el trigger ya los creó o no)
 INSERT INTO public.profiles (
   id, full_name, username, age, gender, bio, country, language,
   interests, avatar_url, is_creator, is_adult_creator, is_incognito,
@@ -98,87 +93,97 @@ INSERT INTO public.profiles (
 )
 SELECT
   u.id,
-  (u.raw_user_meta_data->>'full_name'),
-  split_part(u.email, '.', 1),  -- username temporal, se sobreescribe abajo
-  0, 'female', '', 'CO', 'es', ARRAY[]::text[],
-  (u.raw_user_meta_data->>'avatar_url'),
+  u.raw_user_meta_data->>'full_name',
+  u.raw_user_meta_data->>'username',
+  (u.raw_user_meta_data->>'age')::int,
+  'female',
+  '',
+  'CO', 'es',
+  ARRAY[]::text[],
+  u.raw_user_meta_data->>'avatar_url',
   false, false, false, 'basic', false, false, NOW()
 FROM auth.users u
 WHERE u.email LIKE '%@destino-bot.com'
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (id) DO UPDATE SET
+  full_name  = EXCLUDED.full_name,
+  username   = EXCLUDED.username,
+  age        = EXCLUDED.age,
+  avatar_url = EXCLUDED.avatar_url;
 
--- 5) Actualizar cada perfil con los datos completos
+
+-- PASO 3: Actualizar bios, intereses, países y last_active de cada bot
 UPDATE public.profiles SET
-  username = 'valentina_gc', age = 23, country = 'CO',
   bio = 'Amante de la música en vivo y los viajes espontáneos 🎶✈️ Me encanta descubrir cafés escondidos y buenas conversaciones.',
+  country = 'CO', language = 'es',
   interests = ARRAY['🎵 Música','✈️ Viajes','☕ Café','🎬 Cine','📸 Fotografía'],
   last_active = NOW() - INTERVAL '45 minutes'
 WHERE id = (SELECT id FROM auth.users WHERE email = 'valentina.garcia@destino-bot.com');
 
 UPDATE public.profiles SET
-  username = 'isa_mtz', age = 26, country = 'MX',
   bio = 'Nutricionista de día, runner de noche 🏃‍♀️ Busco a alguien que también disfrute un domingo en el parque o una buena película.',
+  country = 'MX', language = 'es',
   interests = ARRAY['💪 Fitness','🧘 Yoga','🌱 Naturaleza','🍳 Cocina','📚 Lectura'],
   last_active = NOW() - INTERVAL '20 minutes'
 WHERE id = (SELECT id FROM auth.users WHERE email = 'isabella.martinez@destino-bot.com');
 
 UPDATE public.profiles SET
-  username = 'cami_rod', age = 22, country = 'AR',
   bio = 'Estudiante de diseño, fanática del arte callejero 🎨 Si conoces buen plan cultural o tienes buenas recomendaciones, escribeme.',
+  country = 'AR', language = 'es',
   interests = ARRAY['🎨 Arte','📸 Fotografía','🎭 Teatro','🎵 Música','☕ Café'],
   last_active = NOW() - INTERVAL '70 minutes'
 WHERE id = (SELECT id FROM auth.users WHERE email = 'camila.rodriguez@destino-bot.com');
 
 UPDATE public.profiles SET
-  username = 'sofi_hrr', age = 25, country = 'ES',
   bio = 'Abogada en proceso, lectora empedernida 📚 Me gustan los planes tranquilos pero no me niego a una noche de baile.',
+  country = 'ES', language = 'es',
   interests = ARRAY['📚 Lectura','🎬 Cine','🍷 Vinos','✈️ Viajes','💃 Baile'],
   last_active = NOW() - INTERVAL '30 minutes'
 WHERE id = (SELECT id FROM auth.users WHERE email = 'sofia.herrera@destino-bot.com');
 
 UPDATE public.profiles SET
-  username = 'dani_trs', age = 28, country = 'VE',
   bio = 'Chef amateur y bailarina de salsa los fines de semana 💃🍳 La cocina y la música son mi idioma. ¿El tuyo?',
+  country = 'VE', language = 'es',
   interests = ARRAY['🍳 Cocina','💃 Baile','🎵 Música','🏖️ Playa','📸 Fotografía'],
   last_active = NOW() - INTERVAL '55 minutes'
 WHERE id = (SELECT id FROM auth.users WHERE email = 'daniela.torres@destino-bot.com');
 
 UPDATE public.profiles SET
-  username = 'ale_flores', age = 21, country = 'PE',
   bio = 'Gamer, cinéfila y amante de la comida peruana 🎮🎬 No te asustes, también salgo del cuarto jaja.',
+  country = 'PE', language = 'es',
   interests = ARRAY['🎮 Gaming','🎵 Música','🎬 Cine','🍳 Cocina','📚 Lectura'],
   last_active = NOW() - INTERVAL '90 minutes'
 WHERE id = (SELECT id FROM auth.users WHERE email = 'alejandra.flores@destino-bot.com');
 
 UPDATE public.profiles SET
-  username = 'nati_rmz', age = 27, country = 'CL',
   bio = 'Profesora de yoga y senderismo los fines de semana 🧘‍♀️🏔️ Creo en el equilibrio: meditación mañana, pisco sour en la tarde.',
+  country = 'CL', language = 'es',
   interests = ARRAY['🧘 Yoga','🌱 Naturaleza','💪 Fitness','📚 Lectura','☕ Café'],
   last_active = NOW() - INTERVAL '15 minutes'
 WHERE id = (SELECT id FROM auth.users WHERE email = 'natalia.ramirez@destino-bot.com');
 
 UPDATE public.profiles SET
-  username = 'gabi_cst', age = 24, country = 'EC',
   bio = 'Periodista, viajera incansable y adicta al café ☕✈️ He visitado 12 países y no pienso parar. ¿Me acompañas al siguiente?',
+  country = 'EC', language = 'es',
   interests = ARRAY['✈️ Viajes','☕ Café','📸 Fotografía','📚 Lectura','🎭 Teatro'],
   last_active = NOW() - INTERVAL '40 minutes'
 WHERE id = (SELECT id FROM auth.users WHERE email = 'gabriela.castro@destino-bot.com');
 
 UPDATE public.profiles SET
-  username = 'luci_mrl', age = 29, country = 'CR',
   bio = 'Bióloga marina y surfista de corazón 🌊🐠 La playa es mi lugar favorito. Busco alguien a quien no le asuste mojarse.',
+  country = 'CR', language = 'es',
   interests = ARRAY['🏖️ Playa','🌱 Naturaleza','💪 Fitness','🐶 Mascotas','📸 Fotografía'],
   last_active = NOW() - INTERVAL '120 minutes'
 WHERE id = (SELECT id FROM auth.users WHERE email = 'luciana.morales@destino-bot.com');
 
 UPDATE public.profiles SET
-  username = 'mari_vrg', age = 23, country = 'MX',
   bio = 'Actriz amateur, cinéfila y fan de los conciertos 🎭🎸 Si tienes buenas recomendaciones de películas o planes, ya tenemos de qué hablar.',
+  country = 'MX', language = 'es',
   interests = ARRAY['🎭 Teatro','🎬 Cine','🎵 Música','🎸 Guitarra','💃 Baile'],
   last_active = NOW() - INTERVAL '25 minutes'
 WHERE id = (SELECT id FROM auth.users WHERE email = 'mariana.vargas@destino-bot.com');
 
--- 6) Verificar resultado
+
+-- PASO 4: Verificar resultado
 SELECT p.full_name, p.username, p.age, p.country, p.gender
 FROM public.profiles p
 JOIN auth.users u ON u.id = p.id
