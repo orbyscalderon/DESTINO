@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiPlus, FiHeart, FiMessageCircle, FiImage, FiX, FiLock, FiTrash2, FiCompass } from 'react-icons/fi';
+import { FiPlus, FiHeart, FiMessageCircle, FiImage, FiX, FiLock, FiTrash2, FiCompass, FiUserPlus, FiUserCheck } from 'react-icons/fi';
 import { useAuthStore } from '../store/authStore.js';
 import { compressImage } from '../lib/imageCompressor.js';
 import api from '../lib/api.js';
@@ -15,6 +15,26 @@ function PostCard({ post, onLike, onComment, onDelete, currentUserId }) {
   const [comments, setComments] = useState([]);
   const [commentText, setCommentText] = useState('');
   const [loadingComments, setLoadingComments] = useState(false);
+  const [following, setFollowing] = useState(post.author?.is_followed ?? false);
+  const [togglingFollow, setTogglingFollow] = useState(false);
+
+  const handleToggleFollow = async (e) => {
+    e.preventDefault();
+    setTogglingFollow(true);
+    try {
+      if (following) {
+        await api.delete(`/api/follows/${post.author.id}`);
+        setFollowing(false);
+      } else {
+        await api.post(`/api/follows/${post.author.id}`);
+        setFollowing(true);
+      }
+    } catch {
+      toast.error('Error al actualizar');
+    } finally {
+      setTogglingFollow(false);
+    }
+  };
 
   const handleToggleComments = async () => {
     if (!showComments && comments.length === 0) {
@@ -66,6 +86,20 @@ function PostCard({ post, onLike, onComment, onDelete, currentUserId }) {
           <span className="text-xs bg-purple-500/20 text-purple-400 px-2 py-0.5 rounded-full flex items-center gap-1">
             <FiLock size={9} /> Suscriptores
           </span>
+        )}
+        {currentUserId !== post.author?.id && (
+          <button
+            onClick={handleToggleFollow}
+            disabled={togglingFollow}
+            className={`flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full transition-colors disabled:opacity-50 ${
+              following
+                ? 'bg-white/10 text-gray-400 hover:bg-white/20'
+                : 'bg-brand-500/20 text-brand-400 hover:bg-brand-500/30 border border-brand-500/40'
+            }`}
+          >
+            {following ? <FiUserCheck size={11} /> : <FiUserPlus size={11} />}
+            {following ? 'Siguiendo' : 'Seguir'}
+          </button>
         )}
         {currentUserId === post.author?.id && onDelete && (
           <button
