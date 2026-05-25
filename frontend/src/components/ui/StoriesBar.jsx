@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiPlus, FiX } from 'react-icons/fi';
+import { FiPlus, FiX, FiTrash2 } from 'react-icons/fi';
 import { useAuthStore } from '../../store/authStore.js';
 import { compressImage } from '../../lib/imageCompressor.js';
 import api from '../../lib/api.js';
@@ -15,7 +15,7 @@ function timeAgo(dateStr) {
   return `${Math.floor(diff / 86400)}d`;
 }
 
-function StoryViewer({ groups, initialGroupIdx, onClose, onStoryViewed }) {
+function StoryViewer({ groups, initialGroupIdx, onClose, onStoryViewed, onStoryDeleted }) {
   const [groupIdx, setGroupIdx] = useState(initialGroupIdx);
   const [storyIdx, setStoryIdx] = useState(0);
   const [progress, setProgress] = useState(0);
@@ -24,6 +24,7 @@ function StoryViewer({ groups, initialGroupIdx, onClose, onStoryViewed }) {
   const [viewers, setViewers] = useState([]);
   const [viewersTotal, setViewersTotal] = useState(0);
   const [loadingViewers, setLoadingViewers] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const videoRef = useRef(null);
   const startTimeRef = useRef(null);
   const rafRef = useRef(null);
@@ -71,6 +72,22 @@ function StoryViewer({ groups, initialGroupIdx, onClose, onStoryViewed }) {
   };
 
   const isOwnStory = story?.user_id === user?.id || group?.user?.id === user?.id;
+
+  const handleDeleteStory = async (e) => {
+    e.stopPropagation();
+    if (deleting) return;
+    setDeleting(true);
+    try {
+      await api.delete(`/api/stories/${story.id}`);
+      toast.success('Historia eliminada');
+      onStoryDeleted?.(story.id);
+      onClose();
+    } catch {
+      toast.error('No se pudo eliminar la historia');
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   useEffect(() => {
     setShowViewers(false);
@@ -154,7 +171,13 @@ function StoryViewer({ groups, initialGroupIdx, onClose, onStoryViewed }) {
         />
         <div>
           <p className="text-white font-semibold text-sm leading-none">{group.user.full_name}</p>
-          <p className="text-white/50 text-xs mt-0.5">{timeAgo(story.created_at)}</p>
+          <p className="text-white/50 text-xs mt-0.5">
+            {timeAgo(story.created_at)}
+            {isOwnStory && story.expires_at && (() => {
+              const hoursLeft = Math.max(0, Math.round((new Date(story.expires_at) - Date.now()) / 3600000));
+              return <span className="ml-1.5">· expira en {hoursLeft}h</span>;
+            })()}
+          </p>
         </div>
       </div>
 
@@ -200,15 +223,27 @@ function StoryViewer({ groups, initialGroupIdx, onClose, onStoryViewed }) {
         >›</button>
       )}
 
-      {/* Viewers button — solo para el autor */}
+      {/* Viewers button + delete — solo para el autor */}
       {isOwnStory && (
-        <button
-          className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1.5 bg-black/50 backdrop-blur-sm text-white text-sm px-4 py-2 rounded-full border border-white/20"
-          onClick={handleOpenViewers}
-        >
-          <span>👁</span>
-          <span>{story.views_count ?? viewersTotal} {(story.views_count ?? viewersTotal) === 1 ? 'vista' : 'vistas'}</span>
-        </button>
+        <div className="absolute bottom-6 inset-x-0 z-10 flex items-center justify-center gap-3 px-4">
+          <button
+            className="flex items-center gap-1.5 bg-black/50 backdrop-blur-sm text-white text-sm px-4 py-2 rounded-full border border-white/20"
+            onClick={handleOpenViewers}
+          >
+            <span>👁</span>
+            <span>{story.views_count ?? viewersTotal} {(story.views_count ?? viewersTotal) === 1 ? 'vista' : 'vistas'}</span>
+          </button>
+          <button
+            className="flex items-center gap-1.5 bg-black/50 backdrop-blur-sm text-red-400 text-sm px-3 py-2 rounded-full border border-red-500/30 hover:bg-red-500/20 transition-colors disabled:opacity-50"
+            onClick={handleDeleteStory}
+            disabled={deleting}
+          >
+            {deleting
+              ? <div className="w-4 h-4 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />
+              : <FiTrash2 size={15} />
+            }
+          </button>
+        </div>
       )}
 
       {/* Viewers panel */}
@@ -286,6 +321,14 @@ export default function StoriesBar() {
       stories: g.stories.map(s => s.id === storyId ? { ...s, viewed: true } : s),
       has_unseen: g.stories.some(s => s.id !== storyId && !s.viewed),
     })));
+  };
+
+  const handleStoryDeleted = (storyId) => {
+    setGroups(prev =>
+      prev
+        .map(g => ({ ...g, stories: g.stories.filter(s => s.id !== storyId) }))
+        .filter(g => g.stories.length > 0)
+    );
   };
 
   const handleUpload = async (e) => {
@@ -384,6 +427,7 @@ export default function StoriesBar() {
             initialGroupIdx={viewerIdx}
             onClose={() => setViewerIdx(null)}
             onStoryViewed={handleStoryViewed}
+            onStoryDeleted={handleStoryDeleted}
           />
         )}
       </AnimatePresence>
@@ -410,6 +454,7 @@ function AddStoryButton({ uploading, profile, fileRef, onUpload }) {
         }
       </button>
       <span className="text-[10px] text-gray-500 leading-none">Tu story</span>
+      <span className="text-[9px] text-gray-600 leading-none">24 horas</span>
     </div>
   );
 }
