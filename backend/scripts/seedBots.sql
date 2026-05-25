@@ -4,6 +4,22 @@
 -- Idempotente: WHERE NOT EXISTS evita duplicados sin depender de ON CONFLICT
 -- =============================================================================
 
+-- PASO 0: Corregir el trigger handle_new_user (tenía columna 'email' que no existe en profiles)
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER
+AS $$
+BEGIN
+  INSERT INTO public.profiles (id, full_name, avatar_url)
+  VALUES (
+    NEW.id,
+    COALESCE(NEW.raw_user_meta_data->>'full_name', split_part(NEW.email, '@', 1)),
+    NEW.raw_user_meta_data->>'avatar_url'
+  )
+  ON CONFLICT (id) DO NOTHING;
+  RETURN NEW;
+END;
+$$;
+
 -- PASO 1: Insertar en auth.users solo si el email no existe aún
 INSERT INTO auth.users (
   id, instance_id, email, encrypted_password, email_confirmed_at,
