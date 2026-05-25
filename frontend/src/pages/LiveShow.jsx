@@ -1019,14 +1019,15 @@ export default function LiveShow() {
       <div className="fixed inset-0 bg-dark-900 flex flex-col lg:flex-row overflow-hidden">
 
         {/* ── COLUMNA IZQUIERDA: cámara + controles ── */}
-        <div className="flex flex-col lg:flex-1 relative">
+        <div className="flex flex-col lg:flex-1 relative min-w-0">
 
           {/* Header del estudio */}
-          <div className="flex items-center justify-between px-4 py-3 bg-dark-900/95 border-b border-white/5 shrink-0 z-10">
-            <div className="flex items-center gap-2">
-              <span className="flex items-center gap-1.5 bg-red-500/20 border border-red-500/40 text-red-400 text-xs font-bold px-3 py-1 rounded-full">
+          <div className="flex items-center justify-between px-4 py-2.5 bg-dark-900/95 border-b border-white/5 shrink-0 z-10">
+            <div className="flex items-center gap-2.5">
+              <span className="flex items-center gap-1.5 bg-red-500/20 border border-red-500/40 text-red-400 text-xs font-bold px-2.5 py-1 rounded-full">
                 <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" /> EN VIVO
               </span>
+              <span className="text-white font-mono text-sm font-semibold tabular-nums">{fmtDuration(liveDuration)}</span>
               {connState !== 'connected' && (
                 <span className={`text-xs flex items-center gap-1 ${connState === 'reconnecting' ? 'text-yellow-400' : 'text-red-400'}`}>
                   {connState === 'reconnecting' ? <FiWifi size={12} className="animate-pulse" /> : <FiWifiOff size={12} />}
@@ -1034,11 +1035,10 @@ export default function LiveShow() {
                 </span>
               )}
             </div>
-            <div className="flex items-center gap-3 text-xs text-gray-400">
-              <span className="flex items-center gap-1"><FiClock size={11} />{fmtDuration(liveDuration)}</span>
-              <span className="flex items-center gap-1"><FiUsers size={11} />{viewerCount}</span>
-              <span className="flex items-center gap-1 text-yellow-400 font-bold"><FiZap size={11} />⚡{totalCoinsEarned}</span>
-              <button onClick={handleShareLink} className="w-7 h-7 rounded-full bg-dark-700 hover:bg-dark-600 flex items-center justify-center transition-colors" title="Copiar link">
+            <div className="flex items-center gap-2">
+              <span className="flex items-center gap-1 text-sm text-gray-300"><FiUsers size={13} />{viewerCount}</span>
+              <span className="flex items-center gap-1 text-sm text-yellow-400 font-bold"><FiZap size={13} />{totalCoinsEarned}</span>
+              <button onClick={handleShareLink} className="w-7 h-7 rounded-full bg-dark-700 hover:bg-dark-600 flex items-center justify-center transition-colors ml-1" title="Copiar link del show">
                 <FiCopy size={12} className="text-gray-400" />
               </button>
             </div>
@@ -1102,58 +1102,61 @@ export default function LiveShow() {
           </div>
 
           {/* ── Controles del estudio ── */}
-          <div className="bg-dark-800 border-t border-white/5 px-4 py-3 shrink-0">
+          <div className="bg-dark-800 border-t border-white/5 px-3 py-3 shrink-0">
 
-            {/* Fila 1: dispositivos */}
-            <div className="flex gap-2 mb-3 flex-wrap">
-              {cameraDevices.length > 1 && (
-                <select
-                  value={selectedCameraId}
-                  onChange={e => switchLiveCamera(e.target.value)}
-                  className="flex-1 min-w-[120px] bg-dark-700 border border-white/10 text-white text-xs rounded-xl px-2 py-1.5 outline-none"
-                >
-                  {cameraDevices.map(d => (
-                    <option key={d.deviceId} value={d.deviceId}>{d.label || `Cámara ${d.deviceId.slice(0,6)}`}</option>
-                  ))}
-                </select>
-              )}
-              {micDevices.length > 1 && (
-                <select
-                  value={selectedMicId}
-                  onChange={e => switchLiveMic(e.target.value)}
-                  className="flex-1 min-w-[120px] bg-dark-700 border border-white/10 text-white text-xs rounded-xl px-2 py-1.5 outline-none"
-                >
-                  {micDevices.map(d => (
-                    <option key={d.deviceId} value={d.deviceId}>{d.label || `Micrófono ${d.deviceId.slice(0,6)}`}</option>
-                  ))}
-                </select>
-              )}
-            </div>
+            {/* Fila 1: dispositivos (solo cuando hay más de 1) */}
+            {(cameraDevices.length > 1 || micDevices.length > 1) && (
+              <div className="flex gap-2 mb-3">
+                {cameraDevices.length > 1 && (
+                  <select
+                    value={selectedCameraId}
+                    onChange={e => switchLiveCamera(e.target.value)}
+                    className="flex-1 min-w-0 bg-dark-700 border border-white/10 text-white text-xs rounded-xl px-2 py-1.5 outline-none truncate"
+                  >
+                    {cameraDevices.map(d => (
+                      <option key={d.deviceId} value={d.deviceId}>{d.label || `Cámara ${d.deviceId.slice(0,6)}`}</option>
+                    ))}
+                  </select>
+                )}
+                {micDevices.length > 1 && (
+                  <select
+                    value={selectedMicId}
+                    onChange={e => switchLiveMic(e.target.value)}
+                    className="flex-1 min-w-0 bg-dark-700 border border-white/10 text-white text-xs rounded-xl px-2 py-1.5 outline-none truncate"
+                  >
+                    {micDevices.map(d => (
+                      <option key={d.deviceId} value={d.deviceId}>{d.label || `Micrófono ${d.deviceId.slice(0,6)}`}</option>
+                    ))}
+                  </select>
+                )}
+              </div>
+            )}
 
             {/* Fila 2: botones de control */}
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex gap-2">
+            <div className="flex items-center gap-2">
+              {/* Botones principales — scroll horizontal si no caben */}
+              <div className="flex gap-2 flex-1 overflow-x-auto scrollbar-hide">
                 {/* Mic + VU meter */}
                 <button onClick={toggleMute}
-                  className={`flex flex-col items-center justify-center gap-0 w-14 py-2 rounded-xl transition-colors ${muted ? 'bg-red-500/20 border border-red-500/40' : 'bg-dark-700 hover:bg-dark-600'}`}
+                  className={`flex flex-col items-center justify-center gap-0 min-w-[52px] w-14 py-2 rounded-xl transition-colors shrink-0 ${muted ? 'bg-red-500/20 border border-red-500/40' : 'bg-dark-700 hover:bg-dark-600'}`}
                 >
-                  {muted ? <FiMicOff size={18} className="text-red-400" /> : <FiMic size={18} className="text-white" />}
-                  <div className="flex items-end gap-px mt-1 mb-0.5" style={{ height: 10 }}>
+                  {muted ? <FiMicOff size={17} className="text-red-400" /> : <FiMic size={17} className="text-white" />}
+                  <div className="flex items-end gap-px mt-1 mb-0.5" style={{ height: 9 }}>
                     {[0.1, 0.3, 0.55, 0.3, 0.1].map((threshold, i) => (
                       <div key={i}
                         className={`w-1 rounded-sm transition-colors duration-75 ${!muted && audioLevel > threshold ? 'bg-green-400' : 'bg-white/10'}`}
-                        style={{ height: [4, 7, 10, 7, 4][i] }}
+                        style={{ height: [3, 6, 9, 6, 3][i] }}
                       />
                     ))}
                   </div>
-                  <span className="text-[9px] text-gray-500">{muted ? 'Silenc.' : 'Mic'}</span>
+                  <span className="text-[9px] text-gray-500 mt-0.5">{muted ? 'Silencio' : 'Mic'}</span>
                 </button>
 
                 {/* Cámara */}
                 <button onClick={toggleCamera}
-                  className={`flex flex-col items-center gap-0.5 w-14 py-2 rounded-xl transition-colors ${cameraOff ? 'bg-red-500/20 border border-red-500/40' : 'bg-dark-700 hover:bg-dark-600'}`}
+                  className={`flex flex-col items-center gap-0.5 min-w-[52px] w-14 py-2 rounded-xl transition-colors shrink-0 ${cameraOff ? 'bg-red-500/20 border border-red-500/40' : 'bg-dark-700 hover:bg-dark-600'}`}
                 >
-                  {cameraOff ? <FiVideoOff size={18} className="text-red-400" /> : <FiVideo size={18} className="text-white" />}
+                  {cameraOff ? <FiVideoOff size={17} className="text-red-400" /> : <FiVideo size={17} className="text-white" />}
                   <span className="text-[9px] text-gray-500">{cameraOff ? 'Sin cam' : 'Cámara'}</span>
                 </button>
 
@@ -1165,9 +1168,9 @@ export default function LiveShow() {
                       const next = cameraDevices[(idx + 1) % cameraDevices.length];
                       switchLiveCamera(next.deviceId);
                     }}
-                    className="flex flex-col items-center gap-0.5 w-14 py-2 rounded-xl bg-dark-700 hover:bg-dark-600 transition-colors"
+                    className="flex flex-col items-center gap-0.5 min-w-[52px] w-14 py-2 rounded-xl bg-dark-700 hover:bg-dark-600 transition-colors shrink-0"
                   >
-                    <FiRotateCw size={18} className="text-white" />
+                    <FiRotateCw size={17} className="text-white" />
                     <span className="text-[9px] text-gray-500">Girar</span>
                   </button>
                 )}
@@ -1175,35 +1178,35 @@ export default function LiveShow() {
                 {/* Compartir pantalla (solo desktop) */}
                 {isDesktop && (
                   <button onClick={toggleScreenShare}
-                    className={`flex flex-col items-center gap-0.5 w-14 py-2 rounded-xl transition-colors ${screenSharing ? 'bg-blue-500/20 border border-blue-500/40' : 'bg-dark-700 hover:bg-dark-600'}`}
+                    className={`flex flex-col items-center gap-0.5 min-w-[52px] w-14 py-2 rounded-xl transition-colors shrink-0 ${screenSharing ? 'bg-blue-500/20 border border-blue-500/40' : 'bg-dark-700 hover:bg-dark-600'}`}
                   >
-                    <FiMonitor size={18} className={screenSharing ? 'text-blue-400' : 'text-white'} />
+                    <FiMonitor size={17} className={screenSharing ? 'text-blue-400' : 'text-white'} />
                     <span className="text-[9px] text-gray-500">Pantalla</span>
                   </button>
                 )}
 
                 {/* Fijar mensaje */}
                 <button onClick={() => setShowPinInput(v => !v)}
-                  className={`flex flex-col items-center gap-0.5 w-14 py-2 rounded-xl transition-colors ${showPinInput || pinnedMessage ? 'bg-brand-500/20 border border-brand-500/40' : 'bg-dark-700 hover:bg-dark-600'}`}
+                  className={`flex flex-col items-center gap-0.5 min-w-[52px] w-14 py-2 rounded-xl transition-colors shrink-0 ${showPinInput || pinnedMessage ? 'bg-brand-500/20 border border-brand-500/40' : 'bg-dark-700 hover:bg-dark-600'}`}
                 >
-                  <FiBookmark size={18} className={showPinInput || pinnedMessage ? 'text-brand-400' : 'text-white'} />
+                  <FiBookmark size={17} className={showPinInput || pinnedMessage ? 'text-brand-400' : 'text-white'} />
                   <span className="text-[9px] text-gray-500">Fijar</span>
                 </button>
 
                 {/* Moderación */}
                 <button onClick={() => setShowModeration(v => !v)}
-                  className={`flex flex-col items-center gap-0.5 w-14 py-2 rounded-xl transition-colors ${showModeration ? 'bg-brand-500/20 border border-brand-500/40' : 'bg-dark-700 hover:bg-dark-600'}`}
+                  className={`flex flex-col items-center gap-0.5 min-w-[52px] w-14 py-2 rounded-xl transition-colors shrink-0 ${showModeration ? 'bg-brand-500/20 border border-brand-500/40' : 'bg-dark-700 hover:bg-dark-600'}`}
                 >
-                  <FiSlash size={18} className={showModeration ? 'text-brand-400' : 'text-white'} />
+                  <FiSlash size={17} className={showModeration ? 'text-brand-400' : 'text-white'} />
                   <span className="text-[9px] text-gray-500">Moderar</span>
                 </button>
               </div>
 
-              {/* Terminar show */}
+              {/* Terminar show — siempre visible a la derecha */}
               <button onClick={handleEndShow}
-                className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors"
+                className="flex items-center gap-1.5 bg-red-500 hover:bg-red-600 active:bg-red-700 text-white text-sm font-semibold px-3 py-2.5 rounded-xl transition-colors shrink-0"
               >
-                <FiX size={16} /> Terminar
+                <FiX size={15} /> Terminar
               </button>
             </div>
 
@@ -1283,25 +1286,27 @@ export default function LiveShow() {
         </div>
 
         {/* ── COLUMNA DERECHA: stats + chat ── */}
-        <div className="w-full lg:w-80 flex flex-col bg-dark-800 border-t border-white/5 lg:border-t-0 lg:border-l shrink-0" style={{ maxHeight: '100dvh' }}>
+        <div className="w-full lg:w-80 flex flex-col bg-dark-800 border-t border-white/5 lg:border-t-0 lg:border-l shrink-0" style={{ height: '100dvh' }}>
 
           {/* Stats rápidos */}
-          <div className="px-4 py-3 grid grid-cols-4 gap-1.5 border-b border-white/5 shrink-0">
-            <div className="text-center">
-              <p className="text-white font-black text-base">{viewerCount}</p>
-              <p className="text-gray-500 text-[10px]">Ahora</p>
-            </div>
-            <div className="text-center">
-              <p className="text-white font-black text-base">{peakViewers}</p>
-              <p className="text-gray-500 text-[10px]">Pico</p>
-            </div>
-            <div className="text-center">
-              <p className="text-yellow-400 font-black text-base">⚡{totalCoinsEarned}</p>
-              <p className="text-green-400 text-[10px] font-medium">${(totalCoinsEarned * 0.04).toFixed(2)}</p>
-            </div>
-            <div className="text-center">
-              <p className="text-white font-black text-base">{tippers.length}</p>
-              <p className="text-gray-500 text-[10px]">Tippers</p>
+          <div className="px-4 py-3 border-b border-white/5 shrink-0">
+            <div className="grid grid-cols-4 gap-1">
+              <div className="text-center py-1.5 rounded-lg bg-dark-700/50">
+                <p className="text-white font-black text-sm leading-none">{viewerCount}</p>
+                <p className="text-gray-500 text-[9px] mt-0.5">Ahora</p>
+              </div>
+              <div className="text-center py-1.5 rounded-lg bg-dark-700/50">
+                <p className="text-white font-black text-sm leading-none">{peakViewers}</p>
+                <p className="text-gray-500 text-[9px] mt-0.5">Pico</p>
+              </div>
+              <div className="text-center py-1.5 rounded-lg bg-dark-700/50">
+                <p className="text-yellow-400 font-black text-sm leading-none">⚡{totalCoinsEarned}</p>
+                <p className="text-green-400 text-[9px] mt-0.5 font-medium">${(totalCoinsEarned * 0.04).toFixed(2)}</p>
+              </div>
+              <div className="text-center py-1.5 rounded-lg bg-dark-700/50">
+                <p className="text-white font-black text-sm leading-none">{tippers.length}</p>
+                <p className="text-gray-500 text-[9px] mt-0.5">Tippers</p>
+              </div>
             </div>
           </div>
 
