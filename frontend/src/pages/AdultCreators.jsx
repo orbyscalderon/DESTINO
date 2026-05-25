@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiSearch, FiUsers, FiStar, FiGlobe, FiWifi, FiX, FiSliders, FiChevronRight } from 'react-icons/fi';
 import api from '../lib/api.js';
@@ -193,7 +194,7 @@ export default function AdultCreators() {
       setCreators(prev => append ? [...prev, ...(data.creators || [])] : (data.creators || []));
       setHasMore(data.hasMore || false);
     } catch {
-      // ignore
+      if (!append) toast.error('Error al cargar creadores');
     } finally {
       setLoading(false);
     }

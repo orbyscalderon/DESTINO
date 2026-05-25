@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { FiSearch, FiX, FiTrendingUp, FiSliders } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
+import toast from 'react-hot-toast';
 import { countryByCode, COUNTRIES } from '../lib/geodata.js';
 import api from '../lib/api.js';
 import VerifiedBadge from '../components/ui/VerifiedBadge.jsx';
@@ -111,7 +112,10 @@ const QUICK_INTERESTS = ['🎵 Música', '✈️ Viajes', '💪 Fitness', '🎮 
           saveToHistory(q.trim());
           setHistory(getHistory());
         }
-      } catch {}
+      } catch {
+        toast.error('Error al buscar. Inténtalo de nuevo.');
+        setResults([]);
+      }
       setLoading(false);
     }, 400),
     []
@@ -295,15 +299,25 @@ const QUICK_INTERESTS = ['🎵 Música', '✈️ Viajes', '💪 Fitness', '🎮 
       <AnimatePresence mode="wait">
         {/* Sin resultados */}
         {!loading && searched && results.length === 0 && (
-          <motion.p
+          <motion.div
             key="no-results"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="text-center text-gray-500 py-8"
+            className="text-center py-12"
           >
-            No se encontraron resultados para "{query}"
-          </motion.p>
+            <p className="text-4xl mb-3">🔍</p>
+            <p className="text-white font-semibold mb-1">Sin resultados para "{query}"</p>
+            <p className="text-gray-500 text-sm mb-4">Prueba con otro nombre o ajusta los filtros</p>
+            {hasActiveFilters && (
+              <button
+                onClick={() => { applyFilters({ gender: 'all', minAge: '', maxAge: '', country: '', creatorOnly: false, interests: [] }); }}
+                className="text-brand-400 text-sm hover:text-brand-300 transition-colors"
+              >
+                Limpiar filtros
+              </button>
+            )}
+          </motion.div>
         )}
 
         {/* Resultados de búsqueda */}
@@ -338,11 +352,12 @@ const QUICK_INTERESTS = ['🎵 Música', '✈️ Viajes', '💪 Fitness', '🎮 
                     )}
                   </div>
                   {profile.username && <p className="text-gray-500 text-xs">@{profile.username}</p>}
-                  {profile.country && (
-                    <p className="text-gray-600 text-xs">
-                      {countryByCode(profile.country)?.flag} {countryByCode(profile.country)?.name}
-                    </p>
-                  )}
+                  {profile.country && (() => {
+                    const geo = countryByCode(profile.country);
+                    return geo ? (
+                      <p className="text-gray-600 text-xs">{geo.flag} {geo.name}</p>
+                    ) : null;
+                  })()}
                 </div>
               </Link>
             ))}
