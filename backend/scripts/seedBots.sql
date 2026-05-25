@@ -1,91 +1,52 @@
 -- =============================================================================
 -- seedBots.sql — 10 perfiles femeninos para el lanzamiento de Destino
 -- Ejecutar en: Supabase Dashboard → SQL Editor → New Query → Run
--- Idempotente: ON CONFLICT DO NOTHING evita duplicados si se corre dos veces
+-- Idempotente: WHERE NOT EXISTS evita duplicados sin depender de ON CONFLICT
 -- =============================================================================
 
--- PASO 1: Insertar usuarios en auth.users
--- raw_user_meta_data incluye todos los campos que handle_new_user pueda necesitar
+-- PASO 1: Insertar en auth.users solo si el email no existe aún
 INSERT INTO auth.users (
   id, instance_id, email, encrypted_password, email_confirmed_at,
   raw_user_meta_data, raw_app_meta_data,
   aud, role, created_at, updated_at,
   confirmation_token, recovery_token, email_change_token_new, email_change
-) VALUES
-  (gen_random_uuid(), '00000000-0000-0000-0000-000000000000',
-   'valentina.garcia@destino-bot.com',
-   crypt('Destino@Bot2025!#', gen_salt('bf')), NOW(),
-   '{"full_name":"Valentina García","username":"valentina_gc","avatar_url":"https://randomuser.me/api/portraits/women/1.jpg","age":23,"gender":"female"}'::jsonb,
-   '{"provider":"email","providers":["email"]}'::jsonb,
-   'authenticated','authenticated', NOW(), NOW(), '','','',''),
-
-  (gen_random_uuid(), '00000000-0000-0000-0000-000000000000',
-   'isabella.martinez@destino-bot.com',
-   crypt('Destino@Bot2025!#', gen_salt('bf')), NOW(),
-   '{"full_name":"Isabella Martínez","username":"isa_mtz","avatar_url":"https://randomuser.me/api/portraits/women/2.jpg","age":26,"gender":"female"}'::jsonb,
-   '{"provider":"email","providers":["email"]}'::jsonb,
-   'authenticated','authenticated', NOW(), NOW(), '','','',''),
-
-  (gen_random_uuid(), '00000000-0000-0000-0000-000000000000',
-   'camila.rodriguez@destino-bot.com',
-   crypt('Destino@Bot2025!#', gen_salt('bf')), NOW(),
-   '{"full_name":"Camila Rodríguez","username":"cami_rod","avatar_url":"https://randomuser.me/api/portraits/women/3.jpg","age":22,"gender":"female"}'::jsonb,
-   '{"provider":"email","providers":["email"]}'::jsonb,
-   'authenticated','authenticated', NOW(), NOW(), '','','',''),
-
-  (gen_random_uuid(), '00000000-0000-0000-0000-000000000000',
-   'sofia.herrera@destino-bot.com',
-   crypt('Destino@Bot2025!#', gen_salt('bf')), NOW(),
-   '{"full_name":"Sofía Herrera","username":"sofi_hrr","avatar_url":"https://randomuser.me/api/portraits/women/4.jpg","age":25,"gender":"female"}'::jsonb,
-   '{"provider":"email","providers":["email"]}'::jsonb,
-   'authenticated','authenticated', NOW(), NOW(), '','','',''),
-
-  (gen_random_uuid(), '00000000-0000-0000-0000-000000000000',
-   'daniela.torres@destino-bot.com',
-   crypt('Destino@Bot2025!#', gen_salt('bf')), NOW(),
-   '{"full_name":"Daniela Torres","username":"dani_trs","avatar_url":"https://randomuser.me/api/portraits/women/5.jpg","age":28,"gender":"female"}'::jsonb,
-   '{"provider":"email","providers":["email"]}'::jsonb,
-   'authenticated','authenticated', NOW(), NOW(), '','','',''),
-
-  (gen_random_uuid(), '00000000-0000-0000-0000-000000000000',
-   'alejandra.flores@destino-bot.com',
-   crypt('Destino@Bot2025!#', gen_salt('bf')), NOW(),
-   '{"full_name":"Alejandra Flores","username":"ale_flores","avatar_url":"https://randomuser.me/api/portraits/women/6.jpg","age":21,"gender":"female"}'::jsonb,
-   '{"provider":"email","providers":["email"]}'::jsonb,
-   'authenticated','authenticated', NOW(), NOW(), '','','',''),
-
-  (gen_random_uuid(), '00000000-0000-0000-0000-000000000000',
-   'natalia.ramirez@destino-bot.com',
-   crypt('Destino@Bot2025!#', gen_salt('bf')), NOW(),
-   '{"full_name":"Natalia Ramírez","username":"nati_rmz","avatar_url":"https://randomuser.me/api/portraits/women/7.jpg","age":27,"gender":"female"}'::jsonb,
-   '{"provider":"email","providers":["email"]}'::jsonb,
-   'authenticated','authenticated', NOW(), NOW(), '','','',''),
-
-  (gen_random_uuid(), '00000000-0000-0000-0000-000000000000',
-   'gabriela.castro@destino-bot.com',
-   crypt('Destino@Bot2025!#', gen_salt('bf')), NOW(),
-   '{"full_name":"Gabriela Castro","username":"gabi_cst","avatar_url":"https://randomuser.me/api/portraits/women/8.jpg","age":24,"gender":"female"}'::jsonb,
-   '{"provider":"email","providers":["email"]}'::jsonb,
-   'authenticated','authenticated', NOW(), NOW(), '','','',''),
-
-  (gen_random_uuid(), '00000000-0000-0000-0000-000000000000',
-   'luciana.morales@destino-bot.com',
-   crypt('Destino@Bot2025!#', gen_salt('bf')), NOW(),
-   '{"full_name":"Luciana Morales","username":"luci_mrl","avatar_url":"https://randomuser.me/api/portraits/women/9.jpg","age":29,"gender":"female"}'::jsonb,
-   '{"provider":"email","providers":["email"]}'::jsonb,
-   'authenticated','authenticated', NOW(), NOW(), '','','',''),
-
-  (gen_random_uuid(), '00000000-0000-0000-0000-000000000000',
-   'mariana.vargas@destino-bot.com',
-   crypt('Destino@Bot2025!#', gen_salt('bf')), NOW(),
-   '{"full_name":"Mariana Vargas","username":"mari_vrg","avatar_url":"https://randomuser.me/api/portraits/women/10.jpg","age":23,"gender":"female"}'::jsonb,
-   '{"provider":"email","providers":["email"]}'::jsonb,
-   'authenticated','authenticated', NOW(), NOW(), '','','','')
-
-ON CONFLICT (email) DO NOTHING;
+)
+SELECT
+  gen_random_uuid(),
+  '00000000-0000-0000-0000-000000000000',
+  v.email,
+  crypt('Destino@Bot2025!#', gen_salt('bf')),
+  NOW(),
+  v.meta::jsonb,
+  '{"provider":"email","providers":["email"]}'::jsonb,
+  'authenticated', 'authenticated',
+  NOW(), NOW(), '', '', '', ''
+FROM (VALUES
+  ('valentina.garcia@destino-bot.com',
+   '{"full_name":"Valentina García","username":"valentina_gc","avatar_url":"https://randomuser.me/api/portraits/women/1.jpg","age":23,"gender":"female"}'),
+  ('isabella.martinez@destino-bot.com',
+   '{"full_name":"Isabella Martínez","username":"isa_mtz","avatar_url":"https://randomuser.me/api/portraits/women/2.jpg","age":26,"gender":"female"}'),
+  ('camila.rodriguez@destino-bot.com',
+   '{"full_name":"Camila Rodríguez","username":"cami_rod","avatar_url":"https://randomuser.me/api/portraits/women/3.jpg","age":22,"gender":"female"}'),
+  ('sofia.herrera@destino-bot.com',
+   '{"full_name":"Sofía Herrera","username":"sofi_hrr","avatar_url":"https://randomuser.me/api/portraits/women/4.jpg","age":25,"gender":"female"}'),
+  ('daniela.torres@destino-bot.com',
+   '{"full_name":"Daniela Torres","username":"dani_trs","avatar_url":"https://randomuser.me/api/portraits/women/5.jpg","age":28,"gender":"female"}'),
+  ('alejandra.flores@destino-bot.com',
+   '{"full_name":"Alejandra Flores","username":"ale_flores","avatar_url":"https://randomuser.me/api/portraits/women/6.jpg","age":21,"gender":"female"}'),
+  ('natalia.ramirez@destino-bot.com',
+   '{"full_name":"Natalia Ramírez","username":"nati_rmz","avatar_url":"https://randomuser.me/api/portraits/women/7.jpg","age":27,"gender":"female"}'),
+  ('gabriela.castro@destino-bot.com',
+   '{"full_name":"Gabriela Castro","username":"gabi_cst","avatar_url":"https://randomuser.me/api/portraits/women/8.jpg","age":24,"gender":"female"}'),
+  ('luciana.morales@destino-bot.com',
+   '{"full_name":"Luciana Morales","username":"luci_mrl","avatar_url":"https://randomuser.me/api/portraits/women/9.jpg","age":29,"gender":"female"}'),
+  ('mariana.vargas@destino-bot.com',
+   '{"full_name":"Mariana Vargas","username":"mari_vrg","avatar_url":"https://randomuser.me/api/portraits/women/10.jpg","age":23,"gender":"female"}')
+) AS v(email, meta)
+WHERE NOT EXISTS (SELECT 1 FROM auth.users u WHERE u.email = v.email);
 
 
--- PASO 2: Upsert perfiles completos (por si el trigger ya los creó o no)
+-- PASO 2: Insertar perfiles solo para bots que aún no tienen perfil
 INSERT INTO public.profiles (
   id, full_name, username, age, gender, bio, country, language,
   interests, avatar_url, is_creator, is_adult_creator, is_incognito,
@@ -96,15 +57,13 @@ SELECT
   u.raw_user_meta_data->>'full_name',
   u.raw_user_meta_data->>'username',
   (u.raw_user_meta_data->>'age')::int,
-  'female',
-  '',
-  'CO', 'es',
+  'female', '', 'CO', 'es',
   ARRAY[]::text[],
   u.raw_user_meta_data->>'avatar_url',
   false, false, false, 'basic', false, false, NOW()
 FROM auth.users u
 WHERE u.email LIKE '%@destino-bot.com'
-ON CONFLICT DO NOTHING;
+  AND NOT EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = u.id);
 
 
 -- PASO 3: Actualizar bios, intereses, países y last_active de cada bot
