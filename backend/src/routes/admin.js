@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { authMiddleware } from '../middleware/auth.js';
+import { isAdmin } from '../middleware/admin.js';
 import {
   getStats, getUsers, getCreators, getShows,
   setUserPremium, setUserVerified, setUserCreator, setUserAdult,
@@ -11,6 +12,7 @@ import {
 
 const router = Router();
 router.use(authMiddleware);
+router.use(isAdmin);
 
 router.get('/stats',    getStats);
 router.get('/users',    getUsers);

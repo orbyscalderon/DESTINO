@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase.js';
+import { encryptField, decryptField } from '../lib/encrypt.js';
 
 const MIN_WITHDRAWAL = 10; // USD mínimo
 
@@ -71,14 +72,18 @@ export const requestWithdrawal = async (req, res) => {
         creator_id: creatorId,
         amount_usd: amount,
         payout_method: normalizedMethod,
-        payout_details: payout_details.trim(),
+        payout_details: encryptField(payout_details.trim()),
         status: 'pending',
       })
       .select()
       .single();
 
     if (error) throw error;
-    res.status(201).json({ request });
+
+    // Devolver con datos descifrados para la respuesta inmediata
+    res.status(201).json({
+      request: { ...request, payout_details: decryptField(request.payout_details) },
+    });
   } catch {
     res.status(500).json({ error: 'Error interno del servidor' });
   }
@@ -94,7 +99,13 @@ export const getMyWithdrawals = async (req, res) => {
       .order('created_at', { ascending: false });
 
     if (error) throw error;
-    res.json({ withdrawals: data || [] });
+
+    const withdrawals = (data || []).map(w => ({
+      ...w,
+      payout_details: decryptField(w.payout_details),
+    }));
+
+    res.json({ withdrawals });
   } catch {
     res.status(500).json({ error: 'Error interno del servidor' });
   }

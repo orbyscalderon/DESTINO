@@ -1,26 +1,8 @@
 import { supabase } from '../lib/supabase.js';
-
-const ADMIN_IDS = process.env.ADMIN_USER_IDS
-  ?.split(',').map(id => id.trim().toLowerCase()).filter(Boolean) || [];
-
-const checkAdmin = async (userId) => {
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('is_admin')
-    .eq('id', userId)
-    .single();
-  if (profile?.is_admin) return true;
-
-  if (ADMIN_IDS.length === 0) return false;
-  if (ADMIN_IDS.includes(userId.toLowerCase())) return true;
-  const { data: { user } } = await supabase.auth.admin.getUserById(userId);
-  return ADMIN_IDS.includes(user?.email?.toLowerCase());
-};
+import { decryptField } from '../lib/encrypt.js';
 
 // GET /api/admin/stats
 export const getStats = async (req, res) => {
-  if (!await checkAdmin(req.user.id)) return res.status(403).json({ error: 'Acceso denegado' });
-
   try {
     const [
       { count: users },
@@ -54,8 +36,6 @@ export const getStats = async (req, res) => {
 
 // GET /api/admin/users?page=0&q=
 export const getUsers = async (req, res) => {
-  if (!await checkAdmin(req.user.id)) return res.status(403).json({ error: 'Acceso denegado' });
-
   try {
     const page = Math.max(0, parseInt(req.query.page) || 0);
     const limit = 50;
@@ -81,8 +61,6 @@ export const getUsers = async (req, res) => {
 
 // GET /api/admin/creators
 export const getCreators = async (req, res) => {
-  if (!await checkAdmin(req.user.id)) return res.status(403).json({ error: 'Acceso denegado' });
-
   try {
     const { data: creators, error } = await supabase
       .from('profiles')
@@ -117,8 +95,6 @@ export const getCreators = async (req, res) => {
 
 // GET /api/admin/shows
 export const getShows = async (req, res) => {
-  if (!await checkAdmin(req.user.id)) return res.status(403).json({ error: 'Acceso denegado' });
-
   try {
     const { data: shows, error } = await supabase
       .from('live_shows')
@@ -139,7 +115,6 @@ export const getShows = async (req, res) => {
 
 // PATCH /api/admin/users/premium
 export const setUserPremium = async (req, res) => {
-  if (!await checkAdmin(req.user.id)) return res.status(403).json({ error: 'Acceso denegado' });
   try {
     const { userId, isPremium } = req.body;
     if (!userId || typeof isPremium !== 'boolean') return res.status(400).json({ error: 'Parámetros inválidos' });
@@ -154,7 +129,6 @@ export const setUserPremium = async (req, res) => {
 
 // PATCH /api/admin/users/verified
 export const setUserVerified = async (req, res) => {
-  if (!await checkAdmin(req.user.id)) return res.status(403).json({ error: 'Acceso denegado' });
   try {
     const { userId, isVerified } = req.body;
     if (!userId || typeof isVerified !== 'boolean') return res.status(400).json({ error: 'Parámetros inválidos' });
@@ -169,7 +143,6 @@ export const setUserVerified = async (req, res) => {
 
 // PATCH /api/admin/users/creator
 export const setUserCreator = async (req, res) => {
-  if (!await checkAdmin(req.user.id)) return res.status(403).json({ error: 'Acceso denegado' });
   try {
     const { userId, isCreator } = req.body;
     if (!userId || typeof isCreator !== 'boolean') return res.status(400).json({ error: 'Parámetros inválidos' });
@@ -190,7 +163,6 @@ export const setUserCreator = async (req, res) => {
 
 // PATCH /api/admin/users/adult
 export const setUserAdult = async (req, res) => {
-  if (!await checkAdmin(req.user.id)) return res.status(403).json({ error: 'Acceso denegado' });
   try {
     const { userId, isAdult } = req.body;
     if (!userId || typeof isAdult !== 'boolean') return res.status(400).json({ error: 'Parámetros inválidos' });
@@ -205,7 +177,6 @@ export const setUserAdult = async (req, res) => {
 
 // DELETE /api/admin/users/:userId
 export const deleteUser = async (req, res) => {
-  if (!await checkAdmin(req.user.id)) return res.status(403).json({ error: 'Acceso denegado' });
   try {
     const { userId } = req.params;
     if (!userId) return res.status(400).json({ error: 'userId requerido' });
@@ -218,9 +189,8 @@ export const deleteUser = async (req, res) => {
   }
 };
 
-// GET /api/admin/withdrawals — listar solicitudes de retiro
+// GET /api/admin/withdrawals — listar solicitudes de retiro (descifra payout_details)
 export const getWithdrawals = async (req, res) => {
-  if (!await checkAdmin(req.user.id)) return res.status(403).json({ error: 'Acceso denegado' });
   try {
     const { data, error } = await supabase
       .from('withdrawal_requests')
@@ -231,7 +201,13 @@ export const getWithdrawals = async (req, res) => {
       .order('created_at', { ascending: false });
 
     if (error) throw error;
-    res.json({ withdrawals: data || [] });
+
+    const withdrawals = (data || []).map(w => ({
+      ...w,
+      payout_details: decryptField(w.payout_details),
+    }));
+
+    res.json({ withdrawals });
   } catch {
     res.status(500).json({ error: 'Error interno del servidor' });
   }
@@ -239,7 +215,6 @@ export const getWithdrawals = async (req, res) => {
 
 // PATCH /api/admin/withdrawals/:id — aprobar/rechazar retiro
 export const processWithdrawal = async (req, res) => {
-  if (!await checkAdmin(req.user.id)) return res.status(403).json({ error: 'Acceso denegado' });
   try {
     const { id } = req.params;
     const { status, notes } = req.body;
@@ -287,7 +262,6 @@ export const processWithdrawal = async (req, res) => {
 
 // GET /api/admin/content-queue — posts pending moderation
 export const getContentQueue = async (req, res) => {
-  if (!await checkAdmin(req.user.id)) return res.status(403).json({ error: 'Acceso denegado' });
   try {
     const { data, error } = await supabase
       .from('posts')
@@ -308,7 +282,6 @@ export const getContentQueue = async (req, res) => {
 
 // PATCH /api/admin/content/:postId — approve or reject a post
 export const processContent = async (req, res) => {
-  if (!await checkAdmin(req.user.id)) return res.status(403).json({ error: 'Acceso denegado' });
   try {
     const { postId } = req.params;
     const { status, notes } = req.body;
@@ -327,7 +300,6 @@ export const processContent = async (req, res) => {
 
     if (error) throw error;
 
-    // Notify creator
     if (post?.user_id) {
       const { createNotification } = await import('./inAppNotifController.js');
       const title = status === 'published' ? '✅ Contenido aprobado' : '❌ Contenido rechazado';
@@ -345,7 +317,6 @@ export const processContent = async (req, res) => {
 
 // GET /api/admin/verifications — listar solicitudes de verificación
 export const getVerifications = async (req, res) => {
-  if (!await checkAdmin(req.user.id)) return res.status(403).json({ error: 'Acceso denegado' });
   try {
     const { data, error } = await supabase
       .from('identity_verifications')
@@ -364,7 +335,6 @@ export const getVerifications = async (req, res) => {
 
 // PATCH /api/admin/verifications/:id — aprobar/rechazar verificación
 export const processVerification = async (req, res) => {
-  if (!await checkAdmin(req.user.id)) return res.status(403).json({ error: 'Acceso denegado' });
   try {
     const { id } = req.params;
     const { status, notes } = req.body;

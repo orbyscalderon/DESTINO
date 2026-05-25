@@ -96,6 +96,13 @@ const likeLimiter = rateLimit({
   skip: () => process.env.NODE_ENV !== 'production',
 });
 
+const tipLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 10,
+  message: { error: 'Demasiadas propinas en poco tiempo, espera un momento' },
+  skip: () => process.env.NODE_ENV !== 'production',
+});
+
 app.use('/api', (req, res, next) => {
   if (req.path === '/payments/webhook') return next();
   return generalLimiter(req, res, next);
@@ -107,6 +114,7 @@ app.use('/api/matches/like', likeLimiter);
 app.use('/api/profiles/photos', uploadLimiter);
 app.use('/api/profiles/videos', uploadLimiter);
 app.use('/api/payments/photo', paymentLimiter);
+app.use('/api/tips', tipLimiter);
 app.use('/api/shows', (req, res, next) => {
   if (req.method === 'POST' && req.path.includes('/ticket')) return paymentLimiter(req, res, next);
   return next(); // generalLimiter ya aplicado en /api arriba
@@ -116,8 +124,8 @@ app.use('/api/shows', (req, res, next) => {
 app.use('/api/payments/webhook', express.raw({ type: 'application/json' }));
 
 // ── JSON parser ───────────────────────────────────────────────
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
 // ── Rutas ─────────────────────────────────────────────────────
 app.use('/api/profiles', profileRoutes);
