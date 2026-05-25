@@ -19,6 +19,8 @@ import {
   unbanUserFromShow,
   setRecordingUrl,
   getLeaderboard,
+  validatePrivateShow,
+  privateShowTick,
 } from '../controllers/showController.js';
 
 const router = Router();
@@ -41,6 +43,8 @@ router.post('/:id/interest',      toggleInterest);
 router.get('/:id/interest',       checkInterest);
 router.post('/:id/ban/:userId',   banUserFromShow);
 router.delete('/:id/ban/:userId', unbanUserFromShow);
-router.patch('/:id/recording',    setRecordingUrl);
+router.patch('/:id/recording',        setRecordingUrl);
+router.post('/:id/private/validate',  validatePrivateShow);
+router.post('/:id/private/tick',      privateShowTick);
 
 export default router;

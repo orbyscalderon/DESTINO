@@ -889,3 +889,79 @@ export async function upsertCreatorEarnings(creatorId, amount) {
   });
   if (error) throw error;
 }
+
+// ── SHOW PRIVADO ──────────────────────────────────────────────────────────────
+
+const PRIVATE_RATES = { private: 20, exclusive: 35 }; // coins/min
+
+// POST /api/shows/:id/private/validate — verifica saldo antes de iniciar
+export const validatePrivateShow = async (req, res) => {
+  try {
+    const viewerId = req.user.id;
+    const { type = 'private' } = req.body;
+    const rate = PRIVATE_RATES[type] || PRIVATE_RATES.private;
+    const minMinutes = 3;
+    const required = rate * minMinutes;
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('coins_balance')
+      .eq('id', viewerId)
+      .single();
+
+    const balance = profile?.coins_balance ?? 0;
+    if (balance < required) {
+      return res.status(402).json({
+        error: `Necesitas al menos ${required} coins para iniciar (${minMinutes} min mínimo)`,
+        code: 'INSUFFICIENT_COINS',
+        required,
+        balance,
+      });
+    }
+
+    res.json({ ok: true, rate, balance });
+  } catch {
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
+// POST /api/shows/:id/private/tick — deducir 1 minuto de show privado
+export const privateShowTick = async (req, res) => {
+  try {
+    const viewerId = req.user.id;
+    const { type = 'private' } = req.body;
+    const showId = req.params.id;
+    const rate = PRIVATE_RATES[type] || PRIVATE_RATES.private;
+
+    const { data: show } = await supabase
+      .from('live_shows')
+      .select('host_id, status')
+      .eq('id', showId)
+      .single();
+
+    if (!show || show.status !== 'live') {
+      return res.status(400).json({ error: 'Show no activo', code: 'SHOW_ENDED' });
+    }
+
+    // Deducir del viewer
+    await spendCoins(viewerId, rate, 'private_show');
+
+    // Acreditar al creador (70%)
+    const creatorCut = Math.round(rate * 0.7);
+    await addCoins(show.host_id, creatorCut, 'private_show_earning');
+    await upsertCreatorEarnings(show.host_id, creatorCut);
+
+    const { data: balRow } = await supabase
+      .from('profiles')
+      .select('coins_balance')
+      .eq('id', viewerId)
+      .single();
+
+    res.json({ deducted: rate, remaining: balRow?.coins_balance ?? 0 });
+  } catch (err) {
+    if (err.message === 'Saldo insuficiente') {
+      return res.status(402).json({ error: 'Saldo insuficiente', code: 'INSUFFICIENT_COINS' });
+    }
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};

@@ -178,6 +178,14 @@ export default function LiveShow() {
   // Host stream — applied via useEffect once the studio video element is mounted
   const [pendingLocalStream, setPendingLocalStream] = useState(null);
 
+  // Show privado
+  const [privateModal, setPrivateModal]       = useState(false);
+  const [privateSession, setPrivateSession]   = useState(null); // { type, rate, startTime }
+  const [privateRequest, setPrivateRequest]   = useState(null); // { viewerId, viewerName, viewerAvatar, type, rate }
+  const [privateMinutes, setPrivateMinutes]   = useState(0);
+  const [privateBalance, setPrivateBalance]   = useState(0);
+  const privateTickRef = useRef(null);
+
   // Pre-show
   const [preShow, setPreShow]             = useState(false);
   const [permCamera, setPermCamera]       = useState('idle');
@@ -356,6 +364,31 @@ export default function LiveShow() {
           toast('El show terminó', { icon: '📺' });
           navigate('/shows');
         }
+      })
+      .on('broadcast', { event: 'private_request' }, ({ payload }) => {
+        if (role === 'host') setPrivateRequest(payload);
+      })
+      .on('broadcast', { event: 'private_accept' }, ({ payload }) => {
+        if (role === 'viewer' && payload.viewerId === user?.id) {
+          setPrivateSession({ type: payload.type, rate: payload.rate, startTime: Date.now() });
+          setPrivateBalance(coinBalance);
+          setPrivateMinutes(0);
+          startPrivateTick(payload.type, payload.rate);
+          toast.success(`¡Show privado iniciado! ${payload.rate} coins/min`);
+        }
+      })
+      .on('broadcast', { event: 'private_decline' }, ({ payload }) => {
+        if (role === 'viewer' && payload.viewerId === user?.id) {
+          toast('El host declinó tu solicitud privada', { icon: '❌' });
+        }
+      })
+      .on('broadcast', { event: 'private_end' }, ({ payload }) => {
+        if (role === 'viewer' && privateSession) {
+          clearInterval(privateTickRef.current);
+          setPrivateSession(null);
+          toast('Show privado terminado por el host', { icon: '📴' });
+        }
+        if (role === 'host') setPrivateRequest(null);
       })
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
@@ -782,6 +815,91 @@ export default function LiveShow() {
       toast.success('Micrófono cambiado');
     } catch { toast.error('Error al cambiar micrófono'); }
   };
+
+  // ── Show privado ─────────────────────────────────────────────────────────────
+  const startPrivateTick = (type, rate) => {
+    clearInterval(privateTickRef.current);
+    privateTickRef.current = setInterval(async () => {
+      try {
+        const { data } = await api.post(`/api/shows/${id}/private/tick`, { type });
+        setPrivateBalance(data.remaining);
+        setPrivateMinutes(m => m + 1);
+        if (data.remaining < rate) {
+          endPrivateSession('balance');
+        }
+      } catch (err) {
+        if (err.response?.data?.code === 'INSUFFICIENT_COINS') {
+          endPrivateSession('balance');
+        }
+      }
+    }, 60000); // cada 60 segundos
+  };
+
+  const endPrivateSession = (reason = 'manual') => {
+    clearInterval(privateTickRef.current);
+    privateTickRef.current = null;
+    setPrivateSession(null);
+    setPrivateMinutes(0);
+    if (reason === 'balance') toast.error('Show privado terminado: saldo insuficiente');
+    else if (reason === 'host') toast('El host terminó el show privado', { icon: '📴' });
+    else toast('Show privado terminado');
+    chatChannelRef.current?.send({
+      type: 'broadcast', event: 'private_end', payload: { reason },
+    }).catch(() => {});
+  };
+
+  const handleRequestPrivate = async (type) => {
+    setPrivateModal(false);
+    const rate = type === 'exclusive' ? 35 : 20;
+    try {
+      await api.post(`/api/shows/${id}/private/validate`, { type });
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Saldo insuficiente');
+      return;
+    }
+    chatChannelRef.current?.send({
+      type: 'broadcast',
+      event: 'private_request',
+      payload: {
+        viewerId: user?.id,
+        viewerName: authProfile?.full_name || 'Alguien',
+        viewerAvatar: authProfile?.avatar_url || null,
+        type,
+        rate,
+      },
+    }).catch(() => {});
+    toast('Solicitud enviada, esperando al host…', { icon: '⏳' });
+  };
+
+  const handleAcceptPrivate = () => {
+    if (!privateRequest) return;
+    chatChannelRef.current?.send({
+      type: 'broadcast',
+      event: 'private_accept',
+      payload: {
+        viewerId: privateRequest.viewerId,
+        type: privateRequest.type,
+        rate: privateRequest.rate,
+        hostName: authProfile?.full_name || 'El host',
+      },
+    }).catch(() => {});
+    setPrivateRequest(null);
+    toast.success(`Show privado iniciado con ${privateRequest.viewerName}`);
+  };
+
+  const handleDeclinePrivate = () => {
+    if (!privateRequest) return;
+    chatChannelRef.current?.send({
+      type: 'broadcast',
+      event: 'private_decline',
+      payload: { viewerId: privateRequest.viewerId },
+    }).catch(() => {});
+    setPrivateRequest(null);
+    toast('Solicitud privada rechazada');
+  };
+
+  // Cleanup private tick on unmount
+  useEffect(() => () => clearInterval(privateTickRef.current), []);
 
   const handleGiftSent = (giftType, emoji) => {
     const GIFT_COINS = { rose: 10, heart: 50, diamond: 200, crown: 500 };
@@ -1285,6 +1403,45 @@ export default function LiveShow() {
           </div>
         </div>
 
+        {/* Notificación de solicitud privada (host) */}
+        <AnimatePresence>
+          {privateRequest && (
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="absolute top-16 left-1/2 -translate-x-1/2 z-50 bg-dark-800 border border-purple-500/40 rounded-2xl p-4 shadow-2xl w-72"
+            >
+              <div className="flex items-center gap-3 mb-3">
+                {privateRequest.viewerAvatar
+                  ? <img src={privateRequest.viewerAvatar} className="w-10 h-10 rounded-full object-cover" alt="" />
+                  : <div className="w-10 h-10 rounded-full bg-purple-500/30 flex items-center justify-center text-purple-300 font-bold">{privateRequest.viewerName[0]}</div>
+                }
+                <div>
+                  <p className="text-white text-sm font-bold">{privateRequest.viewerName}</p>
+                  <p className="text-purple-300 text-xs">
+                    solicita show {privateRequest.type === 'exclusive' ? 'exclusivo' : 'privado'} · <span className="font-bold">{privateRequest.rate} coins/min</span>
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleAcceptPrivate}
+                  className="flex-1 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-sm font-semibold transition-colors"
+                >
+                  Aceptar
+                </button>
+                <button
+                  onClick={handleDeclinePrivate}
+                  className="flex-1 py-2 rounded-xl bg-dark-700 hover:bg-dark-600 text-gray-300 text-sm font-semibold transition-colors"
+                >
+                  Rechazar
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* ── COLUMNA DERECHA: stats + chat ── */}
         <div className="w-full lg:w-80 flex flex-col bg-dark-800 border-t border-white/5 lg:border-t-0 lg:border-l shrink-0" style={{ height: '100dvh' }}>
 
@@ -1616,30 +1773,109 @@ export default function LiveShow() {
           )}
         </AnimatePresence>
 
+        {/* Modal show privado */}
+        <AnimatePresence>
+          {privateModal && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/70 backdrop-blur-sm z-40 flex items-end"
+              onClick={() => setPrivateModal(false)}
+            >
+              <motion.div
+                initial={{ y: 80, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                exit={{ y: 80, opacity: 0 }}
+                onClick={e => e.stopPropagation()}
+                className="w-full bg-dark-800 rounded-t-3xl p-5 pb-8 border-t border-white/10"
+              >
+                <div className="w-10 h-1 bg-white/20 rounded-full mx-auto mb-5" />
+                <h3 className="text-white font-black text-lg mb-1">Show Privado</h3>
+                <p className="text-gray-400 text-sm mb-5">El host transmitirá solo para ti</p>
+
+                <div className="grid grid-cols-2 gap-3">
+                  {/* Privado */}
+                  <button
+                    onClick={() => handleRequestPrivate('private')}
+                    className="bg-dark-700 hover:bg-purple-600/20 border border-white/10 hover:border-purple-500/50 rounded-2xl p-4 text-left transition-all group"
+                  >
+                    <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center mb-3">
+                      <FiVideo className="text-purple-300" size={18} />
+                    </div>
+                    <p className="text-white font-bold text-sm mb-0.5">Privado</p>
+                    <p className="text-purple-300 font-black text-lg">20 <span className="text-sm font-normal text-gray-400">coins/min</span></p>
+                    <p className="text-gray-500 text-xs mt-2">Solo tú y el host</p>
+                    <p className="text-gray-600 text-[10px]">Mín. 3 minutos</p>
+                  </button>
+
+                  {/* Exclusivo */}
+                  <button
+                    onClick={() => handleRequestPrivate('exclusive')}
+                    className="bg-gradient-to-br from-purple-900/40 to-pink-900/30 hover:from-purple-900/60 hover:to-pink-900/50 border border-purple-500/30 hover:border-purple-400/60 rounded-2xl p-4 text-left transition-all relative overflow-hidden"
+                  >
+                    <div className="absolute top-2 right-2 text-[9px] bg-purple-500 text-white px-1.5 py-0.5 rounded-full font-bold">EXCLUSIVO</div>
+                    <div className="w-10 h-10 rounded-full bg-pink-500/20 flex items-center justify-center mb-3">
+                      <FiCamera className="text-pink-300" size={18} />
+                    </div>
+                    <p className="text-white font-bold text-sm mb-0.5">Exclusivo</p>
+                    <p className="text-pink-300 font-black text-lg">35 <span className="text-sm font-normal text-gray-400">coins/min</span></p>
+                    <p className="text-gray-400 text-xs mt-2">Cam2Cam disponible</p>
+                    <p className="text-gray-600 text-[10px]">Nadie puede espiar</p>
+                  </button>
+                </div>
+
+                <p className="text-gray-600 text-[11px] text-center mt-4">
+                  Balance: <span className="text-gray-400">{coinBalance} coins</span> · La sesión empieza al ser aceptado
+                </p>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Controles inferiores (viewer) */}
-        <div className="h-[72px] px-6 py-3 bg-dark-900/95 border-t border-white/5 flex items-center justify-center gap-3 shrink-0 z-10">
+        <div className="h-[72px] px-4 py-3 bg-dark-900/95 border-t border-white/5 flex items-center justify-center gap-2 shrink-0 z-10">
           <button onClick={() => { setShowChat(v => !v); setShowTips(false); }}
-            className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${showChat ? 'bg-brand-500' : 'bg-dark-700 hover:bg-dark-600'}`}
+            className={`w-11 h-11 rounded-full flex items-center justify-center transition-colors ${showChat ? 'bg-brand-500' : 'bg-dark-700 hover:bg-dark-600'}`}
           >
-            <FiMessageCircle className="text-white" size={20} />
+            <FiMessageCircle className="text-white" size={19} />
           </button>
           <button onClick={() => { setShowLeaderboard(v => !v); loadTippers(); }}
-            className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${showLeaderboard ? 'bg-yellow-500' : 'bg-dark-700 hover:bg-dark-600'}`}
+            className={`w-11 h-11 rounded-full flex items-center justify-center transition-colors ${showLeaderboard ? 'bg-yellow-500' : 'bg-dark-700 hover:bg-dark-600'}`}
           >
-            <FiAward className={showLeaderboard ? 'text-black' : 'text-yellow-400'} size={20} />
+            <FiAward className={showLeaderboard ? 'text-black' : 'text-yellow-400'} size={19} />
           </button>
           <button onClick={() => { setShowTips(v => !v); setShowChat(false); setShowGifts(false); }}
-            className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${showTips ? 'bg-yellow-500' : 'bg-dark-700 hover:bg-yellow-500/20'}`}
+            className={`w-11 h-11 rounded-full flex items-center justify-center transition-colors ${showTips ? 'bg-yellow-500' : 'bg-dark-700 hover:bg-yellow-500/20'}`}
           >
-            <FiZap className={showTips ? 'text-black' : 'text-yellow-400'} size={20} />
+            <FiZap className={showTips ? 'text-black' : 'text-yellow-400'} size={19} />
           </button>
           <button onClick={() => { setShowGifts(v => !v); setShowTips(false); setShowChat(false); }}
-            className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${showGifts ? 'bg-brand-500' : 'bg-dark-700 hover:bg-dark-600'}`}
+            className={`w-11 h-11 rounded-full flex items-center justify-center transition-colors ${showGifts ? 'bg-brand-500' : 'bg-dark-700 hover:bg-dark-600'}`}
           >
-            <FiGift className="text-white" size={20} />
+            <FiGift className="text-white" size={19} />
           </button>
-          <button onClick={handleLeave} className="w-12 h-12 rounded-full bg-red-500 flex items-center justify-center">
-            <FiX className="text-white" size={20} />
+
+          {/* Botón show privado */}
+          {!privateSession ? (
+            <button
+              onClick={() => setPrivateModal(true)}
+              className="flex items-center gap-1.5 bg-purple-600/20 hover:bg-purple-600/40 border border-purple-500/40 text-purple-300 text-xs font-bold px-3 py-2 rounded-full transition-colors"
+            >
+              <FiDollarSign size={13} /> Privado
+            </button>
+          ) : (
+            <button
+              onClick={() => endPrivateSession('manual')}
+              className="flex items-center gap-1.5 bg-purple-600 text-white text-xs font-bold px-3 py-2 rounded-full animate-pulse"
+            >
+              <FiDollarSign size={13} />
+              {privateMinutes}m · {privateSession.rate}/min
+            </button>
+          )}
+
+          <button onClick={handleLeave} className="w-11 h-11 rounded-full bg-red-500 flex items-center justify-center">
+            <FiX className="text-white" size={19} />
           </button>
         </div>
       </div>
