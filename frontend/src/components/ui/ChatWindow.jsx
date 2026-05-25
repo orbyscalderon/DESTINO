@@ -57,6 +57,7 @@ const REACTION_EMOJIS = ['❤️', '😂', '🔥', '👍', '😮'];
 export default function ChatWindow({ matchId, otherUser }) {
   const { user, profile } = useAuthStore();
   const { remaining, limit, setCount, decrementRemaining } = useChatStore();
+  const isPremiumPlus = profile?.premium_tier === 'premium' || profile?.premium_tier === 'vip';
   const [messages, setMessages]         = useState([]);
   const [text, setText]                 = useState('');
   const [loading, setLoading]           = useState(true);
@@ -248,7 +249,7 @@ export default function ChatWindow({ matchId, otherUser }) {
     e.preventDefault();
     if (!text.trim() || sending) return;
 
-    if (!profile?.premium_tier === 'premium' || profile?.premium_tier === 'vip' && remaining <= 0) { setShowPremiumModal(true); return; }
+    if (!isPremiumPlus && remaining <= 0) { setShowPremiumModal(true); return; }
 
     const payload = {
       matchId,
@@ -262,7 +263,7 @@ export default function ChatWindow({ matchId, otherUser }) {
     try {
       await api.post('/api/messages', payload);
       setText('');
-      if (!profile?.premium_tier === 'premium' || profile?.premium_tier === 'vip') decrementRemaining();
+      if (!isPremiumPlus) decrementRemaining();
     } catch (err) {
       if (err.response?.data?.code === 'MESSAGE_LIMIT_REACHED') setShowPremiumModal(true);
     } finally {
@@ -357,11 +358,11 @@ export default function ChatWindow({ matchId, otherUser }) {
   };
 
   const handleSendGif = async (gif) => {
-    if (!profile?.premium_tier === 'premium' || profile?.premium_tier === 'vip' && remaining <= 0) { setShowPremiumModal(true); return; }
+    if (!isPremiumPlus && remaining <= 0) { setShowPremiumModal(true); return; }
     setShowGifPanel(false);
     try {
       await api.post('/api/messages', { matchId, content: gif.url, type: 'gif' });
-      if (!profile?.premium_tier === 'premium' || profile?.premium_tier === 'vip') decrementRemaining();
+      if (!isPremiumPlus) decrementRemaining();
     } catch {}
   };
 
@@ -370,7 +371,7 @@ export default function ChatWindow({ matchId, otherUser }) {
     const file = e.target.files[0];
     if (!file) return;
     e.target.value = '';
-    if (!profile?.premium_tier === 'premium' || profile?.premium_tier === 'vip' && remaining <= 0) { setShowPremiumModal(true); return; }
+    if (!isPremiumPlus && remaining <= 0) { setShowPremiumModal(true); return; }
     setSendingImage(true);
     const compressed = await compressChatImage(file);
     const fd = new FormData();
@@ -378,7 +379,7 @@ export default function ChatWindow({ matchId, otherUser }) {
     fd.append('matchId', matchId);
     try {
       await api.post('/api/messages/image', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
-      if (!profile?.premium_tier === 'premium' || profile?.premium_tier === 'vip') decrementRemaining();
+      if (!isPremiumPlus) decrementRemaining();
     } catch (err) {
       if (err.response?.data?.code === 'MESSAGE_LIMIT_REACHED') setShowPremiumModal(true);
     } finally {
@@ -464,7 +465,7 @@ export default function ChatWindow({ matchId, otherUser }) {
 
   const sendVoiceBlob = async (blob, duration) => {
     if (!blob || blob.size === 0) return;
-    if (!profile?.premium_tier === 'premium' || profile?.premium_tier === 'vip' && remaining <= 0) { setShowPremiumModal(true); return; }
+    if (!isPremiumPlus && remaining <= 0) { setShowPremiumModal(true); return; }
     setSendingVoice(true);
     try {
       const ext = blob.type.includes('webm') ? 'webm' : 'ogg';
@@ -473,7 +474,7 @@ export default function ChatWindow({ matchId, otherUser }) {
       fd.append('matchId', matchId);
       fd.append('duration', String(duration));
       await api.post('/api/messages/voice', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
-      if (!profile?.premium_tier === 'premium' || profile?.premium_tier === 'vip') decrementRemaining();
+      if (!isPremiumPlus) decrementRemaining();
     } catch (err) {
       if (err.response?.data?.code === 'MESSAGE_LIMIT_REACHED') setShowPremiumModal(true);
       else toast.error('Error al enviar audio');
@@ -507,7 +508,7 @@ export default function ChatWindow({ matchId, otherUser }) {
 
   return (
     <div className="flex flex-col h-full relative" onClick={() => { reactionPicker && setReactionPicker(null); msgMenu && setMsgMenu(null); }}>
-      {!profile?.premium_tier === 'premium' || profile?.premium_tier === 'vip' && <MessageLimitBanner remaining={remaining} limit={limit} onUpgrade={() => setShowPremiumModal(true)} />}
+      {!isPremiumPlus && <MessageLimitBanner remaining={remaining} limit={limit} onUpgrade={() => setShowPremiumModal(true)} />}
 
       {/* Barra superior: traducción + efímeros */}
       <div className="flex items-center justify-between px-4 py-2 bg-dark-800 border-b border-white/5 shrink-0 gap-3">
@@ -810,7 +811,7 @@ export default function ChatWindow({ matchId, otherUser }) {
       <form onSubmit={sendMessage} className="p-4 border-t border-white/5 shrink-0">
         <div className="flex gap-2">
           <button type="button" onClick={handleOpenGif}
-            disabled={!profile?.premium_tier === 'premium' || profile?.premium_tier === 'vip' && remaining <= 0}
+            disabled={!isPremiumPlus && remaining <= 0}
             className={`w-10 h-10 shrink-0 rounded-xl flex items-center justify-center text-xs font-black transition-colors disabled:opacity-40 ${showGifPanel ? 'bg-brand-500 text-white' : 'bg-dark-700 text-gray-400 hover:text-brand-400 hover:bg-dark-600'}`}
             title="GIF"
           >
@@ -818,7 +819,7 @@ export default function ChatWindow({ matchId, otherUser }) {
           </button>
 
           <button type="button" onClick={() => imageInputRef.current?.click()}
-            disabled={sendingImage || (!profile?.premium_tier === 'premium' || profile?.premium_tier === 'vip' && remaining <= 0)}
+            disabled={sendingImage || (!isPremiumPlus && remaining <= 0)}
             className="w-10 h-10 shrink-0 rounded-xl bg-dark-700 flex items-center justify-center text-gray-400 hover:text-brand-400 hover:bg-dark-600 transition-colors disabled:opacity-40"
             title="Enviar foto"
           >
@@ -851,14 +852,14 @@ export default function ChatWindow({ matchId, otherUser }) {
               <input
                 value={text}
                 onChange={handleTextChange}
-                placeholder={!profile?.premium_tier === 'premium' || profile?.premium_tier === 'vip' && remaining <= 0 ? 'Límite alcanzado' : replyTo ? 'Escribe tu respuesta...' : 'Escribe un mensaje...'}
-                disabled={!profile?.premium_tier === 'premium' || profile?.premium_tier === 'vip' && remaining <= 0}
+                placeholder={!isPremiumPlus && remaining <= 0 ? 'Límite alcanzado' : replyTo ? 'Escribe tu respuesta...' : 'Escribe un mensaje...'}
+                disabled={!isPremiumPlus && remaining <= 0}
                 className="input-field flex-1 py-2.5"
                 maxLength={500}
               />
               {!text.trim() ? (
                 <button type="button" onClick={startRecording}
-                  disabled={sendingVoice || (!profile?.premium_tier === 'premium' || profile?.premium_tier === 'vip' && remaining <= 0)}
+                  disabled={sendingVoice || (!isPremiumPlus && remaining <= 0)}
                   className="w-10 h-10 shrink-0 rounded-xl bg-dark-700 flex items-center justify-center text-gray-400 hover:text-brand-400 hover:bg-dark-600 transition-colors disabled:opacity-40"
                   title="Grabar mensaje de voz"
                 >
@@ -866,10 +867,10 @@ export default function ChatWindow({ matchId, otherUser }) {
                 </button>
               ) : (
                 <button type="submit"
-                  disabled={!text.trim() || sending || (!profile?.premium_tier === 'premium' || profile?.premium_tier === 'vip' && remaining <= 0)}
+                  disabled={!text.trim() || sending || (!isPremiumPlus && remaining <= 0)}
                   className="btn-primary px-4 py-2.5"
                 >
-                  {!profile?.premium_tier === 'premium' || profile?.premium_tier === 'vip' && remaining <= 0 ? <FiLock /> : <FiSend />}
+                  {!isPremiumPlus && remaining <= 0 ? <FiLock /> : <FiSend />}
                 </button>
               )}
             </>

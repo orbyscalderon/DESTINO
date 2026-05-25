@@ -105,7 +105,7 @@ export const getTopCreators = async (req, res) => {
     const [{ data: profiles }, { data: subData }] = await Promise.all([
       supabase
         .from('profiles')
-        .select('id, full_name, username, avatar_url, is_verified, is_creator, is_premium')
+        .select('id, full_name, username, avatar_url, is_verified, is_creator, premium_tier')
         .in('id', creatorIds)
         .eq('is_creator', true),
       supabase
