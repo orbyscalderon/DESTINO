@@ -62,6 +62,8 @@ export default function Profile() {
   const [coinsBalance, setCoinsBalance] = useState(0);
   const [streak, setStreak] = useState(0);
   const [boostSecsLeft, setBoostSecsLeft] = useState(0);
+  const [completionClaimed, setCompletionClaimed] = useState(null);
+  const [claimingReward, setClaimingReward] = useState(false);
   const fileRef = useRef(null);
   const photoRef = useRef(null);
   const videoRef = useRef(null);
@@ -95,6 +97,9 @@ export default function Profile() {
       api.get('/api/coins/balance')
         .then(({ data }) => setCoinsBalance(data.coins || 0))
         .catch(() => {});
+      api.get('/api/profiles/completion/status')
+        .then(({ data }) => setCompletionClaimed(data.claimed || false))
+        .catch(() => setCompletionClaimed(false));
     }
   }, [user?.id]);
 
@@ -356,6 +361,24 @@ export default function Profile() {
     }
   };
 
+  const handleClaimReward = async () => {
+    setClaimingReward(true);
+    try {
+      const { data } = await api.post('/api/profiles/completion/claim');
+      setCompletionClaimed(true);
+      setCoinsBalance(b => b + data.coins);
+      toast.success(`¡+${data.coins} coins! Perfil completado al 100%`);
+    } catch (err) {
+      if (err.response?.data?.code === 'ALREADY_CLAIMED') {
+        setCompletionClaimed(true);
+      } else {
+        toast.error(err.response?.data?.error || 'Error al reclamar');
+      }
+    } finally {
+      setClaimingReward(false);
+    }
+  };
+
   const handleShare = async () => {
     const url = `${window.location.origin}/#/profile/${user?.id}`;
     const shareData = { title: `${profile?.full_name} en Destino`, text: profile?.bio || 'Mira mi perfil en Destino', url };
@@ -490,7 +513,41 @@ export default function Profile() {
               { label: 'Fotos extra',    done: photos.length > 0,      pct: 15 },
             ];
             const total = steps.filter(s => s.done).reduce((a, s) => a + s.pct, 0);
-            if (total === 100) return null;
+
+            if (total === 100) {
+              if (completionClaimed === null) return null;
+              if (completionClaimed) {
+                return (
+                  <div className="card p-4 flex items-center gap-3">
+                    <span className="text-green-400 text-xl">✓</span>
+                    <div>
+                      <p className="text-sm font-semibold text-white">Perfil completo</p>
+                      <p className="text-xs text-gray-500">Premio de 50 coins ya reclamado</p>
+                    </div>
+                  </div>
+                );
+              }
+              return (
+                <div className="card p-4">
+                  <div className="flex items-center gap-3 mb-3">
+                    <span className="text-2xl">🎉</span>
+                    <div>
+                      <p className="text-sm font-semibold text-white">¡Perfil al 100%!</p>
+                      <p className="text-xs text-gray-400">Reclama tu recompensa por completarlo</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={handleClaimReward}
+                    disabled={claimingReward}
+                    className="btn-primary w-full text-sm py-2 disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    <FiZap size={14} />
+                    {claimingReward ? 'Reclamando...' : 'Reclamar 50 coins'}
+                  </button>
+                </div>
+              );
+            }
+
             const missing = steps.filter(s => !s.done);
             return (
               <div className="card p-4">

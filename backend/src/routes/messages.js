@@ -13,6 +13,7 @@ import {
   chatAudioMiddleware,
   toggleReaction,
   deleteMessage,
+  clearConversation,
   pinMessage,
   unpinMessage,
   getPinnedMessage,
@@ -30,6 +31,7 @@ router.post('/voice', chatAudioMiddleware, sendVoiceMessage);
 router.post('/:id/reactions', toggleReaction);
 router.post('/ppv', chatImageMiddleware, sendPPVMessage);
 router.post('/ppv/:messageId/unlock', unlockPPV);
+router.delete('/:matchId/all', clearConversation);
 router.delete('/:id', deleteMessage);
 router.put('/:matchId/pin', pinMessage);
 router.delete('/:matchId/pin', unpinMessage);

@@ -587,6 +587,28 @@ export const unpinMessage = async (req, res) => {
   }
 };
 
+// DELETE /api/messages/:matchId/all — borrar toda la conversación
+export const clearConversation = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { matchId } = req.params;
+    if (!isValidUUID(matchId)) return res.status(400).json({ error: 'matchId inválido' });
+
+    const { data: match } = await supabase
+      .from('matches').select('user1_id, user2_id').eq('id', matchId).single();
+    if (!match || (match.user1_id !== userId && match.user2_id !== userId)) {
+      return res.status(403).json({ error: 'No autorizado' });
+    }
+
+    await supabase.from('messages').delete().eq('match_id', matchId);
+    await supabase.from('pinned_messages').delete().eq('match_id', matchId);
+
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
 // GET /api/messages/:matchId/pin — get pinned message
 export const getPinnedMessage = async (req, res) => {
   try {

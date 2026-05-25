@@ -92,6 +92,7 @@ export default function ChatWindow({ matchId, otherUser }) {
 
   // Delete / context menu
   const [msgMenu, setMsgMenu]           = useState(null); // { id, isMe, x, y }
+  const [clearingConv, setClearingConv] = useState(false);
   // Pinned message
   const [pinnedMsg, setPinnedMsg]       = useState(null);
 
@@ -233,6 +234,21 @@ export default function ChatWindow({ matchId, otherUser }) {
       const toTranslate = messages.filter(m => m.sender_id !== user?.id && m.content && !translationCache.current[m.id]);
       await Promise.all(toTranslate.map(m => translateMessage(m.id, m.content)));
       setTranslating(false);
+    }
+  };
+
+  const handleClearConversation = async () => {
+    if (!window.confirm('¿Borrar toda la conversación? Esta acción no se puede deshacer.')) return;
+    setClearingConv(true);
+    try {
+      await api.delete(`/api/messages/${matchId}/all`);
+      setMessages([]);
+      setPinnedMsg(null);
+      toast.success('Conversación eliminada');
+    } catch {
+      toast.error('Error al eliminar la conversación');
+    } finally {
+      setClearingConv(false);
     }
   };
 
@@ -547,6 +563,16 @@ export default function ChatWindow({ matchId, otherUser }) {
               {translating ? '...' : autoTranslate ? '✓ Traduciendo' : 'Traducir'}
             </button>
           )}
+
+          {/* Borrar conversación */}
+          <button
+            onClick={handleClearConversation}
+            disabled={clearingConv}
+            title="Borrar conversación"
+            className="w-7 h-7 rounded-full bg-dark-700 flex items-center justify-center text-gray-600 hover:text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-40"
+          >
+            <FiTrash2 size={12} />
+          </button>
         </div>
       </div>
 

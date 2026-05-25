@@ -10,11 +10,12 @@ import StoriesBar from '../components/ui/StoriesBar.jsx';
 import { PostCardSkeleton } from '../components/ui/Skeleton.jsx';
 import toast from 'react-hot-toast';
 
-function PostCard({ post, onLike, onComment, onDelete, currentUserId }) {
+function PostCard({ post, onLike, onComment, onDelete, onPurchased, currentUserId }) {
   const [showComments, setShowComments] = useState(false);
   const [comments, setComments] = useState([]);
   const [commentText, setCommentText] = useState('');
   const [loadingComments, setLoadingComments] = useState(false);
+  const [buying, setBuying] = useState(false);
 
   const handleToggleComments = async () => {
     if (!showComments && comments.length === 0) {
@@ -26,6 +27,23 @@ function PostCard({ post, onLike, onComment, onDelete, currentUserId }) {
       setLoadingComments(false);
     }
     setShowComments(v => !v);
+  };
+
+  const handleBuyPost = async () => {
+    setBuying(true);
+    try {
+      await api.post(`/api/posts/${post.id}/purchase`);
+      toast.success('Post desbloqueado');
+      onPurchased?.(post.id);
+    } catch (err) {
+      if (err.response?.data?.code === 'INSUFFICIENT_COINS') {
+        toast.error(`Coins insuficientes — necesitas ${post.price}`);
+      } else {
+        toast.error(err.response?.data?.error || 'Error al comprar');
+      }
+    } finally {
+      setBuying(false);
+    }
   };
 
   const handleAddComment = async () => {
@@ -83,10 +101,25 @@ function PostCard({ post, onLike, onComment, onDelete, currentUserId }) {
       {post.locked ? (
         <div className="bg-dark-700 h-48 flex flex-col items-center justify-center gap-2">
           <FiLock className="text-gray-500" size={28} />
-          <p className="text-gray-500 text-sm">Solo para suscriptores</p>
-          <Link to={`/profile/${post.author?.id}`} className="btn-primary text-xs px-4 py-1.5">
-            Suscribirse
-          </Link>
+          {post.is_paid && post.price > 0 ? (
+            <>
+              <p className="text-gray-400 text-sm font-medium">Contenido de pago</p>
+              <button
+                onClick={handleBuyPost}
+                disabled={buying}
+                className="btn-primary text-xs px-4 py-1.5 disabled:opacity-50"
+              >
+                {buying ? '...' : `🪙 Comprar — ${post.price} coins`}
+              </button>
+            </>
+          ) : (
+            <>
+              <p className="text-gray-500 text-sm">Solo para suscriptores</p>
+              <Link to={`/profile/${post.author?.id}`} className="btn-primary text-xs px-4 py-1.5">
+                Suscribirse
+              </Link>
+            </>
+          )}
         </div>
       ) : post.blurred ? (
         <div className="relative bg-dark-700 h-48 overflow-hidden flex items-center justify-center">
@@ -323,7 +356,15 @@ export default function Moments() {
         ) : (
           <>
             {posts.map(post => (
-              <PostCard key={post.id} post={post} onLike={handleLike} onComment={handleCommentAdded} onDelete={handleDeletePost} currentUserId={user?.id} />
+              <PostCard
+                key={post.id}
+                post={post}
+                onLike={handleLike}
+                onComment={handleCommentAdded}
+                onDelete={handleDeletePost}
+                onPurchased={(id) => setPosts(prev => prev.map(p => p.id === id ? { ...p, locked: false } : p))}
+                currentUserId={user?.id}
+              />
             ))}
             <div ref={sentinelRef} className="py-4 flex justify-center">
               {loadingMore && (
