@@ -104,11 +104,7 @@ SELECT
   false, false, false, 'basic', false, false, NOW()
 FROM auth.users u
 WHERE u.email LIKE '%@destino-bot.com'
-ON CONFLICT (id) DO UPDATE SET
-  full_name  = EXCLUDED.full_name,
-  username   = EXCLUDED.username,
-  age        = EXCLUDED.age,
-  avatar_url = EXCLUDED.avatar_url;
+ON CONFLICT DO NOTHING;
 
 
 -- PASO 3: Actualizar bios, intereses, países y last_active de cada bot
