@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import {
   FiUsers, FiHeart, FiMessageCircle, FiDollarSign, FiShield, FiStar,
   FiTrash2, FiVideo, FiZap, FiSearch, FiExternalLink, FiRadio, FiGrid,
-  FiCheck, FiX, FiCreditCard, FiImage, FiBell, FiPlus, FiMinus,
+  FiCheck, FiX, FiCreditCard, FiImage, FiBell, FiPlus, FiMinus, FiFlag,
 } from 'react-icons/fi';
 import api from '../lib/api.js';
 import toast from 'react-hot-toast';
@@ -17,6 +17,7 @@ const TABS = [
   { key: 'content',        label: 'Contenido',  icon: FiImage },
   { key: 'withdrawals',    label: 'Retiros',    icon: FiCreditCard },
   { key: 'verifications',  label: 'ID',         icon: FiShield },
+  { key: 'reports',        label: 'Reportes',   icon: FiFlag },
   { key: 'appeals',        label: 'Apelaciones', icon: FiMessageCircle },
 ];
 
@@ -59,12 +60,15 @@ export default function Admin() {
   const [broadcastTitle, setBroadcastTitle] = useState('');
   const [broadcastBody, setBroadcastBody] = useState('');
   const [sendingBroadcast, setSendingBroadcast] = useState(false);
+  const [reports, setReports] = useState([]);
+  const [reportsFilter, setReportsFilter] = useState('pending');
+  const [processingReport, setProcessingReport] = useState(null);
 
   useEffect(() => { loadAll(); }, []);
 
   const loadAll = async () => {
     try {
-      const [sRes, uRes, cRes, shRes, wRes, vRes, cqRes, appRes] = await Promise.all([
+      const [sRes, uRes, cRes, shRes, wRes, vRes, cqRes, appRes, repRes] = await Promise.all([
         api.get('/api/admin/stats'),
         api.get('/api/admin/users'),
         api.get('/api/admin/creators'),
@@ -73,6 +77,7 @@ export default function Admin() {
         api.get('/api/admin/verifications').catch(() => ({ data: [] })),
         api.get('/api/admin/content-queue').catch(() => ({ data: { posts: [] } })),
         api.get('/api/appeals/admin').catch(() => ({ data: { appeals: [] } })),
+        api.get('/api/admin/reports?status=pending').catch(() => ({ data: { reports: [] } })),
       ]);
       setStats(sRes.data.stats);
       setUsers(uRes.data.users);
@@ -82,11 +87,21 @@ export default function Admin() {
       setVerificationRequests(vRes.data?.verifications || []);
       setContentQueue(cqRes.data?.posts || []);
       setAppeals(appRes.data?.appeals || []);
+      setReports(repRes.data?.reports || []);
     } catch (err) {
       if (err.response?.status === 403) navigate('/home', { replace: true });
       else toast.error('Error cargando datos admin');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadReports = async (status) => {
+    try {
+      const { data } = await api.get(`/api/admin/reports?status=${status}`);
+      setReports(data.reports || []);
+    } catch {
+      toast.error('Error cargando reportes');
     }
   };
 
@@ -134,6 +149,20 @@ export default function Admin() {
       toast.error(err.response?.data?.error || 'Error al enviar notificación');
     } finally {
       setSendingBroadcast(false);
+    }
+  };
+
+  const handleProcessReport = async (id, status, banUser = false) => {
+    if (banUser && !confirm('¿Banear al usuario reportado? Esta acción es irreversible.')) return;
+    setProcessingReport(id);
+    try {
+      await api.patch(`/api/admin/reports/${id}`, { status, banUser });
+      setReports(prev => prev.filter(r => r.id !== id));
+      toast.success(status === 'reviewed' ? 'Reporte revisado' : 'Reporte descartado');
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Error al procesar reporte');
+    } finally {
+      setProcessingReport(null);
     }
   };
 
@@ -838,6 +867,117 @@ export default function Admin() {
           ))}
         </div>
       )}
+      {/* ── REPORTES ── */}
+      {tab === 'reports' && (
+        <div className="space-y-3">
+          {/* Filtro de estado */}
+          <div className="flex gap-2 mb-1">
+            {['pending', 'reviewed', 'dismissed'].map(s => (
+              <button
+                key={s}
+                onClick={() => { setReportsFilter(s); loadReports(s); }}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors ${
+                  reportsFilter === s ? 'bg-brand-500 text-white' : 'bg-dark-700 text-gray-400 hover:text-white'
+                }`}
+              >
+                {s === 'pending' ? 'Pendientes' : s === 'reviewed' ? 'Revisados' : 'Descartados'}
+              </button>
+            ))}
+          </div>
+
+          <p className="text-xs text-gray-600">{reports.length} reporte{reports.length !== 1 ? 's' : ''}</p>
+
+          {reports.length === 0 ? (
+            <div className="text-center py-16 text-gray-600">
+              <FiFlag size={36} className="mx-auto mb-3" />
+              <p>Sin reportes {reportsFilter === 'pending' ? 'pendientes' : reportsFilter === 'reviewed' ? 'revisados' : 'descartados'}</p>
+            </div>
+          ) : (
+            reports.map(r => (
+              <div key={r.id} className="card p-4 space-y-3">
+                {/* Reportado */}
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-1">Usuario reportado</p>
+                    <div className="flex items-center gap-2">
+                      <img
+                        src={r.reported?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(r.reported?.full_name || 'U')}&size=32&background=1a1a2e&color=f43f5e`}
+                        className="w-8 h-8 rounded-full object-cover shrink-0"
+                        alt=""
+                      />
+                      <div>
+                        <p className="text-sm font-semibold text-white">{r.reported?.full_name || 'Usuario'}</p>
+                        <p className="text-xs text-gray-500">@{r.reported?.username}</p>
+                      </div>
+                      <Link to={`/profile/${r.reported?.id}`} className="ml-auto text-gray-500 hover:text-brand-400">
+                        <FiExternalLink size={13} />
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Motivo */}
+                <div className="bg-dark-700 rounded-xl p-3 space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-500 text-xs">Motivo</span>
+                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                      r.reason === 'harassment' ? 'bg-red-500/20 text-red-400' :
+                      r.reason === 'inappropriate' ? 'bg-orange-500/20 text-orange-400' :
+                      r.reason === 'spam' ? 'bg-yellow-500/20 text-yellow-400' :
+                      'bg-dark-600 text-gray-400'
+                    }`}>
+                      {r.reason === 'spam' ? 'Spam' :
+                       r.reason === 'inappropriate' ? 'Inapropiado' :
+                       r.reason === 'harassment' ? 'Acoso' :
+                       r.reason === 'fake' ? 'Perfil falso' :
+                       r.reason === 'fake_profile' ? 'Perfil falso' :
+                       r.reason === 'hate_speech' ? 'Discurso de odio' :
+                       r.reason === 'underage' ? 'Menor de edad' :
+                       r.reason}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-500 text-xs">Reportado por</span>
+                    <span className="text-gray-300 text-xs">@{r.reporter?.username || '—'}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-500 text-xs">Fecha</span>
+                    <span className="text-gray-500 text-xs">{new Date(r.created_at).toLocaleDateString('es', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                  </div>
+                </div>
+
+                {reportsFilter === 'pending' && (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleProcessReport(r.id, 'dismissed')}
+                      disabled={processingReport === r.id}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-dark-700 hover:bg-dark-600 text-gray-400 text-sm font-semibold transition-colors disabled:opacity-50"
+                    >
+                      <FiX size={14} /> Descartar
+                    </button>
+                    <button
+                      onClick={() => handleProcessReport(r.id, 'reviewed')}
+                      disabled={processingReport === r.id}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-green-500/15 hover:bg-green-500/25 text-green-400 text-sm font-semibold transition-colors disabled:opacity-50"
+                    >
+                      <FiCheck size={14} /> Revisado
+                    </button>
+                    <button
+                      onClick={() => handleProcessReport(r.id, 'reviewed', true)}
+                      disabled={processingReport === r.id}
+                      className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-red-500/15 hover:bg-red-500/25 text-red-400 text-sm font-semibold transition-colors disabled:opacity-50"
+                      title="Revisar y banear usuario"
+                    >
+                      <FiTrash2 size={14} />
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
       {/* ── APELACIONES ── */}
       {tab === 'appeals' && (
         <div className="space-y-3">

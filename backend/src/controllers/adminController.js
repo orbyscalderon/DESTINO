@@ -413,6 +413,58 @@ export const broadcastNotification = async (req, res) => {
   }
 };
 
+// GET /api/admin/reports — listar denuncias de usuarios
+export const getReports = async (req, res) => {
+  try {
+    const status = req.query.status || 'pending';
+    const { data, error } = await supabase
+      .from('reports')
+      .select(`
+        *,
+        reporter:profiles!reporter_id(id, full_name, username, avatar_url),
+        reported:profiles!reported_id(id, full_name, username, avatar_url, is_admin)
+      `)
+      .eq('status', status)
+      .order('created_at', { ascending: false })
+      .limit(100);
+
+    if (error) throw error;
+    res.json({ reports: data || [] });
+  } catch {
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
+// PATCH /api/admin/reports/:id — marcar reporte como revisado o descartado
+export const processReport = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, banUser } = req.body;
+
+    if (!['reviewed', 'dismissed'].includes(status)) {
+      return res.status(400).json({ error: "status debe ser 'reviewed' o 'dismissed'" });
+    }
+
+    const { data: report } = await supabase
+      .from('reports')
+      .select('reported_id')
+      .eq('id', id)
+      .single();
+
+    if (!report) return res.status(404).json({ error: 'Reporte no encontrado' });
+
+    await supabase.from('reports').update({ status }).eq('id', id);
+
+    if (banUser && status === 'reviewed') {
+      await supabase.auth.admin.deleteUser(report.reported_id);
+    }
+
+    res.json({ message: status === 'reviewed' ? 'Reporte revisado' : 'Reporte descartado' });
+  } catch (err) {
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
 // PATCH /api/admin/verifications/:id — aprobar/rechazar verificación
 export const processVerification = async (req, res) => {
   try {

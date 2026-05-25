@@ -9,6 +9,7 @@ import {
   getVerifications, processVerification,
   getContentQueue, processContent,
   endShow, broadcastNotification,
+  getReports, processReport,
 } from '../controllers/adminController.js';
 
 const router = Router();
@@ -38,5 +39,8 @@ router.get('/verifications',        getVerifications);
 router.patch('/verifications/:id',  processVerification);
 router.get('/content-queue',        getContentQueue);
 router.patch('/content/:postId',    processContent);
+
+router.get('/reports',              getReports);
+router.patch('/reports/:id',        processReport);
 
 export default router;
