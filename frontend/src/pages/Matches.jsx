@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiHeart, FiMessageCircle } from 'react-icons/fi';
+import { FiHeart, FiMessageCircle, FiSend } from 'react-icons/fi';
 import api from '../lib/api.js';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '../store/authStore.js';
@@ -18,21 +18,24 @@ export default function Matches() {
 
   const [newMatches, setNewMatches] = useState([]);
   const [likes, setLikes] = useState([]);
+  const [sent, setSent] = useState([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('matches');
 
   const loadData = async () => {
     try {
-      const [mRes, lRes] = await Promise.all([
+      const [mRes, lRes, sRes] = await Promise.all([
         api.get('/api/matches'),
         profile?.is_premium
           ? api.get('/api/matches/likes')
           : Promise.resolve({ data: { likes: [] } }),
+        api.get('/api/matches/sent'),
       ]);
       const all = mRes.data.matches || [];
       // "Nuevos" = sin mensaje Y creados en últimas 48 h; el resto sigue visible pero sin badge
       setNewMatches(all.filter(m => !m.last_message && isNew(m.created_at)));
       setLikes(lRes.data.likes || []);
+      setSent(sRes.data.sent || []);
     } finally {
       setLoading(false);
     }
@@ -81,7 +84,7 @@ export default function Matches() {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 bg-dark-800 p-1 rounded-xl mb-5 max-w-xs">
+        <div className="flex gap-1 bg-dark-800 p-1 rounded-xl mb-5">
           <button
             onClick={() => setTab('matches')}
             className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-colors ${
@@ -97,6 +100,14 @@ export default function Matches() {
             }`}
           >
             Likes {profile?.is_premium ? (likes.length > 0 ? `(${likes.length})` : '') : '🔒'}
+          </button>
+          <button
+            onClick={() => setTab('sent')}
+            className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-colors ${
+              tab === 'sent' ? 'bg-brand-500 text-white' : 'text-gray-400 hover:text-gray-200'
+            }`}
+          >
+            Enviados {sent.length > 0 && <span className="opacity-80">({sent.length})</span>}
           </button>
         </div>
 
@@ -211,6 +222,30 @@ export default function Matches() {
           </div>
         )}
 
+        {/* ── ENVIADOS TAB ── */}
+        {tab === 'sent' && (
+          <div>
+            {sent.length === 0 ? (
+              <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="text-center py-20">
+                <div className="text-5xl mb-3">
+                  <FiSend className="inline text-gray-600" size={48} />
+                </div>
+                <p className="text-gray-400 mt-3">Aún no has enviado ningún like</p>
+                <p className="text-gray-600 text-sm mt-1">¡Ve a Descubrir y empieza a explorar!</p>
+                <Link to="/discover" className="btn-primary px-8 py-3 text-sm mt-6 inline-block">
+                  Ir a Descubrir
+                </Link>
+              </motion.div>
+            ) : (
+              <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+                {sent.map((item, i) => (
+                  <SentLikeCard key={item.match_id} item={item} i={i} />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
       </div>
     </div>
   );
@@ -241,6 +276,48 @@ function LikesPremiumGate({ count }) {
       <Link to="/premium" className="btn-primary px-8 py-3 text-sm">
         Ver quién me gustó ✨
       </Link>
+    </motion.div>
+  );
+}
+
+function SentLikeCard({ item, i }) {
+  const navigate = useNavigate();
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.92 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ delay: i * 0.04 }}
+      className="card p-4 text-center hover:border-brand-500/30 transition-all group cursor-pointer"
+      onClick={() => navigate(`/user/${item.id}`)}
+    >
+      <div className="relative inline-block mb-3">
+        <div className="w-20 h-20 rounded-full overflow-hidden mx-auto ring-2 ring-transparent group-hover:ring-brand-500/30 transition-all">
+          <img
+            src={item.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.full_name || '?')}&size=120&background=1a1a2e&color=f43f5e`}
+            alt={item.full_name}
+            className="w-full h-full object-cover"
+          />
+        </div>
+        {item.is_verified && <VerifiedBadge size={20} overlay />}
+        {item.is_super_like && (
+          <div className="absolute top-0 right-0 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center border-2 border-dark-800 text-xs">⭐</div>
+        )}
+      </div>
+
+      <p className="text-sm font-semibold text-white truncate mb-0.5">{item.full_name}</p>
+      {item.age && <p className="text-[11px] text-gray-500 mb-1">{item.age} años</p>}
+
+      {item.is_super_like ? (
+        <span className="text-[10px] text-blue-400 font-bold">⭐ Super Like enviado</span>
+      ) : (
+        <span className="text-[10px] text-brand-400 font-semibold flex items-center justify-center gap-1">
+          <FiHeart size={10} /> Like enviado
+        </span>
+      )}
+
+      <p className="text-[9px] text-gray-600 mt-1">
+        {new Date(item.sent_at).toLocaleDateString('es', { day: 'numeric', month: 'short' })}
+      </p>
     </motion.div>
   );
 }

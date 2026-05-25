@@ -429,6 +429,39 @@ export const undoLastSwipe = async (req, res) => {
   }
 };
 
+// GET /api/matches/sent — likes/super likes que envié y aún no son match
+export const getSentLikes = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const { data: sent, error } = await supabase
+      .from('matches')
+      .select(`
+        id,
+        is_super_like,
+        created_at,
+        user2:profiles!user2_id(id, full_name, avatar_url, is_verified, age)
+      `)
+      .eq('user1_id', userId)
+      .eq('user1_liked', true)
+      .eq('is_match', false)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    res.json({
+      sent: sent?.map(l => ({
+        ...l.user2,
+        match_id: l.id,
+        is_super_like: l.is_super_like,
+        sent_at: l.created_at,
+      })) || [],
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
 // GET /api/matches/likes — quién me dio like (solo premium)
 export const getWhoLikedMe = async (req, res) => {
   try {
