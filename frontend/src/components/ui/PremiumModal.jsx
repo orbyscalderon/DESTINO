@@ -1,17 +1,41 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiX, FiZap, FiMessageCircle, FiVideo, FiHeart, FiStar } from 'react-icons/fi';
+import { FiX, FiZap, FiMessageCircle, FiVideo, FiHeart, FiStar, FiShield, FiEyeOff } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 
-const features = [
-  { icon: FiMessageCircle, text: 'Mensajes ilimitados sin restricciones' },
-  { icon: FiVideo, text: 'Filtro de género en videollamadas' },
-  { icon: FiHeart, text: 'Ver quién te dio like' },
-  { icon: FiStar, text: 'Perfil destacado — apareces primero' },
-  { icon: FiZap, text: 'Badge de verificado en tu perfil' },
+const PLANS = [
+  {
+    key: 'premium',
+    emoji: '⚡',
+    name: 'Premium',
+    price: '$9.99',
+    color: 'brand',
+    features: [
+      { icon: FiHeart,        text: 'Ver quién te dio like' },
+      { icon: FiVideo,        text: 'Iniciar videollamadas' },
+      { icon: FiEyeOff,       text: 'Modo incógnito' },
+      { icon: FiMessageCircle,text: 'Traducción de mensajes' },
+      { icon: FiShield,       text: 'Sin anuncios' },
+    ],
+  },
+  {
+    key: 'vip',
+    emoji: '👑',
+    name: 'VIP',
+    price: '$24.99',
+    color: 'yellow',
+    features: [
+      { icon: FiStar, text: 'Todo lo de Premium' },
+      { icon: FiStar, text: 'Creadores adultos' },
+      { icon: FiStar, text: 'Shows adultos' },
+      { icon: FiStar, text: 'Badge VIP en perfil' },
+    ],
+  },
 ];
 
-export default function PremiumModal({ onClose }) {
+export default function PremiumModal({ onClose, requiredTier = 'premium' }) {
   const navigate = useNavigate();
+  const plan = requiredTier === 'vip' ? PLANS[1] : PLANS[0];
+  const isVip = requiredTier === 'vip';
 
   return (
     <AnimatePresence>
@@ -33,39 +57,40 @@ export default function PremiumModal({ onClose }) {
             <FiX size={20} />
           </button>
 
-          {/* Header */}
-          <div className="text-center mb-6">
-            <div className="w-16 h-16 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <FiZap size={28} className="text-black" />
+          <div className="text-center mb-5">
+            <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-3 text-3xl ${isVip ? 'bg-yellow-500/20' : 'bg-brand-500/20'}`}>
+              {plan.emoji}
             </div>
-            <h2 className="text-2xl font-bold gradient-text">Hazte Premium</h2>
-            <p className="text-gray-400 text-sm mt-1">Desbloquea todo sin límites</p>
+            <h2 className="text-xl font-black text-white">
+              {isVip ? 'Función exclusiva VIP' : 'Función exclusiva Premium'}
+            </h2>
+            <p className="text-gray-400 text-sm mt-1">
+              {isVip ? 'Desbloquea el plan VIP para acceder' : 'Desbloquea Premium o VIP para acceder'}
+            </p>
           </div>
 
-          {/* Features */}
-          <ul className="space-y-3 mb-6">
-            {features.map(({ icon: Icon, text }) => (
+          <ul className="space-y-2.5 mb-5">
+            {plan.features.map(({ icon: Icon, text }) => (
               <li key={text} className="flex items-center gap-3 text-sm text-gray-300">
-                <div className="w-8 h-8 rounded-lg bg-brand-500/20 flex items-center justify-center flex-shrink-0">
-                  <Icon size={14} className="text-brand-400" />
+                <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${isVip ? 'bg-yellow-500/20' : 'bg-brand-500/20'}`}>
+                  <Icon size={13} className={isVip ? 'text-yellow-400' : 'text-brand-400'} />
                 </div>
                 {text}
               </li>
             ))}
           </ul>
 
-          {/* Price */}
-          <div className="bg-gradient-to-r from-brand-500/10 to-yellow-500/10 border border-brand-500/20 rounded-xl p-4 mb-4 text-center">
-            <span className="text-3xl font-bold text-white">$20</span>
+          <div className={`rounded-xl p-3 mb-4 text-center border ${isVip ? 'bg-yellow-500/10 border-yellow-500/20' : 'bg-brand-500/10 border-brand-500/20'}`}>
+            <span className="text-2xl font-black text-white">{plan.price}</span>
             <span className="text-gray-400 text-sm"> / mes</span>
-            <p className="text-gray-500 text-xs mt-1">Cancela cuando quieras</p>
+            <p className="text-gray-600 text-xs mt-0.5">Cancela cuando quieras</p>
           </div>
 
           <button
             onClick={() => { onClose(); navigate('/premium'); }}
-            className="btn-primary w-full text-center"
+            className={`w-full py-3 rounded-xl font-bold text-sm transition-colors ${isVip ? 'bg-yellow-500 hover:bg-yellow-400 text-black' : 'btn-primary'}`}
           >
-            Comenzar ahora
+            Ver planes {plan.emoji}
           </button>
         </motion.div>
       </motion.div>

@@ -322,8 +322,14 @@ export default function UserProfile() {
             )}
           </div>
           <div className="flex flex-wrap gap-2 mt-2">
-            {profile.is_premium && (
-              <span className="bg-yellow-500/80 text-black text-xs font-bold px-2 py-0.5 rounded-full">⚡ PREMIUM</span>
+            {profile.premium_tier === 'vip' && (
+              <span className="bg-yellow-500/20 text-yellow-400 text-xs font-bold px-2 py-0.5 rounded-full border border-yellow-500/30">👑 VIP</span>
+            )}
+            {profile.premium_tier === 'premium' && (
+              <span className="bg-brand-500/20 text-brand-400 text-xs font-bold px-2 py-0.5 rounded-full border border-brand-500/30">⚡ Premium</span>
+            )}
+            {!profile.premium_tier && profile.is_premium && (
+              <span className="bg-brand-500/20 text-brand-400 text-xs font-bold px-2 py-0.5 rounded-full border border-brand-500/30">⚡ Premium</span>
             )}
             {profile.is_verified && <VerifiedBadge size={20} />}
             {profile.is_creator && (
