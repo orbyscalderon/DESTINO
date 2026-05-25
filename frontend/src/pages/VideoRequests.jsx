@@ -62,7 +62,7 @@ function ReceivedCard({ req, onAction, onDeliver }) {
       await api.put(`/api/video-requests/${req.id}/deliver`, form, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
-      toast.success('Video entregado. Recibirás el 80% del pago.');
+      toast.success('Video entregado. Recibirás el 70% del pago.');
       onDeliver(req.id);
     } catch (err) {
       toast.error(err.response?.data?.error || 'Error al subir el video');

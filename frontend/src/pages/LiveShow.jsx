@@ -338,7 +338,7 @@ export default function LiveShow() {
       })
       .on('broadcast', { event: 'gift' }, ({ payload }) => {
         addGiftAnimation(payload.emoji, payload.senderName);
-        if (role === 'host') setTotalCoinsEarned(c => c + Math.round((payload.coins || 0) * 0.8));
+        if (role === 'host') setTotalCoinsEarned(c => c + Math.round((payload.coins || 0) * 0.7));
       })
       .on('broadcast', { event: 'show_ended' }, () => {
         if (role !== 'host') {

@@ -815,7 +815,7 @@ export default function UserProfile() {
                   />
                   <FiZap className="text-yellow-400 shrink-0" size={18} />
                 </div>
-                <p className="text-[11px] text-gray-600 mt-1">El creador recibe el 80% si acepta y entrega el video.</p>
+                <p className="text-[11px] text-gray-600 mt-1">El creador recibe el 70% si acepta y entrega el video.</p>
               </div>
             </div>
 

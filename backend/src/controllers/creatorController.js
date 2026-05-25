@@ -519,7 +519,7 @@ export const getAnalytics = async (req, res) => {
     (showTicketsByDay || []).forEach(t => addToDay(t.purchased_at, t.creator_earnings));
     (photoSalesByDay || []).forEach(t => addToDay(t.created_at, t.creator_earnings));
     (tipsByDay || []).forEach(t => addToDay(t.created_at, t.creator_earnings));
-    (subsByDay || []).forEach(t => addToDay(t.created_at, t.subscription_price * 0.8));
+    (subsByDay || []).forEach(t => addToDay(t.created_at, t.subscription_price * 0.7));
 
     const chartData = Object.entries(byDay)
       .map(([date, amount]) => ({ date, amount: parseFloat(amount.toFixed(2)) }))
@@ -534,7 +534,7 @@ export const getAnalytics = async (req, res) => {
         show_tickets: (showTicketsByDay || []).reduce((s, t) => s + parseFloat(t.creator_earnings), 0).toFixed(2),
         photo_sales: (photoSalesByDay || []).reduce((s, t) => s + parseFloat(t.creator_earnings), 0).toFixed(2),
         tips: (tipsByDay || []).reduce((s, t) => s + parseFloat(t.creator_earnings), 0).toFixed(2),
-        subscriptions: (subsByDay || []).reduce((s, t) => s + parseFloat(t.subscription_price) * 0.8, 0).toFixed(2),
+        subscriptions: (subsByDay || []).reduce((s, t) => s + parseFloat(t.subscription_price) * 0.7, 0).toFixed(2),
       },
       subscribers: subscribers?.length || 0,
     });
@@ -908,7 +908,7 @@ export const unlockGallery = async (req, res) => {
     await supabase.from('gallery_purchases').insert({ gallery_id: galleryId, buyer_id: userId, amount_coins: gallery.price_coins });
 
     // Credit creator earnings
-    const earningsUSD = gallery.price_coins * 0.05 * 0.8;
+    const earningsUSD = gallery.price_coins * 0.05 * 0.7;
     await supabase.from('creator_earnings')
       .select('total_earned, available_balance').eq('creator_id', gallery.creator_id).single()
       .then(({ data: e }) => {

@@ -370,7 +370,7 @@ export const purchasePost = async (req, res) => {
       coins_paid: post.price,
     });
 
-    const creatorShare = Math.floor(post.price * 0.8);
+    const creatorShare = Math.floor(post.price * 0.7);
     if (creatorShare > 0) {
       await addCoins(post.user_id, creatorShare, 'post_sale').catch(() => {});
     }

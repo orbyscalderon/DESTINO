@@ -9,7 +9,7 @@ import toast from 'react-hot-toast';
 const benefits = [
   { icon: FiVideo, title: 'Shows en vivo de pago', desc: 'Transmite en broadcast o sesiones privadas 1-a-1 con precio de entrada.' },
   { icon: FiImage, title: 'Fotos exclusivas', desc: 'Pon precio a tus fotos. Solo quienes paguen las verán.' },
-  { icon: FiDollarSign, title: '80% para ti', desc: 'La plataforma retiene solo el 20%. El resto es tuyo.' },
+  { icon: FiDollarSign, title: '70% para ti', desc: 'La plataforma retiene solo el 30%. El resto es tuyo.' },
   { icon: FiTrendingUp, title: 'Pagos a tu cuenta', desc: 'Retira tus ganancias directamente a tu cuenta bancaria via Stripe.' },
 ];
 

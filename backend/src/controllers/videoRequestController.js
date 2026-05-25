@@ -250,8 +250,8 @@ export const deliverVideoRequest = async (req, res) => {
       })
       .eq('id', id);
 
-    // Pay creator 80%
-    const creatorShare = Math.floor(request.price * 0.8);
+    // Pay creator 70%
+    const creatorShare = Math.floor(request.price * 0.7);
     if (creatorShare > 0) {
       await addCoins(creatorId, creatorShare, 'video_request_sale').catch(() => {});
     }

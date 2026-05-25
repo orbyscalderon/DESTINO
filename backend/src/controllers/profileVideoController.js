@@ -219,8 +219,8 @@ export const purchaseProfileVideo = async (req, res) => {
       coins_paid: video.price,
     });
 
-    // Credit creator (80% of price)
-    const creatorShare = Math.floor(video.price * 0.8);
+    // Credit creator (70% of price)
+    const creatorShare = Math.floor(video.price * 0.7);
     if (creatorShare > 0) {
       await addCoins(video.user_id, creatorShare, 'video_sale').catch(() => {});
     }

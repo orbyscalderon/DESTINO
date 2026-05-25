@@ -797,8 +797,8 @@ export default function CreatorDashboard() {
                       <p className="text-xs text-gray-500 mt-1">Recaudado</p>
                     </div>
                     <div className="card p-4 text-center">
-                      <p className="text-2xl font-black text-brand-400">${fmt((subscribers.total_revenue || 0) * 0.8)}</p>
-                      <p className="text-xs text-gray-500 mt-1">Tu corte (80%)</p>
+                      <p className="text-2xl font-black text-brand-400">${fmt((subscribers.total_revenue || 0) * 0.7)}</p>
+                      <p className="text-xs text-gray-500 mt-1">Tu corte (70%)</p>
                     </div>
                   </div>
                   {(subscribers.subscribers || []).length === 0 ? (
@@ -1019,7 +1019,7 @@ export default function CreatorDashboard() {
                     <FiShield size={15} className="text-brand-400" />
                   </div>
                   <div>
-                    <p className="text-white text-sm font-medium">80% para ti · 20% plataforma</p>
+                    <p className="text-white text-sm font-medium">70% para ti · 30% plataforma</p>
                     <p className="text-gray-500 text-xs mt-0.5">
                       Tus ingresos ya están calculados con la comisión descontada
                     </p>
@@ -1090,7 +1090,7 @@ export default function CreatorDashboard() {
                       const durationMin = show.started_at && show.ended_at
                         ? Math.round((new Date(show.ended_at) - new Date(show.started_at)) / 60000)
                         : null;
-                      const usd = ((show.total_coins_earned || 0) * 0.04 * 0.8).toFixed(2);
+                      const usd = ((show.total_coins_earned || 0) * 0.04 * 0.7).toFixed(2);
                       return (
                         <div key={show.id || i} className="bg-dark-700/60 rounded-xl p-3">
                           <div className="flex items-center justify-between gap-2 mb-1.5">
@@ -1391,7 +1391,7 @@ export default function CreatorDashboard() {
                 </div>
                 {subPrice && (
                   <p className="text-gray-500 text-xs mt-2">
-                    Tus fans pagarán ${parseFloat(subPrice || 0).toFixed(2)}/mes · tú recibes ${(parseFloat(subPrice || 0) * 0.8).toFixed(2)}
+                    Tus fans pagarán ${parseFloat(subPrice || 0).toFixed(2)}/mes · tú recibes ${(parseFloat(subPrice || 0) * 0.7).toFixed(2)}
                   </p>
                 )}
               </div>
@@ -1630,7 +1630,7 @@ export default function CreatorDashboard() {
 
                 {newShow.ticket_price > 0 && (
                   <p className="text-gray-500 text-xs bg-dark-700 rounded-xl px-3 py-2">
-                    Tú recibirás ${(parseFloat(newShow.ticket_price) * 0.8).toFixed(2)} por ticket vendido (80%)
+                    Tú recibirás ${(parseFloat(newShow.ticket_price) * 0.7).toFixed(2)} por ticket vendido (70%)
                   </p>
                 )}
 

@@ -2,7 +2,7 @@ import { supabase } from '../lib/supabase.js';
 import { createNotification } from './inAppNotifController.js';
 
 const COIN_VALUE_USD = 0.05;
-const PLATFORM_FEE_RATE = 0.20;
+const PLATFORM_FEE_RATE = 0.30;
 
 const TIP_PRESETS = [10, 25, 50, 100, 200];
 

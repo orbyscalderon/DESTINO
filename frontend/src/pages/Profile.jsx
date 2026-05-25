@@ -1227,7 +1227,7 @@ export default function Profile() {
                         min="1"
                         max="9999"
                       />
-                      <p className="text-xs text-gray-500 mt-1">Recibirás el 80% (el 20% es la comisión de la plataforma)</p>
+                      <p className="text-xs text-gray-500 mt-1">Recibirás el 70% (el 30% es la comisión de la plataforma)</p>
                     </div>
                   )}
                 </div>
