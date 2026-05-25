@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase.js';
 import { decryptField } from '../lib/encrypt.js';
+import { sendBroadcastNotification } from './notificationController.js';
 
 // GET /api/admin/stats
 export const getStats = async (req, res) => {
@@ -13,21 +14,23 @@ export const getStats = async (req, res) => {
       { count: shows },
       { data: earnings },
       { data: coins },
+      { count: vip },
     ] = await Promise.all([
       supabase.from('profiles').select('*', { count: 'exact', head: true }),
       supabase.from('matches').select('*', { count: 'exact', head: true }).eq('is_match', true),
       supabase.from('messages').select('*', { count: 'exact', head: true }),
-      supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('is_premium', true),
+      supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('premium_tier', 'premium'),
       supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('is_creator', true),
       supabase.from('live_shows').select('*', { count: 'exact', head: true }),
       supabase.from('creator_earnings').select('total_earned'),
       supabase.from('profiles').select('coins_balance'),
+      supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('premium_tier', 'vip'),
     ]);
 
     const total_earnings = (earnings || []).reduce((s, r) => s + parseFloat(r.total_earned || 0), 0);
     const coins_total = (coins || []).reduce((s, r) => s + (r.coins_balance || 0), 0);
 
-    res.json({ stats: { users, matches, messages, premium, creators, shows, total_earnings, coins_total } });
+    res.json({ stats: { users, matches, messages, premium, vip: vip ?? 0, creators, shows, total_earnings, coins_total } });
   } catch (err) {
     console.error('getStats error:', err.message);
     res.status(500).json({ error: 'Error interno del servidor' });
@@ -349,6 +352,63 @@ export const getVerifications = async (req, res) => {
     if (error) throw error;
     res.json({ verifications: data || [] });
   } catch {
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
+// PATCH /api/admin/users/coins — ajustar balance de coins de un usuario
+export const adjustUserCoins = async (req, res) => {
+  try {
+    const { userId, delta, reason } = req.body;
+    if (!userId || typeof delta !== 'number' || delta === 0) {
+      return res.status(400).json({ error: 'userId y delta (número ≠ 0) requeridos' });
+    }
+    const { data: profile } = await supabase
+      .from('profiles').select('coins_balance').eq('id', userId).single();
+    if (!profile) return res.status(404).json({ error: 'Usuario no encontrado' });
+
+    const newBalance = Math.max(0, (profile.coins_balance || 0) + delta);
+    const { error } = await supabase.from('profiles')
+      .update({ coins_balance: newBalance }).eq('id', userId);
+    if (error) throw error;
+
+    await supabase.from('coin_transactions').insert({
+      user_id: userId,
+      amount: Math.abs(delta),
+      type: delta > 0 ? 'admin_credit' : 'admin_debit',
+      description: reason || (delta > 0 ? 'Ajuste admin (+)' : 'Ajuste admin (-)'),
+    }).catch(() => {});
+
+    res.json({ new_balance: newBalance });
+  } catch (err) {
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
+// PATCH /api/admin/shows/:id/end — terminar un show en vivo
+export const endShow = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { error } = await supabase.from('live_shows')
+      .update({ status: 'ended', ended_at: new Date().toISOString() })
+      .eq('id', id);
+    if (error) throw error;
+    res.json({ message: 'Show terminado' });
+  } catch (err) {
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
+// POST /api/admin/notifications/broadcast — push masiva a todos los usuarios
+export const broadcastNotification = async (req, res) => {
+  try {
+    const { title, body } = req.body;
+    if (!title?.trim() || !body?.trim()) {
+      return res.status(400).json({ error: 'title y body requeridos' });
+    }
+    const result = await sendBroadcastNotification(title.trim(), body.trim());
+    res.json(result);
+  } catch (err) {
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };

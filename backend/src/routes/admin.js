@@ -4,10 +4,11 @@ import { isAdmin } from '../middleware/admin.js';
 import {
   getStats, getUsers, getCreators, getShows,
   setUserPremium, setUserTier, setUserVerified, setUserCreator, setUserAdult,
-  deleteUser,
+  adjustUserCoins, deleteUser,
   getWithdrawals, processWithdrawal,
   getVerifications, processVerification,
   getContentQueue, processContent,
+  endShow, broadcastNotification,
 } from '../controllers/adminController.js';
 
 const router = Router();
@@ -24,8 +25,12 @@ router.patch('/users/tier',     setUserTier);
 router.patch('/users/verified', setUserVerified);
 router.patch('/users/creator',  setUserCreator);
 router.patch('/users/adult',    setUserAdult);
+router.patch('/users/coins',    adjustUserCoins);
 
 router.delete('/users/:userId', deleteUser);
+
+router.patch('/shows/:id/end',  endShow);
+router.post('/notifications/broadcast', broadcastNotification);
 
 router.get('/withdrawals',          getWithdrawals);
 router.patch('/withdrawals/:id',    processWithdrawal);

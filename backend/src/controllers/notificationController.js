@@ -77,6 +77,34 @@ export const updateNotifPrefs = async (req, res) => {
   }
 };
 
+// Enviar push a todos los suscriptores (broadcast admin)
+export const sendBroadcastNotification = async (title, body) => {
+  if (!VAPID_PUBLIC || !VAPID_PRIVATE) return { sent: 0, failed: 0, total: 0 };
+
+  const { data: subs } = await supabase
+    .from('push_subscriptions')
+    .select('user_id, subscription');
+
+  if (!subs?.length) return { sent: 0, failed: 0, total: 0 };
+
+  const payload = JSON.stringify({ title, body, icon: '/icons/icon-192.png' });
+  let sent = 0, failed = 0;
+
+  await Promise.all(subs.map(async (row) => {
+    try {
+      await webpush.sendNotification(row.subscription, payload);
+      sent++;
+    } catch (err) {
+      failed++;
+      if (err.statusCode === 410 || err.statusCode === 404) {
+        await supabase.from('push_subscriptions').delete().eq('user_id', row.user_id);
+      }
+    }
+  }));
+
+  return { sent, failed, total: subs.length };
+};
+
 // Función interna — enviar push a un usuario
 export const sendPushToUser = async (userId, payload) => {
   if (!VAPID_PUBLIC || !VAPID_PRIVATE) return;

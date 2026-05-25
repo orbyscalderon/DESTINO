@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import {
   FiUsers, FiHeart, FiMessageCircle, FiDollarSign, FiShield, FiStar,
   FiTrash2, FiVideo, FiZap, FiSearch, FiExternalLink, FiRadio, FiGrid,
-  FiCheck, FiX, FiCreditCard, FiImage,
+  FiCheck, FiX, FiCreditCard, FiImage, FiBell, FiPlus, FiMinus,
 } from 'react-icons/fi';
 import api from '../lib/api.js';
 import toast from 'react-hot-toast';
@@ -54,6 +54,11 @@ export default function Admin() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [usersPage, setUsersPage] = useState(0);
+  const [coinsEditing, setCoinsEditing] = useState(null);
+  const [coinsDelta, setCoinsDelta] = useState('');
+  const [broadcastTitle, setBroadcastTitle] = useState('');
+  const [broadcastBody, setBroadcastBody] = useState('');
+  const [sendingBroadcast, setSendingBroadcast] = useState(false);
 
   useEffect(() => { loadAll(); }, []);
 
@@ -95,8 +100,51 @@ export default function Admin() {
     }
   };
 
-  const togglePremium = (u) => patch('/api/admin/users/premium', { userId: u.id, isPremium: !u.is_premium },
-    () => setUsers(prev => prev.map(x => x.id === u.id ? { ...x, is_premium: !u.is_premium } : x)));
+  const TIER_CYCLE = { basic: 'premium', premium: 'vip', vip: 'basic' };
+  const cycleTier = (u) => {
+    const next = TIER_CYCLE[u.premium_tier || 'basic'];
+    patch('/api/admin/users/tier', { userId: u.id, tier: next },
+      () => setUsers(prev => prev.map(x => x.id === u.id
+        ? { ...x, premium_tier: next, is_premium: next !== 'basic' } : x)));
+  };
+
+  const adjustCoins = async (u) => {
+    const delta = parseInt(coinsDelta);
+    if (!delta || isNaN(delta)) return;
+    try {
+      const res = await api.patch('/api/admin/users/coins', { userId: u.id, delta });
+      setUsers(prev => prev.map(x => x.id === u.id ? { ...x, coins_balance: res.data.new_balance } : x));
+      setCoinsEditing(null);
+      setCoinsDelta('');
+      toast.success(`Coins ajustados → ${res.data.new_balance}`);
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Error al ajustar coins');
+    }
+  };
+
+  const handleBroadcast = async () => {
+    if (!broadcastTitle.trim() || !broadcastBody.trim()) return;
+    setSendingBroadcast(true);
+    try {
+      const res = await api.post('/api/admin/notifications/broadcast', { title: broadcastTitle, body: broadcastBody });
+      toast.success(`Enviado a ${res.data.sent} / ${res.data.total} usuarios`);
+      setBroadcastTitle('');
+      setBroadcastBody('');
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Error al enviar notificación');
+    } finally {
+      setSendingBroadcast(false);
+    }
+  };
+
+  const handleEndShow = async (id) => {
+    if (!confirm('¿Terminar este show ahora?')) return;
+    try {
+      await api.patch(`/api/admin/shows/${id}/end`);
+      setShows(prev => prev.map(s => s.id === id ? { ...s, status: 'ended' } : s));
+      toast.success('Show terminado');
+    } catch { toast.error('Error al terminar show'); }
+  };
 
   const toggleVerified = (u) => patch('/api/admin/users/verified', { userId: u.id, isVerified: !u.is_verified },
     () => setUsers(prev => prev.map(x => x.id === u.id ? { ...x, is_verified: !u.is_verified } : x)));
@@ -186,7 +234,7 @@ export default function Admin() {
               { icon: FiUsers,       label: 'Usuarios',   value: stats.users,    color: 'text-blue-400' },
               { icon: FiHeart,       label: 'Matches',    value: stats.matches,  color: 'text-brand-400' },
               { icon: FiMessageCircle,label:'Mensajes',   value: stats.messages, color: 'text-green-400' },
-              { icon: FiStar,        label: 'Premium',    value: stats.premium,  color: 'text-yellow-400' },
+              { icon: FiStar,        label: 'Premium',    value: stats.premium,  color: 'text-brand-400' },
             ].map(({ icon: Icon, label, value, color }) => (
               <div key={label} className="card p-4">
                 <Icon size={18} className={`${color} mb-2`} />
@@ -195,19 +243,48 @@ export default function Admin() {
               </div>
             ))}
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
             {[
-              { icon: FiVideo,  label: 'Creadores', value: stats.creators, color: 'text-purple-400' },
-              { icon: FiRadio,  label: 'Shows',     value: stats.shows,   color: 'text-orange-400' },
-              { icon: FiDollarSign, label: 'Ganancias', value: `$${(stats.total_earnings || 0).toFixed(2)}`, color: 'text-green-400' },
-              { icon: FiZap,    label: 'Coins total', value: (stats.coins_total || 0).toLocaleString(), color: 'text-yellow-400' },
+              { icon: FiVideo,      label: 'Creadores',  value: stats.creators,                                   color: 'text-purple-400' },
+              { icon: FiRadio,      label: 'Shows',      value: stats.shows,                                      color: 'text-orange-400' },
+              { icon: FiDollarSign, label: 'Ganancias',  value: `$${(stats.total_earnings || 0).toFixed(2)}`,     color: 'text-green-400' },
+              { icon: FiZap,        label: 'Coins total',value: (stats.coins_total || 0).toLocaleString(),        color: 'text-yellow-400' },
+              { icon: FiStar,       label: 'VIP',        value: stats.vip,                                        color: 'text-yellow-400' },
             ].map(({ icon: Icon, label, value, color }) => (
               <div key={label} className="card p-4">
                 <Icon size={18} className={`${color} mb-2`} />
-                <div className="text-2xl font-black text-white">{value}</div>
+                <div className="text-2xl font-black text-white">{value ?? 0}</div>
                 <div className="text-gray-500 text-xs">{label}</div>
               </div>
             ))}
+          </div>
+
+          {/* Broadcast push notification */}
+          <div className="card p-4 border-brand-500/20">
+            <div className="flex items-center gap-2 mb-3">
+              <FiBell size={15} className="text-brand-400" />
+              <h3 className="text-sm font-bold text-white">Notificación push masiva</h3>
+            </div>
+            <input
+              value={broadcastTitle}
+              onChange={e => setBroadcastTitle(e.target.value)}
+              placeholder="Título..."
+              className="input-field py-2 text-sm w-full mb-2"
+            />
+            <textarea
+              value={broadcastBody}
+              onChange={e => setBroadcastBody(e.target.value)}
+              placeholder="Mensaje..."
+              rows={2}
+              className="input-field py-2 text-sm w-full resize-none mb-2"
+            />
+            <button
+              onClick={handleBroadcast}
+              disabled={sendingBroadcast || !broadcastTitle.trim() || !broadcastBody.trim()}
+              className="w-full btn-primary py-2 text-sm font-bold disabled:opacity-40"
+            >
+              {sendingBroadcast ? 'Enviando...' : 'Enviar a todos los usuarios'}
+            </button>
           </div>
 
           {/* Últimos usuarios */}
@@ -259,7 +336,7 @@ export default function Admin() {
                   disabled={bulkLoading}
                   onClick={async () => {
                     setBulkLoading(true);
-                    await Promise.all([...selectedUsers].map(id => api.patch('/api/admin/users/premium', { userId: id, isPremium: true }).catch(() => {})));
+                    await Promise.all([...selectedUsers].map(id => api.patch('/api/admin/users/tier', { userId: id, tier: 'premium' }).catch(() => {})));
                     setUsers(p => p.map(u => selectedUsers.has(u.id) ? { ...u, is_premium: true, premium_tier: 'premium' } : u));
                     setSelectedUsers(new Set());
                     setBulkLoading(false);
@@ -273,7 +350,21 @@ export default function Admin() {
                   disabled={bulkLoading}
                   onClick={async () => {
                     setBulkLoading(true);
-                    await Promise.all([...selectedUsers].map(id => api.patch('/api/admin/users/verified', { userId: id, value: true }).catch(() => {})));
+                    await Promise.all([...selectedUsers].map(id => api.patch('/api/admin/users/tier', { userId: id, tier: 'vip' }).catch(() => {})));
+                    setUsers(p => p.map(u => selectedUsers.has(u.id) ? { ...u, is_premium: true, premium_tier: 'vip' } : u));
+                    setSelectedUsers(new Set());
+                    setBulkLoading(false);
+                    toast.success('VIP aplicado');
+                  }}
+                  className="text-xs px-2.5 py-1 rounded-lg bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30 font-medium transition-colors disabled:opacity-50"
+                >
+                  👑 VIP
+                </button>
+                <button
+                  disabled={bulkLoading}
+                  onClick={async () => {
+                    setBulkLoading(true);
+                    await Promise.all([...selectedUsers].map(id => api.patch('/api/admin/users/verified', { userId: id, isVerified: true }).catch(() => {})));
                     setUsers(p => p.map(u => selectedUsers.has(u.id) ? { ...u, is_verified: true } : u));
                     setSelectedUsers(new Set());
                     setBulkLoading(false);
@@ -319,12 +410,15 @@ export default function Admin() {
                 {/* Acciones */}
                 <div className="flex flex-wrap gap-1.5">
                   <button
-                    onClick={() => togglePremium(u)}
+                    onClick={() => cycleTier(u)}
+                    title="Click para cambiar tier: Básico → Premium → VIP → Básico"
                     className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors ${
-                      u.is_premium ? 'bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30' : 'bg-dark-700 text-gray-500 hover:text-yellow-400'
+                      u.premium_tier === 'vip'     ? 'bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30' :
+                      u.premium_tier === 'premium' ? 'bg-brand-500/20 text-brand-400 hover:bg-brand-500/30' :
+                                                     'bg-dark-700 text-gray-500 hover:text-yellow-400'
                     }`}
                   >
-                    <FiStar size={11} /> {u.is_premium ? 'Premium ✓' : 'Premium'}
+                    {u.premium_tier === 'vip' ? '👑 VIP ✓' : u.premium_tier === 'premium' ? '⚡ Premium ✓' : <><FiStar size={11} /> Tier</>}
                   </button>
                   <button
                     onClick={() => toggleVerified(u)}
@@ -351,12 +445,36 @@ export default function Admin() {
                     🔞 {u.is_adult_creator ? 'Adulto ✓' : 'Adulto'}
                   </button>
                   <button
+                    onClick={() => { setCoinsEditing(coinsEditing === u.id ? null : u.id); setCoinsDelta(''); }}
+                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium bg-dark-700 text-gray-500 hover:text-yellow-400 transition-colors"
+                  >
+                    <FiZap size={11} /> Coins
+                  </button>
+                  <button
                     onClick={() => removeUser(u)}
                     className="ml-auto flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium bg-dark-700 text-gray-500 hover:bg-red-500/20 hover:text-red-400 transition-colors"
                   >
                     <FiTrash2 size={11} /> Eliminar
                   </button>
                 </div>
+
+                {coinsEditing === u.id && (
+                  <div className="flex items-center gap-2 mt-2 pt-2 border-t border-white/5">
+                    <span className="text-xs text-gray-500">Balance: <span className="text-yellow-400 font-bold">{u.coins_balance || 0}</span></span>
+                    <button onClick={() => setCoinsDelta(d => String((parseInt(d)||0) - 10))} className="w-6 h-6 rounded-lg bg-dark-700 text-gray-400 hover:text-red-400 flex items-center justify-center text-xs transition-colors"><FiMinus size={10}/></button>
+                    <input
+                      type="number"
+                      value={coinsDelta}
+                      onChange={e => setCoinsDelta(e.target.value)}
+                      placeholder="±coins"
+                      className="w-20 bg-dark-700 border border-white/10 rounded-lg px-2 py-1 text-xs text-white text-center focus:outline-none focus:border-brand-500"
+                    />
+                    <button onClick={() => setCoinsDelta(d => String((parseInt(d)||0) + 10))} className="w-6 h-6 rounded-lg bg-dark-700 text-gray-400 hover:text-green-400 flex items-center justify-center text-xs transition-colors"><FiPlus size={10}/></button>
+                    <button onClick={() => adjustCoins(u)} disabled={!coinsDelta} className="flex-1 py-1 rounded-lg bg-brand-500/20 text-brand-400 hover:bg-brand-500/30 text-xs font-semibold transition-colors disabled:opacity-40">
+                      Aplicar
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -481,9 +599,19 @@ export default function Admin() {
                   }`}>
                     {s.status === 'live' ? '● EN VIVO' : s.status === 'scheduled' ? 'Programado' : 'Terminado'}
                   </span>
-                  <Link to={`/shows/${s.id}`} className="text-gray-600 hover:text-brand-400">
-                    <FiExternalLink size={12} />
-                  </Link>
+                  <div className="flex items-center gap-2">
+                    {s.status === 'live' && (
+                      <button
+                        onClick={() => handleEndShow(s.id)}
+                        className="text-[10px] px-2 py-0.5 rounded-full bg-red-500/20 text-red-400 hover:bg-red-500/30 font-bold transition-colors"
+                      >
+                        Terminar
+                      </button>
+                    )}
+                    <Link to={`/shows/${s.id}`} className="text-gray-600 hover:text-brand-400">
+                      <FiExternalLink size={12} />
+                    </Link>
+                  </div>
                 </div>
               </div>
             );
