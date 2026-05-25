@@ -175,6 +175,9 @@ export default function LiveShow() {
   const screenTrackRef = useRef(null);
   const prevViewerRef  = useRef(0);
 
+  // Host stream — applied via useEffect once the studio video element is mounted
+  const [pendingLocalStream, setPendingLocalStream] = useState(null);
+
   // Pre-show
   const [preShow, setPreShow]             = useState(false);
   const [permCamera, setPermCamera]       = useState('idle');
@@ -271,6 +274,13 @@ export default function LiveShow() {
     }
     setPendingViewerTracks(null);
   }, [inShow, pendingViewerTracks]);
+
+  // Apply host's local stream once the studio video element is mounted
+  useEffect(() => {
+    if (!inShow || !pendingLocalStream) return;
+    if (localVideoRef.current) localVideoRef.current.srcObject = pendingLocalStream;
+    setPendingLocalStream(null);
+  }, [inShow, pendingLocalStream]);
 
   const loadShow = async () => {
     try {
@@ -525,7 +535,7 @@ export default function LiveShow() {
       }
       localStreamRef.current = stream;
       previewStreamRef.current = null;
-      if (localVideoRef.current) localVideoRef.current.srcObject = stream;
+      setPendingLocalStream(stream);
 
       // Init LiveKit and publish — skipAutoMedia: host already has the stream from pre-show
       const rtc = new LiveKitSession(roomId);
