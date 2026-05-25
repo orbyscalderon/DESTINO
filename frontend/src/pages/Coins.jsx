@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiZap, FiArrowLeft, FiClock, FiStar, FiTag } from 'react-icons/fi';
+import { FiZap, FiArrowLeft, FiClock, FiStar, FiTag, FiFilter } from 'react-icons/fi';
 import { Link, useNavigate } from 'react-router-dom';
 import api from '../lib/api.js';
 import toast from 'react-hot-toast';
@@ -19,6 +19,7 @@ export default function Coins() {
   const [loading, setLoading] = useState(true);
   const [buying, setBuying] = useState(null);
   const [paymentModal, setPaymentModal] = useState(null); // { clientSecret, paymentIntentId, pkg }
+  const [txFilter, setTxFilter] = useState('all');
 
   useEffect(() => {
     Promise.all([
@@ -47,7 +48,7 @@ export default function Coins() {
   const handlePaymentSuccess = async (paymentIntentId) => {
     try {
       const confirm = await api.post('/api/coins/purchase/confirm', { paymentIntentId });
-      setBalance(confirm.data.coins);
+      setBalance(prev => confirm.data.coins ?? prev);
       toast.success(`¡${paymentModal.pkg.coins} coins añadidos!`);
       setPaymentModal(null);
       const t = await api.get('/api/coins/transactions');
@@ -58,15 +59,37 @@ export default function Coins() {
   };
 
   const typeLabel = {
-    purchase:     'Compra',
-    tip_sent:     'Propina enviada',
-    tip_received: 'Propina recibida',
-    ppv_spent:    'PPV desbloqueado',
-    ppv_received: 'PPV vendido',
-    bonus:        'Bonus',
-    refund:       'Reembolso',
-    boost:        'Boost de visibilidad',
+    purchase:       'Compra',
+    tip_sent:       'Propina enviada',
+    tip_received:   'Propina recibida',
+    ppv_spent:      'PPV desbloqueado',
+    ppv_received:   'PPV vendido',
+    video_purchase: 'Vídeo desbloqueado',
+    video_sale:     'Vídeo vendido',
+    bonus:          'Bonus',
+    refund:         'Reembolso',
+    boost:          'Boost de visibilidad',
+    show_tip:       'Propina en show',
+    video_request:  'Solicitud de vídeo',
   };
+
+  const TX_FILTERS = [
+    { key: 'all',      label: 'Todo' },
+    { key: 'income',   label: 'Ingresos' },
+    { key: 'spend',    label: 'Gastos' },
+    { key: 'purchase', label: 'Compras' },
+  ];
+
+  const INCOME_TYPES  = new Set(['tip_received', 'ppv_received', 'video_sale', 'bonus', 'refund', 'show_tip']);
+  const SPEND_TYPES   = new Set(['tip_sent', 'ppv_spent', 'video_purchase', 'boost', 'video_request']);
+
+  const filteredTx = useMemo(() => {
+    if (txFilter === 'all')      return transactions;
+    if (txFilter === 'income')   return transactions.filter(t => t.amount > 0 || INCOME_TYPES.has(t.type));
+    if (txFilter === 'spend')    return transactions.filter(t => t.amount < 0 || SPEND_TYPES.has(t.type));
+    if (txFilter === 'purchase') return transactions.filter(t => t.type === 'purchase');
+    return transactions;
+  }, [transactions, txFilter]);
 
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center">
@@ -170,11 +193,30 @@ export default function Coins() {
 
       {transactions.length > 0 && (
         <>
-          <h2 className="font-semibold text-gray-300 mb-3 flex items-center gap-2">
-            <FiClock size={14} /> Historial
-          </h2>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-semibold text-gray-300 flex items-center gap-2">
+              <FiClock size={14} /> Historial
+            </h2>
+            <div className="flex gap-1">
+              {TX_FILTERS.map(f => (
+                <button
+                  key={f.key}
+                  onClick={() => setTxFilter(f.key)}
+                  className={`text-[11px] px-2.5 py-1 rounded-full font-medium transition-colors ${
+                    txFilter === f.key
+                      ? 'bg-brand-500 text-white'
+                      : 'bg-dark-700 text-gray-400 hover:text-gray-200'
+                  }`}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+          </div>
           <div className="card divide-y divide-white/5">
-            {transactions.map(t => (
+            {filteredTx.length === 0 ? (
+              <p className="text-gray-600 text-sm text-center py-6">Sin transacciones en esta categoría</p>
+            ) : filteredTx.map(t => (
               <div key={t.id} className="flex items-center justify-between p-3">
                 <div>
                   <p className="text-white text-sm">{typeLabel[t.type] || t.type}</p>

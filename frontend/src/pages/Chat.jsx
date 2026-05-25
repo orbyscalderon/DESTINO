@@ -21,9 +21,10 @@ export default function Chat() {
   useEffect(() => {
     const loadMatch = async () => {
       try {
-        const { data } = await api.get('/api/matches');
-        const m = data.matches?.find(m => m.id === matchId);
-        setMatch(m);
+        const { data } = await api.get(`/api/matches/${matchId}`);
+        setMatch(data.match || null);
+      } catch {
+        setMatch(null);
       } finally {
         setLoading(false);
       }

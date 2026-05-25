@@ -302,6 +302,38 @@ export const getMatches = async (req, res) => {
   }
 };
 
+// GET /api/matches/:matchId — devuelve un match concreto (para Chat.jsx)
+export const getMatch = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { matchId } = req.params;
+
+    const { data: m, error } = await supabase
+      .from('matches')
+      .select(`
+        id, is_match, created_at, expires_at, user1_id, user2_id,
+        user1:profiles!user1_id(id, full_name, avatar_url, is_premium, is_verified, last_active, country, language),
+        user2:profiles!user2_id(id, full_name, avatar_url, is_premium, is_verified, last_active, country, language)
+      `)
+      .eq('id', matchId)
+      .eq('is_match', true)
+      .or(`user1_id.eq.${userId},user2_id.eq.${userId}`)
+      .maybeSingle();
+
+    if (error) throw error;
+    if (!m) return res.status(404).json({ error: 'Match no encontrado' });
+
+    const other = m.user1_id === userId ? m.user2 : m.user1;
+    const isOnline = other?.last_active
+      ? (Date.now() - new Date(other.last_active).getTime()) < 5 * 60 * 1000
+      : false;
+
+    res.json({ match: { id: m.id, created_at: m.created_at, other: { ...other, is_online: isOnline } } });
+  } catch (err) {
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
 // POST /api/matches/likes/add — añade likes desbloqueados por anuncio (persiste en BD)
 export const addBonusLikes = async (req, res) => {
   try {

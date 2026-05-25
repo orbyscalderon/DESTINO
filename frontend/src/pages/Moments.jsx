@@ -253,7 +253,7 @@ export default function Moments() {
     const isVideo = file.type.startsWith('video/');
     const processed = isVideo ? file : await compressImage(file);
     setMediaFile(processed);
-    setMediaPreview(URL.createObjectURL(processed));
+    setMediaPreview(prev => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(processed); });
   };
 
   const handleCreatePost = async () => {
@@ -274,7 +274,7 @@ export default function Moments() {
       setShowCreateModal(false);
       setNewPost({ caption: '', is_adult: false, is_subscribers_only: false });
       setMediaFile(null);
-      setMediaPreview(null);
+      setMediaPreview(prev => { if (prev) URL.revokeObjectURL(prev); return null; });
       toast.success('Publicado');
     } catch (err) {
       toast.error(err.response?.data?.error || 'Error al publicar');
@@ -344,7 +344,7 @@ export default function Moments() {
             >
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-bold text-white">Nuevo Momento</h3>
-                <button onClick={() => { setShowCreateModal(false); setMediaPreview(null); setMediaFile(null); }}>
+                <button onClick={() => { setShowCreateModal(false); setMediaPreview(prev => { if (prev) URL.revokeObjectURL(prev); return null; }); setMediaFile(null); }}>
                   <FiX className="text-gray-400" size={20} />
                 </button>
               </div>
@@ -394,7 +394,7 @@ export default function Moments() {
               <input ref={fileRef} type="file" accept="image/*,video/*" className="hidden" onChange={handleMediaSelect} />
 
               <div className="flex gap-3">
-                <button onClick={() => { setShowCreateModal(false); setMediaPreview(null); setMediaFile(null); }} className="btn-secondary flex-1">
+                <button onClick={() => { setShowCreateModal(false); setMediaPreview(prev => { if (prev) URL.revokeObjectURL(prev); return null; }); setMediaFile(null); }} className="btn-secondary flex-1">
                   Cancelar
                 </button>
                 <button onClick={handleCreatePost} disabled={creating} className="btn-primary flex-1">

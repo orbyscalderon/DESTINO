@@ -5,6 +5,7 @@ import {
   likeProfile,
   dislikeProfile,
   getMatches,
+  getMatch,
   getWhoLikedMe,
   getLikesCount,
   addBonusLikes,
@@ -21,6 +22,7 @@ router.post('/undo', premiumMiddleware, undoLastSwipe);
 router.post('/likes/add', addBonusLikes);
 router.get('/likes/count', getLikesCount);
 router.get('/', getMatches);
-router.get('/likes', premiumMiddleware, getWhoLikedMe); // Solo premium
+router.get('/likes', premiumMiddleware, getWhoLikedMe); // Solo premium — debe ir antes de /:matchId
+router.get('/:matchId', getMatch);
 
 export default router;

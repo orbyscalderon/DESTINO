@@ -243,12 +243,10 @@ export default function Discover() {
   };
 
   const removeFromFeed = (id) => {
-    setFeed(prev => {
-      const next = prev.filter(p => p.id !== id);
-      if (next[1]?.avatar_url) preloadImage(next[1].avatar_url);
-      if (next.length <= 3) loadFeed(activeFilters);
-      return next;
-    });
+    const remaining = feed.filter(p => p.id !== id);
+    if (remaining[1]?.avatar_url) preloadImage(remaining[1].avatar_url);
+    setFeed(remaining);
+    if (remaining.length <= 3 && remaining.length > 0) loadFeed(activeFilters);
   };
 
   const handleWatchAd = async () => {

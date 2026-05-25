@@ -108,6 +108,7 @@ export default function Notifications() {
         setNotifications(prev => prev.map(n => n.id === notif.id ? { ...n, is_read: true } : n));
         setUnreadCount(prev => Math.max(0, prev - 1));
       }
+      toast('Solicitud ignorada', { icon: '👋' });
     } finally {
       setFriendProcessing(prev => { const s = { ...prev }; delete s[notif.id]; return s; });
     }

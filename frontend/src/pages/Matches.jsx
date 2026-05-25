@@ -9,7 +9,7 @@ import VerifiedBadge from '../components/ui/VerifiedBadge.jsx';
 
 function isNew(dateStr) {
   if (!dateStr) return false;
-  return (Date.now() - new Date(dateStr)) < 86400000;
+  return (Date.now() - new Date(dateStr)) < 172800000; // 48 h
 }
 
 export default function Matches() {
@@ -30,7 +30,8 @@ export default function Matches() {
           : Promise.resolve({ data: { likes: [] } }),
       ]);
       const all = mRes.data.matches || [];
-      setNewMatches(all.filter(m => !m.last_message));
+      // "Nuevos" = sin mensaje Y creados en últimas 48 h; el resto sigue visible pero sin badge
+      setNewMatches(all.filter(m => !m.last_message && isNew(m.created_at)));
       setLikes(lRes.data.likes || []);
     } finally {
       setLoading(false);

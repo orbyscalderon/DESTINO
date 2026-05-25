@@ -35,6 +35,7 @@ export default function Profile() {
   const [pricingPhoto, setPricingPhoto] = useState(null); // { id, is_paid, price }
   const [videos, setVideos] = useState([]);
   const [uploadingVideo, setUploadingVideo] = useState(false);
+  const [videoUploadProgress, setVideoUploadProgress] = useState(0);
   const [pricingVideo, setPricingVideo] = useState(null); // { id, is_paid, price, title }
   const [videoTab, setVideoTab] = useState('gallery'); // 'gallery' | 'requests'
   const [videoRequests, setVideoRequests] = useState([]);
@@ -147,19 +148,26 @@ export default function Profile() {
     if (!file) return;
     e.target.value = '';
     setUploadingVideo(true);
+    setVideoUploadProgress(0);
     const fd = new FormData();
     fd.append('video', file);
     fd.append('title', '');
     fd.append('is_paid', 'false');
     fd.append('price', '0');
     try {
-      await api.post('/api/profiles/videos', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      await api.post('/api/profiles/videos', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        onUploadProgress: (e) => {
+          if (e.total) setVideoUploadProgress(Math.round((e.loaded / e.total) * 100));
+        },
+      });
       await loadVideos();
       toast.success('Video subido');
     } catch (err) {
       toast.error(err.response?.data?.error || 'Error al subir el video');
     } finally {
       setUploadingVideo(false);
+      setVideoUploadProgress(0);
     }
   };
 
@@ -1060,10 +1068,16 @@ export default function Profile() {
                     <button
                       onClick={() => videoRef.current.click()}
                       disabled={uploadingVideo}
-                      className="aspect-video rounded-xl border-2 border-dashed border-white/10 flex flex-col items-center justify-center gap-1.5 hover:border-brand-500/40 hover:bg-brand-500/5 transition-all"
+                      className="aspect-video rounded-xl border-2 border-dashed border-white/10 flex flex-col items-center justify-center gap-1.5 hover:border-brand-500/40 hover:bg-brand-500/5 transition-all overflow-hidden relative"
                     >
                       {uploadingVideo ? (
-                        <div className="w-5 h-5 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
+                        <>
+                          <div className="w-5 h-5 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
+                          <span className="text-brand-400 text-[10px] font-semibold">{videoUploadProgress}%</span>
+                          {videoUploadProgress > 0 && (
+                            <div className="absolute bottom-0 left-0 h-1 bg-brand-500 transition-all" style={{ width: `${videoUploadProgress}%` }} />
+                          )}
+                        </>
                       ) : (
                         <>
                           <FiPlus className="text-gray-500" size={20} />
