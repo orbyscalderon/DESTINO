@@ -21,6 +21,7 @@ import {
   getLeaderboard,
   validatePrivateShow,
   privateShowTick,
+  heartbeatShow,
 } from '../controllers/showController.js';
 
 const router = Router();
@@ -46,5 +47,6 @@ router.delete('/:id/ban/:userId', unbanUserFromShow);
 router.patch('/:id/recording',        setRecordingUrl);
 router.post('/:id/private/validate',  validatePrivateShow);
 router.post('/:id/private/tick',      privateShowTick);
+router.post('/:id/heartbeat',         heartbeatShow);
 
 export default router;

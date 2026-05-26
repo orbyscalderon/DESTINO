@@ -254,7 +254,7 @@ export const startShow = async (req, res) => {
 
     const { data: updated } = await supabase
       .from('live_shows')
-      .update({ status: 'live', started_at: new Date().toISOString() })
+      .update({ status: 'live', started_at: new Date().toISOString(), host_heartbeat_at: new Date().toISOString() })
       .eq('id', id)
       .select()
       .single();
@@ -1015,6 +1015,27 @@ export const privateShowTick = async (req, res) => {
     if (err.message === 'Saldo insuficiente') {
       return res.status(402).json({ error: 'Saldo insuficiente', code: 'INSUFFICIENT_COINS' });
     }
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
+
+// POST /api/shows/:id/heartbeat — host keepalive while show is live
+export const heartbeatShow = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const hostId = req.user.id;
+
+    const { error } = await supabase
+      .from('live_shows')
+      .update({ host_heartbeat_at: new Date().toISOString() })
+      .eq('id', id)
+      .eq('host_id', hostId)
+      .eq('status', 'live');
+
+    if (error) return res.status(400).json({ error: error.message });
+    res.json({ ok: true });
+  } catch (err) {
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };

@@ -247,12 +247,9 @@ export default function LiveShow() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Cleanup on React unmount (SPA navigation away)
+  // Cleanup on React unmount (SPA navigation away) — never auto-end; host must click Terminar
   useEffect(() => {
     return () => {
-      if (isLiveRef.current && isHostRef.current) {
-        api.post(`/api/shows/${id}/end`).catch(() => {});
-      }
       cleanupPreviewTracks();
       leaveShowChannel();
       leaveShow();
@@ -260,22 +257,15 @@ export default function LiveShow() {
     };
   }, []);
 
-  // End show if host closes the browser tab / window
+  // Heartbeat: while host is live, ping every 30 s so the backend knows the show is active.
+  // The cleanup job ends shows with no heartbeat for 10+ min (handles crashes/lost connection).
   useEffect(() => {
-    const handlePageHide = (e) => {
-      if (e.persisted || !isLiveRef.current || !isHostRef.current) return;
-      const token = authTokenRef.current;
-      if (!token) return;
-      const base = import.meta.env.DEV ? '' : (import.meta.env.VITE_API_URL ?? '');
-      fetch(`${base}/api/shows/${id}/end`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-        keepalive: true,
-      }).catch(() => {});
-    };
-    window.addEventListener('pagehide', handlePageHide);
-    return () => window.removeEventListener('pagehide', handlePageHide);
-  }, [id]);
+    if (!isLive || !show || show.host?.id !== user?.id) return;
+    const ping = () => api.post(`/api/shows/${id}/heartbeat`).catch(() => {});
+    ping(); // immediate first ping
+    const timer = setInterval(ping, 30_000);
+    return () => clearInterval(timer);
+  }, [isLive, id, show?.host?.id, user?.id]);
 
   // Apply pending viewer tracks once the video element is in the DOM (inShow=true)
   useEffect(() => {
