@@ -252,12 +252,25 @@ export const startShow = async (req, res) => {
     if (show.host_id !== hostId) return res.status(403).json({ error: 'No autorizado' });
     if (show.status === 'ended') return res.status(400).json({ error: 'El show ya terminó' });
 
-    const { data: updated } = await supabase
+    const now = new Date().toISOString();
+    let { data: updated, error: startErr } = await supabase
       .from('live_shows')
-      .update({ status: 'live', started_at: new Date().toISOString(), host_heartbeat_at: new Date().toISOString() })
+      .update({ status: 'live', started_at: now, host_heartbeat_at: now })
       .eq('id', id)
       .select()
       .single();
+
+    // Fallback si host_heartbeat_at aún no existe (migración pendiente)
+    if (startErr?.message?.includes('host_heartbeat_at') || startErr?.message?.includes('column')) {
+      ({ data: updated, error: startErr } = await supabase
+        .from('live_shows')
+        .update({ status: 'live', started_at: now })
+        .eq('id', id)
+        .select()
+        .single());
+    }
+
+    if (startErr) throw startErr;
 
     res.json({ show: updated });
 
@@ -1033,7 +1046,10 @@ export const heartbeatShow = async (req, res) => {
       .eq('host_id', hostId)
       .eq('status', 'live');
 
-    if (error) return res.status(400).json({ error: error.message });
+    // Si la columna aún no existe, ignorar silenciosamente
+    if (error && !error.message?.includes('host_heartbeat_at') && !error.message?.includes('column')) {
+      return res.status(400).json({ error: error.message });
+    }
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: 'Error interno del servidor' });

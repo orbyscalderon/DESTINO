@@ -153,15 +153,18 @@ async function cleanStaleLiveShows() {
   if (e2) console.error('Cleanup stuck live shows error:', e2.message);
 
   // Expire shows with no host heartbeat for 10+ minutes (host crashed/lost connection)
-  const heartbeatCutoff = new Date(Date.now() - 10 * 60 * 1000).toISOString();
-  const { error: e3 } = await supabase
-    .from('live_shows')
-    .update({ status: 'ended', ended_at: now })
-    .eq('status', 'live')
-    .not('host_heartbeat_at', 'is', null)
-    .lt('host_heartbeat_at', heartbeatCutoff);
-
-  if (e3) console.error('Cleanup heartbeat-stale shows error:', e3.message);
+  try {
+    const heartbeatCutoff = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+    const { error: e3 } = await supabase
+      .from('live_shows')
+      .update({ status: 'ended', ended_at: now })
+      .eq('status', 'live')
+      .not('host_heartbeat_at', 'is', null)
+      .lt('host_heartbeat_at', heartbeatCutoff);
+    if (e3 && !e3.message?.includes('host_heartbeat_at') && !e3.message?.includes('column')) {
+      console.error('Cleanup heartbeat-stale shows error:', e3.message);
+    }
+  } catch { /* columna pendiente de migración */ }
 }
 
 export function startCleanupJob() {

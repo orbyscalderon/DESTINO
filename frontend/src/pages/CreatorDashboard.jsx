@@ -91,7 +91,7 @@ export default function CreatorDashboard() {
   const [loading, setLoading]             = useState(true);
   const [refreshing, setRefreshing]       = useState(false);
 
-  const [tab, setTab] = useState('overview');
+  const [tab, setTab] = useState(() => searchParams.get('tab') || 'overview');
 
   // Subscribers
   const [subscribers, setSubscribers]   = useState(null);

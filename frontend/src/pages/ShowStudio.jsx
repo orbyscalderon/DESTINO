@@ -204,7 +204,7 @@ export default function ShowStudio() {
       await api.post('/api/shows', buildPayload());
       toast.success('Show guardado en Mis Shows');
       stopPreview();
-      navigate('/creator/dashboard', { state: { tab: 'shows' } });
+      navigate('/creator/dashboard?tab=shows');
     } catch (err) {
       toast.error(err.response?.data?.error || 'Error al guardar');
     } finally { setSaving(false); }
