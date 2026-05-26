@@ -1263,109 +1263,90 @@ export default function LiveShow() {
           </div>
 
           {/* ── Controles del estudio ── */}
-          <div className="bg-dark-800 border-t border-white/5 px-3 py-3 shrink-0">
+          <div className="bg-dark-800 border-t border-white/5 px-3 py-2.5 shrink-0">
 
-            {/* Fila 1: dispositivos (solo cuando hay más de 1) */}
-            {(cameraDevices.length > 1 || micDevices.length > 1) && (
-              <div className="flex gap-2 mb-3">
-                {cameraDevices.length > 1 && (
-                  <select
-                    value={selectedCameraId}
-                    onChange={e => switchLiveCamera(e.target.value)}
-                    className="flex-1 min-w-0 bg-dark-700 border border-white/10 text-white text-xs rounded-xl px-2 py-1.5 outline-none truncate"
-                  >
-                    {cameraDevices.map(d => (
-                      <option key={d.deviceId} value={d.deviceId}>{d.label || `Cámara ${d.deviceId.slice(0,6)}`}</option>
-                    ))}
-                  </select>
-                )}
-                {micDevices.length > 1 && (
-                  <select
-                    value={selectedMicId}
-                    onChange={e => switchLiveMic(e.target.value)}
-                    className="flex-1 min-w-0 bg-dark-700 border border-white/10 text-white text-xs rounded-xl px-2 py-1.5 outline-none truncate"
-                  >
-                    {micDevices.map(d => (
-                      <option key={d.deviceId} value={d.deviceId}>{d.label || `Micrófono ${d.deviceId.slice(0,6)}`}</option>
-                    ))}
-                  </select>
-                )}
-              </div>
-            )}
+            {/* Fila única: todos los controles + device selects compactos + Terminar */}
+            <div className="flex items-center gap-1.5 flex-wrap">
 
-            {/* Fila 2: botones de control */}
-            <div className="flex items-center gap-2">
-              {/* Botones principales — scroll horizontal si no caben */}
-              <div className="flex gap-2 flex-1 overflow-x-auto scrollbar-hide">
-                {/* Mic + VU meter */}
-                <button onClick={toggleMute}
-                  className={`flex flex-col items-center justify-center gap-0 min-w-[52px] w-14 py-2 rounded-xl transition-colors shrink-0 ${muted ? 'bg-red-500/20 border border-red-500/40' : 'bg-dark-700 hover:bg-dark-600'}`}
+              {/* Mic + VU meter */}
+              <button onClick={toggleMute}
+                className={`flex items-center gap-1.5 px-2.5 py-2 rounded-xl transition-colors ${muted ? 'bg-red-500/20 border border-red-500/40' : 'bg-dark-700 hover:bg-dark-600'}`}
+              >
+                {muted ? <FiMicOff size={15} className="text-red-400" /> : <FiMic size={15} className="text-white" />}
+                <div className="flex items-end gap-px" style={{ height: 10 }}>
+                  {[0.1, 0.3, 0.55, 0.3, 0.1].map((thr, i) => (
+                    <div key={i}
+                      className={`w-1 rounded-sm transition-colors duration-75 ${!muted && audioLevel > thr ? 'bg-green-400' : 'bg-white/10'}`}
+                      style={{ height: [4, 7, 10, 7, 4][i] }}
+                    />
+                  ))}
+                </div>
+              </button>
+
+              {/* Cámara */}
+              <button onClick={toggleCamera}
+                className={`flex items-center gap-1.5 px-2.5 py-2 rounded-xl transition-colors ${cameraOff ? 'bg-red-500/20 border border-red-500/40' : 'bg-dark-700 hover:bg-dark-600'}`}
+              >
+                {cameraOff ? <FiVideoOff size={15} className="text-red-400" /> : <FiVideo size={15} className="text-white" />}
+                <span className="text-[10px] text-gray-400">{cameraOff ? 'Sin cam' : 'Cám'}</span>
+              </button>
+
+              {/* Compartir pantalla */}
+              {isDesktop && (
+                <button onClick={toggleScreenShare}
+                  className={`flex items-center gap-1.5 px-2.5 py-2 rounded-xl transition-colors ${screenSharing ? 'bg-blue-500/20 border border-blue-500/40' : 'bg-dark-700 hover:bg-dark-600'}`}
                 >
-                  {muted ? <FiMicOff size={17} className="text-red-400" /> : <FiMic size={17} className="text-white" />}
-                  <div className="flex items-end gap-px mt-1 mb-0.5" style={{ height: 9 }}>
-                    {[0.1, 0.3, 0.55, 0.3, 0.1].map((threshold, i) => (
-                      <div key={i}
-                        className={`w-1 rounded-sm transition-colors duration-75 ${!muted && audioLevel > threshold ? 'bg-green-400' : 'bg-white/10'}`}
-                        style={{ height: [3, 6, 9, 6, 3][i] }}
-                      />
-                    ))}
-                  </div>
-                  <span className="text-[9px] text-gray-500 mt-0.5">{muted ? 'Silencio' : 'Mic'}</span>
+                  <FiMonitor size={15} className={screenSharing ? 'text-blue-400' : 'text-white'} />
+                  <span className="text-[10px] text-gray-400">Pantalla</span>
                 </button>
+              )}
 
-                {/* Cámara */}
-                <button onClick={toggleCamera}
-                  className={`flex flex-col items-center gap-0.5 min-w-[52px] w-14 py-2 rounded-xl transition-colors shrink-0 ${cameraOff ? 'bg-red-500/20 border border-red-500/40' : 'bg-dark-700 hover:bg-dark-600'}`}
+              {/* Fijar mensaje */}
+              <button onClick={() => setShowPinInput(v => !v)}
+                className={`flex items-center gap-1.5 px-2.5 py-2 rounded-xl transition-colors ${showPinInput || pinnedMessage ? 'bg-brand-500/20 border border-brand-500/40' : 'bg-dark-700 hover:bg-dark-600'}`}
+              >
+                <FiBookmark size={15} className={showPinInput || pinnedMessage ? 'text-brand-400' : 'text-white'} />
+                <span className="text-[10px] text-gray-400">Fijar</span>
+              </button>
+
+              {/* Moderación */}
+              <button onClick={() => setShowModeration(v => !v)}
+                className={`flex items-center gap-1.5 px-2.5 py-2 rounded-xl transition-colors ${showModeration ? 'bg-brand-500/20 border border-brand-500/40' : 'bg-dark-700 hover:bg-dark-600'}`}
+              >
+                <FiSlash size={15} className={showModeration ? 'text-brand-400' : 'text-white'} />
+                <span className="text-[10px] text-gray-400">Moderar</span>
+              </button>
+
+              {/* Device selects — compactos, inline, solo si hay múltiples */}
+              {cameraDevices.length > 1 && (
+                <select
+                  value={selectedCameraId}
+                  onChange={e => switchLiveCamera(e.target.value)}
+                  className="bg-dark-700 border border-white/10 text-white text-[10px] rounded-lg px-2 py-1.5 outline-none max-w-[130px] truncate cursor-pointer"
                 >
-                  {cameraOff ? <FiVideoOff size={17} className="text-red-400" /> : <FiVideo size={17} className="text-white" />}
-                  <span className="text-[9px] text-gray-500">{cameraOff ? 'Sin cam' : 'Cámara'}</span>
-                </button>
-
-                {/* Flip camera (si hay múltiples) */}
-                {cameraDevices.length > 1 && (
-                  <button
-                    onClick={() => {
-                      const idx = cameraDevices.findIndex(d => d.deviceId === selectedCameraId);
-                      const next = cameraDevices[(idx + 1) % cameraDevices.length];
-                      switchLiveCamera(next.deviceId);
-                    }}
-                    className="flex flex-col items-center gap-0.5 min-w-[52px] w-14 py-2 rounded-xl bg-dark-700 hover:bg-dark-600 transition-colors shrink-0"
-                  >
-                    <FiRotateCw size={17} className="text-white" />
-                    <span className="text-[9px] text-gray-500">Girar</span>
-                  </button>
-                )}
-
-                {/* Compartir pantalla (solo desktop) */}
-                {isDesktop && (
-                  <button onClick={toggleScreenShare}
-                    className={`flex flex-col items-center gap-0.5 min-w-[52px] w-14 py-2 rounded-xl transition-colors shrink-0 ${screenSharing ? 'bg-blue-500/20 border border-blue-500/40' : 'bg-dark-700 hover:bg-dark-600'}`}
-                  >
-                    <FiMonitor size={17} className={screenSharing ? 'text-blue-400' : 'text-white'} />
-                    <span className="text-[9px] text-gray-500">Pantalla</span>
-                  </button>
-                )}
-
-                {/* Fijar mensaje */}
-                <button onClick={() => setShowPinInput(v => !v)}
-                  className={`flex flex-col items-center gap-0.5 min-w-[52px] w-14 py-2 rounded-xl transition-colors shrink-0 ${showPinInput || pinnedMessage ? 'bg-brand-500/20 border border-brand-500/40' : 'bg-dark-700 hover:bg-dark-600'}`}
+                  {cameraDevices.map(d => (
+                    <option key={d.deviceId} value={d.deviceId}>{d.label || `Cam ${d.deviceId.slice(0,5)}`}</option>
+                  ))}
+                </select>
+              )}
+              {micDevices.length > 1 && (
+                <select
+                  value={selectedMicId}
+                  onChange={e => switchLiveMic(e.target.value)}
+                  className="bg-dark-700 border border-white/10 text-white text-[10px] rounded-lg px-2 py-1.5 outline-none max-w-[130px] truncate cursor-pointer"
                 >
-                  <FiBookmark size={17} className={showPinInput || pinnedMessage ? 'text-brand-400' : 'text-white'} />
-                  <span className="text-[9px] text-gray-500">Fijar</span>
-                </button>
+                  {micDevices.map(d => (
+                    <option key={d.deviceId} value={d.deviceId}>{d.label || `Mic ${d.deviceId.slice(0,5)}`}</option>
+                  ))}
+                </select>
+              )}
 
-                {/* Moderación */}
-                <button onClick={() => setShowModeration(v => !v)}
-                  className={`flex flex-col items-center gap-0.5 min-w-[52px] w-14 py-2 rounded-xl transition-colors shrink-0 ${showModeration ? 'bg-brand-500/20 border border-brand-500/40' : 'bg-dark-700 hover:bg-dark-600'}`}
-                >
-                  <FiSlash size={17} className={showModeration ? 'text-brand-400' : 'text-white'} />
-                  <span className="text-[9px] text-gray-500">Moderar</span>
-                </button>
-              </div>
+              {/* Spacer */}
+              <div className="flex-1" />
 
-              {/* Terminar show — siempre visible a la derecha */}
+              {/* Terminar show */}
               <button onClick={handleEndShow}
-                className="flex items-center gap-1.5 bg-red-500 hover:bg-red-600 active:bg-red-700 text-white text-sm font-semibold px-3 py-2.5 rounded-xl transition-colors shrink-0"
+                className="flex items-center gap-1.5 bg-red-500 hover:bg-red-600 active:bg-red-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors shrink-0"
               >
                 <FiX size={15} /> Terminar
               </button>
