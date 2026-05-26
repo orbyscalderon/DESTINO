@@ -38,6 +38,7 @@ const Help          = lazy(() => import('./pages/Help.jsx'));
 const NotFound      = lazy(() => import('./pages/NotFound.jsx'));
 const BecomeCreator = lazy(() => import('./pages/BecomeCreator.jsx'));
 const CreatorDashboard = lazy(() => import('./pages/CreatorDashboard.jsx'));
+const ShowStudio    = lazy(() => import('./pages/ShowStudio.jsx'));
 const LiveShows     = lazy(() => import('./pages/LiveShows.jsx'));
 const LiveShow      = lazy(() => import('./pages/LiveShow.jsx'));
 const Coins         = lazy(() => import('./pages/Coins.jsx'));
@@ -225,6 +226,7 @@ export default function App() {
           <Route path="/admin" element={<Admin />} />
           <Route path="/become-creator" element={<BecomeCreator />} />
           <Route path="/creator/dashboard" element={<CreatorDashboard />} />
+          <Route path="/studio" element={<ShowStudio />} />
           <Route path="/shows" element={<LiveShows />} />
           <Route path="/shows/:id" element={<LiveShow />} />
           <Route path="/coins" element={<Coins />} />

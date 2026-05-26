@@ -115,14 +115,6 @@ export default function CreatorDashboard() {
   const galleryItemFileRef = useRef(null);
   const [uploadingItem, setUploadingItem] = useState(null);
 
-  // Create show
-  const [showModal, setShowModal]   = useState(false);
-  const [newShow, setNewShow]       = useState({
-    title: '', description: '', show_type: 'broadcast',
-    ticket_price: '', category: 'chat', scheduled_at: '', tip_goal: '',
-    private_rate: '20', exclusive_rate: '35', min_private_minutes: '3',
-  });
-  const [creatingShow, setCreatingShow] = useState(false);
 
   // Settings
   const [subPrice, setSubPrice]     = useState('');
@@ -171,28 +163,6 @@ export default function CreatorDashboard() {
   }, []);
 
   /* ── handlers ── */
-  const handleCreateShow = async () => {
-    if (!newShow.title.trim()) { toast.error('El título es obligatorio'); return; }
-    setCreatingShow(true);
-    try {
-      await api.post('/api/shows', {
-        ...newShow,
-        ticket_price: parseFloat(newShow.ticket_price) || 0,
-        tip_goal:     parseFloat(newShow.tip_goal) || null,
-        scheduled_at: newShow.scheduled_at || undefined,
-      });
-      toast.success('Show creado — aparece en tu lista');
-      setShowModal(false);
-      setNewShow({ title: '', description: '', show_type: 'broadcast', ticket_price: '', category: 'chat', scheduled_at: '', tip_goal: '', private_rate: '20', exclusive_rate: '35', min_private_minutes: '3' });
-      setTab('shows');
-      loadDashboard(true);
-    } catch (err) {
-      toast.error(err.response?.data?.error || 'Error al crear el show');
-    } finally {
-      setCreatingShow(false);
-    }
-  };
-
   const handleDeleteShow = async (showId) => {
     if (!confirm('¿Eliminar este show?')) return;
     try {
@@ -326,7 +296,7 @@ export default function CreatorDashboard() {
               <FiRefreshCw size={13} className={`text-gray-400 ${refreshing ? 'animate-spin' : ''}`} />
             </button>
             <button
-              onClick={() => setShowModal(true)}
+              onClick={() => navigate('/studio')}
               className="flex items-center gap-1.5 bg-brand-500 hover:bg-brand-600 text-white text-xs font-bold px-3 py-2 rounded-xl transition-colors"
             >
               <FiPlus size={13} /> Nuevo show
@@ -506,7 +476,7 @@ export default function CreatorDashboard() {
                   <h2 className="font-bold text-white text-lg flex items-center gap-2">
                     <FiVideo size={18} className="text-purple-400" /> Mis Shows
                   </h2>
-                  <button onClick={() => setShowModal(true)}
+                  <button onClick={() => navigate('/studio')}
                     className="flex items-center gap-1.5 bg-brand-500 hover:bg-brand-600 text-white text-xs font-bold px-3 py-2 rounded-xl transition-colors"
                   >
                     <FiPlus size={13} /> Crear show
@@ -520,7 +490,7 @@ export default function CreatorDashboard() {
                     </div>
                     <p className="text-gray-400 font-semibold">Sin shows todavía</p>
                     <p className="text-gray-600 text-sm mt-1 mb-5">Crea tu primer show y empieza a ganar</p>
-                    <button onClick={() => setShowModal(true)} className="btn-primary text-sm px-6 py-2.5">
+                    <button onClick={() => navigate('/studio')} className="btn-primary text-sm px-6 py-2.5">
                       Crear primer show
                     </button>
                   </div>
@@ -1176,164 +1146,6 @@ export default function CreatorDashboard() {
         </div>
       </div>
 
-      {/* ══ MODAL CREAR SHOW ════════════════════════════════════ */}
-      <AnimatePresence>
-        {showModal && (
-          <motion.div
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-4"
-            onClick={e => { if (e.target === e.currentTarget) setShowModal(false); }}
-          >
-            <motion.div
-              initial={{ opacity: 0, y: 60 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 60 }}
-              className="card p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto"
-            >
-              <div className="flex items-center justify-between mb-5">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 bg-brand-500/20 rounded-xl flex items-center justify-center">
-                    <FiVideo size={16} className="text-brand-400" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-black text-white">Nuevo Show</h3>
-                    <p className="text-gray-500 text-xs">Se guardará en "Mis Shows" — ve en vivo cuando quieras</p>
-                  </div>
-                </div>
-                <button onClick={() => setShowModal(false)}
-                  className="w-8 h-8 bg-dark-700 hover:bg-dark-600 rounded-xl flex items-center justify-center transition-colors"
-                >
-                  <FiX size={14} className="text-gray-400" />
-                </button>
-              </div>
-
-              <div className="space-y-4">
-                {/* Título */}
-                <div>
-                  <label className="text-xs text-gray-400 font-medium mb-1.5 block">Título *</label>
-                  <input className="input-field" placeholder="Ej: Sesión de baile 🔥"
-                    value={newShow.title} onChange={e => setNewShow(s => ({...s, title: e.target.value}))} />
-                </div>
-
-                {/* Descripción */}
-                <div>
-                  <label className="text-xs text-gray-400 font-medium mb-1.5 block">Descripción <span className="text-gray-600">(opcional)</span></label>
-                  <textarea className="input-field resize-none text-sm" rows={2}
-                    placeholder="Cuéntales a tus fans qué verán…"
-                    value={newShow.description} onChange={e => setNewShow(s => ({...s, description: e.target.value}))} />
-                </div>
-
-                {/* Tipo */}
-                <div>
-                  <label className="text-xs text-gray-400 font-medium mb-1.5 block">Tipo de show</label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {[
-                      { key: 'broadcast', label: 'Broadcast', desc: 'Múltiples viewers' },
-                      { key: 'private',   label: 'Privado 1-a-1', desc: 'Solo un viewer' },
-                    ].map(({ key, label, desc }) => (
-                      <button key={key} onClick={() => setNewShow(s => ({...s, show_type: key}))}
-                        className={`p-3 rounded-xl text-left transition-all border ${newShow.show_type===key ? 'bg-brand-500/20 border-brand-500/40 text-white' : 'bg-dark-700 border-white/5 text-gray-400 hover:border-white/15'}`}
-                      >
-                        <p className="text-sm font-semibold">{label}</p>
-                        <p className="text-xs opacity-70 mt-0.5">{desc}</p>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Categoría */}
-                <div>
-                  <label className="text-xs text-gray-400 font-medium mb-1.5 block">Categoría</label>
-                  <div className="flex flex-wrap gap-1.5">
-                    {SHOW_CATEGORIES
-                      .filter(c => c.key !== 'adult' || profile?.is_adult_creator)
-                      .map(({ key, label, emoji }) => (
-                        <button key={key} onClick={() => setNewShow(s => ({...s, category: key}))}
-                          className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${newShow.category===key ? 'bg-brand-500 text-white shadow-sm' : 'bg-dark-700 text-gray-400 hover:bg-dark-600'}`}
-                        >
-                          {emoji} {label}
-                        </button>
-                      ))
-                    }
-                  </div>
-                </div>
-
-                {/* Precio + Fecha */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-xs text-gray-400 font-medium mb-1.5 block">Precio ticket</label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-medium">$</span>
-                      <input className="input-field pl-7 text-sm" type="number" placeholder="0 = gratis"
-                        value={newShow.ticket_price} onChange={e => setNewShow(s => ({...s, ticket_price: e.target.value}))} min="0" step="0.01" />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="text-xs text-gray-400 font-medium mb-1.5 flex items-center gap-1">
-                      <FiCalendar size={10} /> Programar (opcional)
-                    </label>
-                    <input className="input-field text-sm" type="datetime-local"
-                      value={newShow.scheduled_at} onChange={e => setNewShow(s => ({...s, scheduled_at: e.target.value}))} />
-                  </div>
-                </div>
-
-                {newShow.ticket_price > 0 && (
-                  <p className="text-gray-500 text-xs bg-dark-700 rounded-xl px-3 py-2">
-                    Tú recibirás ${(parseFloat(newShow.ticket_price)*0.7).toFixed(2)} por ticket (70%)
-                  </p>
-                )}
-
-                {/* Meta propinas */}
-                <div>
-                  <label className="text-xs text-gray-400 font-medium mb-1.5 block">
-                    Meta de propinas <span className="text-gray-600">(opcional)</span>
-                  </label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs">🎯</span>
-                    <input className="input-field pl-8 text-sm" type="number" placeholder="Ej: 500 coins"
-                      value={newShow.tip_goal} onChange={e => setNewShow(s => ({...s, tip_goal: e.target.value}))} min="0" />
-                  </div>
-                </div>
-
-                {/* Tarifas privado */}
-                <div className="border border-purple-500/20 rounded-2xl p-4 bg-purple-500/5 space-y-3">
-                  <p className="text-purple-300 text-xs font-semibold flex items-center gap-1.5">
-                    <FiLock size={11} /> Tarifas para show privado
-                  </p>
-                  <div className="grid grid-cols-3 gap-3">
-                    {[
-                      { key: 'private_rate', label: 'Privado (coins/min)' },
-                      { key: 'exclusive_rate', label: 'Exclusivo (coins/min)' },
-                      { key: 'min_private_minutes', label: 'Tiempo mín. (min)' },
-                    ].map(({key, label}) => (
-                      <div key={key}>
-                        <label className="text-gray-400 text-[10px] mb-1 block">{label}</label>
-                        <input className="input-field text-sm py-2 text-center" type="number" min="1"
-                          value={newShow[key]} onChange={e => setNewShow(s => ({...s, [key]: e.target.value}))} />
-                      </div>
-                    ))}
-                  </div>
-                  <p className="text-gray-600 text-[10px]">
-                    Tú recibes 70% · Privado: {Math.round((newShow.private_rate||20)*0.7)} coins/min · Exclusivo: {Math.round((newShow.exclusive_rate||35)*0.7)} coins/min
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex gap-3 mt-6">
-                <button onClick={() => setShowModal(false)} className="btn-secondary flex-1 py-2.5">Cancelar</button>
-                <button
-                  onClick={handleCreateShow}
-                  disabled={creatingShow || !newShow.title.trim()}
-                  className="btn-primary flex-1 py-2.5 flex items-center justify-center gap-2 disabled:opacity-50"
-                >
-                  {creatingShow
-                    ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    : <><FiVideo size={14} /> Crear Show</>
-                  }
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }
