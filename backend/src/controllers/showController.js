@@ -89,7 +89,7 @@ export const getShow = async (req, res) => {
     const { id } = req.params;
     const userId = req.user.id;
 
-    const { data: show, error } = await supabase
+    let { data: show, error } = await supabase
       .from('live_shows')
       .select(`
         id, title, description, show_type, ticket_price, status,
@@ -99,6 +99,19 @@ export const getShow = async (req, res) => {
       `)
       .eq('id', id)
       .single();
+
+    // Fallback si las columnas de show privado aún no existen en la BD
+    if (error?.message?.includes('private_rate') || error?.message?.includes('column')) {
+      ({ data: show, error } = await supabase
+        .from('live_shows')
+        .select(`
+          id, title, description, show_type, ticket_price, status,
+          cover_url, scheduled_at, started_at, ended_at, category,
+          host:profiles!host_id(id, full_name, avatar_url, is_verified, creator_bio)
+        `)
+        .eq('id', id)
+        .single());
+    }
 
     if (error || !show) return res.status(404).json({ error: 'Show no encontrado' });
 
@@ -186,25 +199,31 @@ export const createShow = async (req, res) => {
       });
     }
 
-    const { data: show, error } = await supabase
-      .from('live_shows')
-      .insert({
-        host_id: hostId,
-        title: title.trim(),
-        description: description?.trim() || null,
-        show_type,
-        ticket_price: price,
-        cover_url: cover_url || null,
-        scheduled_at: scheduled_at || null,
-        status: 'scheduled',
-        category,
-        tip_goal: tip_goal ? parseFloat(tip_goal) : null,
-        private_rate: Math.max(5, Math.min(500, parseInt(private_rate) || 20)),
-        exclusive_rate: Math.max(5, Math.min(500, parseInt(exclusive_rate) || 35)),
-        min_private_minutes: Math.max(1, Math.min(60, parseInt(min_private_minutes) || 3)),
-      })
-      .select()
-      .single();
+    const insertPayload = {
+      host_id: hostId,
+      title: title.trim(),
+      description: description?.trim() || null,
+      show_type,
+      ticket_price: price,
+      cover_url: cover_url || null,
+      scheduled_at: scheduled_at || null,
+      status: 'scheduled',
+      category,
+      tip_goal: tip_goal ? parseFloat(tip_goal) : null,
+      private_rate: Math.max(5, Math.min(500, parseInt(private_rate) || 20)),
+      exclusive_rate: Math.max(5, Math.min(500, parseInt(exclusive_rate) || 35)),
+      min_private_minutes: Math.max(1, Math.min(60, parseInt(min_private_minutes) || 3)),
+    };
+
+    let { data: show, error } = await supabase
+      .from('live_shows').insert(insertPayload).select().single();
+
+    // Si fallan las columnas de show privado (migración pendiente), reintenta sin ellas
+    if (error?.message?.includes('private_rate') || error?.message?.includes('column')) {
+      const { private_rate: _pr, exclusive_rate: _er, min_private_minutes: _mm, ...basePayload } = insertPayload;
+      ({ data: show, error } = await supabase
+        .from('live_shows').insert(basePayload).select().single());
+    }
 
     if (error) throw error;
 
@@ -904,11 +923,17 @@ export const validatePrivateShow = async (req, res) => {
     const { type = 'private' } = req.body;
     const showId = req.params.id;
 
-    const { data: show } = await supabase
+    let { data: show } = await supabase
       .from('live_shows')
       .select('private_rate, exclusive_rate, min_private_minutes, status')
       .eq('id', showId)
       .single();
+
+    // Fallback si columnas privadas aún no existen
+    if (!show) {
+      ({ data: show } = await supabase
+        .from('live_shows').select('status').eq('id', showId).single());
+    }
 
     if (!show || show.status !== 'live') {
       return res.status(400).json({ error: 'Show no activo', code: 'SHOW_ENDED' });
@@ -949,11 +974,17 @@ export const privateShowTick = async (req, res) => {
     const { type = 'private' } = req.body;
     const showId = req.params.id;
 
-    const { data: show } = await supabase
+    let { data: show } = await supabase
       .from('live_shows')
       .select('host_id, status, private_rate, exclusive_rate')
       .eq('id', showId)
       .single();
+
+    // Fallback si columnas privadas aún no existen
+    if (!show) {
+      ({ data: show } = await supabase
+        .from('live_shows').select('host_id, status').eq('id', showId).single());
+    }
 
     if (!show || show.status !== 'live') {
       return res.status(400).json({ error: 'Show no activo', code: 'SHOW_ENDED' });
