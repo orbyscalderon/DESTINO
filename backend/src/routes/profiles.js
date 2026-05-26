@@ -21,6 +21,8 @@ import {
   boostProfile,
   toggleIncognito,
   verifyAge,
+  getCompletionStatus,
+  claimCompletion,
 } from '../controllers/profileController.js';
 import {
   uploadProfileVideo,
@@ -44,6 +46,8 @@ router.post('/boost', boostProfile);
 router.put('/incognito', toggleIncognito);
 router.post('/verify-age', verifyAge);
 router.get('/geoip', getGeoIp);
+router.get('/completion/status', getCompletionStatus);
+router.post('/completion/claim', claimCompletion);
 router.post('/avatar', uploadMiddleware, uploadAvatar);
 
 // Photos

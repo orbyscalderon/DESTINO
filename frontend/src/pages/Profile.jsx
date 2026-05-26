@@ -38,6 +38,7 @@ export default function Profile() {
   const [videoUploadProgress, setVideoUploadProgress] = useState(0);
   const [pricingVideo, setPricingVideo] = useState(null); // { id, is_paid, price, title }
   const [videoTab, setVideoTab] = useState('gallery'); // 'gallery' | 'requests'
+  const [playingVideo, setPlayingVideo] = useState(null); // { id, url, title, is_paid, price }
   const [videoRequests, setVideoRequests] = useState([]);
   const [loadingRequests, setLoadingRequests] = useState(false);
   const [form, setForm] = useState({
@@ -358,6 +359,17 @@ export default function Profile() {
     }
   };
 
+  const handleClaimCompletion = async () => {
+    try {
+      const { data } = await api.post('/api/profiles/completion/claim');
+      setCompletionClaimed(true);
+      setCoinsBalance(b => b + (data.coins_awarded || 50));
+      toast.success(`¡+${data.coins_awarded || 50} coins por completar tu perfil!`);
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Error al reclamar la recompensa');
+    }
+  };
+
   const handleShare = async () => {
     const url = `${window.location.origin}/#/profile/${user?.id}`;
     const shareData = { title: `${profile?.full_name} en Destino`, text: profile?.bio || 'Mira mi perfil en Destino', url };
@@ -487,10 +499,18 @@ export default function Profile() {
               return (
                 <div className="card p-4 flex items-center gap-3">
                   <span className="text-green-400 text-xl">✓</span>
-                  <div>
+                  <div className="flex-1">
                     <p className="text-sm font-semibold text-white">Perfil completo</p>
                     <p className="text-xs text-gray-500">Tu perfil está al 100%</p>
                   </div>
+                  {!completionClaimed && (
+                    <button
+                      onClick={handleClaimCompletion}
+                      className="text-xs px-3 py-1.5 rounded-xl bg-yellow-500/20 text-yellow-400 font-bold hover:bg-yellow-500/30 transition-colors border border-yellow-500/30 shrink-0"
+                    >
+                      +50 coins
+                    </button>
+                  )}
                 </div>
               );
             }
@@ -1053,9 +1073,12 @@ export default function Profile() {
                           className="w-full h-full object-cover"
                           preload="metadata"
                         />
-                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                          <FiPlay size={20} className="text-white/70" />
-                        </div>
+                        <button
+                          onClick={() => setPlayingVideo(vid)}
+                          className="absolute inset-0 bg-black/40 flex items-center justify-center hover:bg-black/50 transition-colors"
+                        >
+                          <FiPlay size={20} className="text-white/80" />
+                        </button>
                         {vid.is_paid && (
                           <div className="absolute top-1.5 left-1.5 bg-brand-500 rounded-lg px-1.5 py-0.5 flex items-center gap-0.5">
                             <FiLock size={8} className="text-white" />
@@ -1167,6 +1190,36 @@ export default function Profile() {
             </>
             )}
           </div>
+
+          {/* Modal reproductor de vídeo */}
+          {playingVideo && (
+            <div
+              className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+              onClick={() => setPlayingVideo(null)}
+            >
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="w-full max-w-2xl"
+                onClick={e => e.stopPropagation()}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-sm font-semibold text-white truncate">{playingVideo.title || 'Vídeo'}</p>
+                  <button onClick={() => setPlayingVideo(null)} className="text-gray-400 hover:text-white ml-3 shrink-0">✕</button>
+                </div>
+                <video
+                  src={playingVideo.url}
+                  controls
+                  autoPlay
+                  className="w-full rounded-xl bg-black"
+                  style={{ maxHeight: '70vh' }}
+                />
+                {playingVideo.is_paid && (
+                  <p className="text-xs text-yellow-400 mt-2 text-center">{playingVideo.price} coins</p>
+                )}
+              </motion.div>
+            </div>
+          )}
 
           {/* Modal de pricing de foto */}
           {pricingPhoto && (

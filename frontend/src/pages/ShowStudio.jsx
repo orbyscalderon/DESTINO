@@ -100,6 +100,7 @@ export default function ShowStudio() {
   const [showModeration, setShowModeration]   = useState(false);
   const [bannedUsers, setBannedUsers]         = useState(new Map());
   const [activeReconnect, setActiveReconnect] = useState(null);
+  const [slowMode, setSlowMode]               = useState(false);
 
   // ── REFS ─────────────────────────────────────────────────────────────────────
   const previewStreamRef = useRef(null);
@@ -651,6 +652,13 @@ export default function ShowStudio() {
     toast(pinnedInput.trim() ? 'Mensaje fijado' : 'Mensaje fijado eliminado');
   };
 
+  const handleToggleSlowMode = () => {
+    const next = !slowMode;
+    setSlowMode(next);
+    chatChannelRef.current?.send({ type: 'broadcast', event: 'slow_mode', payload: { enabled: next } });
+    toast(next ? 'Modo lento activado (30s entre mensajes)' : 'Modo lento desactivado', { id: 'slow-mode' });
+  };
+
   const handleCopyLink = async () => {
     const url = `${window.location.origin}/#/shows/${showId}`;
     try { await navigator.clipboard.writeText(url); toast.success('Link copiado 🔗'); }
@@ -986,6 +994,12 @@ export default function ShowStudio() {
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${showModeration ? 'bg-red-500/20 border border-red-500/40 text-red-300' : 'bg-white/5 border border-white/10 text-gray-400 hover:text-white hover:bg-white/10'}`}
                   >
                     <FiSlash size={12} /> Moderar
+                  </button>
+                  <button onClick={handleToggleSlowMode}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${slowMode ? 'bg-blue-500/20 border border-blue-500/40 text-blue-300' : 'bg-white/5 border border-white/10 text-gray-400 hover:text-white hover:bg-white/10'}`}
+                    title={slowMode ? 'Modo lento ON — 30s entre mensajes' : 'Modo lento OFF'}
+                  >
+                    🐢 {slowMode ? '30s' : 'Lento'}
                   </button>
                 </div>
                 <AnimatePresence>

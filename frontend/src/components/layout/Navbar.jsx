@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { FiHome, FiHeart, FiVideo, FiUser, FiZap, FiSearch, FiGrid, FiFilm, FiBell, FiShield, FiSettings, FiBarChart2, FiCompass, FiMessageCircle } from 'react-icons/fi';
+import { FiHome, FiHeart, FiVideo, FiUser, FiZap, FiSearch, FiGrid, FiFilm, FiBell, FiShield, FiSettings, FiBarChart2, FiCompass, FiMessageCircle, FiTrendingUp } from 'react-icons/fi';
 import { useAuthStore } from '../../store/authStore.js';
 import { useChatStore } from '../../store/chatStore.js';
 import { supabase } from '../../lib/supabase.js';
@@ -23,6 +23,7 @@ const sidebarNavItems = [
   { to: '/messages',      icon: FiMessageCircle,  label: 'Mensajes' },
   { to: '/search',        icon: FiSearch,         label: 'Buscar' },
   { to: '/shows',         icon: FiFilm,           label: 'Shows en vivo' },
+  { to: '/leaderboard',   icon: FiTrendingUp,     label: 'Leaderboard' },
   { to: '/adult',         icon: FiShield,         label: 'Adultos 18+' },
   { to: '/video',         icon: FiVideo,          label: 'Videollamadas' },
   { to: '/profile',       icon: FiUser,           label: 'Perfil' },

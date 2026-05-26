@@ -734,6 +734,59 @@ export const reorderPhotos = async (req, res) => {
   }
 };
 
+// GET /api/profiles/completion/status — devuelve si el usuario ya reclamó la recompensa de perfil completo
+export const getCompletionStatus = async (req, res) => {
+  try {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('completion_claimed_at')
+      .eq('id', req.user.id)
+      .single();
+    res.json({ claimed: !!profile?.completion_claimed_at });
+  } catch {
+    res.json({ claimed: false });
+  }
+};
+
+// POST /api/profiles/completion/claim — reclamar 50 coins por perfil al 100%
+export const claimCompletion = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('full_name, age, bio, gender, country, language, avatar_url, completion_claimed_at')
+      .eq('id', userId)
+      .single();
+
+    if (!profile) return res.status(404).json({ error: 'Perfil no encontrado' });
+    if (profile.completion_claimed_at) return res.status(400).json({ error: 'Ya reclamaste esta recompensa', code: 'ALREADY_CLAIMED' });
+
+    const steps = [
+      !!profile.avatar_url,
+      !!profile.full_name,
+      !!profile.age,
+      !!profile.bio,
+      !!profile.gender,
+      !!profile.country,
+      !!profile.language,
+    ];
+    const photos = await supabase.from('profile_photos').select('id', { count: 'exact', head: true }).eq('user_id', userId);
+    const hasPhotos = (photos.count || 0) > 0;
+    const complete = steps.every(Boolean) && hasPhotos;
+
+    if (!complete) return res.status(400).json({ error: 'Tu perfil no está al 100% aún', code: 'INCOMPLETE' });
+
+    await addCoins(userId, 50, 'completion_reward');
+
+    await supabase.from('profiles').update({ completion_claimed_at: new Date().toISOString() }).eq('id', userId);
+
+    res.json({ claimed: true, coins_awarded: 50 });
+  } catch {
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
 // POST /api/profiles/boost — activar boost de visibilidad
 export const boostProfile = async (req, res) => {
   try {

@@ -148,6 +148,8 @@ export default function LiveShow() {
   const [giftAnimations, setGiftAnimations]   = useState([]);
 
   const lastChatSentRef = useRef(0);
+  const [slowMode, setSlowMode] = useState(false);
+  const slowModeRef = useRef(false);
 
   // Moderation (host)
   const [showModeration, setShowModeration] = useState(false);
@@ -361,6 +363,11 @@ export default function LiveShow() {
       .on('broadcast', { event: 'msg' }, ({ payload }) => {
         setChatMessages(prev => [...prev.slice(-79), payload]);
       })
+      .on('broadcast', { event: 'slow_mode' }, ({ payload }) => {
+        slowModeRef.current = !!payload.enabled;
+        setSlowMode(!!payload.enabled);
+        toast(payload.enabled ? '🐢 Modo lento activado por el creador' : 'Modo lento desactivado', { id: 'slow-mode' });
+      })
       .on('broadcast', { event: 'react' }, ({ payload }) => {
         addReaction(payload.emoji);
       })
@@ -433,8 +440,10 @@ export default function LiveShow() {
     const text = chatInput.trim();
     if (!text || !chatChannelRef.current) return;
     const now = Date.now();
-    if (now - lastChatSentRef.current < 1500) {
-      toast.error('Espera un momento antes de enviar otro mensaje', { id: 'chat-throttle' });
+    const throttle = slowModeRef.current ? 30_000 : 1500;
+    if (now - lastChatSentRef.current < throttle) {
+      const wait = Math.ceil((throttle - (now - lastChatSentRef.current)) / 1000);
+      toast.error(slowModeRef.current ? `Modo lento: espera ${wait}s` : 'Espera un momento antes de enviar otro mensaje', { id: 'chat-throttle' });
       return;
     }
     lastChatSentRef.current = now;
@@ -1454,6 +1463,13 @@ export default function LiveShow() {
                   </motion.div>
                 )}
               </AnimatePresence>
+
+              {slowMode && (
+                <div className="px-3 py-1.5 bg-blue-500/10 border-b border-blue-500/20 shrink-0 flex items-center gap-1.5">
+                  <span className="text-sm">🐢</span>
+                  <p className="text-blue-300 text-[10px] font-medium">Modo lento activo — 1 mensaje cada 30s</p>
+                </div>
+              )}
 
               {/* Chat */}
               <div className="flex-1 overflow-y-auto px-3 py-2 space-y-1.5 min-h-0">
