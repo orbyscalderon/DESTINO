@@ -99,6 +99,7 @@ export default function ShowStudio() {
   const [showPinInput, setShowPinInput]       = useState(false);
   const [showModeration, setShowModeration]   = useState(false);
   const [bannedUsers, setBannedUsers]         = useState(new Map());
+  const [activeReconnect, setActiveReconnect] = useState(null);
 
   // ── REFS ─────────────────────────────────────────────────────────────────────
   const previewStreamRef = useRef(null);
@@ -151,6 +152,17 @@ export default function ShowStudio() {
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatMessages]);
+
+  // Detectar show en vivo al montar — ofrecer reconexión
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data } = await api.get('/api/shows/my');
+        const live = (data.shows || []).find(s => s.status === 'live');
+        if (live) setActiveReconnect({ id: live.id, title: live.title, started_at: live.started_at, tip_goal: live.tip_goal });
+      } catch {}
+    })();
+  }, []);
 
   // ── PREVIEW / DEVICES ────────────────────────────────────────────────────────
   const enumerateDevices = async () => {
@@ -334,6 +346,7 @@ export default function ShowStudio() {
         }, 80);
       } catch {}
 
+      await enumerateDevices();
       joinShowChannel(id, 'host');
       setIsLive(true);
       liveTimerRef.current = setInterval(() => setLiveDuration(d => d + 1), 1000);
@@ -342,6 +355,80 @@ export default function ShowStudio() {
     } catch (err) {
       toast.error(err.response?.data?.error || 'Error al iniciar el show');
       setGoingLive(false);
+    }
+  };
+
+  const handleReconnect = async ({ id, title, started_at, tip_goal }) => {
+    setGoingLive(true);
+    setActiveReconnect(null);
+    try {
+      // Restaurar datos del show
+      try {
+        const { data: sd } = await api.get(`/api/shows/${id}`);
+        if (sd?.show) {
+          setShow({
+            title: sd.show.title || '',
+            description: sd.show.description || '',
+            show_type: sd.show.show_type || 'broadcast',
+            ticket_price: String(sd.show.ticket_price || ''),
+            category: sd.show.category || 'chat',
+            scheduled_at: sd.show.scheduled_at || '',
+            tip_goal: String(sd.show.tip_goal || ''),
+            private_rate: String(sd.show.private_rate || '20'),
+            exclusive_rate: String(sd.show.exclusive_rate || '35'),
+            min_private_minutes: String(sd.show.min_private_minutes || '3'),
+          });
+        }
+      } catch {}
+
+      const qOpt = QUALITY_OPTIONS.find(q => q.key === videoQuality) || QUALITY_OPTIONS[1];
+      let stream = previewStreamRef.current;
+      if (!stream || stream.getTracks().length === 0) {
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: selectedMicId ? { deviceId: { exact: selectedMicId } } : true,
+          video: selectedCameraId
+            ? { deviceId: { exact: selectedCameraId }, width: qOpt.w, height: qOpt.h, frameRate: qOpt.fps }
+            : { width: qOpt.w, height: qOpt.h, frameRate: qOpt.fps },
+        });
+      }
+      localStreamRef.current = stream;
+      previewStreamRef.current = null;
+
+      const roomId = `show_${id.replace(/-/g, '')}`;
+      const rtc = new LiveKitSession(roomId);
+      rtcRef.current = rtc;
+      await rtc.join(true, { skipAutoMedia: true });
+      await rtc.publishStream(stream);
+
+      try {
+        const audioCtx = new AudioContext();
+        await audioCtx.resume();
+        const src = audioCtx.createMediaStreamSource(stream);
+        const analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 256;
+        src.connect(analyser);
+        const buf = new Uint8Array(analyser.frequencyBinCount);
+        audioLevelRef.current = setInterval(() => {
+          analyser.getByteFrequencyData(buf);
+          setAudioLevel(buf.reduce((s, v) => s + v, 0) / buf.length / 255);
+        }, 80);
+      } catch {}
+
+      await enumerateDevices();
+      setShowId(id);
+      joinShowChannel(id, 'host');
+      setIsLive(true);
+      if (started_at) {
+        const elapsed = Math.floor((Date.now() - new Date(started_at).getTime()) / 1000);
+        if (elapsed > 0) setLiveDuration(elapsed);
+      }
+      liveTimerRef.current = setInterval(() => setLiveDuration(d => d + 1), 1000);
+      setPendingLocalStream(stream);
+      toast.success('¡Reconectado al show!');
+    } catch (err) {
+      toast.error(err.message || 'Error al reconectar');
+      setGoingLive(false);
+      setActiveReconnect({ id, title, started_at, tip_goal });
     }
   };
 
@@ -565,7 +652,7 @@ export default function ShowStudio() {
   };
 
   const handleCopyLink = async () => {
-    const url = `${window.location.origin}${window.location.pathname}#/shows/${showId}`;
+    const url = `${window.location.origin}/#/shows/${showId}`;
     try { await navigator.clipboard.writeText(url); toast.success('Link copiado 🔗'); }
     catch { toast.error('No se pudo copiar'); }
   };
@@ -593,6 +680,19 @@ export default function ShowStudio() {
     );
   }
 
+  // ── CONNECTING OVERLAY (after countdown, while handleGoLive runs) ────────────
+  if (goingLive && !isLive) {
+    return (
+      <div className="fixed inset-0 bg-black flex items-center justify-center z-50">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-brand-500 border-t-transparent rounded-full animate-spin mx-auto mb-5" />
+          <p className="text-white text-xl font-bold mb-2">Conectando…</p>
+          <p className="text-gray-400 text-sm">Iniciando tu show en vivo</p>
+        </div>
+      </div>
+    );
+  }
+
   // ── LIVE STUDIO ──────────────────────────────────────────────────────────────
   if (isLive) {
     const tipTotal  = tippers.reduce((s, t) => s + t.coins_total, 0);
@@ -612,6 +712,7 @@ export default function ShowStudio() {
                 <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" /> EN VIVO
               </span>
               <span className="text-white font-mono text-sm font-semibold tabular-nums">{fmtDuration(liveDuration)}</span>
+              {show.title && <span className="text-gray-400 text-xs truncate max-w-[110px] lg:max-w-[220px] hidden sm:block">· {show.title}</span>}
               {connState !== 'connected' && (
                 <span className={`text-xs flex items-center gap-1 ${connState === 'reconnecting' ? 'text-yellow-400' : 'text-red-400'}`}>
                   {connState === 'reconnecting' ? <FiWifi size={12} className="animate-pulse" /> : <FiWifiOff size={12} />}
@@ -850,15 +951,23 @@ export default function ShowStudio() {
                 {chatMessages.length === 0
                   ? <p className="text-gray-600 text-xs text-center py-4">El chat está vacío</p>
                   : chatMessages.slice(-50).map((msg, i) => (
-                    <div key={i} className="flex items-start gap-2">
+                    <div key={i} className="flex items-start gap-1.5 group">
                       {msg.avatar
                         ? <img src={msg.avatar} className="w-5 h-5 rounded-full object-cover shrink-0 mt-0.5" alt="" />
                         : <div className="w-5 h-5 rounded-full bg-brand-500/30 shrink-0 mt-0.5" />
                       }
-                      <div className="bg-dark-700 rounded-xl px-2.5 py-1.5 min-w-0">
+                      <div className="bg-dark-700 rounded-xl px-2.5 py-1.5 min-w-0 flex-1">
                         <span className="text-brand-300 text-[10px] font-semibold">{msg.name}</span>
                         <p className="text-white text-xs leading-tight break-words">{msg.text}</p>
                       </div>
+                      {msg.userId && msg.userId !== user?.id && !bannedUsers.has(msg.userId) && (
+                        <button onClick={() => handleBanUser(msg)}
+                          className="opacity-0 group-hover:opacity-100 w-5 h-5 rounded-full bg-red-500/20 hover:bg-red-500/40 flex items-center justify-center shrink-0 mt-1 transition-opacity"
+                          title="Banear usuario"
+                        >
+                          <FiSlash size={9} className="text-red-400" />
+                        </button>
+                      )}
                     </div>
                   ))
                 }
@@ -1051,6 +1160,21 @@ export default function ShowStudio() {
           </div>
         </div>
       </div>
+
+      {activeReconnect && (
+        <div className="mx-4 mt-4 bg-red-500/10 border border-red-500/30 rounded-xl p-3.5 flex items-center gap-3">
+          <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-white text-sm font-bold leading-none">Tienes un show en vivo</p>
+            <p className="text-gray-400 text-xs mt-0.5 truncate">{activeReconnect.title}</p>
+          </div>
+          <button onClick={() => handleReconnect(activeReconnect)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl transition-colors shrink-0"
+          >
+            <FiWifi size={11} /> Reconectar
+          </button>
+        </div>
+      )}
 
       <div className="flex-1 flex flex-col lg:flex-row gap-0 lg:gap-6 p-4 lg:p-6 max-w-6xl mx-auto w-full">
 

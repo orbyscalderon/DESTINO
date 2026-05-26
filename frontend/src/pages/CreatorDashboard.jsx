@@ -445,7 +445,7 @@ export default function CreatorDashboard() {
                     </div>
                     <div className="space-y-2">
                       {data.shows.filter(s => s.status !== 'ended').slice(0, 3).map(show => (
-                        <ShowRow key={show.id} show={show} onGoLive={() => navigate(`/shows/${show.id}`)} onDelete={handleDeleteShow} onEnd={handleEndShow} />
+                        <ShowRow key={show.id} show={show} onGoLive={() => navigate('/studio')} onDelete={handleDeleteShow} onEnd={handleEndShow} />
                       ))}
                     </div>
                   </div>
@@ -513,7 +513,7 @@ export default function CreatorDashboard() {
                         </p>
                         <div className="space-y-2">
                           {data.shows.filter(s => s.status === 'live').map(show => (
-                            <ShowRow key={show.id} show={show} onGoLive={() => navigate(`/shows/${show.id}`)} onDelete={handleDeleteShow} onEnd={handleEndShow} large />
+                            <ShowRow key={show.id} show={show} onGoLive={() => navigate('/studio')} onDelete={handleDeleteShow} onEnd={handleEndShow} large />
                           ))}
                         </div>
                       </div>
@@ -525,7 +525,7 @@ export default function CreatorDashboard() {
                         <p className="text-xs font-bold text-blue-400 uppercase tracking-wider mb-2">Listos para ir en vivo</p>
                         <div className="space-y-2">
                           {data.shows.filter(s => s.status === 'scheduled').map(show => (
-                            <ShowRow key={show.id} show={show} onGoLive={() => navigate(`/shows/${show.id}`)} onDelete={handleDeleteShow} onEnd={handleEndShow} />
+                            <ShowRow key={show.id} show={show} onGoLive={() => navigate('/studio')} onDelete={handleDeleteShow} onEnd={handleEndShow} />
                           ))}
                         </div>
                       </div>

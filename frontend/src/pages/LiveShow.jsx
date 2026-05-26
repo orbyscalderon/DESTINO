@@ -296,6 +296,13 @@ export default function LiveShow() {
         api.get(`/api/shows/${id}/interest`).catch(() => ({ data: { interested: false, interest_count: 0 } })),
       ]);
       const s = showRes.data.show;
+
+      // El host gestiona su show desde /studio — redirigir si el show está activo
+      if (s.is_host && s.status === 'live') {
+        navigate('/studio', { replace: true });
+        return;
+      }
+
       setShow(s);
       setViewerCount(s.viewer_count || 0);
       setCoinBalance(balanceRes.data.coins || 0);
