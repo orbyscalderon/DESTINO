@@ -172,6 +172,15 @@ export default function CreatorDashboard() {
     } catch { toast.error('Error al eliminar'); }
   };
 
+  const handleEndShow = async (showId) => {
+    if (!confirm('¿Terminar este show ahora? Los viewers serán desconectados.')) return;
+    try {
+      await api.post(`/api/shows/${showId}/end`);
+      toast.success('Show terminado');
+      loadDashboard(true);
+    } catch (err) { toast.error(err.response?.data?.error || 'Error al terminar'); }
+  };
+
   const handleBroadcast = async () => {
     if (!broadcastMsg.trim()) return;
     setSending(true);
@@ -436,7 +445,7 @@ export default function CreatorDashboard() {
                     </div>
                     <div className="space-y-2">
                       {data.shows.filter(s => s.status !== 'ended').slice(0, 3).map(show => (
-                        <ShowRow key={show.id} show={show} onGoLive={() => navigate(`/shows/${show.id}`)} onDelete={handleDeleteShow} />
+                        <ShowRow key={show.id} show={show} onGoLive={() => navigate(`/shows/${show.id}`)} onDelete={handleDeleteShow} onEnd={handleEndShow} />
                       ))}
                     </div>
                   </div>
@@ -504,7 +513,7 @@ export default function CreatorDashboard() {
                         </p>
                         <div className="space-y-2">
                           {data.shows.filter(s => s.status === 'live').map(show => (
-                            <ShowRow key={show.id} show={show} onGoLive={() => navigate(`/shows/${show.id}`)} onDelete={handleDeleteShow} large />
+                            <ShowRow key={show.id} show={show} onGoLive={() => navigate(`/shows/${show.id}`)} onDelete={handleDeleteShow} onEnd={handleEndShow} large />
                           ))}
                         </div>
                       </div>
@@ -516,7 +525,7 @@ export default function CreatorDashboard() {
                         <p className="text-xs font-bold text-blue-400 uppercase tracking-wider mb-2">Listos para ir en vivo</p>
                         <div className="space-y-2">
                           {data.shows.filter(s => s.status === 'scheduled').map(show => (
-                            <ShowRow key={show.id} show={show} onGoLive={() => navigate(`/shows/${show.id}`)} onDelete={handleDeleteShow} />
+                            <ShowRow key={show.id} show={show} onGoLive={() => navigate(`/shows/${show.id}`)} onDelete={handleDeleteShow} onEnd={handleEndShow} />
                           ))}
                         </div>
                       </div>
@@ -528,7 +537,7 @@ export default function CreatorDashboard() {
                         <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Finalizados</p>
                         <div className="space-y-2">
                           {data.shows.filter(s => s.status === 'ended').slice(0, 10).map(show => (
-                            <ShowRow key={show.id} show={show} onGoLive={() => navigate(`/shows/${show.id}`)} onDelete={handleDeleteShow} ended />
+                            <ShowRow key={show.id} show={show} onGoLive={() => navigate(`/shows/${show.id}`)} onDelete={handleDeleteShow} onEnd={handleEndShow} ended />
                           ))}
                         </div>
                       </div>
@@ -1151,7 +1160,7 @@ export default function CreatorDashboard() {
 }
 
 /* ── Show Row Component ───────────────────────────────────── */
-function ShowRow({ show, onGoLive, onDelete, large, ended }) {
+function ShowRow({ show, onGoLive, onDelete, onEnd, large, ended }) {
   const cat = SHOW_CATEGORIES.find(c => c.key === show.category);
   const durationMin = show.started_at && show.ended_at
     ? Math.round((new Date(show.ended_at) - new Date(show.started_at)) / 60000) : null;
@@ -1187,17 +1196,28 @@ function ShowRow({ show, onGoLive, onDelete, large, ended }) {
 
       <div className="flex items-center gap-1.5 shrink-0">
         {!ended && (
-          <button
-            onClick={onGoLive}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all ${
-              show.status === 'live'
-                ? 'bg-green-500 hover:bg-green-600 text-white'
-                : 'bg-brand-500 hover:bg-brand-600 text-white'
-            }`}
-          >
-            <FiPlay size={11} />
-            {show.status === 'live' ? 'Entrar' : 'Ir en vivo'}
-          </button>
+          <>
+            <button
+              onClick={onGoLive}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all ${
+                show.status === 'live'
+                  ? 'bg-green-500 hover:bg-green-600 text-white'
+                  : 'bg-brand-500 hover:bg-brand-600 text-white'
+              }`}
+            >
+              <FiPlay size={11} />
+              {show.status === 'live' ? 'Entrar' : 'Ir en vivo'}
+            </button>
+            {show.status === 'live' && onEnd && (
+              <button
+                onClick={() => onEnd(show.id)}
+                className="flex items-center gap-1 px-2.5 py-2 rounded-xl text-xs font-bold bg-red-500/15 hover:bg-red-500/30 border border-red-500/30 text-red-400 hover:text-red-300 transition-all"
+                title="Terminar show"
+              >
+                <FiX size={11} /> Terminar
+              </button>
+            )}
+          </>
         )}
         {ended && (
           <Link to={`/shows/${show.id}`}
