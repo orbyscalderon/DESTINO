@@ -1,0 +1,25 @@
+- generic [ref=e2]:
+  - status [ref=e138]: Email logins are disabled
+  - generic [ref=e97]:
+    - generic [ref=e98]:
+      - generic [ref=e99]: 💕
+      - heading "Bienvenido" [level=1] [ref=e100]
+      - paragraph [ref=e101]: Tu destino te espera
+    - generic [ref=e102]:
+      - generic [ref=e103]:
+        - img [ref=e104]
+        - textbox "Email" [ref=e107]: testuser1destino@gmail.com
+      - generic [ref=e108]:
+        - img [ref=e109]
+        - textbox "Contraseña" [ref=e112]: Test1234!
+        - button [ref=e113] [cursor=pointer]:
+          - img [ref=e114]
+      - link "¿Olvidaste tu contraseña?" [ref=e118] [cursor=pointer]:
+        - /url: "#/forgot-password"
+      - button "Iniciar sesión" [ref=e119] [cursor=pointer]
+    - generic [ref=e123]: o
+    - button "Continuar con Google" [ref=e124] [cursor=pointer]
+    - paragraph [ref=e125]:
+      - text: ¿No tienes cuenta?
+      - link "Regístrate gratis" [ref=e126] [cursor=pointer]:
+        - /url: "#/register"

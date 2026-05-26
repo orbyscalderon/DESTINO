@@ -1,0 +1,75 @@
+- generic [ref=e2]:
+  - navigation [ref=e734]:
+    - generic [ref=e735]:
+      - link "Inicio" [ref=e736] [cursor=pointer]:
+        - /url: "#/home"
+        - img [ref=e738]
+        - generic [ref=e741]: Inicio
+      - link "Matches" [ref=e742] [cursor=pointer]:
+        - /url: "#/matches"
+        - img [ref=e744]
+        - generic [ref=e746]: Matches
+      - link "Mensajes" [ref=e747] [cursor=pointer]:
+        - /url: "#/messages"
+        - img [ref=e749]
+        - generic [ref=e751]: Mensajes
+      - link "Notifs" [ref=e752] [cursor=pointer]:
+        - /url: "#/notifications"
+        - img [ref=e754]
+        - generic [ref=e757]: Notifs
+      - link "Perfil" [ref=e758] [cursor=pointer]:
+        - /url: "#/profile"
+        - img [ref=e760]
+        - generic [ref=e763]: Perfil
+  - generic [ref=e872]:
+    - generic [ref=e873]:
+      - link [ref=e874] [cursor=pointer]:
+        - /url: "#/matches"
+        - img [ref=e875]
+      - img "NoFueJosh" [ref=e877]
+      - generic [ref=e878]:
+        - paragraph [ref=e879]: NoFueJosh
+        - paragraph [ref=e880]: Hace 12h
+      - button "Videollamada" [ref=e881] [cursor=pointer]:
+        - img [ref=e882]
+      - button [ref=e884] [cursor=pointer]:
+        - img [ref=e885]
+    - generic [ref=e890]:
+      - button "Activar mensajes efímeros" [ref=e893] [cursor=pointer]:
+        - img [ref=e894]
+      - generic [ref=e930]:
+        - generic [ref=e931]:
+          - button "❤️" [ref=e932] [cursor=pointer]
+          - button "😂" [ref=e933] [cursor=pointer]
+          - button "🔥" [ref=e934] [cursor=pointer]
+          - button "👍" [ref=e935] [cursor=pointer]
+          - button "😮" [ref=e936] [cursor=pointer]
+        - generic [ref=e937]:
+          - button "Fijar mensaje" [ref=e938] [cursor=pointer]:
+            - img [ref=e939]
+            - text: Fijar mensaje
+          - button "Borrar para todos" [ref=e941] [cursor=pointer]:
+            - img [ref=e942]
+            - text: Borrar para todos
+          - button "Borrar para mí" [ref=e944] [cursor=pointer]:
+            - img [ref=e945]
+            - text: Borrar para mí
+      - generic [ref=e899]:
+        - generic [ref=e900]:
+          - paragraph [ref=e901]: hola
+          - generic [ref=e902]:
+            - generic [ref=e903]: 12:12
+            - generic [ref=e904]:
+              - img [ref=e905]
+              - img [ref=e907]
+        - button "Responder" [ref=e909] [cursor=pointer]:
+          - img [ref=e910]
+      - generic [ref=e914]:
+        - button "GIF" [ref=e915] [cursor=pointer]
+        - button "Enviar foto" [ref=e916] [cursor=pointer]:
+          - img [ref=e917]
+        - button "Enviar contenido PPV" [ref=e921] [cursor=pointer]:
+          - img [ref=e922]
+        - textbox "Escribe un mensaje..." [ref=e924]
+        - button "Grabar mensaje de voz" [ref=e925] [cursor=pointer]:
+          - img [ref=e926]

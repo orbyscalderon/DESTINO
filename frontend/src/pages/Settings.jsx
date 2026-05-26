@@ -387,7 +387,6 @@ export default function Settings() {
                   { key: 'messages', label: 'Mensajes nuevos',      desc: 'Mensajes en tus conversaciones' },
                   { key: 'likes',    label: 'Likes recibidos',      desc: 'Cuando alguien te da like' },
                   { key: 'shows',    label: 'Alertas de shows',     desc: 'Shows en vivo que podrían gustarte' },
-                  { key: 'rewards',  label: 'Recompensas diarias',  desc: 'Recordatorio de recompensa diaria' },
                 ].map(({ key, label, desc }) => (
                   <div key={key} className="flex items-center gap-3 px-4 py-3 pl-12">
                     <div className="flex-1">

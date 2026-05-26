@@ -60,18 +60,14 @@ export default function Profile() {
   const [togglingIncognito, setTogglingIncognito] = useState(false);
   const [followersCount, setFollowersCount] = useState(0);
   const [coinsBalance, setCoinsBalance] = useState(0);
-  const [streak, setStreak] = useState(0);
   const [boostSecsLeft, setBoostSecsLeft] = useState(0);
-  const [completionClaimed, setCompletionClaimed] = useState(null);
-  const [claimingReward, setClaimingReward] = useState(false);
   const fileRef = useRef(null);
   const photoRef = useRef(null);
   const videoRef = useRef(null);
 
   useEffect(() => {
-    if (profile?.streak_count !== undefined) setStreak(profile.streak_count);
     if (profile?.is_incognito !== undefined) setIncognito(profile.is_incognito);
-  }, [profile?.streak_count, profile?.is_incognito]);
+  }, [profile?.is_incognito]);
 
   useEffect(() => {
     if (!profile?.boosted_until) { setBoostSecsLeft(0); return; }
@@ -361,24 +357,6 @@ export default function Profile() {
     }
   };
 
-  const handleClaimReward = async () => {
-    setClaimingReward(true);
-    try {
-      const { data } = await api.post('/api/profiles/completion/claim');
-      setCompletionClaimed(true);
-      setCoinsBalance(b => b + data.coins);
-      toast.success(`¡+${data.coins} coins! Perfil completado al 100%`);
-    } catch (err) {
-      if (err.response?.data?.code === 'ALREADY_CLAIMED') {
-        setCompletionClaimed(true);
-      } else {
-        toast.error(err.response?.data?.error || 'Error al reclamar');
-      }
-    } finally {
-      setClaimingReward(false);
-    }
-  };
-
   const handleShare = async () => {
     const url = `${window.location.origin}/#/profile/${user?.id}`;
     const shareData = { title: `${profile?.full_name} en Destino`, text: profile?.bio || 'Mira mi perfil en Destino', url };
@@ -460,16 +438,6 @@ export default function Profile() {
               {profile?.is_adult_creator && (
                 <span className="bg-red-500/15 text-red-400 text-[10px] font-bold px-2 py-0.5 rounded-full border border-red-500/20">18+</span>
               )}
-              {streak >= 2 && (
-                <motion.span
-                  initial={{ scale: 0.8, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  className="bg-orange-500/20 text-orange-400 text-xs font-bold px-3 py-1 rounded-full border border-orange-500/30 cursor-default"
-                  title={`${streak} días de racha activa`}
-                >
-                  🔥 {streak} {streak === 1 ? 'día' : 'días'}
-                </motion.span>
-              )}
               {boostSecsLeft > 0 && (
                 <motion.span
                   initial={{ scale: 0.8, opacity: 0 }}
@@ -515,35 +483,13 @@ export default function Profile() {
             const total = steps.filter(s => s.done).reduce((a, s) => a + s.pct, 0);
 
             if (total === 100) {
-              if (completionClaimed === null) return null;
-              if (completionClaimed) {
-                return (
-                  <div className="card p-4 flex items-center gap-3">
-                    <span className="text-green-400 text-xl">✓</span>
-                    <div>
-                      <p className="text-sm font-semibold text-white">Perfil completo</p>
-                      <p className="text-xs text-gray-500">Premio de 50 coins ya reclamado</p>
-                    </div>
-                  </div>
-                );
-              }
               return (
-                <div className="card p-4">
-                  <div className="flex items-center gap-3 mb-3">
-                    <span className="text-2xl">🎉</span>
-                    <div>
-                      <p className="text-sm font-semibold text-white">¡Perfil al 100%!</p>
-                      <p className="text-xs text-gray-400">Reclama tu recompensa por completarlo</p>
-                    </div>
+                <div className="card p-4 flex items-center gap-3">
+                  <span className="text-green-400 text-xl">✓</span>
+                  <div>
+                    <p className="text-sm font-semibold text-white">Perfil completo</p>
+                    <p className="text-xs text-gray-500">Tu perfil está al 100%</p>
                   </div>
-                  <button
-                    onClick={handleClaimReward}
-                    disabled={claimingReward}
-                    className="btn-primary w-full text-sm py-2 disabled:opacity-50 flex items-center justify-center gap-2"
-                  >
-                    <FiZap size={14} />
-                    {claimingReward ? 'Reclamando...' : 'Reclamar 50 coins'}
-                  </button>
                 </div>
               );
             }

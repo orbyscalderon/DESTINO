@@ -14,7 +14,6 @@ import api from './lib/api.js';
 import { supabase } from './lib/supabase.js';
 import OfflineBanner from './components/ui/OfflineBanner.jsx';
 import OnboardingTour from './components/ui/OnboardingTour.jsx';
-import DailyReward from './components/ui/DailyReward.jsx';
 import IncomingCallModal from './components/ui/IncomingCallModal.jsx';
 
 const Landing     = lazy(() => import('./pages/Landing.jsx'));
@@ -183,7 +182,6 @@ export default function App() {
       <Suspense fallback={<PageLoader />}>
       <OfflineBanner />
       {user && <OnboardingTour />}
-      {user && <DailyReward />}
       {user && <IncomingCallListener />}
       <Toaster
         position="top-center"

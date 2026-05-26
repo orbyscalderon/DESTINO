@@ -1,0 +1,115 @@
+- generic [ref=e2]:
+  - complementary [ref=e7]:
+    - generic [ref=e8]:
+      - heading "Destino 💕" [level=1] [ref=e9]
+      - paragraph [ref=e10]: Encuentra tu conexión
+    - navigation [ref=e11]:
+      - link "Inicio" [ref=e12] [cursor=pointer]:
+        - /url: "#/home"
+        - img [ref=e14]
+        - text: Inicio
+      - link "Descubrir" [ref=e17] [cursor=pointer]:
+        - /url: "#/discover"
+        - img [ref=e19]
+        - text: Descubrir
+      - link "Matches" [ref=e22] [cursor=pointer]:
+        - /url: "#/matches"
+        - img [ref=e24]
+        - text: Matches
+      - link "Mensajes" [ref=e26] [cursor=pointer]:
+        - /url: "#/messages"
+        - img [ref=e28]
+        - text: Mensajes
+      - link "Buscar" [ref=e30] [cursor=pointer]:
+        - /url: "#/search"
+        - img [ref=e32]
+        - text: Buscar
+      - link "Shows en vivo" [ref=e35] [cursor=pointer]:
+        - /url: "#/shows"
+        - img [ref=e37]
+        - text: Shows en vivo
+      - link "Adultos 18+" [ref=e39] [cursor=pointer]:
+        - /url: "#/adult"
+        - img [ref=e41]
+        - text: Adultos 18+
+      - link "Videollamadas" [ref=e43] [cursor=pointer]:
+        - /url: "#/video"
+        - img [ref=e45]
+        - text: Videollamadas
+      - link "Perfil" [ref=e48] [cursor=pointer]:
+        - /url: "#/profile"
+        - img [ref=e50]
+        - text: Perfil
+      - link "Notificaciones" [ref=e53] [cursor=pointer]:
+        - /url: "#/notifications"
+        - img [ref=e55]
+        - text: Notificaciones
+      - link "Coins 5" [ref=e58] [cursor=pointer]:
+        - /url: "#/coins"
+        - img [ref=e59]
+        - generic [ref=e61]: Coins
+        - generic [ref=e62]: "5"
+      - link "Admin Panel" [ref=e63] [cursor=pointer]:
+        - /url: "#/admin"
+        - img [ref=e64]
+        - text: Admin Panel
+      - link "Mi Dashboard" [ref=e66] [cursor=pointer]:
+        - /url: "#/creator/dashboard"
+        - img [ref=e67]
+        - text: Mi Dashboard
+      - link "Configuración" [ref=e68] [cursor=pointer]:
+        - /url: "#/settings"
+        - img [ref=e69]
+        - text: Configuración
+    - link "Orbys Calderon @dasda ⚡" [ref=e73] [cursor=pointer]:
+      - /url: "#/profile"
+      - generic [ref=e74]:
+        - paragraph [ref=e75]: Orbys Calderon
+        - paragraph [ref=e76]: "@dasda"
+      - generic [ref=e77]: ⚡
+  - generic [ref=e134]:
+    - generic [ref=e135]:
+      - generic [ref=e136]:
+        - heading "Descubrir" [level=1] [ref=e288]
+        - paragraph [ref=e289]: Encuentra tu conexión hoy
+      - generic [ref=e290]:
+        - generic [ref=e291]: ⚡ PREMIUM
+        - button "Boost tu perfil" [ref=e292] [cursor=pointer]:
+          - img [ref=e293]
+        - button [ref=e295] [cursor=pointer]:
+          - img [ref=e296]
+    - button "Añadir" [ref=e299] [cursor=pointer]:
+      - img [ref=e303]
+      - paragraph [ref=e304]: Añadir
+    - generic [ref=e305]:
+      - generic [ref=e306]:
+        - generic [ref=e307]: 💕
+        - generic [ref=e308]: 🔥
+        - generic [ref=e309]: ⭐
+        - generic [ref=e310]: 💫
+      - heading "¡Lo has visto todo!" [level=3] [ref=e311]
+      - paragraph [ref=e312]: Nuevos perfiles llegarán pronto. Mientras tanto, explora más Destino.
+      - generic [ref=e313]:
+        - link "💬 Tus matches Escribe a quien ya conectaste" [ref=e314] [cursor=pointer]:
+          - /url: "#/matches"
+          - generic [ref=e315]: 💬
+          - paragraph [ref=e316]: Tus matches
+          - paragraph [ref=e317]: Escribe a quien ya conectaste
+        - link "🎥 Video aleatorio Conoce gente al instante" [ref=e318] [cursor=pointer]:
+          - /url: "#/video"
+          - generic [ref=e319]: 🎥
+          - paragraph [ref=e320]: Video aleatorio
+          - paragraph [ref=e321]: Conoce gente al instante
+        - link "🔴 Shows en vivo Descubre a los creadores" [ref=e322] [cursor=pointer]:
+          - /url: "#/shows"
+          - generic [ref=e323]: 🔴
+          - paragraph [ref=e324]: Shows en vivo
+          - paragraph [ref=e325]: Descubre a los creadores
+        - link "📸 Momentos Explora el feed de fotos" [ref=e326] [cursor=pointer]:
+          - /url: "#/moments"
+          - generic [ref=e327]: 📸
+          - paragraph [ref=e328]: Momentos
+          - paragraph [ref=e329]: Explora el feed de fotos
+      - button "Buscar de nuevo" [ref=e330] [cursor=pointer]:
+        - img [ref=e331]
+        - text: Buscar de nuevo

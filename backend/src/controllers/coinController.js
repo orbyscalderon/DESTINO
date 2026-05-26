@@ -127,56 +127,6 @@ export const getTransactions = async (req, res) => {
   }
 };
 
-const DAY_REWARDS = [5, 10, 15, 20, 30, 50, 100];
-
-// GET /api/coins/daily-reward/status — devuelve si ya reclamó hoy y la racha actual
-export const getDailyRewardStatus = async (req, res) => {
-  try {
-    const userId = req.user.id;
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('streak_count, last_reward_date')
-      .eq('id', userId)
-      .single();
-    const today = new Date().toISOString().split('T')[0];
-    const alreadyClaimed = profile?.last_reward_date === today;
-    res.json({ alreadyClaimed, streak: profile?.streak_count || 0 });
-  } catch {
-    res.status(500).json({ error: 'Error interno del servidor' });
-  }
-};
-
-// POST /api/coins/daily-reward
-export const claimDailyReward = async (req, res) => {
-  try {
-    const userId = req.user.id;
-
-    // Atomic streak update via DB function — returns new streak, prevents double-claim
-    const { data: newStreak, error: rpcErr } = await supabase
-      .rpc('update_daily_streak', { p_user_id: userId });
-    if (rpcErr) throw rpcErr;
-
-    // Check if already claimed today (RPC returns same streak if already claimed today)
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('last_reward_date')
-      .eq('id', userId)
-      .single();
-    const today = new Date().toISOString().split('T')[0];
-    if (profile?.last_reward_date !== today) {
-      return res.status(400).json({ error: 'Recompensa ya reclamada hoy' });
-    }
-
-    const streak = newStreak || 1;
-    const coins  = DAY_REWARDS[Math.min(streak - 1, DAY_REWARDS.length - 1)];
-
-    await addCoins(userId, coins, 'bonus', null, null);
-    res.json({ coins, streak });
-  } catch (err) {
-    res.status(500).json({ error: 'Error interno del servidor' });
-  }
-};
-
 // Función utilitaria: agregar coins a un usuario
 export async function addCoins(userId, coins, type, referenceId = null, stripePaymentIntentId = null) {
   await supabase.rpc('increment_coins', { p_user_id: userId, p_amount: coins });

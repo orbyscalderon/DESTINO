@@ -1,0 +1,179 @@
+- generic [ref=e2]:
+  - complementary [ref=e3]:
+    - generic [ref=e4]:
+      - heading "Destino 💕" [level=1] [ref=e5]
+      - paragraph [ref=e6]: Encuentra tu conexión
+    - navigation [ref=e7]:
+      - link "Inicio" [ref=e8] [cursor=pointer]:
+        - /url: "#/home"
+        - img [ref=e10]
+        - text: Inicio
+      - link "Descubrir" [ref=e13] [cursor=pointer]:
+        - /url: "#/discover"
+        - img [ref=e15]
+        - text: Descubrir
+      - link "Matches" [ref=e18] [cursor=pointer]:
+        - /url: "#/matches"
+        - img [ref=e20]
+        - text: Matches
+      - link "Mensajes" [ref=e22] [cursor=pointer]:
+        - /url: "#/messages"
+        - img [ref=e24]
+        - text: Mensajes
+      - link "Buscar" [ref=e26] [cursor=pointer]:
+        - /url: "#/search"
+        - img [ref=e28]
+        - text: Buscar
+      - link "Shows en vivo" [ref=e31] [cursor=pointer]:
+        - /url: "#/shows"
+        - img [ref=e33]
+        - text: Shows en vivo
+      - link "Adultos 18+" [ref=e35] [cursor=pointer]:
+        - /url: "#/adult"
+        - img [ref=e37]
+        - text: Adultos 18+
+      - link "Videollamadas" [ref=e39] [cursor=pointer]:
+        - /url: "#/video"
+        - img [ref=e41]
+        - text: Videollamadas
+      - link "Perfil" [ref=e44] [cursor=pointer]:
+        - /url: "#/profile"
+        - img [ref=e46]
+        - text: Perfil
+      - link "Notificaciones" [ref=e49] [cursor=pointer]:
+        - /url: "#/notifications"
+        - img [ref=e51]
+        - text: Notificaciones
+      - link "Coins 5" [ref=e54] [cursor=pointer]:
+        - /url: "#/coins"
+        - img [ref=e55]
+        - generic [ref=e57]: Coins
+        - generic [ref=e58]: "5"
+      - link "Admin Panel" [ref=e59] [cursor=pointer]:
+        - /url: "#/admin"
+        - img [ref=e60]
+        - text: Admin Panel
+      - link "Mi Dashboard" [ref=e62] [cursor=pointer]:
+        - /url: "#/creator/dashboard"
+        - img [ref=e63]
+        - text: Mi Dashboard
+      - link "Configuración" [ref=e64] [cursor=pointer]:
+        - /url: "#/settings"
+        - img [ref=e65]
+        - text: Configuración
+    - link "Orbys Calderon @dasda ⚡" [ref=e69] [cursor=pointer]:
+      - /url: "#/profile"
+      - generic [ref=e70]:
+        - paragraph [ref=e71]: Orbys Calderon
+        - paragraph [ref=e72]: "@dasda"
+      - generic [ref=e73]: ⚡
+  - generic [ref=e468]:
+    - heading "Buscar" [level=1] [ref=e469]
+    - generic [ref=e470]:
+      - generic [ref=e471]:
+        - img [ref=e472]
+        - textbox "Nombre o @username..." [ref=e475]
+      - button [active] [ref=e476] [cursor=pointer]:
+        - img [ref=e477]
+    - generic [ref=e509]:
+      - generic [ref=e510]:
+        - paragraph [ref=e511]: Género
+        - generic [ref=e512]:
+          - button "Todos" [ref=e513] [cursor=pointer]
+          - button "Hombres" [ref=e514] [cursor=pointer]
+          - button "Mujeres" [ref=e515] [cursor=pointer]
+          - button "Otro" [ref=e516] [cursor=pointer]
+      - generic [ref=e517]:
+        - generic [ref=e518]:
+          - paragraph [ref=e519]: Edad mín.
+          - spinbutton [ref=e520]
+        - generic [ref=e521]:
+          - paragraph [ref=e522]: Edad máx.
+          - spinbutton [ref=e523]
+      - generic [ref=e524]:
+        - paragraph [ref=e525]: País
+        - combobox [ref=e526]:
+          - option "Todos los países" [selected]
+          - option "🇦🇷 Argentina"
+          - option "🇧🇴 Bolivia"
+          - option "🇧🇷 Brasil"
+          - option "🇨🇦 Canadá"
+          - option "🇨🇱 Chile"
+          - option "🇨🇴 Colombia"
+          - option "🇨🇷 Costa Rica"
+          - option "🇨🇺 Cuba"
+          - option "🇩🇴 Rep. Dominicana"
+          - option "🇪🇨 Ecuador"
+          - option "🇪🇸 España"
+          - option "🇬🇹 Guatemala"
+          - option "🇭🇳 Honduras"
+          - option "🇲🇽 México"
+          - option "🇳🇮 Nicaragua"
+          - option "🇵🇦 Panamá"
+          - option "🇵🇪 Perú"
+          - option "🇵🇷 Puerto Rico"
+          - option "🇵🇾 Paraguay"
+          - option "🇸🇻 El Salvador"
+          - option "🇺🇾 Uruguay"
+          - option "🇻🇪 Venezuela"
+          - option "🇺🇸 Estados Unidos"
+          - option "🇬🇧 Reino Unido"
+          - option "🇦🇺 Australia"
+          - option "🇵🇹 Portugal"
+          - option "🇫🇷 Francia"
+          - option "🇩🇪 Alemania"
+          - option "🇮🇹 Italia"
+          - option "🇷🇺 Rusia"
+          - option "🇯🇵 Japón"
+          - option "🇰🇷 Corea del Sur"
+          - option "🇨🇳 China"
+          - option "🇮🇳 India"
+          - option "🇹🇷 Turquía"
+          - option "🇸🇦 Arabia Saudita"
+          - option "🇵🇭 Filipinas"
+          - option "🇳🇬 Nigeria"
+          - option "🇿🇦 Sudáfrica"
+      - button "Solo creadores" [ref=e527] [cursor=pointer]:
+        - generic [ref=e528]: Solo creadores
+      - generic [ref=e531]:
+        - paragraph [ref=e532]: Intereses
+        - generic [ref=e533]:
+          - button "🎵 Música" [ref=e534] [cursor=pointer]
+          - button "✈️ Viajes" [ref=e535] [cursor=pointer]
+          - button "💪 Fitness" [ref=e536] [cursor=pointer]
+          - button "🎮 Gaming" [ref=e537] [cursor=pointer]
+          - button "📸 Fotografía" [ref=e538] [cursor=pointer]
+          - button "🍷 Vinos" [ref=e539] [cursor=pointer]
+          - button "🎬 Cine" [ref=e540] [cursor=pointer]
+          - button "⚽ Deportes" [ref=e541] [cursor=pointer]
+      - generic [ref=e542]:
+        - button "Limpiar" [ref=e543] [cursor=pointer]
+        - button "Aplicar" [ref=e544] [cursor=pointer]
+    - generic [ref=e479]:
+      - generic [ref=e480]:
+        - img [ref=e481]
+        - heading "Top Creadores por Categoría" [level=2] [ref=e484]
+      - generic [ref=e485]:
+        - generic [ref=e486]:
+          - generic [ref=e487]: 💬 Chat
+          - link "Ver shows →" [ref=e488] [cursor=pointer]:
+            - /url: "#/shows"
+        - generic [ref=e489]:
+          - link "#1 ⚡ Orbys Calderon Cuenta verificada" [ref=e490] [cursor=pointer]:
+            - /url: "#/profile/4f374054-acb5-40c2-b01f-bed1fc2b540e"
+            - generic [ref=e491]:
+              - generic [ref=e492]: "#1"
+              - generic [ref=e493]: ⚡
+              - paragraph [ref=e495]:
+                - text: Orbys Calderon
+                - generic "Cuenta verificada" [ref=e496]:
+                  - img [ref=e497]
+          - link "#2 ⚡ NoFueJosh Cuenta verificada" [ref=e499] [cursor=pointer]:
+            - /url: "#/profile/a467a7f8-be1c-4e67-ba02-b683c8c09afc"
+            - generic [ref=e500]:
+              - generic [ref=e501]: "#2"
+              - generic [ref=e502]: ⚡
+              - paragraph [ref=e504]:
+                - text: NoFueJosh
+                - generic "Cuenta verificada" [ref=e505]:
+                  - img [ref=e506]

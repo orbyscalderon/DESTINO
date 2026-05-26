@@ -1,0 +1,106 @@
+- generic [ref=e2]:
+  - complementary [ref=e7]:
+    - generic [ref=e8]:
+      - heading "Destino 💕" [level=1] [ref=e9]
+      - paragraph [ref=e10]: Encuentra tu conexión
+    - navigation [ref=e11]:
+      - link "Inicio" [ref=e12] [cursor=pointer]:
+        - /url: "#/home"
+        - img [ref=e14]
+        - text: Inicio
+      - link "Descubrir" [ref=e17] [cursor=pointer]:
+        - /url: "#/discover"
+        - img [ref=e19]
+        - text: Descubrir
+      - link "Matches" [ref=e22] [cursor=pointer]:
+        - /url: "#/matches"
+        - img [ref=e24]
+        - text: Matches
+      - link "Mensajes" [ref=e26] [cursor=pointer]:
+        - /url: "#/messages"
+        - img [ref=e28]
+        - text: Mensajes
+      - link "Buscar" [ref=e30] [cursor=pointer]:
+        - /url: "#/search"
+        - img [ref=e32]
+        - text: Buscar
+      - link "Shows en vivo" [ref=e35] [cursor=pointer]:
+        - /url: "#/shows"
+        - img [ref=e37]
+        - text: Shows en vivo
+      - link "Adultos 18+" [ref=e39] [cursor=pointer]:
+        - /url: "#/adult"
+        - img [ref=e41]
+        - text: Adultos 18+
+      - link "Videollamadas" [ref=e43] [cursor=pointer]:
+        - /url: "#/video"
+        - img [ref=e45]
+        - text: Videollamadas
+      - link "Perfil" [ref=e48] [cursor=pointer]:
+        - /url: "#/profile"
+        - img [ref=e50]
+        - text: Perfil
+      - link "Notificaciones" [ref=e53] [cursor=pointer]:
+        - /url: "#/notifications"
+        - img [ref=e55]
+        - text: Notificaciones
+      - link "Coins 5" [ref=e58] [cursor=pointer]:
+        - /url: "#/coins"
+        - img [ref=e59]
+        - generic [ref=e61]: Coins
+        - generic [ref=e62]: "5"
+      - link "Admin Panel" [ref=e63] [cursor=pointer]:
+        - /url: "#/admin"
+        - img [ref=e64]
+        - text: Admin Panel
+      - link "Mi Dashboard" [ref=e66] [cursor=pointer]:
+        - /url: "#/creator/dashboard"
+        - img [ref=e67]
+        - text: Mi Dashboard
+      - link "Configuración" [ref=e68] [cursor=pointer]:
+        - /url: "#/settings"
+        - img [ref=e69]
+        - text: Configuración
+    - link "Orbys Calderon @dasda ⚡" [ref=e73] [cursor=pointer]:
+      - /url: "#/profile"
+      - generic [ref=e74]:
+        - paragraph [ref=e75]: Orbys Calderon
+        - paragraph [ref=e76]: "@dasda"
+      - generic [ref=e77]: ⚡
+  - generic [ref=e525]:
+    - generic [ref=e527]:
+      - heading "Shows" [level=1] [ref=e530]:
+        - img [ref=e531]
+        - text: Shows
+      - generic [ref=e534]:
+        - button [ref=e535] [cursor=pointer]:
+          - img [ref=e536]
+        - button [ref=e539] [cursor=pointer]:
+          - img [ref=e540]
+        - link "Panel" [ref=e544] [cursor=pointer]:
+          - /url: "#/creator/dashboard"
+          - img [ref=e545]
+          - text: Panel
+    - generic [ref=e547]:
+      - button "✨ Todas" [ref=e548] [cursor=pointer]
+      - button "🎵 Música" [ref=e549] [cursor=pointer]
+      - button "💃 Baile" [ref=e550] [cursor=pointer]
+      - button "😂 Comedia" [ref=e551] [cursor=pointer]
+      - button "💬 Chat" [ref=e552] [cursor=pointer]
+      - button "🎮 Gaming" [ref=e553] [cursor=pointer]
+      - button "💪 Fitness" [ref=e554] [cursor=pointer]
+      - button "🍳 Cocina" [ref=e555] [cursor=pointer]
+      - button "🎨 Arte" [ref=e556] [cursor=pointer]
+    - generic [ref=e558]:
+      - button "Todos" [active] [ref=e559] [cursor=pointer]:
+        - img [ref=e560]
+        - text: Todos
+      - button "Broadcast" [ref=e563] [cursor=pointer]:
+        - img [ref=e564]
+        - text: Broadcast
+      - button "Privado 1:1" [ref=e567] [cursor=pointer]:
+        - img [ref=e568]
+        - text: Privado 1:1
+    - link [ref=e604] [cursor=pointer]:
+      - /url: "#/creator/dashboard"
+      - img [ref=e605]
