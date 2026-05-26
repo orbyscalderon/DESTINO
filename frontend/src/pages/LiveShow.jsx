@@ -186,6 +186,14 @@ export default function LiveShow() {
   const [privateBalance, setPrivateBalance]   = useState(0);
   const privateTickRef = useRef(null);
 
+  // Viewer list, DMs, reactions counter, right panel tab
+  const [viewerList, setViewerList]           = useState([]);
+  const [privateMessages, setPrivateMessages] = useState([]);
+  const [totalReactions, setTotalReactions]   = useState(0);
+  const [rightTab, setRightTab]               = useState('public'); // 'public' | 'private' | 'viewers'
+  const [dmInput, setDmInput]                 = useState('');
+  const dmEndRef = useRef(null);
+
   // Pre-show
   const [preShow, setPreShow]             = useState(false);
   const [permCamera, setPermCamera]       = useState('idle');
@@ -338,8 +346,12 @@ export default function LiveShow() {
       config: { presence: { key: user?.id || 'anon' } },
     })
       .on('presence', { event: 'sync' }, () => {
-        const count = Object.keys(ch.presenceState()).length;
+        const state = ch.presenceState();
+        const count = Object.keys(state).length;
         setViewerCount(count);
+        // Build viewer list from presence data
+        const list = Object.values(state).flatMap(v => v).filter(Boolean);
+        setViewerList(list);
         setPeakViewers(prev => {
           if (count > prev) {
             if ([10, 50, 100, 500].includes(count))
@@ -390,16 +402,28 @@ export default function LiveShow() {
         }
         if (role === 'host') setPrivateRequest(null);
       })
+      .on('broadcast', { event: 'dm' }, ({ payload }) => {
+        if (role === 'host' || payload.fromId === user?.id || payload.toId === user?.id) {
+          setPrivateMessages(prev => [...prev.slice(-99), payload]);
+        }
+      })
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
-          await ch.track({ userId: user?.id, role, ts: Date.now() }).catch(() => {});
+          await ch.track({
+            userId:  user?.id,
+            role,
+            ts:      Date.now(),
+            name:    authProfile?.full_name  || 'Anónimo',
+            avatar:  authProfile?.avatar_url || null,
+            tier:    authProfile?.premium_tier || 'basic',
+          }).catch(() => {});
           setConnState('connected');
         } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
           setConnState('reconnecting');
         }
       });
     chatChannelRef.current = ch;
-  }, [addGiftAnimation, user?.id]);
+  }, [addGiftAnimation, user?.id, authProfile]);
 
   const leaveShowChannel = () => {
     if (chatChannelRef.current) {
@@ -429,6 +453,23 @@ export default function LiveShow() {
     setChatMessages(prev => [...prev.slice(-79), msg]);
   };
 
+  const sendDM = async () => {
+    const text = dmInput.trim();
+    if (!text || !chatChannelRef.current) return;
+    const msg = {
+      fromId:     user?.id,
+      fromName:   authProfile?.full_name  || 'Anónimo',
+      fromAvatar: authProfile?.avatar_url || null,
+      toId:       show?.host?.id,
+      text,
+      ts: Date.now(),
+    };
+    await chatChannelRef.current.send({ type: 'broadcast', event: 'dm', payload: msg });
+    setPrivateMessages(prev => [...prev, msg]);
+    setDmInput('');
+    setTimeout(() => dmEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+  };
+
   const sendReaction = async (emoji) => {
     addReaction(emoji);
     chatChannelRef.current?.send({ type: 'broadcast', event: 'react', payload: { emoji } });
@@ -437,6 +478,7 @@ export default function LiveShow() {
   const addReaction = (emoji) => {
     const rid = `${Date.now()}-${Math.random()}`;
     setReactions(prev => [...prev, { id: rid, emoji, x: Math.random() * 40 - 20 }]);
+    setTotalReactions(n => n + 1);
     setTimeout(() => setReactions(prev => prev.filter(r => r.id !== rid)), 2600);
   };
 
@@ -1468,43 +1510,224 @@ export default function LiveShow() {
             </div>
           </div>
 
-          {/* Top tippers */}
-          {tippers.length > 0 && (
-            <div className="px-4 py-2.5 border-b border-white/5 shrink-0">
-              <p className="text-gray-500 text-[10px] font-bold uppercase tracking-wide mb-2">Top propinas</p>
+          {/* Tabs del panel derecho */}
+          <div className="flex border-b border-white/5 shrink-0">
+            {[
+              { key: 'public',  label: 'Público' },
+              { key: 'private', label: `Privado${privateMessages.length > 0 ? ` (${privateMessages.length})` : ''}` },
+              { key: 'viewers', label: `${viewerCount} 👥` },
+            ].map(t => (
+              <button
+                key={t.key}
+                onClick={() => setRightTab(t.key)}
+                className={`flex-1 py-2 text-[11px] font-semibold transition-colors border-b-2 ${
+                  rightTab === t.key
+                    ? 'text-white border-brand-500'
+                    : 'text-gray-500 border-transparent hover:text-gray-300'
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+
+          {/* TAB: Público (chat) */}
+          {rightTab === 'public' && (
+            <>
+              {/* Top tippers */}
+              {tippers.length > 0 && (
+                <div className="px-4 py-2.5 border-b border-white/5 shrink-0">
+                  <p className="text-gray-500 text-[10px] font-bold uppercase tracking-wide mb-2">Top propinas</p>
+                  <div className="space-y-1.5">
+                    {tippers.slice(0, 3).map((t, i) => (
+                      <div key={t.id} className="flex items-center gap-2">
+                        <span className="text-[10px] font-black w-4" style={{ color: i === 0 ? '#FFD700' : i === 1 ? '#C0C0C0' : '#CD7F32' }}>#{i+1}</span>
+                        <img src={t.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(t.full_name||'U')}&size=40&background=1a1a2e&color=f43f5e`}
+                          className="w-5 h-5 rounded-full object-cover shrink-0" alt="" />
+                        <span className="text-white text-xs flex-1 truncate">{t.full_name}</span>
+                        <span className="text-yellow-400 text-xs font-bold shrink-0">⚡{t.coins_total}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Mensaje fijado */}
+              <AnimatePresence>
+                {pinnedMessage && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+                    className="overflow-hidden shrink-0"
+                  >
+                    <div className="px-3 py-2 bg-brand-500/10 border-b border-brand-500/20 flex items-start gap-2">
+                      <FiBookmark size={11} className="text-brand-400 shrink-0 mt-0.5" />
+                      <p className="text-brand-200 text-xs leading-tight flex-1">{pinnedMessage}</p>
+                      <button onClick={() => { setPinnedMessage(''); setPinnedInput(''); }} className="text-gray-500 hover:text-gray-300 shrink-0 transition-colors">
+                        <FiX size={11} />
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* Chat */}
+              <div className="flex-1 overflow-y-auto px-3 py-2 space-y-1.5 min-h-0">
+                {chatMessages.length === 0
+                  ? <p className="text-gray-600 text-xs text-center py-4">El chat está vacío</p>
+                  : chatMessages.slice(-50).map((msg, i) => (
+                    <div key={i} className="flex items-start gap-2">
+                      {msg.avatar
+                        ? <img src={msg.avatar} className="w-5 h-5 rounded-full object-cover shrink-0 mt-0.5" alt="" />
+                        : <div className="w-5 h-5 rounded-full bg-brand-500/30 shrink-0 mt-0.5" />
+                      }
+                      <div className="bg-dark-700 rounded-xl px-2.5 py-1.5 min-w-0">
+                        <span className="text-brand-300 text-[10px] font-semibold">{msg.name}</span>
+                        <p className="text-white text-xs leading-tight break-words">{msg.text}</p>
+                      </div>
+                    </div>
+                  ))
+                }
+                <div ref={chatEndRef} />
+              </div>
+
+              {/* Input del chat */}
+              <div className="px-3 py-3 border-t border-white/5 shrink-0">
+                <div className="flex items-center gap-2 bg-dark-700 rounded-xl px-3 py-2 border border-white/5">
+                  <input
+                    className="flex-1 bg-transparent text-white text-sm placeholder-gray-500 outline-none"
+                    placeholder="Escribe al chat…"
+                    value={chatInput}
+                    onChange={e => setChatInput(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && sendChatMessage()}
+                    maxLength={120}
+                  />
+                  <button onClick={sendChatMessage} disabled={!chatInput.trim()}
+                    className="w-7 h-7 rounded-full bg-brand-500 flex items-center justify-center shrink-0 disabled:opacity-40"
+                  >
+                    <FiSend size={12} className="text-white" />
+                  </button>
+                </div>
+                <div className="flex gap-1.5 mt-2 justify-center">
+                  {REACTIONS.map(emoji => (
+                    <button key={emoji} onClick={() => sendReaction(emoji)}
+                      className="w-8 h-8 rounded-full bg-dark-700 hover:bg-dark-600 flex items-center justify-center text-base active:scale-90 transition-transform"
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* TAB: Privado (DMs de viewers) */}
+          {rightTab === 'private' && (
+            <>
+              <div className="flex-1 overflow-y-auto px-3 py-2 space-y-2 min-h-0">
+                {privateMessages.length === 0
+                  ? <p className="text-gray-600 text-xs text-center py-8">Sin mensajes privados aún</p>
+                  : privateMessages.map((msg, i) => (
+                      <div key={i} className="flex items-start gap-2">
+                        {msg.fromAvatar
+                          ? <img src={msg.fromAvatar} className="w-6 h-6 rounded-full object-cover shrink-0 mt-0.5" alt="" />
+                          : <div className="w-6 h-6 rounded-full bg-purple-500/30 flex items-center justify-center shrink-0 mt-0.5 text-[10px] text-purple-300">{(msg.fromName||'?')[0]}</div>
+                        }
+                        <div className="bg-purple-900/30 border border-purple-500/20 rounded-xl px-2.5 py-1.5 min-w-0">
+                          <span className="text-purple-300 text-[10px] font-semibold">{msg.fromName}</span>
+                          <p className="text-white text-xs leading-tight break-words">{msg.text}</p>
+                        </div>
+                      </div>
+                    ))
+                }
+                <div ref={dmEndRef} />
+              </div>
+              <div className="px-3 py-2 border-t border-white/5 shrink-0">
+                <p className="text-gray-600 text-[10px] text-center">Mensajes privados de los espectadores</p>
+              </div>
+            </>
+          )}
+
+          {/* TAB: Viewers (lista de espectadores) */}
+          {rightTab === 'viewers' && (
+            <div className="flex-1 overflow-y-auto px-3 py-3 min-h-0">
+              {/* Resumen */}
+              <div className="bg-dark-700/50 rounded-xl p-3 mb-3">
+                <p className="text-white font-bold text-sm mb-1.5">{viewerCount} viendo ahora</p>
+                <div className="space-y-0.5">
+                  {(() => {
+                    const vipC     = viewerList.filter(v => v.tier === 'vip').length;
+                    const premC    = viewerList.filter(v => v.tier === 'premium').length;
+                    const basicC   = viewerList.filter(v => !v.tier || v.tier === 'basic').length;
+                    return (
+                      <>
+                        {vipC  > 0 && <p className="text-[11px] text-yellow-400 flex items-center gap-1">👑 Usuarios VIP: {vipC}</p>}
+                        {premC > 0 && <p className="text-[11px] text-brand-400 flex items-center gap-1">⭐ Premium: {premC}</p>}
+                        {basicC > 0 && <p className="text-[11px] text-gray-500">Básico: {basicC}</p>}
+                      </>
+                    );
+                  })()}
+                </div>
+              </div>
+              {/* Lista individual */}
               <div className="space-y-1.5">
-                {tippers.slice(0, 3).map((t, i) => (
-                  <div key={t.id} className="flex items-center gap-2">
-                    <span className="text-[10px] font-black w-4" style={{ color: i === 0 ? '#FFD700' : i === 1 ? '#C0C0C0' : '#CD7F32' }}>#{i+1}</span>
-                    <img src={t.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(t.full_name||'U')}&size=40&background=1a1a2e&color=f43f5e`}
-                      className="w-5 h-5 rounded-full object-cover shrink-0" alt="" />
-                    <span className="text-white text-xs flex-1 truncate">{t.full_name}</span>
-                    <span className="text-yellow-400 text-xs font-bold shrink-0">⚡{t.coins_total}</span>
+                {viewerList.filter(v => v.role === 'viewer').map((v, i) => (
+                  <div key={v.userId || i} className="flex items-center gap-2">
+                    {v.avatar
+                      ? <img src={v.avatar} className="w-7 h-7 rounded-full object-cover shrink-0" alt="" />
+                      : <div className="w-7 h-7 rounded-full bg-dark-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
+                          {(v.name || '?')[0]}
+                        </div>
+                    }
+                    <span className="text-white text-xs flex-1 truncate">{v.name || 'Anónimo'}</span>
+                    {v.tier === 'vip'     && <span className="text-[9px] bg-yellow-500/20 text-yellow-400 px-1.5 py-0.5 rounded-full font-bold shrink-0">VIP</span>}
+                    {v.tier === 'premium' && <span className="text-[9px] bg-brand-500/20 text-brand-400 px-1.5 py-0.5 rounded-full font-bold shrink-0">PRO</span>}
                   </div>
                 ))}
+                {viewerList.filter(v => v.role === 'viewer').length === 0 && (
+                  <p className="text-gray-600 text-xs text-center py-4">Sin espectadores aún</p>
+                )}
               </div>
             </div>
           )}
+        </div>
+      </div>
+    );
+  }
 
+  // ── Componente de panel lateral para viewer (desktop) ──────────────────────
+  const ViewerSidePanel = () => (
+    <div className="w-80 flex flex-col bg-dark-800 border-l border-white/5 shrink-0" style={{ height: '100dvh' }}>
+      {/* Tabs */}
+      <div className="flex border-b border-white/5 shrink-0">
+        {[
+          { key: 'public',  label: 'Público' },
+          { key: 'private', label: `Privado${privateMessages.filter(m => m.fromId !== user?.id).length > 0 ? ' •' : ''}` },
+          { key: 'viewers', label: `${viewerCount} 👥` },
+        ].map(t => (
+          <button
+            key={t.key}
+            onClick={() => setRightTab(t.key)}
+            className={`flex-1 py-2.5 text-[11px] font-semibold transition-colors border-b-2 ${
+              rightTab === t.key
+                ? 'text-white border-brand-500'
+                : 'text-gray-500 border-transparent hover:text-gray-300'
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* TAB: Público */}
+      {rightTab === 'public' && (
+        <>
           {/* Mensaje fijado */}
-          <AnimatePresence>
-            {pinnedMessage && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
-                className="overflow-hidden shrink-0"
-              >
-                <div className="px-3 py-2 bg-brand-500/10 border-b border-brand-500/20 flex items-start gap-2">
-                  <FiBookmark size={11} className="text-brand-400 shrink-0 mt-0.5" />
-                  <p className="text-brand-200 text-xs leading-tight flex-1">{pinnedMessage}</p>
-                  <button onClick={() => { setPinnedMessage(''); setPinnedInput(''); }} className="text-gray-500 hover:text-gray-300 shrink-0 transition-colors">
-                    <FiX size={11} />
-                  </button>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* Chat */}
+          {pinnedMessage && (
+            <div className="px-3 py-2 bg-brand-500/10 border-b border-brand-500/20 flex items-start gap-2 shrink-0">
+              <FiBookmark size={11} className="text-brand-400 shrink-0 mt-0.5" />
+              <p className="text-brand-200 text-xs leading-tight">{pinnedMessage}</p>
+            </div>
+          )}
           <div className="flex-1 overflow-y-auto px-3 py-2 space-y-1.5 min-h-0">
             {chatMessages.length === 0
               ? <p className="text-gray-600 text-xs text-center py-4">El chat está vacío</p>
@@ -1523,13 +1746,11 @@ export default function LiveShow() {
             }
             <div ref={chatEndRef} />
           </div>
-
-          {/* Input del chat */}
           <div className="px-3 py-3 border-t border-white/5 shrink-0">
             <div className="flex items-center gap-2 bg-dark-700 rounded-xl px-3 py-2 border border-white/5">
               <input
                 className="flex-1 bg-transparent text-white text-sm placeholder-gray-500 outline-none"
-                placeholder="Escribe al chat…"
+                placeholder="Escribe un mensaje…"
                 value={chatInput}
                 onChange={e => setChatInput(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && sendChatMessage()}
@@ -1551,17 +1772,102 @@ export default function LiveShow() {
               ))}
             </div>
           </div>
+        </>
+      )}
+
+      {/* TAB: Privado (DM al host) */}
+      {rightTab === 'private' && (
+        <>
+          <div className="flex-1 overflow-y-auto px-3 py-2 space-y-2 min-h-0">
+            {privateMessages.length === 0
+              ? <p className="text-gray-600 text-xs text-center py-8">Envía un mensaje privado al host</p>
+              : privateMessages.map((msg, i) => {
+                  const isMine = msg.fromId === user?.id;
+                  return (
+                    <div key={i} className={`flex items-start gap-2 ${isMine ? 'flex-row-reverse' : ''}`}>
+                      {!isMine && (
+                        msg.fromAvatar
+                          ? <img src={msg.fromAvatar} className="w-6 h-6 rounded-full object-cover shrink-0 mt-0.5" alt="" />
+                          : <div className="w-6 h-6 rounded-full bg-purple-500/30 flex items-center justify-center shrink-0 mt-0.5 text-[10px] text-purple-300">{(msg.fromName||'?')[0]}</div>
+                      )}
+                      <div className={`rounded-xl px-2.5 py-1.5 max-w-[80%] ${isMine ? 'bg-brand-600/40 border border-brand-500/30' : 'bg-purple-900/30 border border-purple-500/20'}`}>
+                        {!isMine && <span className="text-purple-300 text-[10px] font-semibold block">{msg.fromName}</span>}
+                        <p className="text-white text-xs leading-tight break-words">{msg.text}</p>
+                      </div>
+                    </div>
+                  );
+                })
+            }
+            <div ref={dmEndRef} />
+          </div>
+          <div className="px-3 py-3 border-t border-white/5 shrink-0">
+            <div className="flex items-center gap-2 bg-dark-700 rounded-xl px-3 py-2 border border-purple-500/20">
+              <input
+                className="flex-1 bg-transparent text-white text-sm placeholder-gray-500 outline-none"
+                placeholder="Mensaje privado al host…"
+                value={dmInput}
+                onChange={e => setDmInput(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && sendDM()}
+                maxLength={120}
+              />
+              <button onClick={sendDM} disabled={!dmInput.trim()}
+                className="w-7 h-7 rounded-full bg-purple-600 flex items-center justify-center shrink-0 disabled:opacity-40"
+              >
+                <FiSend size={12} className="text-white" />
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* TAB: Viewers */}
+      {rightTab === 'viewers' && (
+        <div className="flex-1 overflow-y-auto px-3 py-3 min-h-0">
+          <div className="bg-dark-700/50 rounded-xl p-3 mb-3">
+            <p className="text-white font-bold text-sm mb-1.5">{viewerCount} viendo ahora</p>
+            <div className="space-y-0.5">
+              {(() => {
+                const vipC  = viewerList.filter(v => v.tier === 'vip').length;
+                const premC = viewerList.filter(v => v.tier === 'premium').length;
+                const basC  = viewerList.filter(v => !v.tier || v.tier === 'basic').length;
+                return (
+                  <>
+                    {vipC  > 0 && <p className="text-[11px] text-yellow-400">👑 Usuarios VIP: {vipC}</p>}
+                    {premC > 0 && <p className="text-[11px] text-brand-400">⭐ Premium: {premC}</p>}
+                    {basC  > 0 && <p className="text-[11px] text-gray-500">Básico: {basC}</p>}
+                  </>
+                );
+              })()}
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            {viewerList.filter(v => v.role === 'viewer').map((v, i) => (
+              <div key={v.userId || i} className="flex items-center gap-2">
+                {v.avatar
+                  ? <img src={v.avatar} className="w-7 h-7 rounded-full object-cover shrink-0" alt="" />
+                  : <div className="w-7 h-7 rounded-full bg-dark-600 flex items-center justify-center text-white text-xs font-bold shrink-0">{(v.name||'?')[0]}</div>
+                }
+                <span className="text-white text-xs flex-1 truncate">{v.name || 'Anónimo'}</span>
+                {v.tier === 'vip'     && <span className="text-[9px] bg-yellow-500/20 text-yellow-400 px-1.5 py-0.5 rounded-full font-bold shrink-0">VIP</span>}
+                {v.tier === 'premium' && <span className="text-[9px] bg-brand-500/20 text-brand-400 px-1.5 py-0.5 rounded-full font-bold shrink-0">PRO</span>}
+              </div>
+            ))}
+            {viewerList.filter(v => v.role === 'viewer').length === 0 && (
+              <p className="text-gray-600 text-xs text-center py-4">Sin espectadores aún</p>
+            )}
+          </div>
         </div>
-      </div>
-    );
-  }
+      )}
+    </div>
+  );
 
   // ── EN SHOW (VIEWER) ──────────────────────────────────────────────────────────
   if (inShow) {
     return (
-      <div className="fixed inset-0 bg-black flex flex-col">
+      <div className="fixed inset-0 bg-black flex flex-col lg:flex-row">
 
         {/* Video principal */}
+        <div className="flex-1 flex flex-col min-w-0 relative">
         <div className="flex-1 relative bg-dark-900 overflow-hidden">
           <video ref={hostVideoRef} autoPlay playsInline className="w-full h-full object-cover" />
 
@@ -1587,8 +1893,8 @@ export default function LiveShow() {
             </div>
           </div>
 
-          {/* Chat flotante */}
-          {showChat && (
+          {/* Chat flotante (solo móvil — desktop lo tiene en side panel) */}
+          {!isDesktop && showChat && (
             <div className="absolute bottom-0 left-0 right-0 pb-[72px] px-3 pointer-events-none">
               <div className="space-y-1.5 max-h-44 overflow-y-auto scrollbar-hide">
                 {chatMessages.slice(-20).map((msg, i) => (
@@ -1731,41 +2037,45 @@ export default function LiveShow() {
           )}
         </AnimatePresence>
 
-        {/* Input de chat */}
-        <AnimatePresence>
-          {showChat && (
-            <motion.div initial={{ y: 60, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 60, opacity: 0 }}
-              className="absolute bottom-[72px] left-0 right-0 px-3 pb-2 z-20"
-            >
-              <div className="flex items-center gap-2 bg-dark-800/90 backdrop-blur-sm rounded-2xl p-2 border border-white/10">
-                <input
-                  className="flex-1 bg-transparent text-white text-sm placeholder-gray-500 outline-none px-2"
-                  placeholder="Escribe un mensaje…"
-                  value={chatInput}
-                  onChange={e => setChatInput(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && sendChatMessage()}
-                  maxLength={120}
-                />
-                <button onClick={sendChatMessage} disabled={!chatInput.trim()}
-                  className="w-8 h-8 rounded-full bg-brand-500 flex items-center justify-center shrink-0 disabled:opacity-40"
-                >
-                  <FiSend size={13} className="text-white" />
-                </button>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {/* Input de chat (solo móvil) */}
+        {!isDesktop && (
+          <AnimatePresence>
+            {showChat && (
+              <motion.div initial={{ y: 60, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 60, opacity: 0 }}
+                className="absolute bottom-[72px] left-0 right-0 px-3 pb-2 z-20"
+              >
+                <div className="flex items-center gap-2 bg-dark-800/90 backdrop-blur-sm rounded-2xl p-2 border border-white/10">
+                  <input
+                    className="flex-1 bg-transparent text-white text-sm placeholder-gray-500 outline-none px-2"
+                    placeholder="Escribe un mensaje…"
+                    value={chatInput}
+                    onChange={e => setChatInput(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && sendChatMessage()}
+                    maxLength={120}
+                  />
+                  <button onClick={sendChatMessage} disabled={!chatInput.trim()}
+                    className="w-8 h-8 rounded-full bg-brand-500 flex items-center justify-center shrink-0 disabled:opacity-40"
+                  >
+                    <FiSend size={13} className="text-white" />
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        )}
 
-        {/* Reactions */}
-        <div className="absolute bottom-[72px] right-3 flex flex-col gap-1.5 z-20 pb-12">
-          {!showChat && !showTips && REACTIONS.map(emoji => (
-            <button key={emoji} onClick={() => sendReaction(emoji)}
-              className="w-9 h-9 rounded-full bg-dark-800/80 backdrop-blur-sm border border-white/10 flex items-center justify-center text-lg active:scale-90 transition-transform"
-            >
-              {emoji}
-            </button>
-          ))}
-        </div>
+        {/* Reactions (solo móvil) */}
+        {!isDesktop && (
+          <div className="absolute bottom-[72px] right-3 flex flex-col gap-1.5 z-20 pb-12">
+            {!showChat && !showTips && REACTIONS.map(emoji => (
+              <button key={emoji} onClick={() => sendReaction(emoji)}
+                className="w-9 h-9 rounded-full bg-dark-800/80 backdrop-blur-sm border border-white/10 flex items-center justify-center text-lg active:scale-90 transition-transform"
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Gift Panel */}
         <AnimatePresence>
@@ -1835,50 +2145,79 @@ export default function LiveShow() {
         </AnimatePresence>
 
         {/* Controles inferiores (viewer) */}
-        <div className="h-[72px] px-4 py-3 bg-dark-900/95 border-t border-white/5 flex items-center justify-center gap-2 shrink-0 z-10">
-          <button onClick={() => { setShowChat(v => !v); setShowTips(false); }}
-            className={`w-11 h-11 rounded-full flex items-center justify-center transition-colors ${showChat ? 'bg-brand-500' : 'bg-dark-700 hover:bg-dark-600'}`}
+        <div className="h-[72px] px-3 bg-dark-900/95 border-t border-white/5 flex items-center gap-2 shrink-0 z-10">
+
+          {/* ❤️ contador de reacciones */}
+          <button onClick={() => sendReaction('❤️')}
+            className="flex items-center gap-1 text-gray-400 hover:text-white transition-colors shrink-0"
           >
-            <FiMessageCircle className="text-white" size={19} />
-          </button>
-          <button onClick={() => { setShowLeaderboard(v => !v); loadTippers(); }}
-            className={`w-11 h-11 rounded-full flex items-center justify-center transition-colors ${showLeaderboard ? 'bg-yellow-500' : 'bg-dark-700 hover:bg-dark-600'}`}
-          >
-            <FiAward className={showLeaderboard ? 'text-black' : 'text-yellow-400'} size={19} />
-          </button>
-          <button onClick={() => { setShowTips(v => !v); setShowChat(false); setShowGifts(false); }}
-            className={`w-11 h-11 rounded-full flex items-center justify-center transition-colors ${showTips ? 'bg-yellow-500' : 'bg-dark-700 hover:bg-yellow-500/20'}`}
-          >
-            <FiZap className={showTips ? 'text-black' : 'text-yellow-400'} size={19} />
-          </button>
-          <button onClick={() => { setShowGifts(v => !v); setShowTips(false); setShowChat(false); }}
-            className={`w-11 h-11 rounded-full flex items-center justify-center transition-colors ${showGifts ? 'bg-brand-500' : 'bg-dark-700 hover:bg-dark-600'}`}
-          >
-            <FiGift className="text-white" size={19} />
+            <span className="text-lg">❤️</span>
+            <span className="text-xs font-bold tabular-nums">
+              {totalReactions >= 1000 ? `${(totalReactions/1000).toFixed(1)}k` : totalReactions}
+            </span>
           </button>
 
-          {/* Botón show privado */}
+          <div className="flex-1" />
+
+          {/* Chat (solo móvil) */}
+          {!isDesktop && (
+            <button onClick={() => { setShowChat(v => !v); setShowTips(false); }}
+              className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${showChat ? 'bg-brand-500' : 'bg-dark-700 hover:bg-dark-600'}`}
+            >
+              <FiMessageCircle className="text-white" size={18} />
+            </button>
+          )}
+
+          {/* Leaderboard */}
+          <button onClick={() => { setShowLeaderboard(v => !v); loadTippers(); }}
+            className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${showLeaderboard ? 'bg-yellow-500' : 'bg-dark-700 hover:bg-dark-600'}`}
+          >
+            <FiAward className={showLeaderboard ? 'text-black' : 'text-yellow-400'} size={18} />
+          </button>
+
+          {/* Propina */}
+          <button onClick={() => { setShowTips(v => !v); setShowChat(false); setShowGifts(false); }}
+            className={`flex items-center gap-1.5 px-3 h-10 rounded-full font-bold text-sm transition-colors ${showTips ? 'bg-yellow-500 text-black' : 'bg-dark-700 hover:bg-yellow-500/20 text-yellow-400'}`}
+          >
+            <FiZap size={15} />
+            <span className="text-xs">Propina</span>
+          </button>
+
+          {/* Regalos */}
+          <button onClick={() => { setShowGifts(v => !v); setShowTips(false); setShowChat(false); }}
+            className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${showGifts ? 'bg-brand-500' : 'bg-dark-700 hover:bg-dark-600'}`}
+          >
+            <FiGift className="text-white" size={18} />
+          </button>
+
+          {/* Show privado */}
           {!privateSession ? (
             <button
               onClick={() => setPrivateModal(true)}
-              className="flex items-center gap-1.5 bg-purple-600/20 hover:bg-purple-600/40 border border-purple-500/40 text-purple-300 text-xs font-bold px-3 py-2 rounded-full transition-colors"
+              className="flex items-center gap-1.5 bg-purple-600/20 hover:bg-purple-600/40 border border-purple-500/40 text-purple-300 font-bold px-3 h-10 rounded-full transition-colors shrink-0"
             >
-              <FiDollarSign size={13} /> Privado
+              <FiDollarSign size={13} />
+              <span className="text-xs">Show Privado {show?.private_rate ?? 20}tk</span>
             </button>
           ) : (
             <button
               onClick={() => endPrivateSession('manual')}
-              className="flex items-center gap-1.5 bg-purple-600 text-white text-xs font-bold px-3 py-2 rounded-full animate-pulse"
+              className="flex items-center gap-1.5 bg-purple-600 text-white font-bold px-3 h-10 rounded-full animate-pulse shrink-0"
             >
               <FiDollarSign size={13} />
-              {privateMinutes}m · {privateSession.rate}/min
+              <span className="text-xs">{privateMinutes}m · {privateSession.rate}/min</span>
             </button>
           )}
 
-          <button onClick={handleLeave} className="w-11 h-11 rounded-full bg-red-500 flex items-center justify-center">
-            <FiX className="text-white" size={19} />
+          {/* Salir */}
+          <button onClick={handleLeave} className="w-10 h-10 rounded-full bg-red-500 flex items-center justify-center shrink-0">
+            <FiX className="text-white" size={18} />
           </button>
         </div>
+        </div>{/* cierra flex-1 flex-col min-w-0 (columna video) */}
+
+        {/* Panel lateral desktop */}
+        {isDesktop && <ViewerSidePanel />}
       </div>
     );
   }
