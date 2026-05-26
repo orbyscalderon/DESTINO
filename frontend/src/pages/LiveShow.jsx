@@ -1263,167 +1263,74 @@ export default function LiveShow() {
           </div>
 
           {/* ── Controles del estudio ── */}
-          <div className="bg-dark-800 border-t border-white/5 px-3 py-2.5 shrink-0">
+          <div className="bg-dark-800 border-t border-white/5 px-4 py-3 shrink-0">
+            <div className="flex items-center justify-between gap-3">
 
-            {/* Fila única: todos los controles + device selects compactos + Terminar */}
-            <div className="flex items-center gap-1.5 flex-wrap">
-
-              {/* Mic + VU meter */}
-              <button onClick={toggleMute}
-                className={`flex items-center gap-1.5 px-2.5 py-2 rounded-xl transition-colors ${muted ? 'bg-red-500/20 border border-red-500/40' : 'bg-dark-700 hover:bg-dark-600'}`}
+              {/* Terminar — izquierda */}
+              <button onClick={handleEndShow}
+                className="flex items-center gap-2 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-colors shrink-0"
               >
-                {muted ? <FiMicOff size={15} className="text-red-400" /> : <FiMic size={15} className="text-white" />}
-                <div className="flex items-end gap-px" style={{ height: 10 }}>
+                <FiX size={14} /> Terminar
+              </button>
+
+              {/* Controles de video — derecha */}
+              <div className="flex items-center gap-2">
+
+                {/* Mic */}
+                <button onClick={toggleMute} title={muted ? 'Activar micrófono' : 'Silenciar'}
+                  className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${muted ? 'bg-red-500/30 border border-red-500/60 text-red-400' : 'bg-white/10 hover:bg-white/20 border border-white/20 text-white'}`}
+                >
+                  {muted ? <FiMicOff size={16} /> : <FiMic size={16} />}
+                </button>
+
+                {/* VU meter */}
+                <div className="flex items-end gap-px shrink-0" style={{ height: 12 }}>
                   {[0.1, 0.3, 0.55, 0.3, 0.1].map((thr, i) => (
                     <div key={i}
-                      className={`w-1 rounded-sm transition-colors duration-75 ${!muted && audioLevel > thr ? 'bg-green-400' : 'bg-white/10'}`}
-                      style={{ height: [4, 7, 10, 7, 4][i] }}
+                      className={`w-1 rounded-sm transition-colors duration-75 ${!muted && audioLevel > thr ? 'bg-green-400' : 'bg-white/15'}`}
+                      style={{ height: [4, 7, 12, 7, 4][i] }}
                     />
                   ))}
                 </div>
-              </button>
 
-              {/* Cámara */}
-              <button onClick={toggleCamera}
-                className={`flex items-center gap-1.5 px-2.5 py-2 rounded-xl transition-colors ${cameraOff ? 'bg-red-500/20 border border-red-500/40' : 'bg-dark-700 hover:bg-dark-600'}`}
-              >
-                {cameraOff ? <FiVideoOff size={15} className="text-red-400" /> : <FiVideo size={15} className="text-white" />}
-                <span className="text-[10px] text-gray-400">{cameraOff ? 'Sin cam' : 'Cám'}</span>
-              </button>
-
-              {/* Compartir pantalla */}
-              {isDesktop && (
-                <button onClick={toggleScreenShare}
-                  className={`flex items-center gap-1.5 px-2.5 py-2 rounded-xl transition-colors ${screenSharing ? 'bg-blue-500/20 border border-blue-500/40' : 'bg-dark-700 hover:bg-dark-600'}`}
+                {/* Cámara */}
+                <button onClick={toggleCamera} title={cameraOff ? 'Activar cámara' : 'Apagar cámara'}
+                  className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${cameraOff ? 'bg-red-500/30 border border-red-500/60 text-red-400' : 'bg-white/10 hover:bg-white/20 border border-white/20 text-white'}`}
                 >
-                  <FiMonitor size={15} className={screenSharing ? 'text-blue-400' : 'text-white'} />
-                  <span className="text-[10px] text-gray-400">Pantalla</span>
+                  {cameraOff ? <FiVideoOff size={16} /> : <FiVideo size={16} />}
                 </button>
-              )}
 
-              {/* Fijar mensaje */}
-              <button onClick={() => setShowPinInput(v => !v)}
-                className={`flex items-center gap-1.5 px-2.5 py-2 rounded-xl transition-colors ${showPinInput || pinnedMessage ? 'bg-brand-500/20 border border-brand-500/40' : 'bg-dark-700 hover:bg-dark-600'}`}
-              >
-                <FiBookmark size={15} className={showPinInput || pinnedMessage ? 'text-brand-400' : 'text-white'} />
-                <span className="text-[10px] text-gray-400">Fijar</span>
-              </button>
+                {/* Compartir pantalla */}
+                {isDesktop && (
+                  <button onClick={toggleScreenShare} title={screenSharing ? 'Dejar de compartir' : 'Compartir pantalla'}
+                    className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${screenSharing ? 'bg-blue-500/30 border border-blue-500/60 text-blue-400' : 'bg-white/10 hover:bg-white/20 border border-white/20 text-white'}`}
+                  >
+                    <FiMonitor size={16} />
+                  </button>
+                )}
 
-              {/* Moderación */}
-              <button onClick={() => setShowModeration(v => !v)}
-                className={`flex items-center gap-1.5 px-2.5 py-2 rounded-xl transition-colors ${showModeration ? 'bg-brand-500/20 border border-brand-500/40' : 'bg-dark-700 hover:bg-dark-600'}`}
-              >
-                <FiSlash size={15} className={showModeration ? 'text-brand-400' : 'text-white'} />
-                <span className="text-[10px] text-gray-400">Moderar</span>
-              </button>
-
-              {/* Device selects — compactos, inline, solo si hay múltiples */}
-              {cameraDevices.length > 1 && (
-                <select
-                  value={selectedCameraId}
-                  onChange={e => switchLiveCamera(e.target.value)}
-                  className="bg-dark-700 border border-white/10 text-white text-[10px] rounded-lg px-2 py-1.5 outline-none max-w-[130px] truncate cursor-pointer"
-                >
-                  {cameraDevices.map(d => (
-                    <option key={d.deviceId} value={d.deviceId}>{d.label || `Cam ${d.deviceId.slice(0,5)}`}</option>
-                  ))}
-                </select>
-              )}
-              {micDevices.length > 1 && (
-                <select
-                  value={selectedMicId}
-                  onChange={e => switchLiveMic(e.target.value)}
-                  className="bg-dark-700 border border-white/10 text-white text-[10px] rounded-lg px-2 py-1.5 outline-none max-w-[130px] truncate cursor-pointer"
-                >
-                  {micDevices.map(d => (
-                    <option key={d.deviceId} value={d.deviceId}>{d.label || `Mic ${d.deviceId.slice(0,5)}`}</option>
-                  ))}
-                </select>
-              )}
-
-              {/* Spacer */}
-              <div className="flex-1" />
-
-              {/* Terminar show */}
-              <button onClick={handleEndShow}
-                className="flex items-center gap-1.5 bg-red-500 hover:bg-red-600 active:bg-red-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors shrink-0"
-              >
-                <FiX size={15} /> Terminar
-              </button>
+                {/* Device selects */}
+                {cameraDevices.length > 1 && (
+                  <select value={selectedCameraId} onChange={e => switchLiveCamera(e.target.value)}
+                    className="bg-white/10 border border-white/20 text-white text-[11px] rounded-xl px-2 py-2 outline-none max-w-[110px] truncate cursor-pointer"
+                  >
+                    {cameraDevices.map(d => (
+                      <option key={d.deviceId} value={d.deviceId}>{d.label || `Cam ${d.deviceId.slice(0,5)}`}</option>
+                    ))}
+                  </select>
+                )}
+                {micDevices.length > 1 && (
+                  <select value={selectedMicId} onChange={e => switchLiveMic(e.target.value)}
+                    className="bg-white/10 border border-white/20 text-white text-[11px] rounded-xl px-2 py-2 outline-none max-w-[110px] truncate cursor-pointer"
+                  >
+                    {micDevices.map(d => (
+                      <option key={d.deviceId} value={d.deviceId}>{d.label || `Mic ${d.deviceId.slice(0,5)}`}</option>
+                    ))}
+                  </select>
+                )}
+              </div>
             </div>
 
-            {/* Panel de mensaje fijado */}
-            <AnimatePresence>
-              {showPinInput && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
-                  className="overflow-hidden mt-3"
-                >
-                  <div className="flex gap-2">
-                    <input
-                      className="flex-1 bg-dark-700 border border-white/10 text-white text-xs rounded-xl px-3 py-2 placeholder-gray-500 outline-none"
-                      placeholder="Mensaje a fijar en el chat…"
-                      value={pinnedInput}
-                      onChange={e => setPinnedInput(e.target.value)}
-                      onKeyDown={e => e.key === 'Enter' && handleSavePinnedMessage()}
-                      maxLength={100}
-                    />
-                    <button onClick={handleSavePinnedMessage}
-                      className="px-3 py-2 bg-brand-500 hover:bg-brand-600 text-white text-xs rounded-xl font-medium transition-colors"
-                    >Fijar</button>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            {/* Panel de moderación */}
-            <AnimatePresence>
-              {showModeration && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
-                  className="overflow-hidden mt-3"
-                >
-                  <div className="bg-dark-700 rounded-xl p-3 max-h-36 overflow-y-auto">
-                    <p className="text-xs font-bold text-white mb-2 flex items-center gap-1"><FiSlash size={10} className="text-red-400" /> Chat reciente</p>
-                    {chatMessages.length === 0
-                      ? <p className="text-gray-600 text-xs text-center py-1">Sin mensajes aún</p>
-                      : chatMessages.slice(-10).reverse().map((msg, i) => (
-                        <div key={i} className="flex items-center gap-2 py-1 border-b border-white/5 last:border-0">
-                          <span className="text-white text-xs flex-1 truncate">
-                            <span className="text-brand-300 font-medium">{msg.name}:</span> {msg.text}
-                          </span>
-                          {msg.userId && msg.userId !== user?.id && !bannedUsers.has(msg.userId) && (
-                            <button onClick={() => handleBanUser(msg)}
-                              className="w-6 h-6 rounded-full bg-red-500/20 hover:bg-red-500/40 flex items-center justify-center shrink-0"
-                              title="Banear"
-                            >
-                              <FiSlash size={10} className="text-red-400" />
-                            </button>
-                          )}
-                        </div>
-                      ))
-                    }
-                  </div>
-                  {bannedUsers.size > 0 && (
-                    <div className="bg-dark-700 rounded-xl p-3 mt-2">
-                      <p className="text-xs font-bold text-white mb-2 flex items-center gap-1"><FiRotateCw size={10} className="text-orange-400" /> Baneados ({bannedUsers.size})</p>
-                      {[...bannedUsers.entries()].map(([uid, name]) => (
-                        <div key={uid} className="flex items-center gap-2 py-1">
-                          <span className="text-gray-300 text-xs flex-1 truncate">{name}</span>
-                          <button
-                            onClick={() => handleUnbanUser(uid, name)}
-                            className="w-6 h-6 rounded-full bg-green-500/20 hover:bg-green-500/40 flex items-center justify-center shrink-0"
-                            title="Desbanear"
-                          >
-                            <FiRotateCw size={10} className="text-green-400" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </motion.div>
-              )}
-            </AnimatePresence>
           </div>
         </div>
 
@@ -1571,8 +1478,92 @@ export default function LiveShow() {
                 <div ref={chatEndRef} />
               </div>
 
+              {/* Toolbar del host: Fijar y Moderar */}
+              <div className="px-3 pt-2 pb-1 border-t border-white/5 shrink-0">
+                <div className="flex items-center gap-2">
+                  <button onClick={() => setShowPinInput(v => !v)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${showPinInput || pinnedMessage ? 'bg-brand-500/20 border border-brand-500/40 text-brand-300' : 'bg-white/5 border border-white/10 text-gray-400 hover:text-white hover:bg-white/10'}`}
+                  >
+                    <FiBookmark size={12} /> Fijar
+                  </button>
+                  <button onClick={() => setShowModeration(v => !v)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${showModeration ? 'bg-red-500/20 border border-red-500/40 text-red-300' : 'bg-white/5 border border-white/10 text-gray-400 hover:text-white hover:bg-white/10'}`}
+                  >
+                    <FiSlash size={12} /> Moderar
+                  </button>
+                </div>
+
+                {/* Panel de mensaje fijado */}
+                <AnimatePresence>
+                  {showPinInput && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+                      className="overflow-hidden mt-2"
+                    >
+                      <div className="flex gap-2">
+                        <input
+                          className="flex-1 bg-dark-700 border border-white/10 text-white text-xs rounded-xl px-3 py-2 placeholder-gray-500 outline-none"
+                          placeholder="Mensaje a fijar en el chat…"
+                          value={pinnedInput}
+                          onChange={e => setPinnedInput(e.target.value)}
+                          onKeyDown={e => e.key === 'Enter' && handleSavePinnedMessage()}
+                          maxLength={100}
+                        />
+                        <button onClick={handleSavePinnedMessage}
+                          className="px-3 py-2 bg-brand-500 hover:bg-brand-600 text-white text-xs rounded-xl font-medium transition-colors"
+                        >Fijar</button>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {/* Panel de moderación */}
+                <AnimatePresence>
+                  {showModeration && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+                      className="overflow-hidden mt-2"
+                    >
+                      <div className="bg-dark-700 rounded-xl p-3 max-h-40 overflow-y-auto">
+                        <p className="text-xs font-bold text-white mb-2 flex items-center gap-1"><FiSlash size={10} className="text-red-400" /> Chat reciente</p>
+                        {chatMessages.length === 0
+                          ? <p className="text-gray-600 text-xs text-center py-1">Sin mensajes aún</p>
+                          : chatMessages.slice(-10).reverse().map((msg, i) => (
+                            <div key={i} className="flex items-center gap-2 py-1 border-b border-white/5 last:border-0">
+                              <span className="text-white text-xs flex-1 truncate">
+                                <span className="text-brand-300 font-medium">{msg.name}:</span> {msg.text}
+                              </span>
+                              {msg.userId && msg.userId !== user?.id && !bannedUsers.has(msg.userId) && (
+                                <button onClick={() => handleBanUser(msg)}
+                                  className="w-6 h-6 rounded-full bg-red-500/20 hover:bg-red-500/40 flex items-center justify-center shrink-0"
+                                  title="Banear"
+                                ><FiSlash size={10} className="text-red-400" /></button>
+                              )}
+                            </div>
+                          ))
+                        }
+                      </div>
+                      {bannedUsers.size > 0 && (
+                        <div className="bg-dark-700 rounded-xl p-3 mt-2">
+                          <p className="text-xs font-bold text-white mb-2 flex items-center gap-1"><FiRotateCw size={10} className="text-orange-400" /> Baneados ({bannedUsers.size})</p>
+                          {[...bannedUsers.entries()].map(([uid, name]) => (
+                            <div key={uid} className="flex items-center gap-2 py-1">
+                              <span className="text-gray-300 text-xs flex-1 truncate">{name}</span>
+                              <button onClick={() => handleUnbanUser(uid, name)}
+                                className="w-6 h-6 rounded-full bg-green-500/20 hover:bg-green-500/40 flex items-center justify-center shrink-0"
+                                title="Desbanear"
+                              ><FiRotateCw size={10} className="text-green-400" /></button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
               {/* Input del chat */}
-              <div className="px-3 py-3 border-t border-white/5 shrink-0">
+              <div className="px-3 py-3 shrink-0">
                 <div className="flex items-center gap-2 bg-dark-700 rounded-xl px-3 py-2 border border-white/5">
                   <input
                     className="flex-1 bg-transparent text-white text-sm placeholder-gray-500 outline-none"

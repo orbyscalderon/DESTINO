@@ -14,18 +14,19 @@ export const listShows = async (req, res) => {
   try {
     const { type, status = 'live', category } = req.query;
     const userId = req.user.id;
+    const isAdultSection = category === 'adult';
 
-    // Verificar si el viewer puede ver contenido adulto (VIP o creador adulto)
-    const { data: viewerProfile } = await supabase
-      .from('profiles')
-      .select('is_adult_creator, premium_tier')
-      .eq('id', userId)
-      .single();
-    const canSeeAdult = viewerProfile?.is_adult_creator || viewerProfile?.premium_tier === 'vip';
-
-    // Si solicita categoría adult explícitamente pero no tiene acceso → vacío
-    if (category === 'adult' && !canSeeAdult) {
-      return res.json({ shows: [], requires_vip: true });
+    // La sección adulta requiere VIP o ser creador adulto
+    if (isAdultSection) {
+      const { data: viewerProfile } = await supabase
+        .from('profiles')
+        .select('is_adult_creator, premium_tier')
+        .eq('id', userId)
+        .single();
+      const canSeeAdult = viewerProfile?.is_adult_creator || viewerProfile?.premium_tier === 'vip';
+      if (!canSeeAdult) {
+        return res.json({ shows: [], requires_vip: true });
+      }
     }
 
     let query = supabase
@@ -44,8 +45,15 @@ export const listShows = async (req, res) => {
       query = query.eq('show_type', type);
     }
 
-    if (category && VALID_CATEGORIES.includes(category)) {
+    if (isAdultSection) {
+      // Sección adulta: solo adultos
+      query = query.eq('category', 'adult');
+    } else if (category && VALID_CATEGORIES.includes(category)) {
+      // Categoría específica no adulta
       query = query.eq('category', category);
+    } else {
+      // Listado general: NUNCA incluir adultos
+      query = query.neq('category', 'adult');
     }
 
     const { data, error } = await query;
@@ -68,13 +76,7 @@ export const listShows = async (req, res) => {
 
     const shows = (data || [])
       .map(s => ({ ...s, viewer_count: ticketCounts[s.id] || 0 }))
-      // Filtrar shows adultos para usuarios sin verificación de edad
-      .filter(s => s.category !== 'adult' || canSeeAdult)
-      .sort((a, b) => {
-        if (a.category === 'adult' && b.category !== 'adult') return 1;
-        if (b.category === 'adult' && a.category !== 'adult') return -1;
-        return b.viewer_count - a.viewer_count;
-      });
+      .sort((a, b) => b.viewer_count - a.viewer_count);
 
     res.json({ shows });
   } catch (err) {
