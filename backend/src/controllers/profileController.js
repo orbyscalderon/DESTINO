@@ -367,11 +367,7 @@ export const getProfile = async (req, res) => {
     });
   } catch (err) {
     console.error(`[getProfile] error at step="${_step}":`, err?.message, err?.stack);
-    res.status(500).json({
-      error: 'Error interno del servidor',
-      _debug: err?.message,
-      _step,
-    });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
 

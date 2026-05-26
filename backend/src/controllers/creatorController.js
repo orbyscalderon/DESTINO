@@ -619,20 +619,18 @@ export const getSubscribers = async (req, res) => {
   }
 };
 
-// GET /api/creator/discover — public list of adult creators (requires verified age ≥ 18)
+// GET /api/creator/discover — authenticated list of adult creators (age gate enforced)
 export const discoverAdultCreators = async (req, res) => {
   try {
-    // Server-side age gate: verify the requesting user is 18+
-    const requesterId = req.user?.id;
-    if (requesterId) {
-      const { data: requester } = await supabase
-        .from('profiles')
-        .select('age')
-        .eq('id', requesterId)
-        .single();
-      if (requester?.age !== null && requester?.age !== undefined && requester.age < 18) {
-        return res.status(403).json({ error: 'Debes ser mayor de 18 años para acceder a este contenido.' });
-      }
+    // Age gate: requiere auth (garantizado por authMiddleware en la ruta)
+    const requesterId = req.user.id;
+    const { data: requester } = await supabase
+      .from('profiles')
+      .select('age, is_adult_creator')
+      .eq('id', requesterId)
+      .single();
+    if (!requester?.is_adult_creator && (requester?.age === null || requester?.age === undefined || requester.age < 18)) {
+      return res.status(403).json({ error: 'Debes ser mayor de 18 años para acceder a este contenido.', code: 'AGE_REQUIRED' });
     }
 
     const q          = req.query.q?.trim();
@@ -854,7 +852,7 @@ export const addGalleryItem = async (req, res) => {
     res.json({ item: { ...item, media_url: item.url, media_type: item.type } });
   } catch (err) {
     console.error('addGalleryItem error:', err?.message, err?.code, err?.details);
-    res.status(500).json({ error: 'Error interno del servidor', detail: err?.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
 

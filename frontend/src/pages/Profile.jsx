@@ -60,6 +60,7 @@ export default function Profile() {
   const [togglingIncognito, setTogglingIncognito] = useState(false);
   const [followersCount, setFollowersCount] = useState(0);
   const [coinsBalance, setCoinsBalance] = useState(0);
+  const [completionClaimed, setCompletionClaimed] = useState(false);
   const [boostSecsLeft, setBoostSecsLeft] = useState(0);
   const fileRef = useRef(null);
   const photoRef = useRef(null);

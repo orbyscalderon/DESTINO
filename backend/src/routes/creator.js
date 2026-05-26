@@ -32,11 +32,12 @@ import {
 const router = Router();
 
 // Públicas (sin auth)
-router.get('/discover', discoverAdultCreators);
 router.get('/:userId/profile', getPublicCreatorProfile);
 router.get('/:userId/galleries', getCreatorGalleries);
 
 router.use(authMiddleware);
+// /discover requiere auth para aplicar el age gate correctamente
+router.get('/discover', discoverAdultCreators);
 router.post('/register', becomeCreator);
 router.get('/onboarding-link', getOnboardingLink);
 router.get('/dashboard', getCreatorDashboard);
