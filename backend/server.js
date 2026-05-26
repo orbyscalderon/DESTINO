@@ -38,6 +38,7 @@ import livekitRoutes from './src/routes/livekit.js';
 import tipRoutes from './src/routes/tips.js';
 import appealsRoutes from './src/routes/appeals.js';
 import videoRequestRoutes from './src/routes/videoRequests.js';
+import { supabase } from './src/lib/supabase.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -151,6 +152,74 @@ app.use('/api/livekit', livekitRoutes);
 app.use('/api/tips', tipRoutes);
 app.use('/api/appeals', appealsRoutes);
 app.use('/api/video-requests', videoRequestRoutes);
+
+// ── Open Graph share routes (para WhatsApp / Telegram / Twitter) ──
+function ogHtml({ title, description, image, url, type = 'website' }) {
+  const esc = s => String(s || '').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return `<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>${esc(title)}</title>
+<meta property="og:title" content="${esc(title)}">
+<meta property="og:description" content="${esc(description)}">
+<meta property="og:image" content="${esc(image)}">
+<meta property="og:url" content="${esc(url)}">
+<meta property="og:type" content="${type}">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="${esc(title)}">
+<meta name="twitter:description" content="${esc(description)}">
+<meta name="twitter:image" content="${esc(image)}">
+<meta http-equiv="refresh" content="0;url=${esc(url)}">
+</head><body><a href="${esc(url)}">Ver en Destino</a></body></html>`;
+}
+
+app.get('/share/show/:id', async (req, res) => {
+  const fe = process.env.FRONTEND_URL || '';
+  const fallback = `${fe}/#/shows/${req.params.id}`;
+  try {
+    const { data: show } = await supabase
+      .from('live_shows')
+      .select('title, description, cover_url, status, host:host_id(full_name, avatar_url)')
+      .eq('id', req.params.id)
+      .single();
+
+    if (!show) return res.redirect(302, fallback);
+
+    const live = show.status === 'live' ? ' 🔴 EN VIVO' : '';
+    res.setHeader('Cache-Control', 'public, max-age=60');
+    return res.send(ogHtml({
+      title: (show.title || 'Show en Destino') + live,
+      description: show.description || `${show.host?.full_name || 'Creador'} en Destino`,
+      image: show.cover_url || show.host?.avatar_url || `${fe}/icon-512.png`,
+      url: fallback,
+    }));
+  } catch {
+    return res.redirect(302, fallback);
+  }
+});
+
+app.get('/share/profile/:id', async (req, res) => {
+  const fe = process.env.FRONTEND_URL || '';
+  const fallback = `${fe}/#/profile/${req.params.id}`;
+  try {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('full_name, bio, avatar_url')
+      .eq('id', req.params.id)
+      .single();
+
+    if (!profile) return res.redirect(302, fallback);
+
+    res.setHeader('Cache-Control', 'public, max-age=300');
+    return res.send(ogHtml({
+      title: `${profile.full_name || 'Perfil'} en Destino`,
+      description: profile.bio || 'Mira mi perfil en Destino',
+      image: profile.avatar_url || `${fe}/icon-512.png`,
+      url: fallback,
+      type: 'profile',
+    }));
+  } catch {
+    return res.redirect(302, fallback);
+  }
+});
 
 // ── Health check ──────────────────────────────────────────────
 app.get('/health', (req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));

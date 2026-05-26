@@ -220,6 +220,25 @@ export default function LiveShows() {
   /* ── Derived ── */
   const liveShows = shows.filter(s => s.status === 'live' && s.category !== 'adult');
   const upcomingShows = shows.filter(s => s.status === 'scheduled' && s.category !== 'adult');
+
+  // Agrupar shows programados por fecha
+  const upcomingByDate = upcomingShows.reduce((acc, show) => {
+    if (!show.scheduled_at) return acc;
+    const d = new Date(show.scheduled_at);
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const tomorrow = new Date(today.getTime() + 86400000);
+    const nextWeek = new Date(today.getTime() + 7 * 86400000);
+    const showDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    let key;
+    if (showDay.getTime() === today.getTime()) key = 'Hoy';
+    else if (showDay.getTime() === tomorrow.getTime()) key = 'Mañana';
+    else if (showDay < nextWeek) key = d.toLocaleDateString('es', { weekday: 'long' });
+    else key = d.toLocaleDateString('es', { day: 'numeric', month: 'long' });
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(show);
+    return acc;
+  }, {});
   const totalViewers = liveShows.reduce((sum, s) => sum + (s.viewer_count || 0), 0);
 
   const filtered = liveShows.filter(s => {
@@ -442,7 +461,7 @@ export default function LiveShows() {
           </motion.div>
         )}
 
-        {/* ── Próximos shows (colapsable) ───────────────────────── */}
+        {/* ── Calendario de próximos shows ─────────────────────── */}
         {!search && upcomingShows.length > 0 && (
           <section className="pt-2">
             <button
@@ -451,7 +470,7 @@ export default function LiveShows() {
             >
               <FiCalendar size={13} className="text-gray-500" />
               <span className="text-gray-400 text-sm font-semibold flex-1">
-                Próximos shows
+                Calendario de shows
               </span>
               <span className="text-xs text-gray-600 bg-dark-700 px-2 py-0.5 rounded-full">{upcomingShows.length}</span>
               {showUpcoming
@@ -465,10 +484,22 @@ export default function LiveShows() {
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }}
                   exit={{ opacity: 0, height: 0 }}
-                  className="overflow-hidden space-y-2 pb-4"
+                  className="overflow-hidden pb-4"
                 >
-                  {upcomingShows.slice(0, 8).map(show => (
-                    <UpcomingRow key={show.id} show={show} />
+                  {Object.entries(upcomingByDate).map(([dateLabel, dayShows]) => (
+                    <div key={dateLabel} className="mb-4">
+                      <div className="flex items-center gap-2 mb-2 px-1">
+                        <span className={`text-xs font-bold uppercase tracking-wide ${
+                          dateLabel === 'Hoy' ? 'text-brand-400' :
+                          dateLabel === 'Mañana' ? 'text-yellow-400' :
+                          'text-gray-500'
+                        }`}>{dateLabel}</span>
+                        <div className="flex-1 h-px bg-white/5" />
+                      </div>
+                      <div className="space-y-2">
+                        {dayShows.map(show => <UpcomingRow key={show.id} show={show} />)}
+                      </div>
+                    </div>
                   ))}
                 </motion.div>
               )}

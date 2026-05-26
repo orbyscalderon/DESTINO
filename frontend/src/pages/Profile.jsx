@@ -371,7 +371,10 @@ export default function Profile() {
   };
 
   const handleShare = async () => {
-    const url = `${window.location.origin}/#/profile/${user?.id}`;
+    const apiBase = import.meta.env.VITE_API_URL;
+    const url = apiBase
+      ? `${apiBase}/share/profile/${user?.id}`
+      : `${window.location.origin}/#/profile/${user?.id}`;
     const shareData = { title: `${profile?.full_name} en Destino`, text: profile?.bio || 'Mira mi perfil en Destino', url };
     if (navigator.share) {
       await navigator.share(shareData).catch(() => {});

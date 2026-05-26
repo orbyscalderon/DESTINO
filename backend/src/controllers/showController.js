@@ -320,6 +320,28 @@ export const startShow = async (req, res) => {
           createNotification(user_id, 'show_ticket', interestPush.title, interestPush.body, { show_id: id });
         });
       }
+
+      // Notificar a seguidores (evitar duplicados con suscriptores ya notificados)
+      const { data: followers } = await supabase
+        .from('user_follows')
+        .select('follower_id')
+        .eq('following_id', hostId);
+
+      if (followers?.length > 0) {
+        const subscriberSet = new Set((subs || []).map(s => s.subscriber_id));
+        const followerPush = {
+          title: `🔴 ${host?.full_name || 'Un creador'} está en vivo`,
+          body: updated?.title || 'Está transmitiendo ahora',
+          icon: '/icon-192.png',
+          data: { url: `/shows/${id}` },
+        };
+        followers.forEach(({ follower_id }) => {
+          if (follower_id === hostId) return;
+          if (subscriberSet.has(follower_id)) return; // ya notificado como suscriptor
+          sendPushToUser(follower_id, followerPush).catch(() => {});
+          createNotification(follower_id, 'show_live', followerPush.title, followerPush.body, { show_id: id });
+        });
+      }
     } catch { /* No bloquear el inicio del show si falla */ }
   } catch (err) {
     console.error('startShow error:', err.message);

@@ -660,7 +660,10 @@ export default function ShowStudio() {
   };
 
   const handleCopyLink = async () => {
-    const url = `${window.location.origin}/#/shows/${showId}`;
+    const apiBase = import.meta.env.VITE_API_URL;
+    const url = apiBase
+      ? `${apiBase}/share/show/${showId}`
+      : `${window.location.origin}/#/shows/${showId}`;
     try { await navigator.clipboard.writeText(url); toast.success('Link copiado 🔗'); }
     catch { toast.error('No se pudo copiar'); }
   };
