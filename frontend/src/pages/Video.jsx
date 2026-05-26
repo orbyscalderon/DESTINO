@@ -1,13 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { FiLock, FiSearch, FiVideo, FiX, FiGlobe } from 'react-icons/fi';
+import { FiLock, FiSearch, FiX, FiGlobe } from 'react-icons/fi';
 import VideoRoom from '../components/ui/VideoRoom.jsx';
 import PremiumModal from '../components/ui/PremiumModal.jsx';
 import { useAuthStore } from '../store/authStore.js';
 import { COUNTRIES } from '../lib/geodata.js';
 import FlagImg from '../components/ui/FlagImg.jsx';
-import api from '../lib/api.js';
 
 const GENDER_OPTIONS = [
   { value: 'any',    label: 'Cualquiera', emoji: '👥' },
@@ -39,14 +37,7 @@ export default function Video() {
   const [countrySearch,   setCountrySearch]   = useState('');
   const [activeRegion,    setActiveRegion]    = useState('latam');
   const [recentCodes,     setRecentCodes]     = useState(loadRecent);
-  const [videoUsage,      setVideoUsage]      = useState({ count: 0, remaining: 5, limit: 5, is_premium: false });
   const [showPremiumModal, setShowPremiumModal] = useState(false);
-
-  useEffect(() => {
-    api.get('/api/video/usage/today')
-      .then(({ data }) => setVideoUsage(data))
-      .catch(() => {});
-  }, []);
 
   const selectCountry = (code) => {
     setCountryFilter(code);
@@ -71,9 +62,6 @@ export default function Video() {
   const selectedCountry = COUNTRIES.find(c => c.code === countryFilter);
   const recentList      = recentCodes.map(code => COUNTRIES.find(c => c.code === code)).filter(Boolean);
 
-  const usedCalls = videoUsage.limit - (videoUsage.remaining ?? 0);
-  const usagePct  = videoUsage.is_premium ? 0 : Math.round((usedCalls / videoUsage.limit) * 100);
-
   return (
     <div className="min-h-screen px-4 pt-8 pb-6 lg:px-10 lg:pt-10">
 
@@ -82,51 +70,6 @@ export default function Video() {
         <h1 className="text-2xl lg:text-3xl font-black gradient-text">Video Aleatorio</h1>
         <p className="text-gray-400 text-sm mt-1">Conecta por video con alguien nuevo</p>
       </div>
-
-      {/* Banner de llamadas */}
-      {!videoUsage.is_premium && videoUsage.remaining !== null && (
-        <div className={`mb-5 px-4 py-3 rounded-xl border ${
-          videoUsage.remaining === 0
-            ? 'bg-red-500/10 border-red-500/20'
-            : videoUsage.remaining <= 2
-            ? 'bg-yellow-500/10 border-yellow-500/20'
-            : 'bg-dark-800 border-white/5'
-        }`}>
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2">
-              <FiVideo size={13} className={
-                videoUsage.remaining === 0 ? 'text-red-400'
-                : videoUsage.remaining <= 2 ? 'text-yellow-400'
-                : 'text-gray-400'
-              } />
-              <span className="text-sm text-gray-400">
-                Llamadas hoy:{' '}
-                <span className={`font-bold ${
-                  videoUsage.remaining === 0 ? 'text-red-400'
-                  : videoUsage.remaining <= 2 ? 'text-yellow-400'
-                  : 'text-white'
-                }`}>{usedCalls}</span>
-                <span className="text-gray-600"> / {videoUsage.limit}</span>
-              </span>
-            </div>
-            <Link to="/premium" className="text-xs text-yellow-400 hover:text-yellow-300 font-medium transition-colors">
-              Ir Premium →
-            </Link>
-          </div>
-          <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
-            <motion.div
-              className={`h-full rounded-full ${
-                videoUsage.remaining === 0 ? 'bg-red-500'
-                : videoUsage.remaining <= 2 ? 'bg-yellow-400'
-                : 'bg-brand-500'
-              }`}
-              initial={{ width: 0 }}
-              animate={{ width: `${usagePct}%` }}
-              transition={{ duration: 0.5, ease: 'easeOut' }}
-            />
-          </div>
-        </div>
-      )}
 
       {/* Layout */}
       <div className="w-full lg:grid lg:grid-cols-[240px_1fr] lg:gap-4 lg:items-start">
@@ -320,15 +263,9 @@ export default function Video() {
           <VideoRoom
             genderFilter={genderFilter}
             countryFilter={countryFilter}
-            videoCallsRemaining={videoUsage.is_premium ? Infinity : (videoUsage.remaining ?? 5)}
-            onLimitReached={() => setShowPremiumModal(true)}
-            onCallStarted={() =>
-              setVideoUsage(v => ({
-                ...v,
-                remaining: Math.max(0, (v.remaining ?? 1) - 1),
-                count: v.count + 1,
-              }))
-            }
+            videoCallsRemaining={Infinity}
+            onLimitReached={() => {}}
+            onCallStarted={() => {}}
           />
         </motion.div>
       </div>

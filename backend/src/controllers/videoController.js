@@ -1,40 +1,22 @@
 import { supabase } from '../lib/supabase.js';
 import { v4 as uuidv4 } from 'uuid';
 
-const VIDEO_CALL_LIMIT = 5;
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const isValidUUID = (v) => UUID_REGEX.test(v);
 
-async function getVideoCallsToday(userId) {
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
-
-  const [{ count: hostCount }, { count: guestCount }] = await Promise.all([
-    supabase.from('video_sessions').select('*', { count: 'exact', head: true })
-      .eq('user1_id', userId).gte('started_at', todayStart.toISOString()),
-    supabase.from('video_sessions').select('*', { count: 'exact', head: true })
-      .eq('user2_id', userId).gte('started_at', todayStart.toISOString()),
-  ]);
-
-  return (hostCount || 0) + (guestCount || 0);
-}
-
-// GET /api/video/usage/today
+// GET /api/video/usage/today — video aleatorio es gratis e ilimitado para todos
 export const getVideoUsageToday = async (req, res) => {
   try {
-    const userId = req.user.id;
-    const { data: profile } = await supabase.from('profiles').select('premium_tier').eq('id', userId).single();
-    const isPremium = profile?.premium_tier === 'premium' || profile?.premium_tier === 'vip';
-    const count = await getVideoCallsToday(userId);
+    const { data: profile } = await supabase.from('profiles').select('premium_tier').eq('id', req.user.id).single();
     res.json({
-      count,
-      remaining: isPremium ? null : Math.max(0, VIDEO_CALL_LIMIT - count),
-      limit: isPremium ? null : VIDEO_CALL_LIMIT,
-      is_premium: isPremium,
+      count: 0,
+      remaining: null,
+      limit: null,
+      is_premium: true,
       premium_tier: profile?.premium_tier || 'basic',
     });
-  } catch (err) {
-    res.status(500).json({ error: 'Error interno del servidor' });
+  } catch {
+    res.json({ count: 0, remaining: null, limit: null, is_premium: true });
   }
 };
 
@@ -49,17 +31,6 @@ export const findPartner = async (req, res) => {
 
     if (genderFilter && genderFilter !== 'any' && !isPremium) {
       return res.status(403).json({ error: 'El filtro de género es exclusivo Premium', code: 'PREMIUM_REQUIRED' });
-    }
-
-    if (!isPremium) {
-      const callsToday = await getVideoCallsToday(userId);
-      if (callsToday >= VIDEO_CALL_LIMIT) {
-        return res.status(403).json({
-          error: 'Límite de videollamadas alcanzado',
-          code: 'VIDEO_LIMIT_REACHED',
-          remaining: 0,
-        });
-      }
     }
 
     let query = supabase
