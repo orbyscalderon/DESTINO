@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase.js';
+import { uploadFile } from '../lib/storageProvider.js';
 import { sendPushToUser } from './notificationController.js';
 import { spendCoins, addCoins, coinsToUSD, creatorCutUSD } from './coinController.js';
 import { createNotification } from './inAppNotifController.js';
@@ -40,9 +41,10 @@ export const chatAudioMiddleware = (req, res, next) => {
   });
 };
 
-const BUCKET = 'DESTINO';
-const PPV_BUCKET = 'DESTINO-PPV';   // bucket privado; acceso solo via signed URLs
-const PPV_SIGNED_URL_TTL = 3600;    // 1 hora
+// Contenido PPV privado — usa Supabase signed URLs (bucket privado)
+// Al migrar a Backblaze B2: B2 soporta private files + presigned URLs igual que S3
+const PPV_BUCKET = 'DESTINO-PPV';
+const PPV_SIGNED_URL_TTL = 3600;
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const isValidUUID = (v) => UUID_REGEX.test(v);
@@ -69,13 +71,7 @@ export const sendImageMessage = async (req, res) => {
     }
 
     const storagePath = `chat-images/${matchId}/${userId}-${Date.now()}`;
-    const { error: uploadError } = await supabase.storage
-      .from(BUCKET)
-      .upload(storagePath, req.file.buffer, { contentType: req.file.mimetype, upsert: false });
-
-    if (uploadError) throw uploadError;
-
-    const imageUrl = supabase.storage.from(BUCKET).getPublicUrl(storagePath).data.publicUrl;
+    const imageUrl = await uploadFile(storagePath, req.file.buffer, req.file.mimetype);
 
     const { data: message, error } = await supabase
       .from('messages')
@@ -426,12 +422,7 @@ export const sendVoiceMessage = async (req, res) => {
 
     const ext = req.file.mimetype.includes('ogg') ? 'ogg' : 'webm';
     const storagePath = `chat-audio/${matchId}/${userId}-${Date.now()}.${ext}`;
-    const { error: uploadError } = await supabase.storage
-      .from(BUCKET)
-      .upload(storagePath, req.file.buffer, { contentType: req.file.mimetype, upsert: false });
-    if (uploadError) throw uploadError;
-
-    const audioUrl = supabase.storage.from(BUCKET).getPublicUrl(storagePath).data.publicUrl;
+    const audioUrl = await uploadFile(storagePath, req.file.buffer, req.file.mimetype);
 
     const { data: message, error } = await supabase
       .from('messages')

@@ -1,8 +1,7 @@
 import { supabase } from '../lib/supabase.js';
+import { uploadFile, deleteFile } from '../lib/storageProvider.js';
 import { spendCoins, addCoins } from './coinController.js';
 import multer from 'multer';
-
-const BUCKET = 'DESTINO';
 const ALLOWED_VIDEO_MIME = ['video/mp4', 'video/webm', 'video/quicktime', 'video/x-msvideo'];
 
 const videoUpload = multer({
@@ -47,12 +46,7 @@ export const uploadProfileVideo = async (req, res) => {
     const ext = req.file.mimetype === 'video/webm' ? 'webm' : 'mp4';
     const storagePath = `profile_videos/${userId}/${Date.now()}.${ext}`;
 
-    const { error: uploadError } = await supabase.storage
-      .from(BUCKET)
-      .upload(storagePath, req.file.buffer, { contentType: req.file.mimetype, upsert: false });
-    if (uploadError) throw uploadError;
-
-    const url = supabase.storage.from(BUCKET).getPublicUrl(storagePath).data.publicUrl;
+    const url = await uploadFile(storagePath, req.file.buffer, req.file.mimetype);
 
     const { data: video, error } = await supabase
       .from('profile_videos')
@@ -138,7 +132,7 @@ export const deleteProfileVideo = async (req, res) => {
     if (video.user_id !== req.user.id) return res.status(403).json({ error: 'No autorizado' });
 
     if (video.storage_path) {
-      await supabase.storage.from(BUCKET).remove([video.storage_path]).catch(() => {});
+      await deleteFile([video.storage_path]).catch(() => {});
     }
 
     await supabase.from('profile_videos').delete().eq('id', videoId);

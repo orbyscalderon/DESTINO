@@ -1,9 +1,9 @@
 import { supabase } from '../lib/supabase.js';
+import { uploadFile } from '../lib/storageProvider.js';
 import multer from 'multer';
 import { createNotification } from './inAppNotifController.js';
 import { spendCoins, addCoins } from './coinController.js';
 
-const BUCKET = 'DESTINO';
 const ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp', 'video/mp4', 'video/quicktime'];
 
 const upload = multer({
@@ -227,11 +227,7 @@ export const createPost = async (req, res) => {
       const isVideo = req.file.mimetype.startsWith('video/');
       const ext = isVideo ? 'mp4' : 'jpg';
       const storagePath = `posts/${userId}/${Date.now()}.${ext}`;
-      const { error: uploadError } = await supabase.storage
-        .from(BUCKET)
-        .upload(storagePath, req.file.buffer, { contentType: req.file.mimetype, upsert: false });
-      if (uploadError) throw uploadError;
-      mediaUrl = supabase.storage.from(BUCKET).getPublicUrl(storagePath).data.publicUrl;
+      mediaUrl = await uploadFile(storagePath, req.file.buffer, req.file.mimetype);
       mediaType = isVideo ? 'video' : 'photo';
     }
 

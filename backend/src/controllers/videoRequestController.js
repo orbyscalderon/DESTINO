@@ -1,8 +1,7 @@
 import { supabase } from '../lib/supabase.js';
+import { uploadFile, deleteFile } from '../lib/storageProvider.js';
 import { spendCoins, addCoins } from './coinController.js';
 import multer from 'multer';
-
-const BUCKET = 'DESTINO';
 const ALLOWED_VIDEO_MIME = ['video/mp4', 'video/webm', 'video/quicktime', 'video/x-msvideo'];
 
 const videoUpload = multer({
@@ -230,15 +229,10 @@ export const deliverVideoRequest = async (req, res) => {
 
     // Remove old delivery if re-delivering
     if (request.storage_path) {
-      await supabase.storage.from(BUCKET).remove([request.storage_path]).catch(() => {});
+      await deleteFile([request.storage_path]).catch(() => {});
     }
 
-    const { error: uploadError } = await supabase.storage
-      .from(BUCKET)
-      .upload(storagePath, req.file.buffer, { contentType: req.file.mimetype, upsert: true });
-    if (uploadError) throw uploadError;
-
-    const videoUrl = supabase.storage.from(BUCKET).getPublicUrl(storagePath).data.publicUrl;
+    const videoUrl = await uploadFile(storagePath, req.file.buffer, req.file.mimetype);
 
     await supabase
       .from('video_requests')

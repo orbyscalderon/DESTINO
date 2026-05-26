@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase.js';
+import { uploadFile, deleteFile } from '../lib/storageProvider.js';
 import { spendCoins, addCoins } from './coinController.js';
 import multer from 'multer';
 
@@ -27,16 +28,6 @@ export const uploadPhotoMiddleware = (req, res, next) => {
   });
 };
 
-const BUCKET = 'DESTINO';
-
-async function uploadToStorage(path, buffer, mimetype) {
-  const { error } = await supabase.storage.from(BUCKET).upload(path, buffer, {
-    contentType: mimetype,
-    upsert: true,
-  });
-  if (error) throw error;
-  return supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
-}
 
 // GET /api/profiles/geoip — detecta país del usuario por su IP
 export const getGeoIp = async (req, res) => {
@@ -452,7 +443,7 @@ export const uploadAvatar = async (req, res) => {
     if (!req.file) return res.status(400).json({ error: 'No se recibió ninguna imagen' });
 
     const path = `avatars/${req.user.id}`;
-    const url = await uploadToStorage(path, req.file.buffer, req.file.mimetype);
+    const url = await uploadFile(path, req.file.buffer, req.file.mimetype);
 
     await supabase.from('profiles').update({ avatar_url: url }).eq('id', req.user.id);
 
@@ -535,7 +526,7 @@ export const uploadPhoto = async (req, res) => {
       .eq('user_id', req.user.id);
 
     const storagePath = `photos/${req.user.id}/${Date.now()}`;
-    const url = await uploadToStorage(storagePath, req.file.buffer, req.file.mimetype);
+    const url = await uploadFile(storagePath, req.file.buffer, req.file.mimetype);
 
     const { data: photo, error } = await supabase
       .from('profile_photos')
@@ -568,11 +559,11 @@ export const deleteAccount = async (req, res) => {
 
     const paths = (photos || []).map(p => p.storage_path).filter(Boolean);
     if (paths.length > 0) {
-      await supabase.storage.from(BUCKET).remove(paths);
+      await deleteFile(paths);
     }
 
     // Eliminar avatar del storage
-    await supabase.storage.from(BUCKET).remove([`avatars/${userId}`]);
+    await deleteFile([`avatars/${userId}`]);
 
     // Eliminar el usuario de auth — CASCADE borra profiles y datos relacionados
     const { error } = await supabase.auth.admin.deleteUser(userId);
@@ -703,7 +694,7 @@ export const deletePhoto = async (req, res) => {
     if (photo.user_id !== req.user.id) return res.status(403).json({ error: 'No autorizado' });
 
     if (photo.storage_path) {
-      await supabase.storage.from(BUCKET).remove([photo.storage_path]);
+      await deleteFile([photo.storage_path]);
     }
 
     const { error } = await supabase.from('profile_photos').delete().eq('id', photoId);

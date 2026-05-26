@@ -1,11 +1,10 @@
 import { stripe } from '../lib/stripe.js';
 import { supabase } from '../lib/supabase.js';
+import { uploadFile } from '../lib/storageProvider.js';
 import multer from 'multer';
 import { upsertCreatorEarnings } from './showController.js';
 import { createNotification } from './inAppNotifController.js';
 import { sendPushToUser } from './notificationController.js';
-
-const BUCKET = 'DESTINO';
 const GALLERY_ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp', 'video/mp4', 'video/quicktime'];
 const galleryUpload = multer({
   storage: multer.memoryStorage(),
@@ -793,8 +792,7 @@ export const createGallery = async (req, res) => {
     if (req.file) {
       const ext = req.file.mimetype.includes('webp') ? 'webp' : 'jpg';
       const path = `galleries/${creatorId}/covers/${Date.now()}.${ext}`;
-      await supabase.storage.from(BUCKET).upload(path, req.file.buffer, { contentType: req.file.mimetype, upsert: false });
-      coverUrl = supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
+      coverUrl = await uploadFile(path, req.file.buffer, req.file.mimetype);
     }
 
     const { data: gallery, error } = await supabase
@@ -830,8 +828,7 @@ export const addGalleryItem = async (req, res) => {
     const ext = isVideo ? 'mp4' : req.file.mimetype.includes('webp') ? 'webp' : 'jpg';
     const path = `galleries/${creatorId}/${galleryId}/${Date.now()}.${ext}`;
 
-    await supabase.storage.from(BUCKET).upload(path, req.file.buffer, { contentType: req.file.mimetype, upsert: false });
-    const mediaUrl = supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
+    const mediaUrl = await uploadFile(path, req.file.buffer, req.file.mimetype);
 
     const { data: item, error } = await supabase
       .from('gallery_items')

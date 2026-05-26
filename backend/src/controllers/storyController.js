@@ -1,7 +1,6 @@
 import { supabase } from '../lib/supabase.js';
+import { uploadFile } from '../lib/storageProvider.js';
 import multer from 'multer';
-
-const BUCKET = 'DESTINO';
 const STORY_EXPIRY_HOURS = 24;
 const ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp', 'video/mp4', 'video/quicktime'];
 
@@ -114,12 +113,7 @@ export const createStory = async (req, res) => {
     const ext = isVideo ? 'mp4' : 'jpg';
     const storagePath = `stories/${userId}/${Date.now()}.${ext}`;
 
-    const { error: uploadError } = await supabase.storage
-      .from(BUCKET)
-      .upload(storagePath, req.file.buffer, { contentType: req.file.mimetype, upsert: false });
-    if (uploadError) throw uploadError;
-
-    const mediaUrl = supabase.storage.from(BUCKET).getPublicUrl(storagePath).data.publicUrl;
+    const mediaUrl = await uploadFile(storagePath, req.file.buffer, req.file.mimetype);
     const expiresAt = new Date(Date.now() + STORY_EXPIRY_HOURS * 60 * 60 * 1000).toISOString();
 
     const { data: story, error } = await supabase
