@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { FiMail, FiLock, FiUser, FiEye, FiEyeOff } from 'react-icons/fi';
 import { Turnstile } from '@marsidev/react-turnstile';
 import { supabase } from '../lib/supabase.js';
-import { api } from '../lib/api.js';
+import api from '../lib/api.js';
 import toast from 'react-hot-toast';
 
 const TURNSTILE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY;
