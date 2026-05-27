@@ -7,12 +7,21 @@ if (process.env.NODE_ENV === 'production') {
   process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 }
 
+import * as Sentry from '@sentry/node';
 import express from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 dotenv.config();
+
+if (process.env.SENTRY_DSN) {
+  Sentry.init({
+    dsn: process.env.SENTRY_DSN,
+    environment: process.env.NODE_ENV || 'development',
+    tracesSampleRate: 0.2,
+  });
+}
 
 import { startCleanupJob } from './src/lib/cleanup.js';
 import profileRoutes from './src/routes/profiles.js';
@@ -226,6 +235,7 @@ app.get('/health', (req, res) => res.json({ status: 'ok', timestamp: new Date().
 
 // ── Error handler global ──────────────────────────────────────
 app.use((err, req, res, next) => {
+  if (process.env.SENTRY_DSN) Sentry.captureException(err);
   console.error(err.stack);
   res.status(500).json({ error: 'Error interno del servidor' });
 });
