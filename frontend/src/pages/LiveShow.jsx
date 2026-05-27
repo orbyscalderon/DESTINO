@@ -804,6 +804,22 @@ export default function LiveShow() {
     try {
       await api.post(`/api/shows/${id}/tip`, { coins, message: tipMessage });
       toast.success(`¡${coins} coins enviados!`);
+
+      // Broadcast super chat al canal del show para que todos lo vean
+      if (tipMessage.trim() && chatChannelRef.current) {
+        const superChatMsg = {
+          text: tipMessage.trim(),
+          name: authProfile?.full_name || user?.email?.split('@')[0] || 'Usuario',
+          avatar: authProfile?.avatar_url || null,
+          userId: user?.id,
+          coins,
+          isSuperChat: true,
+          ts: Date.now(),
+        };
+        chatChannelRef.current.send({ type: 'broadcast', event: 'msg', payload: superChatMsg });
+        setChatMessages(prev => [...prev.slice(-79), superChatMsg]);
+      }
+
       setTipMessage('');
       setShowTips(false);
       setLatestTip({ coins, message: tipMessage });
@@ -1476,13 +1492,18 @@ export default function LiveShow() {
                 {chatMessages.length === 0
                   ? <p className="text-gray-600 text-xs text-center py-4">El chat está vacío</p>
                   : chatMessages.slice(-50).map((msg, i) => (
-                    <div key={i} className="flex items-start gap-2">
+                    <div key={i} className={`flex items-start gap-2 ${msg.isSuperChat ? 'my-1' : ''}`}>
                       {msg.avatar
                         ? <img src={msg.avatar} className="w-5 h-5 rounded-full object-cover shrink-0 mt-0.5" alt="" />
                         : <div className="w-5 h-5 rounded-full bg-brand-500/30 shrink-0 mt-0.5" />
                       }
-                      <div className="bg-dark-700 rounded-xl px-2.5 py-1.5 min-w-0">
-                        <span className="text-brand-300 text-[10px] font-semibold">{msg.name}</span>
+                      <div className={msg.isSuperChat
+                        ? 'rounded-xl px-2.5 py-1.5 min-w-0 bg-gradient-to-r from-yellow-500/30 to-amber-500/20 border border-yellow-400/40'
+                        : 'bg-dark-700 rounded-xl px-2.5 py-1.5 min-w-0'}>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-brand-300 text-[10px] font-semibold">{msg.name}</span>
+                          {msg.isSuperChat && <span className="text-yellow-400 text-[10px] font-bold">⚡ {msg.coins} coins</span>}
+                        </div>
                         <p className="text-white text-xs leading-tight break-words">{msg.text}</p>
                       </div>
                     </div>
@@ -1717,13 +1738,18 @@ export default function LiveShow() {
             {chatMessages.length === 0
               ? <p className="text-gray-600 text-xs text-center py-4">El chat está vacío</p>
               : chatMessages.slice(-50).map((msg, i) => (
-                <div key={i} className="flex items-start gap-2">
+                <div key={i} className={`flex items-start gap-2 ${msg.isSuperChat ? 'my-1' : ''}`}>
                   {msg.avatar
                     ? <img src={msg.avatar} className="w-5 h-5 rounded-full object-cover shrink-0 mt-0.5" alt="" />
                     : <div className="w-5 h-5 rounded-full bg-brand-500/30 shrink-0 mt-0.5" />
                   }
-                  <div className="bg-dark-700 rounded-xl px-2.5 py-1.5 min-w-0">
-                    <span className="text-brand-300 text-[10px] font-semibold">{msg.name}</span>
+                  <div className={msg.isSuperChat
+                    ? 'rounded-xl px-2.5 py-1.5 min-w-0 bg-gradient-to-r from-yellow-500/30 to-amber-500/20 border border-yellow-400/40'
+                    : 'bg-dark-700 rounded-xl px-2.5 py-1.5 min-w-0'}>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-brand-300 text-[10px] font-semibold">{msg.name}</span>
+                      {msg.isSuperChat && <span className="text-yellow-400 text-[10px] font-bold">⚡ {msg.coins} coins</span>}
+                    </div>
                     <p className="text-white text-xs leading-tight break-words">{msg.text}</p>
                   </div>
                 </div>
@@ -1888,8 +1914,13 @@ export default function LiveShow() {
                       ? <img src={msg.avatar} className="w-5 h-5 rounded-full object-cover shrink-0 mt-0.5" alt="" />
                       : <div className="w-5 h-5 rounded-full bg-brand-500/30 shrink-0 mt-0.5" />
                     }
-                    <div className="bg-black/60 backdrop-blur-sm rounded-xl px-2.5 py-1 max-w-[85%]">
-                      <span className="text-brand-300 text-[10px] font-semibold">{msg.name}</span>
+                    <div className={msg.isSuperChat
+                      ? 'rounded-xl px-2.5 py-1 max-w-[85%] bg-gradient-to-r from-yellow-500/40 to-amber-500/30 border border-yellow-400/50 backdrop-blur-sm'
+                      : 'bg-black/60 backdrop-blur-sm rounded-xl px-2.5 py-1 max-w-[85%]'}>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-brand-300 text-[10px] font-semibold">{msg.name}</span>
+                        {msg.isSuperChat && <span className="text-yellow-300 text-[10px] font-bold">⚡ {msg.coins}</span>}
+                      </div>
                       <p className="text-white text-xs leading-tight">{msg.text}</p>
                     </div>
                   </div>

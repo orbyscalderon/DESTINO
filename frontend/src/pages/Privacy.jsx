@@ -58,7 +58,7 @@ export default function Privacy() {
             <ul className="list-disc list-inside space-y-1.5">
               <li><strong>Supabase</strong> — almacenamiento de base de datos y autenticación.</li>
               <li><strong>Stripe</strong> — procesamiento de pagos.</li>
-              <li><strong>Agora</strong> — infraestructura de videollamadas (metadatos de sesión).</li>
+              <li><strong>LiveKit</strong> — infraestructura de videollamadas y shows en vivo (metadatos de sesión, no contenido).</li>
               <li><strong>Google AdMob</strong> — publicidad (datos de dispositivo y uso).</li>
               <li>Autoridades legales cuando sea requerido por ley.</li>
             </ul>
