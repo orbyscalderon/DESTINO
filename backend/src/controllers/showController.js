@@ -175,6 +175,9 @@ export const createShow = async (req, res) => {
     if (!VALID_CATEGORIES.includes(category)) {
       return res.status(400).json({ error: 'Categoría inválida' });
     }
+    if (cover_url && !/^https?:\/\/.{4,}/.test(cover_url)) {
+      return res.status(400).json({ error: 'cover_url debe ser una URL válida' });
+    }
 
     const price = parseFloat(ticket_price) || 0;
     if (price < 0 || price > 9999) return res.status(400).json({ error: 'Precio inválido' });
@@ -880,6 +883,10 @@ export const setRecordingUrl = async (req, res) => {
     const { data: show } = await supabase.from('live_shows').select('host_id').eq('id', id).single();
     if (!show) return res.status(404).json({ error: 'Show no encontrado' });
     if (show.host_id !== hostId) return res.status(403).json({ error: 'No autorizado' });
+
+    if (recording_url && !/^https?:\/\/.{4,}/.test(recording_url)) {
+      return res.status(400).json({ error: 'recording_url debe ser una URL válida' });
+    }
 
     await supabase.from('live_shows').update({ recording_url: recording_url || null }).eq('id', id);
     res.json({ success: true });

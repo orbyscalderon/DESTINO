@@ -380,7 +380,13 @@ export const addBonusLikes = async (req, res) => {
       .single();
 
     const currentBonus = existing?.bonus || 0;
-    const newBonus = currentBonus + amount;
+    // Máximo 1 recompensa de bonus por día (equivale a ver 1 anuncio)
+    const MAX_DAILY_BONUS = 50;
+    if (currentBonus >= MAX_DAILY_BONUS) {
+      const totalLimit = DAILY_LIKE_LIMIT + currentBonus;
+      return res.json({ remaining: Math.max(0, totalLimit - (used || 0)), bonus: currentBonus });
+    }
+    const newBonus = Math.min(currentBonus + amount, MAX_DAILY_BONUS);
 
     await supabase
       .from('daily_bonus_likes')
@@ -403,6 +409,13 @@ export const undoLastSwipe = async (req, res) => {
 
     if (!targetUserId) return res.status(400).json({ error: 'targetUserId requerido' });
     if (!isValidUUID(targetUserId)) return res.status(400).json({ error: 'targetUserId inválido' });
+
+    // Solo Premium puede deshacer swipes — verificado en servidor
+    const { data: me } = await supabase.from('profiles').select('premium_tier').eq('id', userId).single();
+    const isPremium = me?.premium_tier === 'premium' || me?.premium_tier === 'vip';
+    if (!isPremium) {
+      return res.status(403).json({ error: 'Deshacer swipes es exclusivo Premium', code: 'PREMIUM_REQUIRED' });
+    }
 
     // Case 1: user1_id = userId (user initiated the swipe)
     const { data: row1 } = await supabase

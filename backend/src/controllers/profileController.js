@@ -3,6 +3,19 @@ import { uploadFile, deleteFile } from '../lib/storageProvider.js';
 import { spendCoins, addCoins } from './coinController.js';
 import multer from 'multer';
 
+// Campos internos/financieros que solo debe ver el dueño del perfil
+const PRIVATE_FIELDS = [
+  'stripe_customer_id', 'stripe_subscription_id', 'stripe_account_id',
+  'stripe_account_status', 'coins_balance', 'is_admin', 'age_verified_at', 'is_incognito',
+];
+
+function sanitizeForPublic(profile) {
+  if (!profile) return profile;
+  const p = { ...profile };
+  PRIVATE_FIELDS.forEach(f => delete p[f]);
+  return p;
+}
+
 const ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 
 const imageFilter = (req, file, cb) => {
@@ -189,7 +202,7 @@ export const searchProfiles = async (req, res) => {
       data = (fallback.data || []).filter(p => !p.is_adult_creator && !p.is_incognito);
     }
 
-    res.json({ profiles: data || [] });
+    res.json({ profiles: (data || []).map(sanitizeForPublic) });
   } catch (err) {
     console.error('[searchProfiles]', err);
     res.status(500).json({ error: 'Error interno del servidor' });
@@ -288,7 +301,7 @@ export const getFeed = async (req, res) => {
     }
 
     res.json({
-      profiles: (profiles || []).map(p => ({ ...p, photos: photosByUser[p.id] || [] })),
+      profiles: (profiles || []).map(p => ({ ...sanitizeForPublic(p), photos: photosByUser[p.id] || [] })),
     });
   } catch (err) {
     console.error('[getFeed]', err);
@@ -353,8 +366,10 @@ export const getProfile = async (req, res) => {
     }
 
     _step = 'send_response';
+    const isOwner = viewerId === targetId;
+    const safeProfile = isOwner ? profile : sanitizeForPublic(profile);
     res.json({
-      profile: { ...profile, photos, is_subscribed: isSubscribed },
+      profile: { ...safeProfile, photos, is_subscribed: isSubscribed },
     });
   } catch (err) {
     console.error(`[getProfile] error at step="${_step}":`, err?.message, err?.stack);
@@ -433,7 +448,7 @@ export const updateProfile = async (req, res) => {
     res.json({ profile });
   } catch (err) {
     console.error('updateProfile error:', err?.message || err);
-    res.status(500).json({ error: err?.message || 'Error interno del servidor' });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
 

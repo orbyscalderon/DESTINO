@@ -1,5 +1,8 @@
 import { Router } from 'express';
+import { authMiddleware } from '../middleware/auth.js';
 import { sendWelcomeEmail } from '../lib/emailService.js';
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const router = Router();
 
@@ -27,11 +30,15 @@ router.post('/verify-turnstile', async (req, res) => {
   }
 });
 
-// Envía email de bienvenida tras el registro (llamado desde el frontend)
-router.post('/welcome-email', async (req, res) => {
+// Envía email de bienvenida tras el registro — requiere autenticación para evitar spam
+router.post('/welcome-email', authMiddleware, async (req, res) => {
   const { email, name } = req.body;
   if (!email || !name) return res.status(400).json({ error: 'Datos requeridos' });
-  // Fire-and-forget — no bloqueamos al usuario si falla el email
+  if (!EMAIL_REGEX.test(email)) return res.status(400).json({ error: 'Email inválido' });
+  // Solo permite enviar al propio email del usuario autenticado
+  if (req.user.email && req.user.email.toLowerCase() !== email.toLowerCase()) {
+    return res.status(403).json({ error: 'No autorizado' });
+  }
   sendWelcomeEmail(email, name).catch(() => {});
   res.json({ ok: true });
 });
