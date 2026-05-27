@@ -779,7 +779,7 @@ export default function ShowStudio() {
   const tipGoalPct = tipGoal > 0 ? Math.min(100, (tipTotal / tipGoal) * 100) : 0;
 
   // ── DOCK SECTION HEADER ──────────────────────────────────────────────────────
-  const DockSectionHeader = ({ sectionKey }) => (
+  const renderDockSectionHeader = (sectionKey) => (
     <div
       className="px-2 py-1.5 border-b border-white/5 shrink-0 flex items-center gap-1.5 cursor-grab active:cursor-grabbing"
       draggable
@@ -799,7 +799,7 @@ export default function ShowStudio() {
 
       case 'escenas': return (
         <div key="escenas" className="w-32 border-r border-white/5 flex flex-col shrink-0">
-          <DockSectionHeader sectionKey="escenas" />
+          {renderDockSectionHeader('escenas')}
           <div className="flex-1 overflow-y-auto p-1.5 space-y-1">
             {[
               { k: 'broadcast', label: 'Broadcast',     icon: FiMonitor },
@@ -818,7 +818,7 @@ export default function ShowStudio() {
 
       case 'fuentes': return (
         <div key="fuentes" className="flex-1 border-r border-white/5 flex flex-col min-w-0">
-          <DockSectionHeader sectionKey="fuentes" />
+          {renderDockSectionHeader('fuentes')}
           <div className="flex-1 p-2 space-y-1.5 overflow-y-auto">
             {/* Cámara — siempre visible */}
             <div className="flex items-center gap-1.5">
@@ -870,7 +870,7 @@ export default function ShowStudio() {
 
       case 'mezclador': return (
         <div key="mezclador" className="w-52 border-r border-white/5 flex flex-col shrink-0">
-          <DockSectionHeader sectionKey="mezclador" />
+          {renderDockSectionHeader('mezclador')}
           <div className="flex-1 p-2 flex flex-col gap-2">
             <div className="flex items-end gap-px" style={{ height: 36 }}>
               {Array.from({ length: 20 }).map((_, i) => {
@@ -921,7 +921,7 @@ export default function ShowStudio() {
 
       case 'controles': return (
         <div key="controles" className="w-48 flex flex-col shrink-0">
-          <DockSectionHeader sectionKey="controles" />
+          {renderDockSectionHeader('controles')}
           <div className="flex-1 p-2 flex flex-col gap-2 justify-center">
             {isLive ? (
               <>
@@ -993,7 +993,7 @@ export default function ShowStudio() {
   };
 
   // ── DOCK PANEL ───────────────────────────────────────────────────────────────
-  const DockPanel = () => layout.dockCollapsed ? (
+  const renderDockPanel = () => layout.dockCollapsed ? (
     <div
       className={`h-6 bg-[#131316] flex items-center px-2 gap-3 shrink-0 ${layout.dockPosition === 'bottom' ? 'border-t' : 'border-b'} border-white/5`}
     >
@@ -1045,7 +1045,7 @@ export default function ShowStudio() {
   );
 
   // ── RIGHT PANEL FULL ─────────────────────────────────────────────────────────
-  const RightPanelFull = () => {
+  const renderRightPanelFull = () => {
     const hasPrivateAlert = !!privateRequest || privateMessages.length > 0;
     return (
       <div
@@ -1469,7 +1469,7 @@ export default function ShowStudio() {
   };
 
   // ── RIGHT PANEL COLLAPSED ─────────────────────────────────────────────────────
-  const RightPanelCollapsed = () => (
+  const renderRightPanelCollapsed = () => (
     <div
       className="w-7 bg-[#1c1c21] flex flex-col items-center py-2 gap-2 shrink-0"
       style={{ borderLeft: layout.rightSide === 'right' ? '1px solid rgba(255,255,255,0.05)' : 'none', borderRight: layout.rightSide === 'left' ? '1px solid rgba(255,255,255,0.05)' : 'none' }}
@@ -1490,7 +1490,7 @@ export default function ShowStudio() {
   );
 
   // ── RESIZE HANDLES ───────────────────────────────────────────────────────────
-  const ResizeHandleV = () => (
+  const renderResizeHandleV = () => (
     <div
       className="w-1 bg-white/0 hover:bg-brand-500/30 active:bg-brand-500/50 cursor-col-resize transition-colors shrink-0 group"
       onMouseDown={e => startResize('right', e)}
@@ -1502,7 +1502,7 @@ export default function ShowStudio() {
     </div>
   );
 
-  const ResizeHandleH = () => (
+  const renderResizeHandleH = () => (
     <div
       className="h-1 bg-white/0 hover:bg-brand-500/30 active:bg-brand-500/50 cursor-row-resize transition-colors shrink-0 group"
       onMouseDown={e => startResize('dock', e)}
@@ -1515,7 +1515,7 @@ export default function ShowStudio() {
   );
 
   // ── CANVAS ───────────────────────────────────────────────────────────────────
-  const Canvas = () => (
+  const renderCanvas = () => (
     <div className="flex-1 bg-black relative flex items-center justify-center min-w-0 overflow-hidden">
       {!isLive && previewActive && permCamera === 'granted' && (
         <video ref={previewVideoRef} autoPlay muted playsInline className="w-full h-full object-contain" />
@@ -1676,8 +1676,8 @@ export default function ShowStudio() {
 
         {layout.dockPosition === 'top' && (
           <>
-            <DockPanel />
-            <ResizeHandleH />
+            {renderDockPanel()}
+            {renderResizeHandleH()}
           </>
         )}
 
@@ -1685,21 +1685,21 @@ export default function ShowStudio() {
         <div className="flex-1 flex min-h-0">
           {layout.rightSide === 'left' && (
             layout.rightCollapsed
-              ? <RightPanelCollapsed />
-              : <><RightPanelFull /><ResizeHandleV /></>
+              ? renderRightPanelCollapsed()
+              : <>{renderRightPanelFull()}{renderResizeHandleV()}</>
           )}
-          <Canvas />
+          {renderCanvas()}
           {layout.rightSide === 'right' && (
             layout.rightCollapsed
-              ? <RightPanelCollapsed />
-              : <><ResizeHandleV /><RightPanelFull /></>
+              ? renderRightPanelCollapsed()
+              : <>{renderResizeHandleV()}{renderRightPanelFull()}</>
           )}
         </div>
 
         {layout.dockPosition === 'bottom' && (
           <>
-            <ResizeHandleH />
-            <DockPanel />
+            {renderResizeHandleH()}
+            {renderDockPanel()}
           </>
         )}
       </div>
