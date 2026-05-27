@@ -47,6 +47,7 @@ import livekitRoutes from './src/routes/livekit.js';
 import tipRoutes from './src/routes/tips.js';
 import appealsRoutes from './src/routes/appeals.js';
 import videoRequestRoutes from './src/routes/videoRequests.js';
+import authRoutes from './src/routes/auth.js';
 import { supabase } from './src/lib/supabase.js';
 
 const app = express();
@@ -161,6 +162,7 @@ app.use('/api/livekit', livekitRoutes);
 app.use('/api/tips', tipRoutes);
 app.use('/api/appeals', appealsRoutes);
 app.use('/api/video-requests', videoRequestRoutes);
+app.use('/api/auth', authRoutes);
 
 // ── Open Graph share routes (para WhatsApp / Telegram / Twitter) ──
 function ogHtml({ title, description, image, url, type = 'website' }) {

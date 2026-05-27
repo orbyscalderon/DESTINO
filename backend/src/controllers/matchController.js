@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase.js';
 import { sendPushToUser } from './notificationController.js';
+import { sendMatchEmail } from '../lib/emailService.js';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const isValidUUID = (v) => UUID_REGEX.test(v);
@@ -103,6 +104,15 @@ export const likeProfile = async (req, res) => {
         title: '¡Nuevo match! 💕',
         body: `${myProfile?.full_name || 'Alguien'} también te gustó. ¡Empieza a chatear!`,
         url: '/matches',
+      }).catch(() => {});
+
+      // Email de match al usuario que recibió el like (fire-and-forget)
+      supabase.auth.admin.getUserById(targetUserId).then(({ data }) => {
+        const targetEmail = data?.user?.email;
+        const targetName = data?.user?.user_metadata?.full_name || 'Usuario';
+        if (targetEmail) {
+          sendMatchEmail(targetEmail, targetName, myProfile?.full_name || 'Alguien').catch(() => {});
+        }
       }).catch(() => {});
     } else if (isSuperLike) {
       sendPushToUser(targetUserId, {

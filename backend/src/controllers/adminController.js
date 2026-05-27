@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabase.js';
 import { decryptField } from '../lib/encrypt.js';
 import { sendBroadcastNotification } from './notificationController.js';
+import { sendWithdrawalStatusEmail } from '../lib/emailService.js';
 
 // GET /api/admin/stats
 export const getStats = async (req, res) => {
@@ -276,6 +277,15 @@ export const processWithdrawal = async (req, res) => {
       .eq('id', id)
       .select()
       .single();
+
+    // Notificar al creador por email (fire-and-forget)
+    if (status === 'approved' || status === 'rejected') {
+      supabase.auth.admin.getUserById(request.creator_id).then(({ data }) => {
+        const email = data?.user?.email;
+        const name = data?.user?.user_metadata?.full_name || 'Creador';
+        if (email) sendWithdrawalStatusEmail(email, name, parseFloat(request.amount_usd), status).catch(() => {});
+      }).catch(() => {});
+    }
 
     res.json({ withdrawal: updated });
   } catch {

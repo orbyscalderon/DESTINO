@@ -1,18 +1,41 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { FiMail, FiLock, FiEye, FiEyeOff } from 'react-icons/fi';
+import { Turnstile } from '@marsidev/react-turnstile';
 import { supabase } from '../lib/supabase.js';
+import { api } from '../lib/api.js';
 import toast from 'react-hot-toast';
+
+const TURNSTILE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY;
 
 export default function Login() {
   const navigate = useNavigate();
   const [form, setForm] = useState({ email: '', password: '' });
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState(null);
+  const turnstileRef = useRef(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Verificar Turnstile si está configurado
+    if (TURNSTILE_KEY) {
+      if (!turnstileToken) {
+        toast.error('Completa la verificación de seguridad');
+        return;
+      }
+      try {
+        await api.post('/auth/verify-turnstile', { token: turnstileToken });
+      } catch {
+        toast.error('Verificación de seguridad fallida. Intenta de nuevo.');
+        turnstileRef.current?.reset();
+        setTurnstileToken(null);
+        return;
+      }
+    }
+
     setLoading(true);
     try {
       const { error } = await supabase.auth.signInWithPassword({
@@ -29,6 +52,8 @@ export default function Login() {
       } else {
         toast.error(err.message || 'Error al iniciar sesión');
       }
+      turnstileRef.current?.reset();
+      setTurnstileToken(null);
     } finally {
       setLoading(false);
     }
@@ -46,7 +71,6 @@ export default function Login() {
       toast.error('No se pudo conectar con Google. Intenta de nuevo.');
       setGoogleLoading(false);
     }
-    // Si no hay error, el navegador redirige a Google — no hace falta setGoogleLoading(false)
   };
 
   return (
@@ -94,6 +118,19 @@ export default function Login() {
               ¿Olvidaste tu contraseña?
             </Link>
           </div>
+
+          {TURNSTILE_KEY && (
+            <div className="flex justify-center">
+              <Turnstile
+                ref={turnstileRef}
+                siteKey={TURNSTILE_KEY}
+                onSuccess={setTurnstileToken}
+                onExpire={() => setTurnstileToken(null)}
+                onError={() => setTurnstileToken(null)}
+                options={{ theme: 'dark', language: 'es' }}
+              />
+            </div>
+          )}
 
           <button type="submit" disabled={loading} className="btn-primary w-full">
             {loading ? 'Entrando...' : 'Iniciar sesión'}

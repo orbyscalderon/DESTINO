@@ -1,10 +1,13 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { FiMail, FiLock, FiUser, FiEye, FiEyeOff } from 'react-icons/fi';
+import { Turnstile } from '@marsidev/react-turnstile';
 import { supabase } from '../lib/supabase.js';
+import { api } from '../lib/api.js';
 import toast from 'react-hot-toast';
 
+const TURNSTILE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 function validate(form) {
@@ -21,6 +24,8 @@ export default function Register() {
   const [errors, setErrors] = useState({});
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState(null);
+  const turnstileRef = useRef(null);
 
   const handleChange = (field) => (e) => {
     const val = e.target.value;
@@ -32,6 +37,22 @@ export default function Register() {
     e.preventDefault();
     const errs = validate(form);
     if (Object.keys(errs).length) { setErrors(errs); return; }
+
+    // Verificar Turnstile si está configurado
+    if (TURNSTILE_KEY) {
+      if (!turnstileToken) {
+        toast.error('Completa la verificación de seguridad');
+        return;
+      }
+      try {
+        await api.post('/auth/verify-turnstile', { token: turnstileToken });
+      } catch {
+        toast.error('Verificación de seguridad fallida. Intenta de nuevo.');
+        turnstileRef.current?.reset();
+        setTurnstileToken(null);
+        return;
+      }
+    }
 
     setLoading(true);
     try {
@@ -46,6 +67,12 @@ export default function Register() {
 
       if (error) throw error;
 
+      // Enviar email de bienvenida (fire-and-forget)
+      api.post('/auth/welcome-email', {
+        email: form.email,
+        name: form.fullName,
+      }).catch(() => {});
+
       if (data.session) {
         toast.success('¡Cuenta creada! Completa tu perfil.');
         navigate('/onboarding');
@@ -55,6 +82,8 @@ export default function Register() {
       }
     } catch (err) {
       toast.error(err.message || 'Error al crear cuenta');
+      turnstileRef.current?.reset();
+      setTurnstileToken(null);
     } finally {
       setLoading(false);
     }
@@ -129,6 +158,19 @@ export default function Register() {
             </div>
             {errors.password && <p className="text-red-400 text-xs mt-1 pl-1">{errors.password}</p>}
           </div>
+
+          {TURNSTILE_KEY && (
+            <div className="flex justify-center">
+              <Turnstile
+                ref={turnstileRef}
+                siteKey={TURNSTILE_KEY}
+                onSuccess={setTurnstileToken}
+                onExpire={() => setTurnstileToken(null)}
+                onError={() => setTurnstileToken(null)}
+                options={{ theme: 'dark', language: 'es' }}
+              />
+            </div>
+          )}
 
           <button type="submit" disabled={loading} className="btn-primary w-full">
             {loading ? 'Creando cuenta...' : 'Crear cuenta'}
