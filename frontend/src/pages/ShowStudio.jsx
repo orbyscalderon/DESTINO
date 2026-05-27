@@ -32,11 +32,11 @@ const DEFAULT_SHOW = {
 };
 
 const DEFAULT_LAYOUT = {
-  rightWidth:      288,        // px — ancho del panel derecho
-  rightSide:       'right',    // 'right' | 'left'
+  rightWidth:      288,
+  rightSide:       'right',
   rightCollapsed:  false,
-  dockHeight:      176,        // px — alto del dock inferior
-  dockPosition:    'bottom',   // 'bottom' | 'top'
+  dockHeight:      176,
+  dockPosition:    'bottom',
   dockCollapsed:   false,
   dockOrder:       ['escenas', 'fuentes', 'mezclador', 'controles'],
 };
@@ -47,11 +47,11 @@ const isDesktop = window.innerWidth >= 1024 && !/Android|iPhone|iPad|iPod|Mobi/i
 
 function StatusPill({ status, label, icon: Icon }) {
   const map = {
-    idle:        { cls: 'bg-dark-700 text-gray-500',           dot: 'bg-gray-600',                 txt: 'Pendiente'     },
-    checking:    { cls: 'bg-yellow-500/15 text-yellow-400',    dot: 'bg-yellow-400 animate-pulse',  txt: 'Verificando…'  },
-    granted:     { cls: 'bg-green-500/15 text-green-400',      dot: 'bg-green-400',                 txt: 'Listo'         },
-    denied:      { cls: 'bg-red-500/15 text-red-400',          dot: 'bg-red-400',                   txt: 'Sin permiso'   },
-    unavailable: { cls: 'bg-gray-500/15 text-gray-400',        dot: 'bg-gray-500',                  txt: 'No encontrado' },
+    idle:        { cls: 'bg-dark-700 text-gray-500',           dot: 'bg-gray-600',                txt: 'Pendiente'     },
+    checking:    { cls: 'bg-yellow-500/15 text-yellow-400',    dot: 'bg-yellow-400 animate-pulse', txt: 'Verificando…'  },
+    granted:     { cls: 'bg-green-500/15 text-green-400',      dot: 'bg-green-400',               txt: 'Listo'         },
+    denied:      { cls: 'bg-red-500/15 text-red-400',          dot: 'bg-red-400',                 txt: 'Sin permiso'   },
+    unavailable: { cls: 'bg-gray-500/15 text-gray-400',        dot: 'bg-gray-500',                txt: 'No encontrado' },
   };
   const s = map[status] || map.idle;
   return (
@@ -86,34 +86,35 @@ export default function ShowStudio() {
   const [vuLevel, setVuLevel]                   = useState(0);
 
   // ── LIVE STATE ───────────────────────────────────────────────────────────────
-  const [showId, setShowId]                   = useState(null);
-  const [isLive, setIsLive]                   = useState(false);
+  const [showId, setShowId]                         = useState(null);
+  const [isLive, setIsLive]                         = useState(false);
   const [pendingLocalStream, setPendingLocalStream] = useState(null);
-  const [liveDuration, setLiveDuration]       = useState(0);
-  const [viewerCount, setViewerCount]         = useState(0);
-  const [peakViewers, setPeakViewers]         = useState(0);
-  const [totalCoinsEarned, setTotalCoinsEarned] = useState(0);
-  const [audioLevel, setAudioLevel]           = useState(0);
-  const [muted, setMuted]                     = useState(false);
-  const [cameraOff, setCameraOff]             = useState(false);
-  const [screenSharing, setScreenSharing]     = useState(false);
-  const [connState, setConnState]             = useState('connected');
-  const [chatMessages, setChatMessages]       = useState([]);
-  const [chatInput, setChatInput]             = useState('');
-  const [reactions, setReactions]             = useState([]);
-  const [giftAnimations, setGiftAnimations]   = useState([]);
-  const [tippers, setTippers]                 = useState([]);
-  const [viewerList, setViewerList]           = useState([]);
-  const [rightTab, setRightTab]               = useState('public');
-  const [privateMessages, setPrivateMessages] = useState([]);
-  const [privateRequest, setPrivateRequest]   = useState(null);
-  const [pinnedMessage, setPinnedMessage]     = useState('');
-  const [pinnedInput, setPinnedInput]         = useState('');
-  const [showPinInput, setShowPinInput]       = useState(false);
-  const [showModeration, setShowModeration]   = useState(false);
-  const [bannedUsers, setBannedUsers]         = useState(new Map());
-  const [activeReconnect, setActiveReconnect] = useState(null);
-  const [slowMode, setSlowMode]               = useState(false);
+  const [liveDuration, setLiveDuration]             = useState(0);
+  const [viewerCount, setViewerCount]               = useState(0);
+  const [peakViewers, setPeakViewers]               = useState(0);
+  const [totalCoinsEarned, setTotalCoinsEarned]     = useState(0);
+  const [audioLevel, setAudioLevel]                 = useState(0);
+  const [muted, setMuted]                           = useState(false);
+  const [cameraOff, setCameraOff]                   = useState(false);
+  const [screenSharing, setScreenSharing]           = useState(false);
+  const [connState, setConnState]                   = useState('connected');
+  const [chatMessages, setChatMessages]             = useState([]);
+  const [chatInput, setChatInput]                   = useState('');
+  const [reactions, setReactions]                   = useState([]);
+  const [giftAnimations, setGiftAnimations]         = useState([]);
+  const [tippers, setTippers]                       = useState([]);
+  const [viewerList, setViewerList]                 = useState([]);
+  // 'config' | 'chat' | 'private' | 'viewers' — 4 tabs visibles siempre
+  const [rightTab, setRightTab]                     = useState('config');
+  const [privateMessages, setPrivateMessages]       = useState([]);
+  const [privateRequest, setPrivateRequest]         = useState(null);
+  const [pinnedMessage, setPinnedMessage]           = useState('');
+  const [pinnedInput, setPinnedInput]               = useState('');
+  const [showPinInput, setShowPinInput]             = useState(false);
+  const [showModeration, setShowModeration]         = useState(false);
+  const [bannedUsers, setBannedUsers]               = useState(new Map());
+  const [activeReconnect, setActiveReconnect]       = useState(null);
+  const [slowMode, setSlowMode]                     = useState(false);
 
   // ── LAYOUT STATE (persiste en localStorage) ──────────────────────────────────
   const [layout, setLayout] = useState(() => {
@@ -145,11 +146,12 @@ export default function ShowStudio() {
   const screenTrackRef   = useRef(null);
   const chatEndRef       = useRef(null);
   const lastChatSentRef  = useRef(0);
-  const dndRef           = useRef(null); // dock drag-to-reorder
+  const dndRef           = useRef(null);
 
   // ── EFFECTS ──────────────────────────────────────────────────────────────────
   useEffect(() => {
     api.get(`/api/profiles/${user.id}`).then(r => setProfile(r.data.profile)).catch(() => {});
+    enumerateDevices();
     return () => {
       stopPreview();
       leaveShowChannel();
@@ -158,6 +160,11 @@ export default function ShowStudio() {
       clearInterval(audioLevelRef.current);
     };
   }, []);
+
+  // Al entrar en vivo, cambiar al tab Chat si estaba en Config
+  useEffect(() => {
+    if (isLive) setRightTab(t => t === 'config' ? 'chat' : t);
+  }, [isLive]);
 
   useEffect(() => {
     if (!isLive || !pendingLocalStream) return;
@@ -374,7 +381,6 @@ export default function ShowStudio() {
       const id = created.show?.id;
       if (!id) throw new Error('Sin ID');
       setShowId(id);
-
       await api.post(`/api/shows/${id}/start`);
 
       const roomId = `show_${id.replace(/-/g, '')}`;
@@ -626,6 +632,7 @@ export default function ShowStudio() {
       })
       .on('broadcast', { event: 'private_request' }, ({ payload }) => {
         setPrivateRequest(payload);
+        setRightTab('private'); // auto-switch al tab privado
       })
       .on('broadcast', { event: 'dm' }, ({ payload }) => {
         setPrivateMessages(prev => [...prev.slice(-99), payload]);
@@ -753,7 +760,6 @@ export default function ShowStudio() {
     );
   }
 
-  // ── CONNECTING OVERLAY ───────────────────────────────────────────────────────
   if (goingLive && !isLive) {
     return (
       <div className="fixed inset-0 bg-black flex items-center justify-center z-50">
@@ -772,7 +778,7 @@ export default function ShowStudio() {
   const tipGoal    = parseFloat(show.tip_goal) * 20 || 0;
   const tipGoalPct = tipGoal > 0 ? Math.min(100, (tipTotal / tipGoal) * 100) : 0;
 
-  // ── DOCK SECTION RENDERER ────────────────────────────────────────────────────
+  // ── DOCK SECTION HEADER ──────────────────────────────────────────────────────
   const DockSectionHeader = ({ sectionKey }) => (
     <div
       className="px-2 py-1.5 border-b border-white/5 shrink-0 flex items-center gap-1.5 cursor-grab active:cursor-grabbing"
@@ -787,6 +793,7 @@ export default function ShowStudio() {
     </div>
   );
 
+  // ── DOCK SECTION RENDERER ────────────────────────────────────────────────────
   const renderDockSection = (key) => {
     switch (key) {
 
@@ -813,72 +820,49 @@ export default function ShowStudio() {
         <div key="fuentes" className="flex-1 border-r border-white/5 flex flex-col min-w-0">
           <DockSectionHeader sectionKey="fuentes" />
           <div className="flex-1 p-2 space-y-1.5 overflow-y-auto">
-            {isLive ? (
-              <>
-                {cameraDevices.length > 0 && (
-                  <div className="flex items-center gap-1.5">
-                    <FiVideo size={9} className="text-gray-500 shrink-0" />
-                    <select className="flex-1 bg-[#1e1e24] border border-white/10 text-white text-[10px] rounded px-1.5 py-1 outline-none cursor-pointer"
-                      value={selectedCameraId} onChange={e => switchLiveCamera(e.target.value)}>
-                      {cameraDevices.map(d => <option key={d.deviceId} value={d.deviceId}>{d.label || `Cámara ${d.deviceId.slice(0,6)}`}</option>)}
-                    </select>
-                  </div>
-                )}
-                {micDevices.length > 0 && (
-                  <div className="flex items-center gap-1.5">
-                    <FiMic size={9} className="text-gray-500 shrink-0" />
-                    <select className="flex-1 bg-[#1e1e24] border border-white/10 text-white text-[10px] rounded px-1.5 py-1 outline-none cursor-pointer"
-                      value={selectedMicId} onChange={e => switchLiveMic(e.target.value)}>
-                      {micDevices.map(d => <option key={d.deviceId} value={d.deviceId}>{d.label || `Mic ${d.deviceId.slice(0,6)}`}</option>)}
-                    </select>
-                  </div>
-                )}
-                {isDesktop && (
-                  <button onClick={toggleScreenShare}
-                    className={`flex items-center gap-1.5 px-2 py-1 rounded text-[10px] transition-all ${screenSharing ? 'bg-blue-500/20 border border-blue-500/40 text-blue-300' : 'bg-white/5 border border-white/10 text-gray-400 hover:bg-white/10'}`}
-                  >
-                    <FiMonitor size={9} /> {screenSharing ? 'Detener pantalla' : 'Compartir pantalla'}
-                  </button>
-                )}
-              </>
-            ) : (
-              <>
-                {previewActive && cameraDevices.length > 0 ? (
-                  <div className="flex items-center gap-1.5">
-                    <FiVideo size={9} className="text-gray-500 shrink-0" />
-                    <select className="flex-1 bg-[#1e1e24] border border-white/10 text-white text-[10px] rounded px-1.5 py-1 outline-none cursor-pointer"
-                      value={selectedCameraId} onChange={e => switchCamera(e.target.value)}>
-                      {cameraDevices.map(d => <option key={d.deviceId} value={d.deviceId}>{d.label || `Cámara ${d.deviceId.slice(0,6)}`}</option>)}
-                    </select>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-1.5 opacity-40">
-                    <FiVideo size={9} className="text-gray-500 shrink-0" />
-                    <span className="text-[10px] text-gray-500">Cámara — activa preview</span>
-                  </div>
-                )}
-                {previewActive && micDevices.length > 0 ? (
-                  <div className="flex items-center gap-1.5">
-                    <FiMic size={9} className="text-gray-500 shrink-0" />
-                    <select className="flex-1 bg-[#1e1e24] border border-white/10 text-white text-[10px] rounded px-1.5 py-1 outline-none cursor-pointer"
-                      value={selectedMicId} onChange={e => switchMic(e.target.value)}>
-                      {micDevices.map(d => <option key={d.deviceId} value={d.deviceId}>{d.label || `Mic ${d.deviceId.slice(0,6)}`}</option>)}
-                    </select>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-1.5 opacity-40">
-                    <FiMic size={9} className="text-gray-500 shrink-0" />
-                    <span className="text-[10px] text-gray-500">Micrófono — activa preview</span>
-                  </div>
-                )}
-                <div className="flex items-center gap-1.5">
-                  <FiMonitor size={9} className="text-gray-500 shrink-0" />
-                  <select className="flex-1 bg-[#1e1e24] border border-white/10 text-white text-[10px] rounded px-1.5 py-1 outline-none cursor-pointer"
-                    value={videoQuality} onChange={e => setVideoQuality(e.target.value)}>
-                    {QUALITY_OPTIONS.map(q => <option key={q.key} value={q.key}>{q.label}</option>)}
-                  </select>
-                </div>
-              </>
+            {/* Cámara — siempre visible */}
+            <div className="flex items-center gap-1.5">
+              <FiVideo size={9} className="text-gray-500 shrink-0" />
+              {cameraDevices.length > 0 ? (
+                <select className="flex-1 bg-[#1e1e24] border border-white/10 text-white text-[10px] rounded px-1.5 py-1 outline-none cursor-pointer"
+                  value={selectedCameraId}
+                  onChange={e => isLive ? switchLiveCamera(e.target.value) : switchCamera(e.target.value)}>
+                  {cameraDevices.map(d => <option key={d.deviceId} value={d.deviceId}>{d.label || `Cámara ${d.deviceId.slice(0,6)}`}</option>)}
+                </select>
+              ) : (
+                <span className="text-[10px] text-gray-600 flex-1 italic">Cámara — activa preview</span>
+              )}
+            </div>
+            {/* Micrófono — siempre visible */}
+            <div className="flex items-center gap-1.5">
+              <FiMic size={9} className="text-gray-500 shrink-0" />
+              {micDevices.length > 0 ? (
+                <select className="flex-1 bg-[#1e1e24] border border-white/10 text-white text-[10px] rounded px-1.5 py-1 outline-none cursor-pointer"
+                  value={selectedMicId}
+                  onChange={e => isLive ? switchLiveMic(e.target.value) : switchMic(e.target.value)}>
+                  {micDevices.map(d => <option key={d.deviceId} value={d.deviceId}>{d.label || `Mic ${d.deviceId.slice(0,6)}`}</option>)}
+                </select>
+              ) : (
+                <span className="text-[10px] text-gray-600 flex-1 italic">Micrófono — activa preview</span>
+              )}
+            </div>
+            {/* Calidad (solo setup) */}
+            {!isLive && (
+              <div className="flex items-center gap-1.5">
+                <FiMonitor size={9} className="text-gray-500 shrink-0" />
+                <select className="flex-1 bg-[#1e1e24] border border-white/10 text-white text-[10px] rounded px-1.5 py-1 outline-none cursor-pointer"
+                  value={videoQuality} onChange={e => setVideoQuality(e.target.value)}>
+                  {QUALITY_OPTIONS.map(q => <option key={q.key} value={q.key}>{q.label}</option>)}
+                </select>
+              </div>
+            )}
+            {/* Compartir pantalla (solo en vivo y desktop) */}
+            {isLive && isDesktop && (
+              <button onClick={toggleScreenShare}
+                className={`flex items-center gap-1.5 px-2 py-1 rounded text-[10px] transition-all ${screenSharing ? 'bg-blue-500/20 border border-blue-500/40 text-blue-300' : 'bg-white/5 border border-white/10 text-gray-400 hover:bg-white/10'}`}
+              >
+                <FiMonitor size={9} /> {screenSharing ? 'Detener pantalla' : 'Compartir pantalla'}
+              </button>
             )}
           </div>
         </div>
@@ -1008,7 +992,7 @@ export default function ShowStudio() {
     }
   };
 
-  // ── DOCK PANEL (reutilizado para top/bottom) ──────────────────────────────────
+  // ── DOCK PANEL ───────────────────────────────────────────────────────────────
   const DockPanel = () => layout.dockCollapsed ? (
     <div
       className={`h-6 bg-[#131316] flex items-center px-2 gap-3 shrink-0 ${layout.dockPosition === 'bottom' ? 'border-t' : 'border-b'} border-white/5`}
@@ -1038,7 +1022,6 @@ export default function ShowStudio() {
       style={{ height: layout.dockHeight }}
     >
       {layout.dockOrder.map(k => renderDockSection(k))}
-      {/* Dock controls: collapse + position toggle */}
       <div className="w-6 flex flex-col items-center py-1 gap-1.5 shrink-0 border-l border-white/5">
         <button
           onClick={() => patchLayout({ dockCollapsed: true })}
@@ -1061,65 +1044,140 @@ export default function ShowStudio() {
     </div>
   );
 
-  // ── RIGHT PANEL ──────────────────────────────────────────────────────────────
-  const RightPanelFull = () => (
-    <div
-      className="bg-[#1c1c21] flex flex-col shrink-0"
-      style={{ width: layout.rightWidth, borderLeft: layout.rightSide === 'right' ? '1px solid rgba(255,255,255,0.05)' : 'none', borderRight: layout.rightSide === 'left' ? '1px solid rgba(255,255,255,0.05)' : 'none' }}
-    >
-      {/* Panel header */}
-      <div className="px-2 py-1.5 border-b border-white/5 shrink-0 flex items-center gap-1">
-        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider flex-1">
-          {isLive ? 'Chat' : 'Configuración'}
-        </span>
-        <button
-          onClick={() => patchLayout({ rightSide: layout.rightSide === 'right' ? 'left' : 'right' })}
-          className="w-5 h-5 rounded hover:bg-white/10 flex items-center justify-center text-gray-600 hover:text-gray-300 transition-colors"
-          title={layout.rightSide === 'right' ? 'Mover panel a la izquierda' : 'Mover panel a la derecha'}
-        >
-          {layout.rightSide === 'right' ? <FiChevronLeft size={10} /> : <FiChevronRight size={10} />}
-        </button>
-        <button
-          onClick={() => patchLayout({ rightCollapsed: true })}
-          className="w-5 h-5 rounded hover:bg-white/10 flex items-center justify-center text-gray-600 hover:text-gray-300 transition-colors"
-          title="Colapsar panel"
-        >
-          {layout.rightSide === 'right' ? <FiChevronRight size={10} /> : <FiChevronLeft size={10} />}
-        </button>
-      </div>
+  // ── RIGHT PANEL FULL ─────────────────────────────────────────────────────────
+  const RightPanelFull = () => {
+    const hasPrivateAlert = !!privateRequest || privateMessages.length > 0;
+    return (
+      <div
+        className="bg-[#1c1c21] flex flex-col shrink-0 min-h-0"
+        style={{
+          width: layout.rightWidth,
+          borderLeft:  layout.rightSide === 'right' ? '1px solid rgba(255,255,255,0.05)' : 'none',
+          borderRight: layout.rightSide === 'left'  ? '1px solid rgba(255,255,255,0.05)' : 'none',
+        }}
+      >
+        {/* Header */}
+        <div className="px-2 py-1 border-b border-white/5 shrink-0 flex items-center gap-1">
+          {isLive && (
+            <span className="flex items-center gap-1 bg-red-500/15 border border-red-500/30 text-red-400 text-[9px] font-bold px-1.5 py-0.5 rounded-full mr-1 shrink-0">
+              <span className="w-1 h-1 bg-red-500 rounded-full animate-pulse" /> VIVO
+            </span>
+          )}
+          <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider flex-1 truncate">
+            {isLive ? fmtDuration(liveDuration) : 'Panel'}
+          </span>
+          <button
+            onClick={() => patchLayout({ rightSide: layout.rightSide === 'right' ? 'left' : 'right' })}
+            className="w-5 h-5 rounded hover:bg-white/10 flex items-center justify-center text-gray-700 hover:text-gray-300 transition-colors"
+            title={layout.rightSide === 'right' ? 'Mover a la izquierda' : 'Mover a la derecha'}
+          >
+            {layout.rightSide === 'right' ? <FiChevronLeft size={10} /> : <FiChevronRight size={10} />}
+          </button>
+          <button
+            onClick={() => patchLayout({ rightCollapsed: true })}
+            className="w-5 h-5 rounded hover:bg-white/10 flex items-center justify-center text-gray-700 hover:text-gray-300 transition-colors"
+            title="Colapsar panel"
+          >
+            {layout.rightSide === 'right' ? <FiChevronRight size={10} /> : <FiChevronLeft size={10} />}
+          </button>
+        </div>
 
-      {isLive ? (
-        /* ── LIVE: stats + chat ── */
-        <>
-          <div className="px-3 py-2 border-b border-white/5 shrink-0">
-            <div className="grid grid-cols-4 gap-1">
-              {[
-                { val: viewerCount,      sub: 'Ahora',   cls: 'text-white' },
-                { val: peakViewers,      sub: 'Pico',    cls: 'text-white' },
-                { val: `⚡${totalCoinsEarned}`, sub: `$${(totalCoinsEarned * 0.04).toFixed(2)}`, cls: 'text-yellow-400' },
-                { val: tippers.length,   sub: 'Tippers', cls: 'text-white' },
-              ].map((s, i) => (
-                <div key={i} className="text-center py-1.5 rounded-lg bg-dark-700/50">
-                  <p className={`font-black text-sm leading-none ${s.cls}`}>{s.val}</p>
-                  <p className={`text-[9px] mt-0.5 ${i === 2 ? 'text-green-400 font-medium' : 'text-gray-500'}`}>{s.sub}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="flex border-b border-white/5 shrink-0">
+        {/* Stats en vivo */}
+        {isLive && (
+          <div className="px-2 py-1.5 border-b border-white/5 shrink-0 grid grid-cols-4 gap-1">
             {[
-              { key: 'public',  label: 'Chat' },
-              { key: 'private', label: `Privado${privateMessages.length > 0 ? ` (${privateMessages.length})` : ''}` },
-              { key: 'viewers', label: `${viewerCount} 👥` },
-            ].map(t => (
-              <button key={t.key} onClick={() => setRightTab(t.key)}
-                className={`flex-1 py-1.5 text-[10px] font-semibold transition-colors border-b-2 ${rightTab === t.key ? 'text-white border-brand-500' : 'text-gray-500 border-transparent hover:text-gray-300'}`}
-              >{t.label}</button>
+              { val: viewerCount, sub: 'Ahora', cls: 'text-white' },
+              { val: peakViewers, sub: 'Pico',  cls: 'text-white' },
+              { val: `⚡${totalCoinsEarned}`, sub: `$${(totalCoinsEarned * 0.04).toFixed(2)}`, cls: 'text-yellow-400' },
+              { val: tippers.length, sub: 'Tips', cls: 'text-white' },
+            ].map((s, i) => (
+              <div key={i} className="text-center py-1 rounded bg-dark-700/50">
+                <p className={`font-black text-xs leading-none ${s.cls}`}>{s.val}</p>
+                <p className={`text-[8px] mt-0.5 ${i === 2 ? 'text-green-400 font-medium' : 'text-gray-600'}`}>{s.sub}</p>
+              </div>
             ))}
           </div>
+        )}
 
-          {rightTab === 'public' && (
+        {/* 4 Tabs — siempre visibles */}
+        <div className="flex border-b border-white/5 shrink-0">
+          {[
+            { key: 'config',  label: '⚙ Config' },
+            { key: 'chat',    label: isLive ? `💬 ${chatMessages.length > 0 ? chatMessages.length : 'Chat'}` : '💬 Chat' },
+            { key: 'private', label: `🔒${hasPrivateAlert ? ' 🔴' : ''}${privateMessages.length > 0 ? ` ${privateMessages.length}` : ''}` },
+            { key: 'viewers', label: isLive ? `👥 ${viewerCount}` : '👥' },
+          ].map(t => (
+            <button key={t.key} onClick={() => setRightTab(t.key)}
+              className={`flex-1 py-1.5 text-[9px] font-semibold transition-colors border-b-2 truncate px-0.5 ${rightTab === t.key ? 'text-white border-brand-500' : 'text-gray-600 border-transparent hover:text-gray-400'}`}
+            >{t.label}</button>
+          ))}
+        </div>
+
+        {/* ── TAB Config ── */}
+        {rightTab === 'config' && (
+          <div className="flex-1 overflow-y-auto p-3 space-y-3 min-h-0">
+            <div>
+              <label className="text-[10px] text-gray-500 font-medium mb-1 block">Título *</label>
+              <input className="w-full bg-[#111115] border border-white/10 text-white text-xs rounded px-2.5 py-1.5 placeholder-gray-600 outline-none focus:border-brand-500/50 transition-colors"
+                placeholder="Ej: Sesión de baile 🔥"
+                value={show.title} onChange={e => set('title', e.target.value)} />
+            </div>
+            <div>
+              <label className="text-[10px] text-gray-500 font-medium mb-1 block">Descripción</label>
+              <textarea className="w-full bg-[#111115] border border-white/10 text-white text-xs rounded px-2.5 py-1.5 placeholder-gray-600 outline-none resize-none focus:border-brand-500/50 transition-colors" rows={2}
+                placeholder="Cuéntales a tus fans…"
+                value={show.description} onChange={e => set('description', e.target.value)} />
+            </div>
+            <div>
+              <label className="text-[10px] text-gray-500 font-medium mb-1 block">Categoría</label>
+              <div className="flex flex-wrap gap-1">
+                {SHOW_CATEGORIES
+                  .filter(c => c.key !== 'adult' || profile?.is_adult_creator)
+                  .map(({ key, label, emoji }) => (
+                    <button key={key} onClick={() => set('category', key)}
+                      className={`px-2 py-0.5 rounded text-[10px] font-medium transition-all ${show.category === key ? 'bg-brand-500 text-white' : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}
+                    >{emoji} {label}</button>
+                  ))}
+              </div>
+            </div>
+            <div>
+              <label className="text-[10px] text-gray-500 font-medium mb-1 block">Precio ticket ($)</label>
+              <input className="w-full bg-[#111115] border border-white/10 text-white text-xs rounded px-2.5 py-1.5 placeholder-gray-600 outline-none focus:border-brand-500/50 transition-colors"
+                type="number" placeholder="0 = gratis"
+                value={show.ticket_price} onChange={e => set('ticket_price', e.target.value)} min="0" step="0.01" />
+              {show.ticket_price > 0 && (
+                <p className="text-[10px] text-gray-600 mt-1">Recibirás ${(parseFloat(show.ticket_price) * 0.7).toFixed(2)} (70%)</p>
+              )}
+            </div>
+            <div>
+              <label className="text-[10px] text-gray-500 font-medium mb-1 flex items-center gap-1"><FiCalendar size={9} /> Programar</label>
+              <input className="w-full bg-[#111115] border border-white/10 text-white text-xs rounded px-2.5 py-1.5 outline-none focus:border-brand-500/50 transition-colors"
+                type="datetime-local"
+                value={show.scheduled_at} onChange={e => set('scheduled_at', e.target.value)} />
+            </div>
+            <div>
+              <label className="text-[10px] text-gray-500 font-medium mb-1 block">Meta de propinas (coins)</label>
+              <input className="w-full bg-[#111115] border border-white/10 text-white text-xs rounded px-2.5 py-1.5 placeholder-gray-600 outline-none focus:border-brand-500/50 transition-colors"
+                type="number" placeholder="Ej: 500"
+                value={show.tip_goal} onChange={e => set('tip_goal', e.target.value)} min="0" />
+            </div>
+            {isLive && tipGoal > 0 && (
+              <div className="bg-yellow-500/5 border border-yellow-500/20 rounded-lg p-2">
+                <div className="flex justify-between text-[10px] mb-1">
+                  <span className="text-yellow-400">⚡ Meta de propinas</span>
+                  <span className="text-yellow-400 font-bold">{tipTotal} / {tipGoal}</span>
+                </div>
+                <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+                  <div className="h-full rounded-full bg-yellow-500 transition-all" style={{ width: `${tipGoalPct}%` }} />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── TAB Chat ── */}
+        {rightTab === 'chat' && (
+          isLive ? (
             <>
               {tippers.length > 0 && (
                 <div className="px-3 py-2 border-b border-white/5 shrink-0">
@@ -1135,7 +1193,6 @@ export default function ShowStudio() {
                   ))}
                 </div>
               )}
-
               <AnimatePresence>
                 {pinnedMessage && (
                   <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden shrink-0">
@@ -1147,7 +1204,6 @@ export default function ShowStudio() {
                   </motion.div>
                 )}
               </AnimatePresence>
-
               <div className="flex-1 overflow-y-auto px-2 py-2 space-y-1 min-h-0">
                 {chatMessages.length === 0
                   ? <p className="text-gray-600 text-[10px] text-center py-4">El chat está vacío</p>
@@ -1171,8 +1227,7 @@ export default function ShowStudio() {
                 }
                 <div ref={chatEndRef} />
               </div>
-
-              <div className="px-2 pt-1.5 pb-1 border-t border-white/5 shrink-0">
+              <div className="px-2 pt-1 pb-1 border-t border-white/5 shrink-0">
                 <div className="flex items-center gap-1 mb-1.5 flex-wrap">
                   <button onClick={() => setShowPinInput(v => !v)}
                     className={`flex items-center gap-1 px-2 py-1 rounded text-[9px] font-medium transition-all ${showPinInput || pinnedMessage ? 'bg-brand-500/20 border border-brand-500/40 text-brand-300' : 'bg-white/5 border border-white/10 text-gray-400 hover:text-white'}`}
@@ -1229,7 +1284,6 @@ export default function ShowStudio() {
                   )}
                 </AnimatePresence>
               </div>
-
               <div className="px-2 py-2 shrink-0">
                 <div className="flex items-center gap-1.5 bg-dark-700 rounded-lg px-2.5 py-1.5 border border-white/5 mb-1.5">
                   <input className="flex-1 bg-transparent text-white text-xs placeholder-gray-500 outline-none"
@@ -1250,13 +1304,80 @@ export default function ShowStudio() {
                 </div>
               </div>
             </>
-          )}
+          ) : (
+            <div className="flex-1 flex flex-col items-center justify-center gap-3 p-6 text-center">
+              <div className="w-12 h-12 rounded-2xl bg-brand-500/10 flex items-center justify-center">
+                <FiSend size={20} className="text-brand-400/50" />
+              </div>
+              <p className="text-gray-500 text-xs font-medium">Chat disponible en vivo</p>
+              <p className="text-gray-700 text-[10px] leading-relaxed">El chat aparecerá aquí cuando empieces a transmitir. Los espectadores podrán enviarte mensajes en tiempo real.</p>
+            </div>
+          )
+        )}
 
-          {rightTab === 'private' && (
-            <>
+        {/* ── TAB Privado ── */}
+        {rightTab === 'private' && (
+          isLive ? (
+            <div className="flex flex-col min-h-0 flex-1">
+              {/* Solicitud pendiente */}
+              <AnimatePresence>
+                {privateRequest && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+                    className="overflow-hidden shrink-0"
+                  >
+                    <div className="px-3 py-3 bg-purple-500/10 border-b-2 border-purple-500/30">
+                      <div className="flex items-center gap-1.5 mb-2">
+                        <span className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-pulse" />
+                        <span className="text-[10px] font-bold text-purple-300 uppercase tracking-wide">Solicitud de show privado</span>
+                      </div>
+                      <div className="flex items-center gap-2 mb-3">
+                        {privateRequest.viewerAvatar
+                          ? <img src={privateRequest.viewerAvatar} className="w-9 h-9 rounded-full object-cover shrink-0" alt="" />
+                          : <div className="w-9 h-9 rounded-full bg-purple-500/30 flex items-center justify-center text-purple-300 font-bold text-sm shrink-0">{privateRequest.viewerName[0]}</div>
+                        }
+                        <div className="min-w-0">
+                          <p className="text-white text-xs font-bold truncate">{privateRequest.viewerName}</p>
+                          <p className="text-purple-300 text-[10px]">
+                            {privateRequest.type === 'exclusive' ? 'Exclusivo' : 'Privado'} · <span className="font-bold">{privateRequest.rate} coins/min</span>
+                          </p>
+                          <p className="text-green-400 text-[9px]">+{Math.round(privateRequest.rate * 0.7)} coins/min para ti</p>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <button onClick={handleAcceptPrivate}
+                          className="flex-1 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold transition-colors"
+                        >✓ Aceptar</button>
+                        <button onClick={handleDeclinePrivate}
+                          className="flex-1 py-2 rounded-lg bg-dark-700 hover:bg-dark-600 text-gray-400 text-xs font-medium transition-colors"
+                        >✕ Rechazar</button>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+              {/* Modo actual */}
+              <div className="px-3 py-2 border-b border-white/5 shrink-0 flex items-center gap-2">
+                <div className={`w-2 h-2 rounded-full shrink-0 ${show.show_type === 'private' ? 'bg-purple-500 animate-pulse' : 'bg-green-500'}`} />
+                <span className="text-[10px] text-gray-400 flex-1">
+                  {show.show_type === 'private' ? 'Modo: Privado 1-a-1' : 'Modo: Broadcast'}
+                </span>
+                <button
+                  onClick={() => set('show_type', show.show_type === 'private' ? 'broadcast' : 'private')}
+                  className={`text-[9px] px-2 py-0.5 rounded font-medium transition-all ${show.show_type === 'private' ? 'bg-green-500/20 text-green-400 hover:bg-green-500/30' : 'bg-purple-500/20 text-purple-400 hover:bg-purple-500/30'}`}
+                >
+                  {show.show_type === 'private' ? '→ Broadcast' : '→ Privado'}
+                </button>
+              </div>
+              {/* Mensajes privados */}
               <div className="flex-1 overflow-y-auto px-2 py-2 space-y-2 min-h-0">
                 {privateMessages.length === 0
-                  ? <p className="text-gray-600 text-[10px] text-center py-8">Sin mensajes privados aún</p>
+                  ? (
+                    <div className="flex flex-col items-center justify-center gap-2 py-8 text-center">
+                      <FiLock size={20} className="text-gray-700" />
+                      <p className="text-gray-600 text-[10px]">Sin mensajes privados aún</p>
+                    </div>
+                  )
                   : privateMessages.map((msg, i) => (
                     <div key={i} className="flex items-start gap-1.5">
                       {msg.fromAvatar
@@ -1271,13 +1392,37 @@ export default function ShowStudio() {
                   ))
                 }
               </div>
-              <div className="px-2 py-1.5 border-t border-white/5 shrink-0">
-                <p className="text-gray-600 text-[9px] text-center">Mensajes privados de los espectadores</p>
+            </div>
+          ) : (
+            <div className="flex-1 overflow-y-auto p-3 space-y-4 min-h-0">
+              <div className="bg-purple-500/5 border border-purple-500/15 rounded-xl p-3">
+                <p className="text-purple-300 text-[10px] font-bold flex items-center gap-1.5 mb-1">
+                  <FiLock size={10} /> Shows privados 1-a-1
+                </p>
+                <p className="text-gray-600 text-[9px] leading-relaxed">
+                  Los espectadores pueden solicitar un show privado. Recibes el 70% de las coins por minuto.
+                </p>
               </div>
-            </>
-          )}
+              {[
+                { key: 'private_rate',       label: 'Tarifa privado (coins/min)',    hint: 'El espectador paga por cada minuto de show privado' },
+                { key: 'exclusive_rate',     label: 'Tarifa exclusivo (coins/min)', hint: 'Solo ese espectador puede ver el show' },
+                { key: 'min_private_minutes', label: 'Duración mínima (min)',        hint: 'Mínimo que se cobrará al aceptar' },
+              ].map(({ key, label, hint }) => (
+                <div key={key}>
+                  <label className="text-[10px] text-gray-400 font-medium mb-0.5 block">{label}</label>
+                  <p className="text-[9px] text-gray-700 mb-1.5">{hint}</p>
+                  <input className="w-full bg-[#111115] border border-white/10 text-white text-xs rounded px-2.5 py-1.5 outline-none focus:border-brand-500/50 transition-colors text-center"
+                    type="number" min="1"
+                    value={show[key]} onChange={e => set(key, e.target.value)} />
+                </div>
+              ))}
+            </div>
+          )
+        )}
 
-          {rightTab === 'viewers' && (
+        {/* ── TAB Viewers ── */}
+        {rightTab === 'viewers' && (
+          isLive ? (
             <div className="flex-1 overflow-y-auto px-2 py-2 min-h-0">
               <div className="bg-dark-700/50 rounded-lg p-2 mb-2">
                 <p className="text-white font-bold text-xs mb-1">{viewerCount} viendo ahora</p>
@@ -1311,80 +1456,19 @@ export default function ShowStudio() {
                 )}
               </div>
             </div>
-          )}
-        </>
-      ) : (
-        /* ── SETUP: show settings ── */
-        <>
-          <div className="flex-1 overflow-y-auto p-3 space-y-3">
-            <div>
-              <label className="text-[10px] text-gray-500 font-medium mb-1 block">Título *</label>
-              <input className="w-full bg-[#111115] border border-white/10 text-white text-xs rounded px-2.5 py-1.5 placeholder-gray-600 outline-none focus:border-brand-500/50 transition-colors"
-                placeholder="Ej: Sesión de baile 🔥"
-                value={show.title} onChange={e => set('title', e.target.value)} />
+          ) : (
+            <div className="flex-1 flex flex-col items-center justify-center gap-3 p-6 text-center">
+              <FiUsers size={24} className="text-gray-700" />
+              <p className="text-gray-500 text-xs font-medium">Sin espectadores aún</p>
+              <p className="text-gray-700 text-[10px]">La lista aparecerá cuando empieces en vivo.</p>
             </div>
-            <div>
-              <label className="text-[10px] text-gray-500 font-medium mb-1 block">Descripción</label>
-              <textarea className="w-full bg-[#111115] border border-white/10 text-white text-xs rounded px-2.5 py-1.5 placeholder-gray-600 outline-none resize-none focus:border-brand-500/50 transition-colors" rows={2}
-                placeholder="Cuéntales a tus fans…"
-                value={show.description} onChange={e => set('description', e.target.value)} />
-            </div>
-            <div>
-              <label className="text-[10px] text-gray-500 font-medium mb-1 block">Categoría</label>
-              <div className="flex flex-wrap gap-1">
-                {SHOW_CATEGORIES
-                  .filter(c => c.key !== 'adult' || profile?.is_adult_creator)
-                  .map(({ key, label, emoji }) => (
-                    <button key={key} onClick={() => set('category', key)}
-                      className={`px-2 py-0.5 rounded text-[10px] font-medium transition-all ${show.category === key ? 'bg-brand-500 text-white' : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}
-                    >{emoji} {label}</button>
-                  ))}
-              </div>
-            </div>
-            <div>
-              <label className="text-[10px] text-gray-500 font-medium mb-1 block">Precio ticket ($)</label>
-              <input className="w-full bg-[#111115] border border-white/10 text-white text-xs rounded px-2.5 py-1.5 placeholder-gray-600 outline-none focus:border-brand-500/50 transition-colors"
-                type="number" placeholder="0 = gratis"
-                value={show.ticket_price} onChange={e => set('ticket_price', e.target.value)} min="0" step="0.01" />
-              {show.ticket_price > 0 && (
-                <p className="text-[10px] text-gray-600 mt-1">Recibirás ${(parseFloat(show.ticket_price) * 0.7).toFixed(2)} (70%)</p>
-              )}
-            </div>
-            <div>
-              <label className="text-[10px] text-gray-500 font-medium mb-1 flex items-center gap-1"><FiCalendar size={9} /> Programar</label>
-              <input className="w-full bg-[#111115] border border-white/10 text-white text-xs rounded px-2.5 py-1.5 outline-none focus:border-brand-500/50 transition-colors"
-                type="datetime-local"
-                value={show.scheduled_at} onChange={e => set('scheduled_at', e.target.value)} />
-            </div>
-            <div>
-              <label className="text-[10px] text-gray-500 font-medium mb-1 block">Meta de propinas</label>
-              <input className="w-full bg-[#111115] border border-white/10 text-white text-xs rounded px-2.5 py-1.5 placeholder-gray-600 outline-none focus:border-brand-500/50 transition-colors"
-                type="number" placeholder="Ej: 500 coins"
-                value={show.tip_goal} onChange={e => set('tip_goal', e.target.value)} min="0" />
-            </div>
-            <div className="pt-1 border-t border-white/5">
-              <p className="text-[10px] text-purple-400 font-semibold flex items-center gap-1 mb-2"><FiLock size={9} /> Tarifas privado</p>
-              <div className="space-y-1.5">
-                {[
-                  { key: 'private_rate',        label: 'Privado (coins/min)' },
-                  { key: 'exclusive_rate',       label: 'Exclusivo (coins/min)' },
-                  { key: 'min_private_minutes',  label: 'Tiempo mín. (min)' },
-                ].map(({ key, label }) => (
-                  <div key={key} className="flex items-center justify-between gap-2">
-                    <label className="text-[10px] text-gray-600 flex-1">{label}</label>
-                    <input className="w-14 bg-[#111115] border border-white/10 text-white text-[10px] rounded px-2 py-1 text-center outline-none focus:border-brand-500/50 transition-colors"
-                      type="number" min="1"
-                      value={show[key]} onChange={e => set(key, e.target.value)} />
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </>
-      )}
-    </div>
-  );
+          )
+        )}
+      </div>
+    );
+  };
 
+  // ── RIGHT PANEL COLLAPSED ─────────────────────────────────────────────────────
   const RightPanelCollapsed = () => (
     <div
       className="w-7 bg-[#1c1c21] flex flex-col items-center py-2 gap-2 shrink-0"
@@ -1459,32 +1543,27 @@ export default function ShowStudio() {
           )}
         </div>
       )}
-
       {isLive && cameraOff && (
         <div className="absolute inset-0 bg-[#0a0a0c] flex flex-col items-center justify-center pointer-events-none">
           <FiVideoOff className="text-gray-700 mb-2" size={48} />
           <p className="text-gray-600 text-sm">Cámara apagada</p>
         </div>
       )}
-
       {!isLive && previewActive && permCamera === 'granted' && (
         <div className="absolute inset-0 pointer-events-none" style={{
           backgroundImage: 'linear-gradient(rgba(255,255,255,0.02) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.02) 1px,transparent 1px)',
           backgroundSize: '10% 10%',
         }} />
       )}
-
       {(isLive || (previewActive && permCamera === 'granted')) && (
         <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-black/70 border border-white/10 rounded px-2 py-1 pointer-events-none">
           <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
           <span className="text-white text-[10px] font-bold tracking-wider">{isLive ? 'EN VIVO' : 'PREVIEW'}</span>
         </div>
       )}
-
       <div className="absolute bottom-3 right-3 bg-black/50 border border-white/10 rounded px-2 py-0.5 pointer-events-none">
         <span className="text-white/35 text-[10px] font-mono">{videoQuality}</span>
       </div>
-
       {isLive && tipGoal > 0 && (
         <div className="absolute bottom-10 left-3 right-3 pointer-events-none">
           <div className="bg-black/80 backdrop-blur-sm rounded-xl px-3 py-2 border border-white/10">
@@ -1502,7 +1581,6 @@ export default function ShowStudio() {
           </div>
         </div>
       )}
-
       {isLive && (
         <div className="absolute top-4 left-4 pointer-events-none z-10">
           <AnimatePresence>
@@ -1519,7 +1597,6 @@ export default function ShowStudio() {
           </AnimatePresence>
         </div>
       )}
-
       {isLive && (
         <div className="absolute bottom-20 right-4 pointer-events-none">
           <AnimatePresence>
@@ -1534,40 +1611,14 @@ export default function ShowStudio() {
           </AnimatePresence>
         </div>
       )}
-
-      <AnimatePresence>
-        {isLive && privateRequest && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
-            className="absolute top-14 left-1/2 -translate-x-1/2 z-50 bg-dark-800 border border-purple-500/40 rounded-2xl p-4 shadow-2xl w-72"
-          >
-            <div className="flex items-center gap-3 mb-3">
-              {privateRequest.viewerAvatar
-                ? <img src={privateRequest.viewerAvatar} className="w-10 h-10 rounded-full object-cover" alt="" />
-                : <div className="w-10 h-10 rounded-full bg-purple-500/30 flex items-center justify-center text-purple-300 font-bold">{privateRequest.viewerName[0]}</div>
-              }
-              <div>
-                <p className="text-white text-sm font-bold">{privateRequest.viewerName}</p>
-                <p className="text-purple-300 text-xs">
-                  solicita show {privateRequest.type === 'exclusive' ? 'exclusivo' : 'privado'} · <span className="font-bold">{privateRequest.rate} coins/min</span>
-                </p>
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <button onClick={handleAcceptPrivate} className="flex-1 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-sm font-semibold transition-colors">Aceptar</button>
-              <button onClick={handleDeclinePrivate} className="flex-1 py-2 rounded-xl bg-dark-700 hover:bg-dark-600 text-gray-300 text-sm font-semibold transition-colors">Rechazar</button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 
-  // ── UNIFIED STUDIO LAYOUT ────────────────────────────────────────────────────
+  // ── UNIFIED LAYOUT ───────────────────────────────────────────────────────────
   return (
     <div className="h-screen flex flex-col bg-[#1a1a1e] overflow-hidden select-none">
 
-      {/* ── Title bar ── */}
+      {/* Title bar */}
       <div className="h-9 bg-[#0d0d0f] border-b border-white/5 flex items-center px-3 gap-2.5 shrink-0">
         <button
           onClick={() => {
@@ -1620,10 +1671,9 @@ export default function ShowStudio() {
         )}
       </div>
 
-      {/* ── Body (dock + main, con posición configurable) ── */}
+      {/* Body */}
       <div className="flex-1 flex flex-col min-h-0">
 
-        {/* Dock en TOP */}
         {layout.dockPosition === 'top' && (
           <>
             <DockPanel />
@@ -1631,34 +1681,21 @@ export default function ShowStudio() {
           </>
         )}
 
-        {/* Main area: canvas + panel derecho */}
+        {/* Main: canvas + right panel */}
         <div className="flex-1 flex min-h-0">
-
-          {/* Panel en LEFT */}
           {layout.rightSide === 'left' && (
             layout.rightCollapsed
               ? <RightPanelCollapsed />
-              : <>
-                  <RightPanelFull />
-                  <ResizeHandleV />
-                </>
+              : <><RightPanelFull /><ResizeHandleV /></>
           )}
-
-          {/* Canvas (siempre flex-1) */}
           <Canvas />
-
-          {/* Panel en RIGHT */}
           {layout.rightSide === 'right' && (
             layout.rightCollapsed
               ? <RightPanelCollapsed />
-              : <>
-                  <ResizeHandleV />
-                  <RightPanelFull />
-                </>
+              : <><ResizeHandleV /><RightPanelFull /></>
           )}
         </div>
 
-        {/* Dock en BOTTOM */}
         {layout.dockPosition === 'bottom' && (
           <>
             <ResizeHandleH />
@@ -1667,7 +1704,7 @@ export default function ShowStudio() {
         )}
       </div>
 
-      {/* ── Status bar ── */}
+      {/* Status bar */}
       <div className="h-5 bg-[#0d0d0f] border-t border-white/5 flex items-center px-3 gap-4 shrink-0">
         {isLive ? (
           <>
