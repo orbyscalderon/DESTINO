@@ -1158,274 +1158,315 @@ export default function ShowStudio() {
     );
   }
 
-  // ── SETUP UI ─────────────────────────────────────────────────────────────────
+  // ── SETUP UI (OBS-style) ────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-dark-900 flex flex-col">
-      <div className="sticky top-0 z-30 bg-dark-900/95 backdrop-blur border-b border-white/5 px-4 py-3 flex items-center gap-3">
+    <div className="h-screen flex flex-col bg-[#1a1a1e] overflow-hidden select-none">
+
+      {/* Title bar */}
+      <div className="h-9 bg-[#0d0d0f] border-b border-white/5 flex items-center px-3 gap-3 shrink-0">
         <button onClick={() => { stopPreview(); navigate('/creator/dashboard'); }}
-          className="w-9 h-9 bg-dark-700 hover:bg-dark-600 rounded-xl flex items-center justify-center transition-colors shrink-0"
+          className="w-6 h-6 rounded-md bg-white/5 hover:bg-white/10 flex items-center justify-center transition-colors"
         >
-          <FiArrowLeft size={16} className="text-gray-300" />
+          <FiArrowLeft size={12} className="text-gray-400" />
         </button>
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 bg-brand-500/20 rounded-xl flex items-center justify-center">
-            <FiMonitor size={15} className="text-brand-400" />
+        <div className="w-5 h-5 bg-brand-500/20 rounded flex items-center justify-center">
+          <FiMonitor size={11} className="text-brand-400" />
+        </div>
+        <span className="text-white text-xs font-semibold">Estudio de Show</span>
+        {show.title && <span className="text-gray-500 text-xs">— {show.title}</span>}
+        <div className="flex-1" />
+        {activeReconnect && (
+          <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/20 rounded px-2 py-1">
+            <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" />
+            <span className="text-red-400 text-[10px] font-semibold truncate max-w-[140px]">{activeReconnect.title}</span>
+            <button onClick={() => handleReconnect(activeReconnect)}
+              className="text-red-400 hover:text-red-300 text-[10px] font-bold ml-1 transition-colors"
+            >Reconectar</button>
           </div>
-          <div>
-            <p className="text-sm font-bold text-white leading-none">Estudio de Show</p>
-            <p className="text-[11px] text-gray-500 mt-0.5">Configura y prueba tu setup antes de ir en vivo</p>
+        )}
+      </div>
+
+      {/* Main area: canvas + right settings panel */}
+      <div className="flex-1 flex min-h-0">
+
+        {/* Preview canvas */}
+        <div className="flex-1 bg-black relative flex items-center justify-center min-w-0">
+          {previewActive && permCamera === 'granted' ? (
+            <video ref={previewVideoRef} autoPlay muted playsInline className="w-full h-full object-contain" />
+          ) : (
+            <div className="flex flex-col items-center justify-center gap-3">
+              {permCamera === 'denied' ? (
+                <>
+                  <FiVideoOff size={40} className="text-red-400/60" />
+                  <p className="text-red-400/80 text-sm text-center px-8">Permiso de cámara denegado.<br />Revisa la configuración del navegador.</p>
+                </>
+              ) : permCamera === 'checking' ? (
+                <>
+                  <div className="w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
+                  <p className="text-gray-500 text-sm">Iniciando cámara…</p>
+                </>
+              ) : (
+                <>
+                  <FiVideo size={40} className="text-white/10" />
+                  <p className="text-white/20 text-sm text-center">Sin fuente de video activa</p>
+                </>
+              )}
+            </div>
+          )}
+          {previewActive && permCamera === 'granted' && (
+            <div className="absolute inset-0 pointer-events-none" style={{
+              backgroundImage: 'linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px)',
+              backgroundSize: '10% 10%',
+            }} />
+          )}
+          {previewActive && permCamera === 'granted' && (
+            <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-black/70 border border-white/10 rounded px-2 py-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+              <span className="text-white text-[10px] font-bold tracking-wider">PREVIEW</span>
+            </div>
+          )}
+          <div className="absolute bottom-3 right-3 bg-black/60 border border-white/10 rounded px-2 py-0.5">
+            <span className="text-white/40 text-[10px] font-mono">{videoQuality}</span>
+          </div>
+        </div>
+
+        {/* Right settings panel */}
+        <div className="w-64 bg-[#1c1c21] border-l border-white/5 flex flex-col shrink-0">
+          <div className="px-3 py-2 border-b border-white/5 shrink-0">
+            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Detalles del show</p>
+          </div>
+          <div className="flex-1 overflow-y-auto p-3 space-y-3">
+            <div>
+              <label className="text-[10px] text-gray-500 font-medium mb-1 block">Título *</label>
+              <input className="w-full bg-[#111115] border border-white/10 text-white text-xs rounded px-2.5 py-1.5 placeholder-gray-600 outline-none focus:border-brand-500/50 transition-colors"
+                placeholder="Ej: Sesión de baile 🔥"
+                value={show.title} onChange={e => set('title', e.target.value)} />
+            </div>
+            <div>
+              <label className="text-[10px] text-gray-500 font-medium mb-1 block">Descripción</label>
+              <textarea className="w-full bg-[#111115] border border-white/10 text-white text-xs rounded px-2.5 py-1.5 placeholder-gray-600 outline-none resize-none focus:border-brand-500/50 transition-colors" rows={2}
+                placeholder="Cuéntales a tus fans…"
+                value={show.description} onChange={e => set('description', e.target.value)} />
+            </div>
+            <div>
+              <label className="text-[10px] text-gray-500 font-medium mb-1 block">Categoría</label>
+              <div className="flex flex-wrap gap-1">
+                {SHOW_CATEGORIES
+                  .filter(c => c.key !== 'adult' || profile?.is_adult_creator)
+                  .map(({ key, label, emoji }) => (
+                    <button key={key} onClick={() => set('category', key)}
+                      className={`px-2 py-0.5 rounded text-[10px] font-medium transition-all ${show.category === key ? 'bg-brand-500 text-white' : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}
+                    >{emoji} {label}</button>
+                  ))}
+              </div>
+            </div>
+            <div>
+              <label className="text-[10px] text-gray-500 font-medium mb-1 block">Precio ticket ($)</label>
+              <input className="w-full bg-[#111115] border border-white/10 text-white text-xs rounded px-2.5 py-1.5 placeholder-gray-600 outline-none focus:border-brand-500/50 transition-colors"
+                type="number" placeholder="0 = gratis"
+                value={show.ticket_price} onChange={e => set('ticket_price', e.target.value)} min="0" step="0.01" />
+              {show.ticket_price > 0 && (
+                <p className="text-[10px] text-gray-600 mt-1">Recibirás ${(parseFloat(show.ticket_price) * 0.7).toFixed(2)} (70%)</p>
+              )}
+            </div>
+            <div>
+              <label className="text-[10px] text-gray-500 font-medium mb-1 flex items-center gap-1"><FiCalendar size={9} /> Programar</label>
+              <input className="w-full bg-[#111115] border border-white/10 text-white text-xs rounded px-2.5 py-1.5 outline-none focus:border-brand-500/50 transition-colors"
+                type="datetime-local"
+                value={show.scheduled_at} onChange={e => set('scheduled_at', e.target.value)} />
+            </div>
+            <div>
+              <label className="text-[10px] text-gray-500 font-medium mb-1 block">Meta de propinas</label>
+              <input className="w-full bg-[#111115] border border-white/10 text-white text-xs rounded px-2.5 py-1.5 placeholder-gray-600 outline-none focus:border-brand-500/50 transition-colors"
+                type="number" placeholder="Ej: 500 coins"
+                value={show.tip_goal} onChange={e => set('tip_goal', e.target.value)} min="0" />
+            </div>
+            <div className="pt-1 border-t border-white/5">
+              <p className="text-[10px] text-purple-400 font-semibold flex items-center gap-1 mb-2"><FiLock size={9} /> Tarifas privado</p>
+              <div className="space-y-1.5">
+                {[
+                  { key: 'private_rate',        label: 'Privado (coins/min)' },
+                  { key: 'exclusive_rate',       label: 'Exclusivo (coins/min)' },
+                  { key: 'min_private_minutes',  label: 'Tiempo mín. (min)' },
+                ].map(({ key, label }) => (
+                  <div key={key} className="flex items-center justify-between gap-2">
+                    <label className="text-[10px] text-gray-600 flex-1">{label}</label>
+                    <input className="w-14 bg-[#111115] border border-white/10 text-white text-[10px] rounded px-2 py-1 text-center outline-none focus:border-brand-500/50 transition-colors"
+                      type="number" min="1"
+                      value={show[key]} onChange={e => set(key, e.target.value)} />
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      {activeReconnect && (
-        <div className="mx-4 mt-4 bg-red-500/10 border border-red-500/30 rounded-xl p-3.5 flex items-center gap-3">
-          <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse shrink-0" />
-          <div className="flex-1 min-w-0">
-            <p className="text-white text-sm font-bold leading-none">Tienes un show en vivo</p>
-            <p className="text-gray-400 text-xs mt-0.5 truncate">{activeReconnect.title}</p>
+      {/* Bottom dock */}
+      <div className="h-44 bg-[#131316] border-t border-white/5 flex shrink-0">
+
+        {/* Escenas */}
+        <div className="w-32 border-r border-white/5 flex flex-col">
+          <div className="px-2 py-1.5 border-b border-white/5">
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Escenas</span>
           </div>
-          <button onClick={() => handleReconnect(activeReconnect)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl transition-colors shrink-0"
-          >
-            <FiWifi size={11} /> Reconectar
-          </button>
-        </div>
-      )}
-
-      <div className="flex-1 flex flex-col lg:flex-row gap-0 lg:gap-6 p-4 lg:p-6 max-w-6xl mx-auto w-full">
-
-        {/* Left: config */}
-        <div className="flex-1 space-y-5 order-2 lg:order-1">
-
-          <div className="card p-4">
-            <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Detalles del show</h2>
-            <div className="space-y-3">
-              <div>
-                <label className="text-xs text-gray-400 font-medium mb-1.5 block">Título *</label>
-                <input className="input-field" placeholder="Ej: Sesión de baile 🔥"
-                  value={show.title} onChange={e => set('title', e.target.value)} />
-              </div>
-              <div>
-                <label className="text-xs text-gray-400 font-medium mb-1.5 block">Descripción <span className="text-gray-600">(opcional)</span></label>
-                <textarea className="input-field resize-none text-sm" rows={3}
-                  placeholder="Cuéntales a tus fans qué verán…"
-                  value={show.description} onChange={e => set('description', e.target.value)} />
-              </div>
-            </div>
-          </div>
-
-          <div className="card p-4">
-            <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Tipo de show</h2>
-            <div className="grid grid-cols-2 gap-2">
-              {[
-                { key: 'broadcast', label: 'Broadcast',    desc: 'Múltiples viewers', icon: FiMonitor },
-                { key: 'private',   label: 'Privado 1-a-1', desc: 'Solo un viewer',   icon: FiLock    },
-              ].map(({ key, label, desc, icon: Icon }) => (
-                <button key={key} onClick={() => set('show_type', key)}
-                  className={`p-3 rounded-xl text-left transition-all border flex items-start gap-2.5 ${show.show_type === key ? 'bg-brand-500/15 border-brand-500/40' : 'bg-dark-700 border-white/5 hover:border-white/15'}`}
-                >
-                  <Icon size={14} className={show.show_type === key ? 'text-brand-400 mt-0.5' : 'text-gray-500 mt-0.5'} />
-                  <div>
-                    <p className={`text-sm font-semibold ${show.show_type === key ? 'text-white' : 'text-gray-300'}`}>{label}</p>
-                    <p className="text-xs text-gray-500 mt-0.5">{desc}</p>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="card p-4">
-            <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Categoría</h2>
-            <div className="flex flex-wrap gap-1.5">
-              {SHOW_CATEGORIES
-                .filter(c => c.key !== 'adult' || profile?.is_adult_creator)
-                .map(({ key, label, emoji }) => (
-                  <button key={key} onClick={() => set('category', key)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${show.category === key ? 'bg-brand-500 text-white' : 'bg-dark-700 text-gray-400 hover:bg-dark-600'}`}
-                  >
-                    {emoji} {label}
-                  </button>
-                ))}
-            </div>
-          </div>
-
-          <div className="card p-4">
-            <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Precio y programación</h2>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs text-gray-400 font-medium mb-1.5 block">Precio ticket</label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-medium text-sm">$</span>
-                  <input className="input-field pl-7 text-sm" type="number" placeholder="0 = gratis"
-                    value={show.ticket_price} onChange={e => set('ticket_price', e.target.value)} min="0" step="0.01" />
-                </div>
-                {show.ticket_price > 0 && (
-                  <p className="text-[11px] text-gray-500 mt-1.5">Recibirás ${(parseFloat(show.ticket_price) * 0.7).toFixed(2)} por ticket (70%)</p>
-                )}
-              </div>
-              <div>
-                <label className="text-xs text-gray-400 font-medium mb-1.5 flex items-center gap-1"><FiCalendar size={10} /> Programar (opcional)</label>
-                <input className="input-field text-sm" type="datetime-local"
-                  value={show.scheduled_at} onChange={e => set('scheduled_at', e.target.value)} />
-              </div>
-            </div>
-            <div className="mt-3">
-              <label className="text-xs text-gray-400 font-medium mb-1.5 block">Meta de propinas <span className="text-gray-600">(opcional)</span></label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs">🎯</span>
-                <input className="input-field pl-8 text-sm" type="number" placeholder="Ej: 500 coins"
-                  value={show.tip_goal} onChange={e => set('tip_goal', e.target.value)} min="0" />
-              </div>
-            </div>
-          </div>
-
-          <div className="card p-4 border border-purple-500/20 bg-purple-500/5">
-            <p className="text-purple-300 text-xs font-semibold flex items-center gap-1.5 mb-3">
-              <FiLock size={11} /> Tarifas para show privado
-            </p>
-            <div className="grid grid-cols-3 gap-3">
-              {[
-                { key: 'private_rate',        label: 'Privado (coins/min)' },
-                { key: 'exclusive_rate',      label: 'Exclusivo (coins/min)' },
-                { key: 'min_private_minutes', label: 'Tiempo mín. (min)' },
-              ].map(({ key, label }) => (
-                <div key={key}>
-                  <label className="text-gray-400 text-[10px] mb-1 block">{label}</label>
-                  <input className="input-field text-sm py-2 text-center" type="number" min="1"
-                    value={show[key]} onChange={e => set(key, e.target.value)} />
-                </div>
-              ))}
-            </div>
-            <p className="text-gray-600 text-[10px] mt-2">
-              Tú recibes 70% · Privado: {Math.round((show.private_rate || 20) * 0.7)} coins/min · Exclusivo: {Math.round((show.exclusive_rate || 35) * 0.7)} coins/min
-            </p>
+          <div className="flex-1 overflow-y-auto p-1.5 space-y-1">
+            {[
+              { key: 'broadcast', label: 'Broadcast',    icon: FiMonitor },
+              { key: 'private',   label: 'Privado 1-a-1', icon: FiLock   },
+            ].map(({ key, label, icon: Icon }) => (
+              <button key={key} onClick={() => set('show_type', key)}
+                className={`w-full flex items-center gap-1.5 px-2 py-1.5 rounded text-left transition-all ${show.show_type === key ? 'bg-brand-500/20 border border-brand-500/30 text-brand-300' : 'bg-white/5 border border-transparent text-gray-400 hover:bg-white/8 hover:text-gray-300'}`}
+              >
+                <Icon size={10} />
+                <span className="text-[10px] font-medium truncate">{label}</span>
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* Right: camera preview + CTAs */}
-        <div className="w-full lg:w-80 xl:w-96 space-y-4 order-1 lg:order-2">
-          <div className="card p-4 lg:sticky lg:top-24">
-            <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Vista previa</h2>
-
-            <div className="relative rounded-xl overflow-hidden bg-dark-800 aspect-video mb-3">
-              {previewActive && permCamera === 'granted' ? (
-                <video ref={previewVideoRef} autoPlay muted playsInline className="w-full h-full object-cover" />
-              ) : (
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
-                  {permCamera === 'denied' ? (
-                    <>
-                      <FiVideoOff size={28} className="text-red-400" />
-                      <p className="text-red-400 text-xs text-center px-4">Permiso de cámara denegado.<br />Revisa la configuración del navegador.</p>
-                    </>
-                  ) : permCamera === 'checking' ? (
-                    <>
-                      <div className="w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
-                      <p className="text-gray-400 text-xs">Iniciando cámara…</p>
-                    </>
-                  ) : (
-                    <>
-                      <FiVideo size={28} className="text-gray-600" />
-                      <p className="text-gray-500 text-xs text-center">Activa la vista previa<br />para ver tu cámara</p>
-                    </>
-                  )}
-                </div>
-              )}
-              {previewActive && permCamera === 'granted' && (
-                <div className="absolute top-2 left-2 flex items-center gap-1.5 bg-black/60 backdrop-blur-sm rounded-lg px-2 py-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                  <span className="text-white text-[10px] font-semibold">PREVIEW</span>
-                </div>
-              )}
-            </div>
-
-            {permMic === 'granted' && (
-              <div className="mb-3">
-                <div className="flex items-center gap-2 mb-1">
-                  <FiMic size={10} className="text-gray-500" />
-                  <span className="text-[10px] text-gray-500">Nivel de audio</span>
-                </div>
-                <div className="h-1.5 bg-dark-700 rounded-full overflow-hidden">
-                  <motion.div
-                    className="h-full rounded-full bg-gradient-to-r from-green-500 via-yellow-400 to-red-500"
-                    animate={{ width: `${vuLevel}%` }}
-                    transition={{ duration: 0.08 }}
-                  />
-                </div>
-              </div>
-            )}
-
-            <div className="flex flex-wrap gap-1.5 mb-3">
-              <StatusPill status={permCamera} label="Cámara"    icon={permCamera === 'denied' ? FiVideoOff : FiVideo} />
-              <StatusPill status={permMic}    label="Micrófono" icon={permMic    === 'denied' ? FiMicOff   : FiMic}   />
-            </div>
-
-            {previewActive && (cameraDevices.length > 0 || micDevices.length > 0) && (
-              <div className="space-y-2 mb-3">
-                {cameraDevices.length > 0 && (
-                  <select className="input-field text-xs py-1.5" value={selectedCameraId} onChange={e => switchCamera(e.target.value)}>
-                    {cameraDevices.map(d => <option key={d.deviceId} value={d.deviceId}>{d.label || `Cámara ${d.deviceId.slice(0, 6)}`}</option>)}
-                  </select>
-                )}
-                {micDevices.length > 0 && (
-                  <select className="input-field text-xs py-1.5" value={selectedMicId} onChange={e => switchMic(e.target.value)}>
-                    {micDevices.map(d => <option key={d.deviceId} value={d.deviceId}>{d.label || `Micrófono ${d.deviceId.slice(0, 6)}`}</option>)}
-                  </select>
-                )}
-                <select className="input-field text-xs py-1.5" value={videoQuality} onChange={e => setVideoQuality(e.target.value)}>
-                  {QUALITY_OPTIONS.map(q => <option key={q.key} value={q.key}>{q.label}</option>)}
+        {/* Fuentes */}
+        <div className="flex-1 border-r border-white/5 flex flex-col">
+          <div className="px-2 py-1.5 border-b border-white/5">
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Fuentes</span>
+          </div>
+          <div className="flex-1 p-2 space-y-1.5">
+            {previewActive && cameraDevices.length > 0 ? (
+              <div className="flex items-center gap-1.5">
+                <FiVideo size={9} className="text-gray-500 shrink-0" />
+                <select className="flex-1 bg-[#1e1e24] border border-white/10 text-white text-[10px] rounded px-1.5 py-1 outline-none cursor-pointer"
+                  value={selectedCameraId} onChange={e => switchCamera(e.target.value)}>
+                  {cameraDevices.map(d => <option key={d.deviceId} value={d.deviceId}>{d.label || `Cámara ${d.deviceId.slice(0, 6)}`}</option>)}
                 </select>
               </div>
+            ) : (
+              <div className="flex items-center gap-1.5 opacity-40">
+                <FiVideo size={9} className="text-gray-500 shrink-0" />
+                <span className="text-[10px] text-gray-500">Cámara — activa preview</span>
+              </div>
             )}
+            {previewActive && micDevices.length > 0 ? (
+              <div className="flex items-center gap-1.5">
+                <FiMic size={9} className="text-gray-500 shrink-0" />
+                <select className="flex-1 bg-[#1e1e24] border border-white/10 text-white text-[10px] rounded px-1.5 py-1 outline-none cursor-pointer"
+                  value={selectedMicId} onChange={e => switchMic(e.target.value)}>
+                  {micDevices.map(d => <option key={d.deviceId} value={d.deviceId}>{d.label || `Micrófono ${d.deviceId.slice(0, 6)}`}</option>)}
+                </select>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5 opacity-40">
+                <FiMic size={9} className="text-gray-500 shrink-0" />
+                <span className="text-[10px] text-gray-500">Micrófono — activa preview</span>
+              </div>
+            )}
+            <div className="flex items-center gap-1.5">
+              <FiMonitor size={9} className="text-gray-500 shrink-0" />
+              <select className="flex-1 bg-[#1e1e24] border border-white/10 text-white text-[10px] rounded px-1.5 py-1 outline-none cursor-pointer"
+                value={videoQuality} onChange={e => setVideoQuality(e.target.value)}>
+                {QUALITY_OPTIONS.map(q => <option key={q.key} value={q.key}>{q.label}</option>)}
+              </select>
+            </div>
+            <p className="text-[9px] text-gray-600 opacity-50">+ Compartir pantalla disponible al ir en vivo</p>
+          </div>
+        </div>
 
+        {/* Mezclador de audio */}
+        <div className="w-52 border-r border-white/5 flex flex-col">
+          <div className="px-2 py-1.5 border-b border-white/5">
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Mezclador de audio</span>
+          </div>
+          <div className="flex-1 p-2 flex flex-col gap-2">
+            <div className="flex items-end gap-px" style={{ height: 40 }}>
+              {Array.from({ length: 20 }).map((_, i) => {
+                const active = (vuLevel / 100) > ((i + 1) / 20) * 0.8;
+                const color = i < 14 ? 'bg-green-500' : i < 17 ? 'bg-yellow-400' : 'bg-red-500';
+                return (
+                  <div key={i}
+                    className={`flex-1 rounded-sm transition-all duration-75 ${active ? color : 'bg-white/10'}`}
+                    style={{ height: `${30 + (i % 3) * 5}%` }}
+                  />
+                );
+              })}
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <div className={`w-1.5 h-1.5 rounded-full ${permCamera === 'granted' ? 'bg-green-400' : 'bg-gray-600'}`} />
+                <span className="text-[9px] text-gray-500">Cámara</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className={`w-1.5 h-1.5 rounded-full ${permMic === 'granted' ? 'bg-green-400 animate-pulse' : 'bg-gray-600'}`} />
+                <span className="text-[9px] text-gray-500">Mic</span>
+              </div>
+            </div>
+            <StatusPill status={permCamera} label="Cam" icon={permCamera === 'denied' ? FiVideoOff : FiVideo} />
+            <StatusPill status={permMic}    label="Mic" icon={permMic    === 'denied' ? FiMicOff   : FiMic}   />
+          </div>
+        </div>
+
+        {/* Controles */}
+        <div className="w-48 flex flex-col">
+          <div className="px-2 py-1.5 border-b border-white/5">
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Controles</span>
+          </div>
+          <div className="flex-1 p-2 flex flex-col gap-2 justify-center">
             {!previewActive ? (
               <button onClick={startPreview}
-                className="w-full flex items-center justify-center gap-2 bg-dark-700 hover:bg-dark-600 border border-white/10 hover:border-white/20 text-gray-300 text-sm font-medium py-2.5 rounded-xl transition-all"
+                className="w-full flex items-center justify-center gap-1.5 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-gray-300 text-[10px] font-medium py-2 rounded transition-all"
               >
-                <FiVideo size={14} /> Activar vista previa
+                <FiVideo size={10} /> Activar preview
               </button>
             ) : (
               <button onClick={stopPreview}
-                className="w-full flex items-center justify-center gap-2 bg-dark-700 hover:bg-dark-600 text-gray-400 text-xs py-2 rounded-xl transition-colors"
+                className="w-full flex items-center justify-center gap-1.5 bg-white/5 hover:bg-white/10 text-gray-500 text-[10px] py-1.5 rounded transition-colors"
               >
-                <FiRefreshCw size={11} /> Detener preview
+                <FiRefreshCw size={9} /> Detener
               </button>
             )}
-
-            <div className="border-t border-white/5 my-4" />
-
-            <div className="space-y-2">
-              <button
-                onClick={startCountdown}
-                disabled={goingLive || saving || !show.title.trim()}
-                className="w-full flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 active:bg-red-800 disabled:opacity-40 text-white font-bold text-sm py-3 rounded-xl transition-colors"
-              >
-                {goingLive
-                  ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  : <><span className="w-2 h-2 rounded-full bg-white animate-pulse" /> Ir en vivo ahora</>
-                }
-              </button>
-              {!canGoLive && show.title.trim() && (
-                <p className="text-[11px] text-yellow-500/80 flex items-center gap-1">
-                  <FiAlertCircle size={10} /> Activa el preview para verificar cámara y micrófono
-                </p>
-              )}
-              <button
-                onClick={handleSave}
-                disabled={saving || goingLive || !show.title.trim()}
-                className="w-full flex items-center justify-center gap-2 bg-dark-700 hover:bg-dark-600 disabled:opacity-40 text-gray-300 font-medium text-sm py-2.5 rounded-xl border border-white/10 hover:border-white/20 transition-all"
-              >
-                {saving
-                  ? <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
-                  : <><FiSave size={13} /> Guardar para después</>
-                }
-              </button>
-              <p className="text-[11px] text-gray-600 text-center">
-                Aparecerá en Mis Shows · puedes ir en vivo cuando quieras
+            <button
+              onClick={startCountdown}
+              disabled={goingLive || saving || !show.title.trim()}
+              className="w-full flex items-center justify-center gap-1.5 bg-red-600 hover:bg-red-700 active:bg-red-800 disabled:opacity-40 text-white font-bold text-xs py-2.5 rounded transition-colors"
+            >
+              {goingLive
+                ? <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                : <><span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" /> Ir en vivo</>
+              }
+            </button>
+            {!canGoLive && show.title.trim() && (
+              <p className="text-[9px] text-yellow-500/70 flex items-center gap-1">
+                <FiAlertCircle size={8} /> Activa preview primero
               </p>
-            </div>
+            )}
+            <button
+              onClick={handleSave}
+              disabled={saving || goingLive || !show.title.trim()}
+              className="w-full flex items-center justify-center gap-1.5 bg-white/5 hover:bg-white/10 disabled:opacity-40 text-gray-400 font-medium text-[10px] py-2 rounded border border-white/10 hover:border-white/20 transition-all"
+            >
+              {saving
+                ? <div className="w-3 h-3 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                : <><FiSave size={10} /> Guardar</>
+              }
+            </button>
           </div>
         </div>
+      </div>
+
+      {/* Status bar */}
+      <div className="h-5 bg-[#0d0d0f] border-t border-white/5 flex items-center px-3 gap-4 shrink-0">
+        <div className="flex items-center gap-1.5">
+          <span className={`w-1.5 h-1.5 rounded-full ${permCamera === 'granted' ? 'bg-green-400' : permCamera === 'denied' ? 'bg-red-500' : 'bg-gray-600'}`} />
+          <span className="text-[9px] text-gray-600">Cámara</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className={`w-1.5 h-1.5 rounded-full ${permMic === 'granted' ? 'bg-green-400 animate-pulse' : permMic === 'denied' ? 'bg-red-500' : 'bg-gray-600'}`} />
+          <span className="text-[9px] text-gray-600">Micrófono</span>
+        </div>
+        <span className="text-[9px] text-gray-700">{videoQuality}</span>
+        <span className="text-[9px] text-gray-700">
+          {SHOW_CATEGORIES.find(c => c.key === show.category)?.emoji} {SHOW_CATEGORIES.find(c => c.key === show.category)?.label}
+        </span>
+        <div className="flex-1" />
+        <span className="text-[9px] text-gray-700">Destino TV Studio</span>
       </div>
     </div>
   );
