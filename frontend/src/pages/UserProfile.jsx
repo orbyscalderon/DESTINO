@@ -252,7 +252,7 @@ export default function UserProfile() {
 
   const handleShare = async () => {
     const shareData = {
-      title: `${profile.full_name} en Destino`,
+      title: `${profile.full_name} en Destino TV`,
       text: profile.bio || `Mira el perfil de ${profile.full_name}`,
       url: window.location.href,
     };
@@ -389,7 +389,7 @@ export default function UserProfile() {
             </div>
           )}
           <div className="flex justify-between">
-            <span className="text-gray-500">En Destino desde</span>
+            <span className="text-gray-500">En Destino TV desde</span>
             <span className="text-white">
               {new Date(profile.created_at).toLocaleDateString('es', { month: 'long', year: 'numeric' })}
             </span>

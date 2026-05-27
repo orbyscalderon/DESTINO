@@ -45,10 +45,10 @@ export default function Landing() {
         >
           <div className="text-7xl mb-4">💕</div>
           <h1 className="text-6xl sm:text-7xl font-black tracking-tight">
-            <span className="gradient-text">Destino</span>
+            <span className="gradient-text">Destino TV</span>
           </h1>
           <p className="text-xl text-gray-300 max-w-md mx-auto leading-relaxed">
-            Conoce personas reales. Conecta en video. Encuentra tu destino.
+            Conoce personas reales. Conecta en video. Descubre Destino TV.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
@@ -114,7 +114,7 @@ export default function Landing() {
       {/* Legal footer */}
       <footer className="py-8 px-6 border-t border-white/5 text-center">
         <p className="text-gray-600 text-xs">
-          © {new Date().getFullYear()} Destino ·{' '}
+          © {new Date().getFullYear()} Destino TV ·{' '}
           <Link to="/privacy" className="hover:text-gray-400 transition-colors">Privacidad</Link>
           {' · '}
           <Link to="/terms" className="hover:text-gray-400 transition-colors">Términos</Link>

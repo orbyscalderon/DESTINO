@@ -15,7 +15,7 @@
 import { supabase } from './supabase.js';
 
 const PROVIDER = process.env.STORAGE_PROVIDER || 'supabase';
-const SUPABASE_BUCKET = process.env.SUPABASE_STORAGE_BUCKET || 'DESTINO';
+const SUPABASE_BUCKET = process.env.SUPABASE_STORAGE_BUCKET || 'Destino TV';
 
 // ── Supabase Storage ──────────────────────────────────────────
 

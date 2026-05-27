@@ -1015,7 +1015,7 @@ export default function LiveShow() {
   const handleShare = async () => {
     const shareData = {
       title: show?.title || 'Show en vivo',
-      text: `Mira el show de ${show?.host?.full_name} en Destino`,
+      text: `Mira el show de ${show?.host?.full_name} en Destino TV`,
       url: window.location.href,
     };
     if (navigator.share) {

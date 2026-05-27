@@ -116,7 +116,7 @@ export default function Navbar() {
       <aside className="hidden lg:flex fixed left-0 top-0 h-screen w-64 flex-col bg-dark-800 border-r border-white/[0.06] z-40">
         {/* Logo */}
         <div className="px-6 py-6 border-b border-white/[0.06]">
-          <h1 className="text-2xl font-black gradient-text">Destino 💕</h1>
+          <h1 className="text-2xl font-black gradient-text">Destino TV 💕</h1>
           <p className="text-gray-600 text-xs mt-0.5">Encuentra tu conexión</p>
         </div>
 

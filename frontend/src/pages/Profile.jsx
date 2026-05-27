@@ -375,7 +375,7 @@ export default function Profile() {
     const url = apiBase
       ? `${apiBase}/share/profile/${user?.id}`
       : `${window.location.origin}/#/profile/${user?.id}`;
-    const shareData = { title: `${profile?.full_name} en Destino`, text: profile?.bio || 'Mira mi perfil en Destino', url };
+    const shareData = { title: `${profile?.full_name} en Destino TV`, text: profile?.bio || 'Mira mi perfil en Destino TV', url };
     if (navigator.share) {
       await navigator.share(shareData).catch(() => {});
     } else {

@@ -179,7 +179,7 @@ function ogHtml({ title, description, image, url, type = 'website' }) {
 <meta name="twitter:description" content="${esc(description)}">
 <meta name="twitter:image" content="${esc(image)}">
 <meta http-equiv="refresh" content="0;url=${esc(url)}">
-</head><body><a href="${esc(url)}">Ver en Destino</a></body></html>`;
+</head><body><a href="${esc(url)}">Ver en Destino TV</a></body></html>`;
 }
 
 app.get('/share/show/:id', async (req, res) => {
@@ -197,8 +197,8 @@ app.get('/share/show/:id', async (req, res) => {
     const live = show.status === 'live' ? ' 🔴 EN VIVO' : '';
     res.setHeader('Cache-Control', 'public, max-age=60');
     return res.send(ogHtml({
-      title: (show.title || 'Show en Destino') + live,
-      description: show.description || `${show.host?.full_name || 'Creador'} en Destino`,
+      title: (show.title || 'Show en Destino TV') + live,
+      description: show.description || `${show.host?.full_name || 'Creador'} en Destino TV`,
       image: show.cover_url || show.host?.avatar_url || `${fe}/icon-512.png`,
       url: fallback,
     }));
@@ -221,8 +221,8 @@ app.get('/share/profile/:id', async (req, res) => {
 
     res.setHeader('Cache-Control', 'public, max-age=300');
     return res.send(ogHtml({
-      title: `${profile.full_name || 'Perfil'} en Destino`,
-      description: profile.bio || 'Mira mi perfil en Destino',
+      title: `${profile.full_name || 'Perfil'} en Destino TV`,
+      description: profile.bio || 'Mira mi perfil en Destino TV',
       image: profile.avatar_url || `${fe}/icon-512.png`,
       url: fallback,
       type: 'profile',
@@ -243,7 +243,7 @@ app.use((err, req, res, next) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`🚀 Destino backend corriendo en puerto ${PORT}`);
+  console.log(`🚀 Destino TV backend corriendo en puerto ${PORT}`);
 
   if (process.env.NODE_ENV === 'production') {
     const frontendUrl = process.env.FRONTEND_URL || '';

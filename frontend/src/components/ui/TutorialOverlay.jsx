@@ -5,7 +5,7 @@ import { FiArrowRight, FiX } from 'react-icons/fi';
 const STEPS = [
   {
     emoji: '👆',
-    title: '¡Bienvenido a Destino!',
+    title: '¡Bienvenido a Destino TV!',
     desc: 'Desliza las cartas hacia la derecha si alguien te gusta, o hacia la izquierda para pasar. También puedes usar los botones.',
     highlight: null,
   },
@@ -24,7 +24,7 @@ const STEPS = [
   {
     emoji: '⭐',
     title: 'Premium desbloquea todo',
-    desc: 'Likes ilimitados, Super Like, ver quién te gustó, deshacer swipes y mucho más con Destino Premium.',
+    desc: 'Likes ilimitados, Super Like, ver quién te gustó, deshacer swipes y mucho más con Destino TV Premium.',
     highlight: null,
   },
 ];

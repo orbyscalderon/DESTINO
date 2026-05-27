@@ -3,7 +3,7 @@
  * Uso: node --env-file=.env scripts/seedBots.js
  *
  * - Idempotente: no duplica si se ejecuta dos veces (detecta por email).
- * - Los bots tienen email @destino-bot.internal para identificarlos en Supabase.
+ * - Los bots tienen email @Destino TV-bot.internal para identificarlos en Supabase.
  * - Son usuarios reales de auth con perfil completo; aparecen en el feed de swipe.
  */
 
@@ -26,7 +26,7 @@ const AVATAR_BASE = 'https://randomuser.me/api/portraits/women';
 
 const BOTS = [
   {
-    email: 'valentina.garcia@destino-bot.internal',
+    email: 'valentina.garcia@Destino TV-bot.internal',
     full_name: 'Valentina García',
     username: 'valentina_gc',
     age: 23,
@@ -36,7 +36,7 @@ const BOTS = [
     avatar: `${AVATAR_BASE}/1.jpg`,
   },
   {
-    email: 'isabella.martinez@destino-bot.internal',
+    email: 'isabella.martinez@Destino TV-bot.internal',
     full_name: 'Isabella Martínez',
     username: 'isa_mtz',
     age: 26,
@@ -46,7 +46,7 @@ const BOTS = [
     avatar: `${AVATAR_BASE}/2.jpg`,
   },
   {
-    email: 'camila.rodriguez@destino-bot.internal',
+    email: 'camila.rodriguez@Destino TV-bot.internal',
     full_name: 'Camila Rodríguez',
     username: 'cami_rod',
     age: 22,
@@ -56,7 +56,7 @@ const BOTS = [
     avatar: `${AVATAR_BASE}/3.jpg`,
   },
   {
-    email: 'sofia.herrera@destino-bot.internal',
+    email: 'sofia.herrera@Destino TV-bot.internal',
     full_name: 'Sofía Herrera',
     username: 'sofi_hrr',
     age: 25,
@@ -66,7 +66,7 @@ const BOTS = [
     avatar: `${AVATAR_BASE}/4.jpg`,
   },
   {
-    email: 'daniela.torres@destino-bot.internal',
+    email: 'daniela.torres@Destino TV-bot.internal',
     full_name: 'Daniela Torres',
     username: 'dani_trs',
     age: 28,
@@ -76,7 +76,7 @@ const BOTS = [
     avatar: `${AVATAR_BASE}/5.jpg`,
   },
   {
-    email: 'alejandra.flores@destino-bot.internal',
+    email: 'alejandra.flores@Destino TV-bot.internal',
     full_name: 'Alejandra Flores',
     username: 'ale_flores',
     age: 21,
@@ -86,7 +86,7 @@ const BOTS = [
     avatar: `${AVATAR_BASE}/6.jpg`,
   },
   {
-    email: 'natalia.ramirez@destino-bot.internal',
+    email: 'natalia.ramirez@Destino TV-bot.internal',
     full_name: 'Natalia Ramírez',
     username: 'nati_rmz',
     age: 27,
@@ -96,7 +96,7 @@ const BOTS = [
     avatar: `${AVATAR_BASE}/7.jpg`,
   },
   {
-    email: 'gabriela.castro@destino-bot.internal',
+    email: 'gabriela.castro@Destino TV-bot.internal',
     full_name: 'Gabriela Castro',
     username: 'gabi_cst',
     age: 24,
@@ -106,7 +106,7 @@ const BOTS = [
     avatar: `${AVATAR_BASE}/8.jpg`,
   },
   {
-    email: 'luciana.morales@destino-bot.internal',
+    email: 'luciana.morales@Destino TV-bot.internal',
     full_name: 'Luciana Morales',
     username: 'luci_mrl',
     age: 29,
@@ -116,7 +116,7 @@ const BOTS = [
     avatar: `${AVATAR_BASE}/9.jpg`,
   },
   {
-    email: 'mariana.vargas@destino-bot.internal',
+    email: 'mariana.vargas@Destino TV-bot.internal',
     full_name: 'Mariana Vargas',
     username: 'mari_vrg',
     age: 23,
@@ -127,7 +127,7 @@ const BOTS = [
   },
 ];
 
-const BOT_PASSWORD = 'Destino@Bot2025!#';
+const BOT_PASSWORD = 'Destino TV@Bot2025!#';
 
 async function run() {
   console.log('🤖 Iniciando seeding de bots...\n');

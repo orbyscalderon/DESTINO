@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import api from '../../lib/api.js';
 
-const AGE_KEY = 'destino_age_verified';
+const AGE_KEY = 'Destino TV_age_verified';
 
 export function isAgeVerified() {
   return localStorage.getItem(AGE_KEY) === '1';

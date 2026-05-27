@@ -317,7 +317,7 @@ export default function Home() {
   if (loading) return (
     <div className="min-h-screen pb-20">
       <div className="sticky top-0 z-10 bg-dark-900/95 backdrop-blur-sm border-b border-white/5 px-4 py-3 flex items-center justify-between">
-        <h1 className="text-xl font-black gradient-text">Destino 💕</h1>
+        <h1 className="text-xl font-black gradient-text">Destino TV 💕</h1>
         <div className="w-9 h-9 bg-dark-700 rounded-xl animate-pulse" />
       </div>
       <div className="max-w-lg mx-auto px-4 pt-4 space-y-4">
@@ -330,7 +330,7 @@ export default function Home() {
     <div className="min-h-screen pb-20">
       {/* Header */}
       <div className="sticky top-0 z-10 bg-dark-900/95 backdrop-blur-sm border-b border-white/5 px-4 py-3 flex items-center justify-between">
-        <h1 className="text-xl font-black gradient-text">Destino 💕</h1>
+        <h1 className="text-xl font-black gradient-text">Destino TV 💕</h1>
         <button
           onClick={() => setShowCreateModal(true)}
           className="w-9 h-9 bg-brand-500 rounded-xl flex items-center justify-center hover:bg-brand-600 transition-colors"

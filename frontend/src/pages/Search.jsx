@@ -58,7 +58,7 @@ function CreatorCard({ creator, rank }) {
   );
 }
 
-const HISTORY_KEY = 'destino_search_history';
+const HISTORY_KEY = 'Destino TV_search_history';
 const MAX_HISTORY = 8;
 
 function getHistory() {

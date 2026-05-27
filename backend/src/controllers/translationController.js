@@ -21,7 +21,7 @@ export const translate = async (req, res) => {
     const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${encodeURIComponent(langpair)}`;
 
     const response = await fetch(url, {
-      headers: { 'User-Agent': 'Destino/1.0' },
+      headers: { 'User-Agent': 'Destino TV/1.0' },
       signal: AbortSignal.timeout(5000),
     });
 

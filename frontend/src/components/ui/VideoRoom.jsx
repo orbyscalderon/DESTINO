@@ -229,7 +229,7 @@ export default function VideoRoom({ genderFilter, countryFilter, videoCallsRemai
                 <div className="w-16 h-16 rounded-2xl bg-brand-500/20 border-2 border-brand-500/40 flex items-center justify-center mb-1">
                   <span className="text-3xl">🎥</span>
                 </div>
-                <p className="text-white text-xl font-black tracking-tight">Destino</p>
+                <p className="text-white text-xl font-black tracking-tight">Destino TV</p>
                 <p className="text-brand-400 text-xs font-semibold uppercase tracking-widest">Video</p>
               </div>
 

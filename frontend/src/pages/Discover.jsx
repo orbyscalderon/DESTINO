@@ -49,7 +49,7 @@ export default function Discover() {
   const [showAddStory, setShowAddStory] = useState(false);
   const storyFileRef = useRef(null);
   const [topMatch, setTopMatch] = useState(null);
-  const [showTutorial, setShowTutorial] = useState(() => !localStorage.getItem('destino_tutorial_done'));
+  const [showTutorial, setShowTutorial] = useState(() => !localStorage.getItem('Destino TV_tutorial_done'));
 
   useEffect(() => {
     loadFeed(activeFilters);
@@ -624,7 +624,7 @@ export default function Discover() {
 
                 <h3 className="text-xl font-bold text-white mb-2">¡Lo has visto todo!</h3>
                 <p className="text-gray-400 text-sm mb-6">
-                  Nuevos perfiles llegarán pronto. Mientras tanto, explora más Destino.
+                  Nuevos perfiles llegarán pronto. Mientras tanto, explora más Destino TV.
                 </p>
 
                 <div className="grid grid-cols-2 gap-3 mb-6 text-left">
@@ -789,7 +789,7 @@ export default function Discover() {
 
       {showTutorial && (
         <TutorialOverlay onDone={() => {
-          localStorage.setItem('destino_tutorial_done', '1');
+          localStorage.setItem('Destino TV_tutorial_done', '1');
           setShowTutorial(false);
         }} />
       )}

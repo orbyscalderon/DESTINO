@@ -1,4 +1,4 @@
-const CACHE_NAME = 'destino-v2';
+const CACHE_NAME = 'Destino TV-v2';
 const APP_SHELL = ['/'];
 
 // ── Install: cache app shell ──────────────────────────────────────────────────
@@ -43,11 +43,11 @@ self.addEventListener('push', (event) => {
   if (!event.data) return;
   const data = event.data.json();
   event.waitUntil(
-    self.registration.showNotification(data.title || 'Destino', {
+    self.registration.showNotification(data.title || 'Destino TV', {
       body: data.body || '',
       icon: '/icon-192.png',
       badge: '/icon-192.png',
-      tag: data.url || 'destino',
+      tag: data.url || 'Destino TV',
       renotify: true,
       data: { url: data.url || '/' },
     })

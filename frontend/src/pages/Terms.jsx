@@ -19,7 +19,7 @@ export default function Terms() {
 
           <section>
             <h2 className="text-xl font-bold text-white mb-3">1. Aceptación</h2>
-            <p>Al crear una cuenta o usar Destino, aceptas estos Términos de Servicio. Si no estás de acuerdo, no uses la aplicación. Debes tener al menos 18 años para usar Destino.</p>
+            <p>Al crear una cuenta o usar Destino TV, aceptas estos Términos de Servicio. Si no estás de acuerdo, no uses la aplicación. Debes tener al menos 18 años para usar Destino TV.</p>
           </section>
 
           <section>
@@ -68,12 +68,12 @@ export default function Terms() {
 
           <section>
             <h2 className="text-xl font-bold text-white mb-3">7. Disponibilidad del servicio</h2>
-            <p>Nos esforzamos por mantener Destino disponible 24/7, pero no garantizamos un tiempo de actividad del 100%. Podemos interrumpir el servicio por mantenimiento, seguridad o causas de fuerza mayor sin previo aviso.</p>
+            <p>Nos esforzamos por mantener Destino TV disponible 24/7, pero no garantizamos un tiempo de actividad del 100%. Podemos interrumpir el servicio por mantenimiento, seguridad o causas de fuerza mayor sin previo aviso.</p>
           </section>
 
           <section>
             <h2 className="text-xl font-bold text-white mb-3">8. Limitación de responsabilidad</h2>
-            <p>Destino es una plataforma de conexión entre personas. No somos responsables de las acciones de los usuarios entre sí. No garantizamos que encuentres pareja ni que las conexiones sean exitosas. En ningún caso nuestra responsabilidad superará el importe pagado por ti en los últimos 12 meses.</p>
+            <p>Destino TV es una plataforma de conexión entre personas. No somos responsables de las acciones de los usuarios entre sí. No garantizamos que encuentres pareja ni que las conexiones sean exitosas. En ningún caso nuestra responsabilidad superará el importe pagado por ti en los últimos 12 meses.</p>
           </section>
 
           <section>

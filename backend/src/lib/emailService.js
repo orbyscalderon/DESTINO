@@ -1,7 +1,7 @@
 import { Resend } from 'resend';
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
-const FROM = process.env.EMAIL_FROM || 'Destino <no-reply@destino.app>';
+const FROM = process.env.EMAIL_FROM || 'Destino TV <no-reply@destino.app>';
 const APP_URL = process.env.FRONTEND_URL || 'https://destino-sigma.vercel.app';
 
 async function send(to, subject, html) {
@@ -37,12 +37,12 @@ function base(content) {
 <body>
   <div class="wrap">
     <div class="header">
-      <h1>💕 Destino</h1>
-      <p>Encuentra tu destino</p>
+      <h1>💕 Destino TV</h1>
+      <p>Encuentra tu Destino TV</p>
     </div>
     <div class="body">${content}</div>
     <div class="footer">
-      © 2025 Destino · <a href="${APP_URL}" style="color:#e040fb;text-decoration:none">destino.app</a>
+      © 2025 Destino TV · <a href="${APP_URL}" style="color:#e040fb;text-decoration:none">destino.app</a>
       · <a href="${APP_URL}/#/settings" style="color:#555">Gestionar notificaciones</a>
     </div>
   </div>
@@ -53,13 +53,13 @@ function base(content) {
 // Email de bienvenida al registrarse
 export async function sendWelcomeEmail(email, name) {
   const html = base(`
-    <h2>¡Bienvenido a Destino, ${name}! 🎉</h2>
+    <h2>¡Bienvenido a Destino TV, ${name}! 🎉</h2>
     <p>Nos alegra que estés aquí. Tu cuenta ha sido creada con éxito.</p>
     <p>Completa tu perfil para empezar a conocer personas increíbles cerca de ti.</p>
     <a href="${APP_URL}/#/onboarding" class="btn">Completar mi perfil</a>
     <p style="margin-top:24px;font-size:13px">Si no creaste esta cuenta, puedes ignorar este mensaje.</p>
   `);
-  await send(email, '¡Bienvenido a Destino! 💕', html);
+  await send(email, '¡Bienvenido a Destino TV! 💕', html);
 }
 
 // Notificación de nuevo match
@@ -98,5 +98,5 @@ export async function sendNewMessageEmail(email, userName, senderName) {
     <a href="${APP_URL}/#/matches" class="btn">Leer mensaje</a>
     <p style="margin-top:16px;font-size:13px;color:#555">Puedes desactivar estas notificaciones desde Configuración.</p>
   `);
-  await send(email, `${senderName} te escribió en Destino 💬`, html);
+  await send(email, `${senderName} te escribió en Destino TV 💬`, html);
 }

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-const THEME_KEY = 'destino_theme';
+const THEME_KEY = 'Destino TV_theme';
 
 export const useThemeStore = create((set) => ({
   isDark: localStorage.getItem(THEME_KEY) !== 'light',

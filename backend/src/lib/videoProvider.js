@@ -2,7 +2,7 @@
  * videoProvider — abstracción de LiveKit
  *
  * HOY:    LiveKit Cloud (un solo nodo)
- *           LIVEKIT_URL=wss://destino-e7a9u6cp.livekit.cloud
+ *           LIVEKIT_URL=wss://Destino TV-e7a9u6cp.livekit.cloud
  *           LIVEKIT_API_KEY=...
  *           LIVEKIT_API_SECRET=...
  *

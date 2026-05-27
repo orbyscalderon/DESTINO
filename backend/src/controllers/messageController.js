@@ -43,7 +43,7 @@ export const chatAudioMiddleware = (req, res, next) => {
 
 // Contenido PPV privado — usa Supabase signed URLs (bucket privado)
 // Al migrar a Backblaze B2: B2 soporta private files + presigned URLs igual que S3
-const PPV_BUCKET = 'DESTINO-PPV';
+const PPV_BUCKET = 'Destino TV-PPV';
 const PPV_SIGNED_URL_TTL = 3600;
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

@@ -240,7 +240,7 @@ export default function Settings() {
   const handleMfaEnroll = async () => {
     setMfaEnrolling(true);
     try {
-      const { data, error } = await supabase.auth.mfa.enroll({ factorType: 'totp', issuer: 'Destino', friendlyName: 'Authenticator' });
+      const { data, error } = await supabase.auth.mfa.enroll({ factorType: 'totp', issuer: 'Destino TV', friendlyName: 'Authenticator' });
       if (error) throw error;
       setMfaQr({ qr_code: data.totp.qr_code, factorId: data.id, secret: data.totp.secret });
     } catch (err) {
@@ -665,7 +665,7 @@ export default function Settings() {
           <Link to="/privacy" className="hover:text-brand-400 transition-colors">Privacidad</Link>
           <a href={`mailto:${SUPPORT_EMAIL}`} className="hover:text-brand-400 transition-colors">{SUPPORT_EMAIL}</a>
         </div>
-        <p className="text-center text-gray-700 text-xs mt-2">Destino v1.0.0</p>
+        <p className="text-center text-gray-700 text-xs mt-2">Destino TV v1.0.0</p>
       </div>
     </div>
   );

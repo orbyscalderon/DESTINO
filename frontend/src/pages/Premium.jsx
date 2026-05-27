@@ -224,7 +224,7 @@ export default function Premium() {
     <div className="min-h-screen px-4 pt-8 pb-10 lg:px-10">
       <div className="max-w-4xl mx-auto">
         <div className="text-center mb-10">
-          <p className="text-gray-400 text-sm font-semibold uppercase tracking-widest mb-2">Planes Destino</p>
+          <p className="text-gray-400 text-sm font-semibold uppercase tracking-widest mb-2">Planes Destino TV</p>
           <h1 className="text-3xl lg:text-4xl font-black gradient-text mb-2">Elige tu experiencia</h1>
           <p className="text-gray-500 text-sm">Cancela cuando quieras · Cobro seguro vía Stripe</p>
         </div>

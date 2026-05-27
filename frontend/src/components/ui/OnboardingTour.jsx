@@ -6,7 +6,7 @@ import { FiX, FiArrowRight } from 'react-icons/fi';
 const STEPS = [
   {
     emoji: '💕',
-    title: '¡Bienvenido a Destino!',
+    title: '¡Bienvenido a Destino TV!',
     body: 'Conecta con personas reales cerca de ti. Desliza, habla y vive experiencias únicas.',
   },
   {
@@ -35,7 +35,7 @@ const STEPS = [
   },
 ];
 
-const STORAGE_KEY = 'destino_onboarding_done';
+const STORAGE_KEY = 'Destino TV_onboarding_done';
 
 export default function OnboardingTour() {
   const [step, setStep]     = useState(0);

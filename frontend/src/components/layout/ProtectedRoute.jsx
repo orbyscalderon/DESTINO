@@ -11,7 +11,7 @@ export default function ProtectedRoute() {
       <div className="min-h-screen flex items-center justify-center bg-dark-900">
         <div className="text-center space-y-4">
           <div className="w-12 h-12 border-2 border-brand-500 border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="text-gray-500 text-sm">Cargando Destino...</p>
+          <p className="text-gray-500 text-sm">Cargando Destino TV...</p>
         </div>
       </div>
     );

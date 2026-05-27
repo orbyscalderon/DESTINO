@@ -84,7 +84,7 @@ export const findPartner = async (req, res) => {
 };
 
 async function createNewSession(userId, genderFilter, countryFilter, res) {
-  const channelName = `destino_${uuidv4().replace(/-/g, '').substring(0, 16)}`;
+  const channelName = `Destino TV_${uuidv4().replace(/-/g, '').substring(0, 16)}`;
 
   const { data: hostProfile } = await supabase
     .from('profiles')

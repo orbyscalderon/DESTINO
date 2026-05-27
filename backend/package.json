@@ -1,7 +1,7 @@
 {
-  "name": "destino-backend",
+  "name": "Destino TV-backend",
   "version": "1.0.0",
-  "description": "Backend API for Destino social app",
+  "description": "Backend API for Destino TV social app",
   "main": "server.js",
   "type": "module",
   "scripts": {

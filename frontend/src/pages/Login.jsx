@@ -83,7 +83,7 @@ export default function Login() {
         <div className="text-center mb-8">
           <div className="text-5xl mb-4">💕</div>
           <h1 className="text-3xl font-black gradient-text">Bienvenido</h1>
-          <p className="text-gray-400 text-sm mt-2">Tu destino te espera</p>
+          <p className="text-gray-400 text-sm mt-2">Tu Destino TV te espera</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">

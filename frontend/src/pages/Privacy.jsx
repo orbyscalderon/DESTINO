@@ -19,7 +19,7 @@ export default function Privacy() {
 
           <section>
             <h2 className="text-xl font-bold text-white mb-3">1. Quiénes somos</h2>
-            <p>Destino es una aplicación de citas y conexión social. El responsable del tratamiento de tus datos es el operador de Destino, contactable en <a href={`mailto:${SUPPORT_EMAIL}`} className="text-brand-400 hover:underline">{SUPPORT_EMAIL}</a>.</p>
+            <p>Destino TV es una aplicación de citas y conexión social. El responsable del tratamiento de tus datos es el operador de Destino TV, contactable en <a href={`mailto:${SUPPORT_EMAIL}`} className="text-brand-400 hover:underline">{SUPPORT_EMAIL}</a>.</p>
           </section>
 
           <section>
@@ -28,7 +28,7 @@ export default function Privacy() {
               <li><strong>Datos de cuenta:</strong> nombre, correo electrónico, contraseña (cifrada), fecha de registro.</li>
               <li><strong>Datos de perfil:</strong> edad, género, país, idioma, foto de perfil, fotografías adicionales y biografía que tú proporcionas voluntariamente.</li>
               <li><strong>Datos de uso:</strong> matches, mensajes (almacenados de forma segura), sesiones de video (metadatos, no contenido), likes y actividad en la app.</li>
-              <li><strong>Datos de pago:</strong> gestionados exclusivamente por Stripe. Destino no almacena números de tarjeta ni datos bancarios.</li>
+              <li><strong>Datos de pago:</strong> gestionados exclusivamente por Stripe. Destino TV no almacena números de tarjeta ni datos bancarios.</li>
               <li><strong>Datos de dispositivo:</strong> tipo de dispositivo, sistema operativo y dirección IP para seguridad y diagnóstico.</li>
               <li><strong>Publicidad:</strong> Google AdMob puede recopilar datos de publicidad según su propia política. Puedes optar por no participar desde la configuración de tu dispositivo.</li>
             </ul>
@@ -81,7 +81,7 @@ export default function Privacy() {
 
           <section>
             <h2 className="text-xl font-bold text-white mb-3">9. Menores de edad</h2>
-            <p>Destino está dirigida exclusivamente a mayores de 18 años. No recopilamos datos de menores de forma intencionada. Si detectas un perfil de un menor, repórtalo inmediatamente.</p>
+            <p>Destino TV está dirigida exclusivamente a mayores de 18 años. No recopilamos datos de menores de forma intencionada. Si detectas un perfil de un menor, repórtalo inmediatamente.</p>
           </section>
 
           <section>
