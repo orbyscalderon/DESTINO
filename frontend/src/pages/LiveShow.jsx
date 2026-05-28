@@ -2139,30 +2139,39 @@ export default function LiveShow() {
           )}
         </AnimatePresence>
 
-        {/* Panel de tips */}
+        {/* Panel de tips — compacto, aparece sobre el botón */}
         <AnimatePresence>
           {showTips && (
-            <motion.div initial={{ y: 100, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 100, opacity: 0 }}
-              className="absolute bottom-20 left-4 right-4 bg-dark-800 rounded-2xl p-4 z-30 border border-white/10"
-            >
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-white font-semibold text-sm">Enviar propina</p>
-                <button onClick={() => setShowTips(false)}><FiX className="text-gray-400" size={16} /></button>
-              </div>
-              <div className="grid grid-cols-4 gap-2 mb-3">
-                {TIP_OPTIONS.map(opt => (
-                  <button key={opt.coins} onClick={() => handleSendTip(opt.coins)} disabled={!!sendingTip}
-                    className="bg-dark-700 hover:bg-yellow-500/20 border border-white/5 rounded-xl p-2 text-center transition-colors disabled:opacity-50"
-                  >
-                    <FiZap className="text-yellow-400 mx-auto mb-0.5" size={14} />
-                    <p className="text-white text-xs font-bold">{opt.label}</p>
-                    <p className="text-gray-500 text-[10px]">{opt.usd}</p>
-                    {sendingTip === opt.coins && <div className="w-3 h-3 border border-yellow-400 border-t-transparent rounded-full animate-spin mx-auto mt-1" />}
-                  </button>
-                ))}
-              </div>
-              <input className="input-field text-sm py-2" placeholder="Mensaje opcional..." value={tipMessage} onChange={e => setTipMessage(e.target.value)} maxLength={80} />
-            </motion.div>
+            <>
+              <div className="absolute inset-0 z-30" onClick={() => setShowTips(false)} />
+              <motion.div
+                initial={{ opacity: 0, y: 6, scale: 0.97 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 6, scale: 0.97 }}
+                transition={{ duration: 0.14 }}
+                className="absolute bottom-[80px] left-3 z-40 w-72 bg-dark-800 rounded-2xl border border-white/10 shadow-2xl overflow-hidden"
+              >
+                <div className="flex items-center justify-between px-3 py-2.5 border-b border-white/5">
+                  <span className="text-white font-bold text-sm flex items-center gap-1.5"><FiZap size={13} className="text-yellow-400" /> Propina</span>
+                  <button onClick={() => setShowTips(false)} className="text-gray-500 hover:text-white"><FiX size={14} /></button>
+                </div>
+                <div className="p-3">
+                  <div className="grid grid-cols-4 gap-1.5 mb-2.5">
+                    {TIP_OPTIONS.map(opt => (
+                      <button key={opt.coins} onClick={() => handleSendTip(opt.coins)} disabled={!!sendingTip}
+                        className="bg-dark-700 hover:bg-yellow-500/20 border border-white/5 rounded-xl py-2 text-center transition-colors disabled:opacity-50 active:scale-95"
+                      >
+                        <FiZap className="text-yellow-400 mx-auto mb-0.5" size={12} />
+                        <p className="text-white text-xs font-bold">{opt.label}</p>
+                        <p className="text-gray-500 text-[9px]">{opt.usd}</p>
+                        {sendingTip === opt.coins && <div className="w-2.5 h-2.5 border border-yellow-400 border-t-transparent rounded-full animate-spin mx-auto mt-0.5" />}
+                      </button>
+                    ))}
+                  </div>
+                  <input className="input-field text-xs py-1.5" placeholder="Mensaje opcional..." value={tipMessage} onChange={e => setTipMessage(e.target.value)} maxLength={80} />
+                </div>
+              </motion.div>
+            </>
           )}
         </AnimatePresence>
 
@@ -2213,63 +2222,66 @@ export default function LiveShow() {
           )}
         </AnimatePresence>
 
-        {/* Modal show privado */}
+        {/* Popup compacto: Show Privado */}
         <AnimatePresence>
           {privateModal && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-black/70 backdrop-blur-sm z-40 flex items-end"
-              onClick={() => setPrivateModal(false)}
-            >
+            <>
+              <div className="absolute inset-0 z-30" onClick={() => setPrivateModal(false)} />
               <motion.div
-                initial={{ y: 80, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                exit={{ y: 80, opacity: 0 }}
-                onClick={e => e.stopPropagation()}
-                className="w-full bg-dark-800 rounded-t-3xl p-5 pb-8 border-t border-white/10"
+                initial={{ opacity: 0, y: 8, scale: 0.96 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 8, scale: 0.96 }}
+                transition={{ duration: 0.15 }}
+                className="absolute bottom-[80px] right-3 z-40 w-72 bg-dark-800 rounded-2xl border border-white/10 shadow-2xl overflow-hidden"
               >
-                <div className="w-10 h-1 bg-white/20 rounded-full mx-auto mb-5" />
-                <h3 className="text-white font-black text-lg mb-1">Show Privado</h3>
-                <p className="text-gray-400 text-sm mb-5">El host transmitirá solo para ti</p>
+                {/* Header compacto */}
+                <div className="flex items-center justify-between px-3 py-2.5 border-b border-white/5">
+                  <span className="text-white font-bold text-sm">Show Privado</span>
+                  <button onClick={() => setPrivateModal(false)} className="text-gray-500 hover:text-white">
+                    <FiX size={14} />
+                  </button>
+                </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                {/* Opciones horizontales compactas */}
+                <div className="p-3 space-y-2">
                   {/* Privado */}
                   <button
                     onClick={() => handleRequestPrivate('private')}
-                    className="bg-dark-700 hover:bg-purple-600/20 border border-white/10 hover:border-purple-500/50 rounded-2xl p-4 text-left transition-all group"
+                    className="w-full flex items-center gap-3 bg-dark-700 hover:bg-purple-600/20 border border-white/10 hover:border-purple-500/40 rounded-xl px-3 py-2.5 text-left transition-all"
                   >
-                    <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center mb-3">
-                      <FiVideo className="text-purple-300" size={18} />
+                    <div className="w-8 h-8 rounded-full bg-purple-500/20 flex items-center justify-center shrink-0">
+                      <FiVideo className="text-purple-300" size={15} />
                     </div>
-                    <p className="text-white font-bold text-sm mb-0.5">Privado</p>
-                    <p className="text-purple-300 font-black text-lg">{show?.private_rate ?? 20} <span className="text-sm font-normal text-gray-400">coins/min</span></p>
-                    <p className="text-gray-500 text-xs mt-2">Solo tú y el host</p>
-                    <p className="text-gray-600 text-[10px]">Mín. {show?.min_private_minutes ?? 3} minutos</p>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-white font-bold text-xs">Privado</p>
+                      <p className="text-gray-500 text-[10px]">Solo tú y el host · mín. {show?.min_private_minutes ?? 3} min</p>
+                    </div>
+                    <p className="text-purple-300 font-black text-sm shrink-0">{show?.private_rate ?? 20}<span className="text-gray-500 text-[10px] font-normal">/min</span></p>
                   </button>
 
                   {/* Exclusivo */}
                   <button
                     onClick={() => handleRequestPrivate('exclusive')}
-                    className="bg-gradient-to-br from-purple-900/40 to-pink-900/30 hover:from-purple-900/60 hover:to-pink-900/50 border border-purple-500/30 hover:border-purple-400/60 rounded-2xl p-4 text-left transition-all relative overflow-hidden"
+                    className="w-full flex items-center gap-3 bg-gradient-to-r from-purple-900/30 to-pink-900/20 hover:from-purple-900/50 hover:to-pink-900/40 border border-purple-500/30 hover:border-purple-400/50 rounded-xl px-3 py-2.5 text-left transition-all"
                   >
-                    <div className="absolute top-2 right-2 text-[9px] bg-purple-500 text-white px-1.5 py-0.5 rounded-full font-bold">EXCLUSIVO</div>
-                    <div className="w-10 h-10 rounded-full bg-pink-500/20 flex items-center justify-center mb-3">
-                      <FiCamera className="text-pink-300" size={18} />
+                    <div className="w-8 h-8 rounded-full bg-pink-500/20 flex items-center justify-center shrink-0">
+                      <FiCamera className="text-pink-300" size={15} />
                     </div>
-                    <p className="text-white font-bold text-sm mb-0.5">Exclusivo</p>
-                    <p className="text-pink-300 font-black text-lg">{show?.exclusive_rate ?? 35} <span className="text-sm font-normal text-gray-400">coins/min</span></p>
-                    <p className="text-gray-400 text-xs mt-2">Cam2Cam disponible</p>
-                    <p className="text-gray-600 text-[10px]">Nadie puede espiar</p>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-white font-bold text-xs flex items-center gap-1.5">
+                        Exclusivo <span className="text-[9px] bg-purple-500 text-white px-1.5 py-0.5 rounded-full font-bold">CAM2CAM</span>
+                      </p>
+                      <p className="text-gray-500 text-[10px]">Nadie puede espiar</p>
+                    </div>
+                    <p className="text-pink-300 font-black text-sm shrink-0">{show?.exclusive_rate ?? 35}<span className="text-gray-500 text-[10px] font-normal">/min</span></p>
                   </button>
                 </div>
 
-                <p className="text-gray-600 text-[11px] text-center mt-4">
-                  Balance: <span className="text-gray-400">{coinBalance} coins</span> · Mín. {show?.min_private_minutes ?? 3} min · Sesión empieza al ser aceptado
+                <p className="px-3 pb-2.5 text-gray-600 text-[10px] text-center">
+                  Balance: <span className="text-gray-400">{coinBalance}</span> coins · Inicia al ser aceptado
                 </p>
               </motion.div>
-            </motion.div>
+            </>
           )}
         </AnimatePresence>
 

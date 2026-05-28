@@ -1,4 +1,4 @@
-import { Room, RoomEvent, Track, ConnectionState } from 'livekit-client';
+import { Room, RoomEvent, Track, ConnectionState, VideoQuality } from 'livekit-client';
 import api from './api.js';
 
 export class LiveKitSession {
@@ -23,11 +23,14 @@ export class LiveKitSession {
     this.room.on(RoomEvent.ConnectionStateChanged, (state) => {
       if (state === ConnectionState.Reconnecting) this.onReconnecting?.();
       if (state === ConnectionState.Connected)    this.onReconnected?.();
-      // Only fire onFailed on unexpected disconnect, not on intentional leave
       if (state === ConnectionState.Disconnected && !this._leaving) this.onFailed?.();
     });
 
-    this.room.on(RoomEvent.TrackSubscribed, (track) => {
+    this.room.on(RoomEvent.TrackSubscribed, (track, pub) => {
+      // Solicitar calidad máxima para video de shows/llamadas
+      if (track.kind === Track.Kind.Video && pub?.setVideoQuality) {
+        pub.setVideoQuality(VideoQuality.High);
+      }
       this.onRemoteTrack?.(track);
     });
 
@@ -41,7 +44,10 @@ export class LiveKitSession {
       }
     });
 
-    await this.room.connect(data.wsUrl, data.token);
+    // dynacast: false → el servidor no reduce calidad automáticamente por viewport
+    await this.room.connect(data.wsUrl, data.token, {
+      dynacast: false,
+    });
 
     if (canPublish && !skipAutoMedia) {
       // Wrap separately so a camera/mic permission error doesn't kill the whole call
@@ -87,6 +93,10 @@ export class LiveKitSession {
         await this.room.localParticipant.publishTrack(videoTrack, {
           source:    Track.Source.Camera,
           simulcast: false,
+          videoEncoding: {
+            maxBitrate:  2_500_000, // 2.5 Mbps para calidad HD
+            maxFramerate: 30,
+          },
         });
         this.onLocalVideo?.(videoTrack);
       } catch (e) { console.warn('No se pudo publicar video:', e); }
