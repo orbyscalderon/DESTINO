@@ -1051,9 +1051,9 @@ export default function ShowStudio() {
       <div
         className="bg-[#1c1c21] flex flex-col shrink-0 min-h-0"
         style={{
-          width: layout.rightWidth,
-          borderLeft:  layout.rightSide === 'right' ? '1px solid rgba(255,255,255,0.05)' : 'none',
-          borderRight: layout.rightSide === 'left'  ? '1px solid rgba(255,255,255,0.05)' : 'none',
+          width: isDesktop ? layout.rightWidth : '100%',
+          borderLeft:  isDesktop && layout.rightSide === 'right' ? '1px solid rgba(255,255,255,0.05)' : 'none',
+          borderRight: isDesktop && layout.rightSide === 'left'  ? '1px solid rgba(255,255,255,0.05)' : 'none',
         }}
       >
         {/* Header */}
@@ -1066,20 +1066,24 @@ export default function ShowStudio() {
           <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider flex-1 truncate">
             {isLive ? fmtDuration(liveDuration) : 'Panel'}
           </span>
-          <button
-            onClick={() => patchLayout({ rightSide: layout.rightSide === 'right' ? 'left' : 'right' })}
-            className="w-5 h-5 rounded hover:bg-white/10 flex items-center justify-center text-gray-700 hover:text-gray-300 transition-colors"
-            title={layout.rightSide === 'right' ? 'Mover a la izquierda' : 'Mover a la derecha'}
-          >
-            {layout.rightSide === 'right' ? <FiChevronLeft size={10} /> : <FiChevronRight size={10} />}
-          </button>
-          <button
-            onClick={() => patchLayout({ rightCollapsed: true })}
-            className="w-5 h-5 rounded hover:bg-white/10 flex items-center justify-center text-gray-700 hover:text-gray-300 transition-colors"
-            title="Colapsar panel"
-          >
-            {layout.rightSide === 'right' ? <FiChevronRight size={10} /> : <FiChevronLeft size={10} />}
-          </button>
+          {isDesktop && (
+            <>
+              <button
+                onClick={() => patchLayout({ rightSide: layout.rightSide === 'right' ? 'left' : 'right' })}
+                className="w-5 h-5 rounded hover:bg-white/10 flex items-center justify-center text-gray-700 hover:text-gray-300 transition-colors"
+                title={layout.rightSide === 'right' ? 'Mover a la izquierda' : 'Mover a la derecha'}
+              >
+                {layout.rightSide === 'right' ? <FiChevronLeft size={10} /> : <FiChevronRight size={10} />}
+              </button>
+              <button
+                onClick={() => patchLayout({ rightCollapsed: true })}
+                className="w-5 h-5 rounded hover:bg-white/10 flex items-center justify-center text-gray-700 hover:text-gray-300 transition-colors"
+                title="Colapsar panel"
+              >
+                {layout.rightSide === 'right' ? <FiChevronRight size={10} /> : <FiChevronLeft size={10} />}
+              </button>
+            </>
+          )}
         </div>
 
         {/* Stats en vivo */}
@@ -1674,38 +1678,54 @@ export default function ShowStudio() {
       {/* Body */}
       <div className="flex-1 flex flex-col min-h-0">
 
-        {layout.dockPosition === 'top' && (
+        {/* ── LAYOUT MÓVIL: cámara arriba + panel abajo ── */}
+        {!isDesktop ? (
+          <div className="flex-1 flex flex-col min-h-0">
+            {/* Cámara — 40% altura */}
+            <div className="shrink-0" style={{ height: '40%' }}>
+              {renderCanvas()}
+            </div>
+            {/* Panel configuración — 60% restante, scrollable */}
+            <div className="flex-1 min-h-0 overflow-hidden flex flex-col" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+              {renderRightPanelFull()}
+            </div>
+          </div>
+        ) : (
+          /* ── LAYOUT DESKTOP: dock + canvas + panel lateral ── */
           <>
-            {renderDockPanel()}
-            {renderResizeHandleH()}
-          </>
-        )}
+            {layout.dockPosition === 'top' && (
+              <>
+                {renderDockPanel()}
+                {renderResizeHandleH()}
+              </>
+            )}
 
-        {/* Main: canvas + right panel */}
-        <div className="flex-1 flex min-h-0">
-          {layout.rightSide === 'left' && (
-            layout.rightCollapsed
-              ? renderRightPanelCollapsed()
-              : <>{renderRightPanelFull()}{renderResizeHandleV()}</>
-          )}
-          {renderCanvas()}
-          {layout.rightSide === 'right' && (
-            layout.rightCollapsed
-              ? renderRightPanelCollapsed()
-              : <>{renderResizeHandleV()}{renderRightPanelFull()}</>
-          )}
-        </div>
+            <div className="flex-1 flex min-h-0">
+              {layout.rightSide === 'left' && (
+                layout.rightCollapsed
+                  ? renderRightPanelCollapsed()
+                  : <>{renderRightPanelFull()}{renderResizeHandleV()}</>
+              )}
+              {renderCanvas()}
+              {layout.rightSide === 'right' && (
+                layout.rightCollapsed
+                  ? renderRightPanelCollapsed()
+                  : <>{renderResizeHandleV()}{renderRightPanelFull()}</>
+              )}
+            </div>
 
-        {layout.dockPosition === 'bottom' && (
-          <>
-            {renderResizeHandleH()}
-            {renderDockPanel()}
+            {layout.dockPosition === 'bottom' && (
+              <>
+                {renderResizeHandleH()}
+                {renderDockPanel()}
+              </>
+            )}
           </>
         )}
       </div>
 
-      {/* Status bar */}
-      <div className="h-5 bg-[#0d0d0f] border-t border-white/5 flex items-center px-3 gap-4 shrink-0">
+      {/* Status bar — oculto en móvil para no desperdiciar espacio */}
+      <div className="hidden lg:flex h-5 bg-[#0d0d0f] border-t border-white/5 items-center px-3 gap-4 shrink-0">
         {isLive ? (
           <>
             <div className="flex items-center gap-1.5">
