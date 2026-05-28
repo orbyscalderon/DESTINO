@@ -1049,7 +1049,7 @@ export default function ShowStudio() {
     const hasPrivateAlert = !!privateRequest || privateMessages.length > 0;
     return (
       <div
-        className="bg-[#1c1c21] flex flex-col shrink-0 min-h-0"
+        className={`bg-[#1c1c21] flex flex-col min-h-0 ${isDesktop ? 'shrink-0' : 'flex-1'}`}
         style={{
           width: isDesktop ? layout.rightWidth : '100%',
           borderLeft:  isDesktop && layout.rightSide === 'right' ? '1px solid rgba(255,255,255,0.05)' : 'none',
@@ -1678,15 +1678,15 @@ export default function ShowStudio() {
       {/* Body */}
       <div className="flex-1 flex flex-col min-h-0">
 
-        {/* ── LAYOUT MÓVIL: cámara arriba + panel abajo ── */}
+        {/* ── LAYOUT MÓVIL: cámara arriba fija + panel abajo scrollable ── */}
         {!isDesktop ? (
-          <div className="flex-1 flex flex-col min-h-0">
-            {/* Cámara — 40% altura */}
-            <div className="shrink-0" style={{ height: '40%' }}>
+          <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+            {/* Cámara — altura fija 220px */}
+            <div className="shrink-0" style={{ height: '220px' }}>
               {renderCanvas()}
             </div>
-            {/* Panel configuración — 60% restante, scrollable */}
-            <div className="flex-1 min-h-0 overflow-hidden flex flex-col" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+            {/* Panel configuración — ocupa el resto, scroll interno */}
+            <div className="flex-1 min-h-0 flex flex-col overflow-hidden" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
               {renderRightPanelFull()}
             </div>
           </div>
