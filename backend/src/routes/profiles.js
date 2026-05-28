@@ -23,6 +23,10 @@ import {
   verifyAge,
   getCompletionStatus,
   claimCompletion,
+  toggleHideOnlineStatus,
+  pauseAccount,
+  unpauseAccount,
+  exportData,
 } from '../controllers/profileController.js';
 import {
   uploadProfileVideo,
@@ -44,6 +48,10 @@ router.post('/heartbeat', heartbeat);
 router.delete('/me', deleteAccount);
 router.post('/boost', boostProfile);
 router.put('/incognito', toggleIncognito);
+router.put('/hide-online', toggleHideOnlineStatus);
+router.post('/pause', pauseAccount);
+router.post('/unpause', unpauseAccount);
+router.get('/export', exportData);
 router.post('/verify-age', verifyAge);
 router.get('/geoip', getGeoIp);
 router.get('/completion/status', getCompletionStatus);

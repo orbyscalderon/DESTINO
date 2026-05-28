@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiHeart, FiMessageCircle, FiSend } from 'react-icons/fi';
+import { FiHeart, FiMessageCircle, FiSend, FiClock } from 'react-icons/fi';
 import api from '../lib/api.js';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '../store/authStore.js';
@@ -10,6 +10,26 @@ import VerifiedBadge from '../components/ui/VerifiedBadge.jsx';
 function isNew(dateStr) {
   if (!dateStr) return false;
   return (Date.now() - new Date(dateStr)) < 172800000; // 48 h
+}
+
+function useMatchCountdown(expiresAt) {
+  const [label, setLabel] = useState('');
+  useEffect(() => {
+    if (!expiresAt) return;
+    const update = () => {
+      const ms = new Date(expiresAt) - Date.now();
+      if (ms <= 0) { setLabel('Expirado'); return; }
+      const h = Math.floor(ms / 3600000);
+      const m = Math.floor((ms % 3600000) / 60000);
+      if (h >= 24) setLabel(`${Math.floor(h / 24)}d`);
+      else if (h > 0) setLabel(`${h}h ${m}m`);
+      else setLabel(`${m}m`);
+    };
+    update();
+    const id = setInterval(update, 60000);
+    return () => clearInterval(id);
+  }, [expiresAt]);
+  return label;
 }
 
 export default function Matches() {
@@ -157,44 +177,7 @@ export default function Matches() {
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {newMatches.map((m, i) => (
-                  <motion.button
-                    key={m.id}
-                    initial={{ opacity: 0, scale: 0.88 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: i * 0.05 }}
-                    onClick={() => navigate(`/chat/${m.id}`)}
-                    className="relative rounded-2xl overflow-hidden aspect-square group"
-                  >
-                    <img
-                      src={m.other.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(m.other.full_name || '?')}&size=300&background=1a1a2e&color=f43f5e`}
-                      alt={m.other.full_name}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
-
-                    {/* Online dot */}
-                    {m.other.is_online && (
-                      <span className="absolute top-2 right-2 w-3 h-3 bg-green-400 rounded-full border-2 border-dark-900" />
-                    )}
-
-                    {/* NEW badge */}
-                    {isNew(m.created_at) && (
-                      <span className="absolute top-2 left-2 bg-brand-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">NUEVO</span>
-                    )}
-
-                    <div className="absolute bottom-0 left-0 right-0 p-3">
-                      <p className="text-white text-sm font-bold truncate">
-                        {m.other.full_name?.split(' ')[0]}
-                      </p>
-                      <div className="flex items-center gap-1 mt-0.5">
-                        <FiMessageCircle size={10} className="text-brand-400" />
-                        <p className="text-brand-400 text-[10px]">Di hola 👋</p>
-                      </div>
-                    </div>
-
-                    {/* Gradient ring on hover */}
-                    <div className="absolute inset-0 rounded-2xl ring-2 ring-brand-500/0 group-hover:ring-brand-500/60 transition-all" />
-                  </motion.button>
+                  <MatchCard key={m.id} m={m} i={i} onNavigate={() => navigate(`/chat/${m.id}`)} />
                 ))}
               </div>
             )}
@@ -248,6 +231,51 @@ export default function Matches() {
 
       </div>
     </div>
+  );
+}
+
+function MatchCard({ m, i, onNavigate }) {
+  const countdown = useMatchCountdown(m.expires_at);
+  const isExpiringSoon = m.expires_at && (new Date(m.expires_at) - Date.now()) < 24 * 60 * 60 * 1000;
+
+  return (
+    <motion.button
+      initial={{ opacity: 0, scale: 0.88 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ delay: i * 0.05 }}
+      onClick={onNavigate}
+      className="relative rounded-2xl overflow-hidden aspect-square group"
+    >
+      <img
+        src={m.other.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(m.other.full_name || '?')}&size=300&background=1a1a2e&color=f43f5e`}
+        alt={m.other.full_name}
+        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+      />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
+
+      {m.other.is_online && (
+        <span className="absolute top-2 right-2 w-3 h-3 bg-green-400 rounded-full border-2 border-dark-900" />
+      )}
+
+      {isNew(m.created_at) && (
+        <span className="absolute top-2 left-2 bg-brand-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">NUEVO</span>
+      )}
+
+      {countdown && (
+        <span className={`absolute bottom-8 right-2 text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-0.5 ${isExpiringSoon ? 'bg-red-500/90 text-white' : 'bg-black/60 text-gray-300'}`}>
+          <FiClock size={8} /> {countdown}
+        </span>
+      )}
+
+      <div className="absolute bottom-0 left-0 right-0 p-3">
+        <p className="text-white text-sm font-bold truncate">{m.other.full_name?.split(' ')[0]}</p>
+        <div className="flex items-center gap-1 mt-0.5">
+          <FiMessageCircle size={10} className="text-brand-400" />
+          <p className="text-brand-400 text-[10px]">Di hola 👋</p>
+        </div>
+      </div>
+      <div className="absolute inset-0 rounded-2xl ring-2 ring-brand-500/0 group-hover:ring-brand-500/60 transition-all" />
+    </motion.button>
   );
 }
 

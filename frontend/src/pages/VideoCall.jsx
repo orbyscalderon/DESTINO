@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiPhoneOff, FiMic, FiMicOff, FiVideo, FiVideoOff, FiRotateCw } from 'react-icons/fi';
+import { FiPhoneOff, FiMic, FiMicOff, FiVideo, FiVideoOff, FiRotateCw, FiMinimize2 } from 'react-icons/fi';
 import { supabase } from '../lib/supabase.js';
 import { LiveKitSession } from '../lib/livekitSession.js';
 import api from '../lib/api.js';
@@ -18,6 +18,7 @@ export default function VideoCall() {
   const [remoteUser,  setRemoteUser]  = useState(null);
   const [duration,    setDuration]    = useState(0);
   const [multiCam,    setMultiCam]    = useState(false);
+  const [isPiP,       setIsPiP]       = useState(false);
 
   const sessionRef     = useRef(null);
   const localVidRef    = useRef(null);
@@ -236,6 +237,27 @@ export default function VideoCall() {
         >
           {micOn ? <FiMic size={22} className="text-white" /> : <FiMicOff size={22} className="text-white" />}
         </button>
+
+        {/* Picture-in-Picture */}
+        {document.pictureInPictureEnabled && (
+          <button
+            onClick={async () => {
+              try {
+                if (document.pictureInPictureElement) {
+                  await document.exitPictureInPicture();
+                  setIsPiP(false);
+                } else if (remoteVidRef.current) {
+                  await remoteVidRef.current.requestPictureInPicture();
+                  setIsPiP(true);
+                }
+              } catch {}
+            }}
+            title="Modo PiP"
+            className={`w-12 h-12 rounded-full backdrop-blur-sm flex items-center justify-center transition-all ${isPiP ? 'bg-brand-500/80 hover:bg-brand-500' : 'bg-white/20 hover:bg-white/30'}`}
+          >
+            <FiMinimize2 size={18} className="text-white" />
+          </button>
+        )}
 
         {multiCam && (
           <button onClick={flipCamera}

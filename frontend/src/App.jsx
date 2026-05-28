@@ -231,7 +231,7 @@ export default function App() {
           <Route path="/shows" element={<LiveShows />} />
           <Route path="/shows/:id" element={<LiveShow />} />
           <Route path="/coins" element={<Coins />} />
-          <Route path="/moments" element={<Navigate to="/home" replace />} />
+          <Route path="/moments" element={<Moments />} />
           <Route path="/search" element={<Search />} />
           <Route path="/notifications" element={<Notifications />} />
           <Route path="/call/:matchId" element={<VideoCall />} />

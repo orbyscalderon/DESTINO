@@ -238,6 +238,8 @@ export const createPost = async (req, res) => {
     // Adult content goes to moderation queue before publishing
     const status = isAdult ? 'pending_review' : 'published';
 
+    const extractedHashtags = (caption || '').match(/#[\wÀ-ž]+/g)?.map(t => t.slice(1).toLowerCase()) || [];
+
     const { data: post, error } = await supabase
       .from('posts')
       .insert({
@@ -250,6 +252,7 @@ export const createPost = async (req, res) => {
         is_paid: isPaid,
         price: coinPrice,
         status,
+        hashtags: extractedHashtags,
       })
       .select()
       .single();
@@ -404,6 +407,84 @@ export const addComment = async (req, res) => {
     }
 
     res.status(201).json({ comment });
+  } catch (err) {
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
+// POST /api/posts/:id/view — registrar vista (deduplicada)
+export const recordView = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+
+    const { error } = await supabase
+      .from('post_views')
+      .insert({ post_id: id, viewer_id: userId })
+      .onConflict(['post_id', 'viewer_id'])
+      .ignore();
+
+    if (!error) {
+      await supabase.rpc('update_post_views', { p_post_id: id }).catch(() => {});
+    }
+
+    res.json({ ok: true });
+  } catch {
+    res.json({ ok: true });
+  }
+};
+
+// GET /api/posts/hashtag/:tag — posts con un hashtag específico
+export const getByHashtag = async (req, res) => {
+  try {
+    const { tag } = req.params;
+    const userId = req.user.id;
+    const limit = Math.min(parseInt(req.query.limit) || 20, 50);
+
+    const { data: posts } = await supabase
+      .from('posts')
+      .select(`
+        id, caption, media_url, media_type, is_adult, likes_count, comments_count, created_at,
+        author:profiles!user_id(id, full_name, avatar_url, is_verified)
+      `)
+      .contains('hashtags', [tag.toLowerCase()])
+      .eq('status', 'published')
+      .eq('is_adult', false)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    res.json({ posts: posts || [], tag });
+  } catch (err) {
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
+// GET /api/posts/trending-hashtags — hashtags más usados en últimas 48h
+export const getTrendingHashtags = async (req, res) => {
+  try {
+    const since = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
+
+    const { data: posts } = await supabase
+      .from('posts')
+      .select('hashtags')
+      .eq('status', 'published')
+      .eq('is_adult', false)
+      .gt('created_at', since)
+      .not('hashtags', 'is', null);
+
+    const counts = {};
+    (posts || []).forEach(p => {
+      (p.hashtags || []).forEach(tag => {
+        counts[tag] = (counts[tag] || 0) + 1;
+      });
+    });
+
+    const trending = Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 20)
+      .map(([tag, count]) => ({ tag, count }));
+
+    res.json({ trending });
   } catch (err) {
     res.status(500).json({ error: 'Error interno del servidor' });
   }

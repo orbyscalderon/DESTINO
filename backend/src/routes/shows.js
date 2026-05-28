@@ -22,6 +22,10 @@ import {
   validatePrivateShow,
   privateShowTick,
   heartbeatShow,
+  getTipGoalProgress,
+  setPoll,
+  votePoll,
+  getPoll,
 } from '../controllers/showController.js';
 
 const router = Router();
@@ -48,5 +52,9 @@ router.patch('/:id/recording',        setRecordingUrl);
 router.post('/:id/private/validate',  validatePrivateShow);
 router.post('/:id/private/tick',      privateShowTick);
 router.post('/:id/heartbeat',         heartbeatShow);
+router.get('/:id/tip-goal',           getTipGoalProgress);
+router.post('/:id/poll',              setPoll);
+router.post('/:id/poll/vote',         votePoll);
+router.get('/:id/poll',               getPoll);
 
 export default router;

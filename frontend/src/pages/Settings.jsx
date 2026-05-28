@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { FiArrowLeft, FiTrash2, FiLock, FiBell, FiShield, FiEye, FiEyeOff, FiGift, FiCopy, FiCheck, FiUserX, FiChevronDown, FiChevronUp, FiSun, FiMoon } from 'react-icons/fi';
+import { FiArrowLeft, FiTrash2, FiLock, FiBell, FiShield, FiEye, FiEyeOff, FiGift, FiCopy, FiCheck, FiUserX, FiChevronDown, FiChevronUp, FiSun, FiMoon, FiDownload, FiPause, FiPlay, FiWifiOff } from 'react-icons/fi';
 import { useAuthStore } from '../store/authStore.js';
 import { useThemeStore } from '../store/themeStore.js';
 import { supabase } from '../lib/supabase.js';
@@ -291,6 +291,63 @@ export default function Settings() {
     } catch (err) {
       toast.error(err.response?.data?.error || 'Error al eliminar la cuenta. Inténtalo de nuevo.');
       setDeletingAccount(false);
+    }
+  };
+
+  const [hideOnline, setHideOnline] = useState(false);
+  const [togglingHideOnline, setTogglingHideOnline] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const [pausingAccount, setPausingAccount] = useState(false);
+  const [exportingData, setExportingData] = useState(false);
+
+  const handleToggleHideOnline = async () => {
+    setTogglingHideOnline(true);
+    try {
+      const { data } = await api.put('/api/profiles/hide-online', { enabled: !hideOnline });
+      setHideOnline(data.hide_online_status);
+      toast.success(data.hide_online_status ? 'Estado oculto' : 'Estado visible');
+    } catch {
+      toast.error('Error al cambiar privacidad del estado');
+    } finally {
+      setTogglingHideOnline(false);
+    }
+  };
+
+  const handlePauseAccount = async () => {
+    if (!isPaused && !confirm('¿Pausar tu cuenta? No aparecerás en el feed mientras esté pausada.')) return;
+    setPausingAccount(true);
+    try {
+      if (isPaused) {
+        await api.post('/api/profiles/unpause');
+        setIsPaused(false);
+        toast.success('Cuenta reactivada');
+      } else {
+        await api.post('/api/profiles/pause');
+        setIsPaused(true);
+        toast.success('Cuenta pausada');
+      }
+    } catch {
+      toast.error('Error al cambiar estado de cuenta');
+    } finally {
+      setPausingAccount(false);
+    }
+  };
+
+  const handleExportData = async () => {
+    setExportingData(true);
+    try {
+      const res = await api.get('/api/profiles/export', { responseType: 'blob' });
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `destino_datos_${new Date().toISOString().slice(0,10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success('Datos descargados');
+    } catch {
+      toast.error('Error al exportar datos');
+    } finally {
+      setExportingData(false);
     }
   };
 
@@ -632,6 +689,56 @@ export default function Settings() {
               </div>
             )}
           </div>
+
+          {/* Ocultar estado En línea */}
+          <button
+            onClick={handleToggleHideOnline}
+            disabled={togglingHideOnline}
+            className="flex items-center gap-3 p-4 w-full text-left card hover:border-white/15 transition-colors disabled:opacity-50"
+          >
+            <FiWifiOff className="text-blue-400" size={18} />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-white">Ocultar estado "En línea"</p>
+              <p className="text-xs text-gray-500">
+                {hideOnline ? 'Nadie ve cuándo estás conectado' : 'Tu estado de conexión es visible'}
+              </p>
+            </div>
+            <div className={`w-11 h-6 rounded-full transition-colors ${hideOnline ? 'bg-brand-500' : 'bg-dark-600'}`}>
+              <div className={`w-5 h-5 bg-white rounded-full mt-0.5 transition-transform ${hideOnline ? 'translate-x-5.5' : 'translate-x-0.5'}`} style={{ transform: hideOnline ? 'translateX(22px)' : 'translateX(2px)' }} />
+            </div>
+          </button>
+
+          {/* Pausar cuenta */}
+          <button
+            onClick={handlePauseAccount}
+            disabled={pausingAccount}
+            className="flex items-center gap-3 p-4 w-full text-left card hover:border-white/15 transition-colors disabled:opacity-50"
+          >
+            {isPaused ? <FiPlay className="text-green-400" size={18} /> : <FiPause className="text-yellow-400" size={18} />}
+            <div className="flex-1">
+              <p className={`text-sm font-medium ${isPaused ? 'text-green-400' : 'text-yellow-400'}`}>
+                {pausingAccount ? '...' : isPaused ? 'Reactivar cuenta' : 'Pausar cuenta'}
+              </p>
+              <p className="text-xs text-gray-500">
+                {isPaused ? 'Tu perfil está oculto. Actívalo para aparecer en el feed.' : 'Desaparece del feed temporalmente sin eliminar tu cuenta'}
+              </p>
+            </div>
+          </button>
+
+          {/* Exportar datos (GDPR) */}
+          <button
+            onClick={handleExportData}
+            disabled={exportingData}
+            className="flex items-center gap-3 p-4 w-full text-left card hover:border-white/15 transition-colors disabled:opacity-50"
+          >
+            <FiDownload className="text-purple-400" size={18} />
+            <div>
+              <p className="text-sm font-medium text-purple-400">
+                {exportingData ? 'Preparando descarga...' : 'Exportar mis datos'}
+              </p>
+              <p className="text-xs text-gray-500">Descarga todos tus datos personales (GDPR)</p>
+            </div>
+          </button>
 
           <button
             onClick={handleDeleteAccount}

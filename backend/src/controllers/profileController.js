@@ -174,6 +174,7 @@ export const searchProfiles = async (req, res) => {
       // CRITICAL: never show adult creator profiles in general search
       .or('is_adult_creator.is.null,is_adult_creator.eq.false')
       .or('is_incognito.is.null,is_incognito.eq.false')
+      .or('is_paused.is.null,is_paused.eq.false')
       .limit(30);
 
     if (gender && gender !== 'all') query = query.eq('gender', gender);
@@ -246,6 +247,7 @@ export const getFeed = async (req, res) => {
       .not('full_name', 'is', null)
       .or('is_adult_creator.is.null,is_adult_creator.eq.false')
       .or('is_incognito.is.null,is_incognito.eq.false')
+      .or('is_paused.is.null,is_paused.eq.false')
       .limit(limit);
 
     if (gender && gender !== 'all') query = query.eq('gender', gender);
@@ -813,6 +815,86 @@ export const boostProfile = async (req, res) => {
     res.json({ message: 'Boost activado por 30 minutos', cost: BOOST_COST });
   } catch (err) {
     res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
+// PUT /api/profiles/hide-online — toggle hide_online_status
+export const toggleHideOnlineStatus = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { enabled } = req.body;
+    await supabase.from('profiles').update({ hide_online_status: !!enabled }).eq('id', userId);
+    res.json({ hide_online_status: !!enabled });
+  } catch (err) {
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
+// POST /api/profiles/pause — pausar cuenta temporalmente
+export const pauseAccount = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    await supabase.from('profiles').update({ is_paused: true, paused_at: new Date().toISOString() }).eq('id', userId);
+    res.json({ is_paused: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
+// POST /api/profiles/unpause — reactivar cuenta pausada
+export const unpauseAccount = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    await supabase.from('profiles').update({ is_paused: false, paused_at: null }).eq('id', userId);
+    res.json({ is_paused: false });
+  } catch (err) {
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
+// GET /api/profiles/export — GDPR: exportar todos los datos del usuario
+export const exportData = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const [
+      { data: profile },
+      { data: photos },
+      { data: matches },
+      { data: messages },
+      { data: posts },
+      { data: coins },
+      { data: subscriptions },
+    ] = await Promise.all([
+      supabase.from('profiles').select('*').eq('id', userId).single(),
+      supabase.from('profile_photos').select('url, created_at').eq('user_id', userId),
+      supabase.from('matches').select('id, created_at, status').or(`user1_id.eq.${userId},user2_id.eq.${userId}`).limit(200),
+      supabase.from('messages').select('content, type, created_at').eq('sender_id', userId).limit(500),
+      supabase.from('posts').select('caption, media_url, created_at').eq('user_id', userId).limit(200),
+      supabase.from('coin_transactions').select('amount, type, description, created_at').eq('user_id', userId).limit(500),
+      supabase.from('subscriptions').select('plan, status, current_period_end').eq('user_id', userId),
+    ]);
+
+    const PRIVATE_FIELDS = ['stripe_customer_id', 'stripe_subscription_id', 'stripe_account_id', 'stripe_account_status'];
+    const sanitizedProfile = { ...profile };
+    PRIVATE_FIELDS.forEach(f => delete sanitizedProfile[f]);
+
+    const exportPayload = {
+      exported_at: new Date().toISOString(),
+      profile: sanitizedProfile,
+      photos: photos || [],
+      matches: matches || [],
+      messages: messages || [],
+      posts: posts || [],
+      coin_transactions: coins || [],
+      subscriptions: subscriptions || [],
+    };
+
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename="destino_datos_${userId.slice(0,8)}.json"`);
+    res.json(exportPayload);
+  } catch (err) {
+    res.status(500).json({ error: 'Error al exportar datos' });
   }
 };
 

@@ -81,6 +81,8 @@ export default function ChatWindow({ matchId, otherUser }) {
   const [reactions, setReactions]       = useState({});      // { msgId: { emoji: count } }
   const [reactionPicker, setReactionPicker] = useState(null); // msgId
   const [disappearing, setDisappearing] = useState(false);   // filtrar msgs >24h
+  const [searchMode, setSearchMode]     = useState(false);
+  const [searchQuery, setSearchQuery]   = useState('');
 
   // Voz
   const [recording, setRecording]       = useState(false);
@@ -501,10 +503,11 @@ export default function ChatWindow({ matchId, otherUser }) {
 
   const fmtSecs = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
-  // Filtrar mensajes efímeros y borrados para mí
+  // Filtrar mensajes efímeros, borrados, y búsqueda
   const displayMessages = messages.filter(m => {
     if (m.deleted_for_sender && m.sender_id === user.id) return false;
     if (disappearing && Date.now() - new Date(m.created_at).getTime() >= 24 * 60 * 60 * 1000) return false;
+    if (searchMode && searchQuery && !m.content?.toLowerCase().includes(searchQuery.toLowerCase())) return false;
     return true;
   });
 
@@ -564,6 +567,15 @@ export default function ChatWindow({ matchId, otherUser }) {
             </button>
           )}
 
+          {/* Buscar mensajes */}
+          <button
+            onClick={() => { setSearchMode(v => !v); setSearchQuery(''); }}
+            title="Buscar en el chat"
+            className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors ${searchMode ? 'bg-brand-500/20 text-brand-400' : 'bg-dark-700 text-gray-500 hover:text-white'}`}
+          >
+            <FiSearch size={12} />
+          </button>
+
           {/* Borrar conversación */}
           <button
             onClick={handleClearConversation}
@@ -575,6 +587,24 @@ export default function ChatWindow({ matchId, otherUser }) {
           </button>
         </div>
       </div>
+
+      {/* Search bar */}
+      {searchMode && (
+        <div className="px-4 py-2 bg-dark-800 border-b border-white/5 shrink-0">
+          <input
+            autoFocus
+            className="input-field text-sm py-1.5 w-full"
+            placeholder="Buscar mensajes..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+          />
+          {searchQuery && (
+            <p className="text-xs text-gray-500 mt-1">
+              {messages.filter(m => m.content?.toLowerCase().includes(searchQuery.toLowerCase())).length} resultado(s)
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Pinned message banner */}
       <AnimatePresence>

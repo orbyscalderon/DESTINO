@@ -1,12 +1,13 @@
 import { useState, useRef } from 'react';
 import { motion, useMotionValue, useTransform } from 'framer-motion';
-import { FiHeart, FiX, FiStar } from 'react-icons/fi';
+import { FiHeart, FiX, FiStar, FiPlay } from 'react-icons/fi';
 import VerifiedBadge from './VerifiedBadge.jsx';
 import { hapticImpact, hapticNotification } from '../../lib/haptics.js';
 
 export default function SwipeCard({ profile, onLike, onDislike, onSuperLike, isPremium, isOnline, compatibilityPct }) {
   const [decision, setDecision] = useState(null);
   const [photoIndex, setPhotoIndex] = useState(0);
+  const [showVideo, setShowVideo] = useState(false);
   const dragDistanceRef = useRef(0);
 
   const x = useMotionValue(0);
@@ -19,6 +20,7 @@ export default function SwipeCard({ profile, onLike, onDislike, onSuperLike, isP
     || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.full_name)}&size=400&background=1a1a2e&color=f43f5e`;
 
   const allPhotos = [avatarUrl, ...(profile.photos || []).map(p => p.url)];
+  const profileVideoUrl = profile.profile_video_url || profile.intro_video_url || null;
 
   const handleDragStart = () => { dragDistanceRef.current = 0; };
 
@@ -81,12 +83,23 @@ export default function SwipeCard({ profile, onLike, onDislike, onSuperLike, isP
         className="relative h-[520px] rounded-3xl overflow-hidden shadow-2xl shadow-black/50"
         onClick={handlePhotoTap}
       >
-        <img
-          src={allPhotos[photoIndex]}
-          alt={profile.full_name}
-          className="w-full h-full object-cover pointer-events-none"
-          draggable={false}
-        />
+        {showVideo && profileVideoUrl ? (
+          <video
+            src={profileVideoUrl}
+            autoPlay
+            loop
+            muted={false}
+            playsInline
+            className="w-full h-full object-cover pointer-events-none"
+          />
+        ) : (
+          <img
+            src={allPhotos[photoIndex]}
+            alt={profile.full_name}
+            className="w-full h-full object-cover pointer-events-none"
+            draggable={false}
+          />
+        )}
 
         {/* Photo strip indicator */}
         {allPhotos.length > 1 && (
@@ -127,14 +140,23 @@ export default function SwipeCard({ profile, onLike, onDislike, onSuperLike, isP
         )}
 
         {/* Badges */}
-        <div className="absolute top-4 right-4 flex gap-2 pointer-events-none">
+        <div className="absolute top-4 right-4 flex gap-2 pointer-events-auto z-10">
+          {profileVideoUrl && (
+            <button
+              onClick={e => { e.stopPropagation(); setShowVideo(v => !v); }}
+              title={showVideo ? 'Ver foto' : 'Ver video intro'}
+              className="bg-black/60 text-white text-xs font-bold px-2 py-1 rounded-full flex items-center gap-1 backdrop-blur-sm hover:bg-black/80 transition-colors"
+            >
+              <FiPlay size={10} /> {showVideo ? 'Foto' : 'Video'}
+            </button>
+          )}
           {profile.boosted_until && new Date(profile.boosted_until) > new Date() && (
-            <span className="bg-brand-500/90 text-white text-xs font-bold px-2 py-1 rounded-full flex items-center gap-1">
+            <span className="bg-brand-500/90 text-white text-xs font-bold px-2 py-1 rounded-full flex items-center gap-1 pointer-events-none">
               ⚡ Destacado
             </span>
           )}
           {profile.is_premium && (
-            <span className="bg-yellow-500/90 text-black text-xs font-bold px-2 py-1 rounded-full flex items-center gap-1">
+            <span className="bg-yellow-500/90 text-black text-xs font-bold px-2 py-1 rounded-full flex items-center gap-1 pointer-events-none">
               <FiStar size={10} /> PREMIUM
             </span>
           )}

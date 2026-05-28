@@ -1075,12 +1075,147 @@ export const heartbeatShow = async (req, res) => {
       .eq('host_id', hostId)
       .eq('status', 'live');
 
-    // Si la columna aún no existe, ignorar silenciosamente
     if (error && !error.message?.includes('host_heartbeat_at') && !error.message?.includes('column')) {
       return res.status(400).json({ error: error.message });
     }
     res.json({ ok: true });
   } catch (err) {
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
+// GET /api/shows/:id/tip-goal — progreso actual del tip goal
+export const getTipGoalProgress = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const { data: show } = await supabase
+      .from('live_shows')
+      .select('tip_goal, status')
+      .eq('id', id)
+      .single();
+
+    if (!show) return res.status(404).json({ error: 'Show no encontrado' });
+
+    const { data: tips } = await supabase
+      .from('show_tips')
+      .select('coins_spent')
+      .eq('show_id', id);
+
+    const totalCoins = (tips || []).reduce((sum, t) => sum + (t.coins_spent || 0), 0);
+
+    res.json({ tip_goal: show.tip_goal, collected: totalCoins, completed: show.tip_goal ? totalCoins >= show.tip_goal : false });
+  } catch {
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
+// POST /api/shows/:id/poll — crear/actualizar poll (solo host)
+export const setPoll = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const hostId = req.user.id;
+    const { question, options, active = true } = req.body;
+
+    const { data: show } = await supabase.from('live_shows').select('host_id').eq('id', id).single();
+    if (!show) return res.status(404).json({ error: 'Show no encontrado' });
+    if (show.host_id !== hostId) return res.status(403).json({ error: 'No autorizado' });
+
+    if (!question?.trim()) return res.status(400).json({ error: 'La pregunta es obligatoria' });
+    if (!Array.isArray(options) || options.length < 2 || options.length > 4) {
+      return res.status(400).json({ error: 'Se requieren entre 2 y 4 opciones' });
+    }
+
+    await supabase.from('live_shows').update({
+      poll_question: question.trim(),
+      poll_options: options.map((o, i) => ({ index: i, text: String(o).trim(), votes: 0 })),
+      poll_active: !!active,
+    }).eq('id', id);
+
+    // Eliminar votos anteriores al reiniciar la encuesta
+    await supabase.from('show_poll_votes').delete().eq('show_id', id);
+
+    res.json({ ok: true });
+  } catch {
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
+// POST /api/shows/:id/poll/vote — votar en poll
+export const votePoll = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+    const { option_index } = req.body;
+
+    const { data: show } = await supabase
+      .from('live_shows')
+      .select('poll_active, poll_options')
+      .eq('id', id)
+      .single();
+
+    if (!show?.poll_active) return res.status(400).json({ error: 'No hay una encuesta activa' });
+    if (option_index === undefined || option_index < 0 || option_index >= (show.poll_options?.length || 0)) {
+      return res.status(400).json({ error: 'Opción inválida' });
+    }
+
+    // Upsert: solo un voto por usuario por show
+    const { error } = await supabase.from('show_poll_votes').upsert(
+      { show_id: id, user_id: userId, option_index },
+      { onConflict: 'show_id,user_id' }
+    );
+
+    if (error) throw error;
+
+    // Devolver resultados actualizados
+    const { data: votes } = await supabase
+      .from('show_poll_votes')
+      .select('option_index')
+      .eq('show_id', id);
+
+    const counts = {};
+    (votes || []).forEach(v => { counts[v.option_index] = (counts[v.option_index] || 0) + 1; });
+
+    const results = (show.poll_options || []).map((opt, i) => ({ ...opt, votes: counts[i] || 0 }));
+    res.json({ results, total_votes: votes?.length || 0 });
+  } catch {
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
+// GET /api/shows/:id/poll — obtener resultados del poll
+export const getPoll = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const { data: show } = await supabase
+      .from('live_shows')
+      .select('poll_question, poll_options, poll_active')
+      .eq('id', id)
+      .single();
+
+    if (!show) return res.status(404).json({ error: 'Show no encontrado' });
+    if (!show.poll_active) return res.json({ active: false });
+
+    const { data: votes } = await supabase
+      .from('show_poll_votes')
+      .select('option_index, user_id')
+      .eq('show_id', id);
+
+    const userId = req.user.id;
+    const myVote = (votes || []).find(v => v.user_id === userId);
+    const counts = {};
+    (votes || []).forEach(v => { counts[v.option_index] = (counts[v.option_index] || 0) + 1; });
+
+    const results = (show.poll_options || []).map((opt, i) => ({ ...opt, votes: counts[i] || 0 }));
+    res.json({
+      active: true,
+      question: show.poll_question,
+      results,
+      total_votes: votes?.length || 0,
+      my_vote: myVote?.option_index ?? null,
+    });
+  } catch {
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };

@@ -14,6 +14,7 @@ import api from '../lib/api.js';
 import toast from 'react-hot-toast';
 import { SHOW_CATEGORIES } from './LiveShows.jsx';
 import VerifiedBadge from '../components/ui/VerifiedBadge.jsx';
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 
 /* ── Helpers ─────────────────────────────────────────────── */
 const fmt   = (v) => parseFloat(v || 0).toFixed(2);
@@ -53,18 +54,61 @@ function ShowStatusBadge({ status }) {
   return <span className={`text-[10px] px-2 py-0.5 rounded-lg font-semibold border ${b.cls}`}>{b.label}</span>;
 }
 
+function StoryAnalyticsCard() {
+  const [stories, setStories] = useState(null);
+  useEffect(() => {
+    api.get('/api/creator/story-analytics')
+      .then(({ data }) => setStories(data.stories || []))
+      .catch(() => {});
+  }, []);
+  if (!stories) return null;
+  if (stories.length === 0) return null;
+  return (
+    <div className="rounded-2xl bg-dark-800 border border-white/5 p-5">
+      <h3 className="text-sm font-bold text-gray-300 flex items-center gap-2 mb-4">
+        <FiImage size={13} className="text-pink-400" /> Vistas de Stories (últimas 20)
+      </h3>
+      <div className="grid grid-cols-2 gap-2">
+        {stories.slice(0, 8).map(s => (
+          <div key={s.id} className="bg-dark-700/60 rounded-xl p-2.5 flex items-center gap-2">
+            {s.media_url && (
+              <img src={s.media_url} alt="" className="w-10 h-10 rounded-lg object-cover shrink-0" />
+            )}
+            <div className="min-w-0">
+              <p className="text-xs text-gray-400">{new Date(s.created_at).toLocaleDateString('es',{day:'numeric',month:'short'})}</p>
+              <p className="text-white font-bold text-sm">{s.views_count} <span className="text-gray-500 font-normal text-xs">vistas</span></p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function BarChart({ data }) {
   if (!data?.length) return null;
-  const visible = data.slice(-14);
-  const max = Math.max(...visible.map(d => d.amount), 0.01);
+  const chartData = data.slice(-30).map(d => ({ date: d.date?.slice(5), amount: d.amount }));
   return (
-    <div className="flex items-end gap-0.5 h-14">
-      {visible.map((d, i) => (
-        <div key={i} className="flex-1 rounded-t-sm transition-all" title={`${d.date}: $${d.amount}`}
-          style={{ height: `${Math.max((d.amount/max)*100, 3)}%`, background: `rgba(139,92,246,${0.3+(d.amount/max)*0.7})` }}
+    <ResponsiveContainer width="100%" height={120}>
+      <AreaChart data={chartData} margin={{ top: 4, right: 0, left: -30, bottom: 0 }}>
+        <defs>
+          <linearGradient id="incomeGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.5} />
+            <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
+          </linearGradient>
+        </defs>
+        <CartesianGrid strokeDasharray="3 3" stroke="#ffffff08" />
+        <XAxis dataKey="date" tick={{ fill: '#6b7280', fontSize: 9 }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
+        <YAxis tick={{ fill: '#6b7280', fontSize: 9 }} axisLine={false} tickLine={false} tickFormatter={v => `$${v}`} />
+        <Tooltip
+          contentStyle={{ background: '#1a1a2e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8 }}
+          labelStyle={{ color: '#9ca3af', fontSize: 11 }}
+          itemStyle={{ color: '#a78bfa', fontSize: 11 }}
+          formatter={v => [`$${v}`, 'Ingresos']}
         />
-      ))}
-    </div>
+        <Area type="monotone" dataKey="amount" stroke="#8b5cf6" strokeWidth={2} fill="url(#incomeGrad)" dot={false} />
+      </AreaChart>
+    </ResponsiveContainer>
   );
 }
 
@@ -1022,6 +1066,9 @@ export default function CreatorDashboard() {
                     </div>
                   </div>
                 )}
+
+                {/* Story analytics */}
+                <StoryAnalyticsCard />
               </motion.div>
             )}
 

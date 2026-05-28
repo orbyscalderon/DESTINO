@@ -196,6 +196,11 @@ export default function LiveShow() {
   const [dmInput, setDmInput]                 = useState('');
   const dmEndRef = useRef(null);
 
+  // Tip goal
+  const [tipGoal, setTipGoal]             = useState(null);   // { tip_goal, collected }
+  const [poll, setPoll]                   = useState(null);   // { active, question, results, my_vote }
+  const [votingPoll, setVotingPoll]       = useState(false);
+
   // Pre-show
   const [preShow, setPreShow]             = useState(false);
   const [permCamera, setPermCamera]       = useState('idle');
@@ -310,8 +315,11 @@ export default function LiveShow() {
       setCoinBalance(balanceRes.data.coins || 0);
       setInterested(interestRes.data.interested);
       setInterestCount(interestRes.data.interest_count || 0);
-      // Banner publicitario para espectadores gratuitos (no para el host)
       if (s.host?.id !== user?.id) showBottomBanner();
+      if (s.status === 'live') {
+        loadTipGoal();
+        loadPoll();
+      }
     } catch (err) {
       if (err.response?.data?.code === 'AGE_VERIFICATION_REQUIRED') {
         setShowAgeModal(true);
@@ -330,6 +338,33 @@ export default function LiveShow() {
       const { data } = await api.get(`/api/shows/${id}/tippers`);
       setTippers(data.tippers || []);
     } catch {}
+  };
+
+  const loadTipGoal = async () => {
+    try {
+      const { data } = await api.get(`/api/shows/${id}/tip-goal`);
+      if (data.tip_goal) setTipGoal(data);
+    } catch {}
+  };
+
+  const loadPoll = async () => {
+    try {
+      const { data } = await api.get(`/api/shows/${id}/poll`);
+      setPoll(data.active ? data : null);
+    } catch {}
+  };
+
+  const handleVotePoll = async (optionIndex) => {
+    if (votingPoll || poll?.my_vote !== null && poll?.my_vote !== undefined) return;
+    setVotingPoll(true);
+    try {
+      const { data } = await api.post(`/api/shows/${id}/poll/vote`, { option_index: optionIndex });
+      setPoll(prev => ({ ...prev, results: data.results, my_vote: optionIndex, total_votes: data.total_votes }));
+    } catch {
+      toast.error('Error al votar');
+    } finally {
+      setVotingPoll(false);
+    }
   };
 
   // ── Supabase Realtime: chat + reacciones + presencia ─────────────────────────
@@ -2012,6 +2047,69 @@ export default function LiveShow() {
             </AnimatePresence>
           </div>
         </div>
+
+        {/* Tip Goal Bar */}
+        {tipGoal?.tip_goal > 0 && (
+          <div className="absolute top-16 left-4 right-4 z-20">
+            <div className="bg-black/60 backdrop-blur-sm rounded-xl px-3 py-2 border border-yellow-500/20">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-yellow-400 text-xs font-bold flex items-center gap-1">
+                  <FiZap size={10} /> Meta de propinas
+                </span>
+                <span className="text-yellow-300 text-xs font-bold">
+                  {tipGoal.collected || 0} / {tipGoal.tip_goal} coins
+                </span>
+              </div>
+              <div className="h-2 bg-dark-700 rounded-full overflow-hidden">
+                <motion.div
+                  className="h-full bg-gradient-to-r from-yellow-500 to-yellow-300 rounded-full"
+                  initial={{ width: 0 }}
+                  animate={{ width: `${Math.min(100, ((tipGoal.collected || 0) / tipGoal.tip_goal) * 100)}%` }}
+                  transition={{ duration: 0.5 }}
+                />
+              </div>
+              {tipGoal.collected >= tipGoal.tip_goal && (
+                <p className="text-yellow-400 text-[10px] mt-0.5 text-center font-bold">🎉 ¡Meta alcanzada!</p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Poll activo */}
+        {poll?.active && (
+          <div className="absolute top-32 left-4 right-4 z-20">
+            <div className="bg-black/70 backdrop-blur-sm rounded-xl px-3 py-3 border border-brand-500/30">
+              <p className="text-white text-xs font-bold mb-2">{poll.question}</p>
+              <div className="space-y-1.5">
+                {(poll.results || []).map((opt, i) => {
+                  const total = poll.total_votes || 1;
+                  const pct = Math.round(((opt.votes || 0) / total) * 100);
+                  const voted = poll.my_vote === i;
+                  return (
+                    <button
+                      key={i}
+                      onClick={() => handleVotePoll(i)}
+                      disabled={poll.my_vote !== null && poll.my_vote !== undefined}
+                      className={`w-full relative rounded-lg overflow-hidden text-left transition-all ${voted ? 'border border-brand-500' : 'border border-white/10'}`}
+                    >
+                      <div
+                        className={`absolute inset-0 ${voted ? 'bg-brand-500/30' : 'bg-white/5'} transition-all`}
+                        style={{ width: poll.my_vote !== null ? `${pct}%` : '0%' }}
+                      />
+                      <div className="relative px-2 py-1.5 flex items-center justify-between">
+                        <span className="text-white text-xs">{opt.text}</span>
+                        {poll.my_vote !== null && (
+                          <span className="text-brand-400 text-xs font-bold">{pct}%</span>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-gray-500 text-[10px] mt-1">{poll.total_votes} voto(s)</p>
+            </div>
+          </div>
+        )}
 
         {/* Tip recibido */}
         <AnimatePresence>

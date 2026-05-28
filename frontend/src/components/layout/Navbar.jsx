@@ -1,17 +1,17 @@
 import { useEffect, useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { FiHome, FiHeart, FiVideo, FiUser, FiZap, FiSearch, FiGrid, FiFilm, FiBell, FiShield, FiSettings, FiBarChart2, FiCompass, FiMessageCircle, FiTrendingUp } from 'react-icons/fi';
+import { FiHome, FiHeart, FiVideo, FiUser, FiZap, FiSearch, FiGrid, FiFilm, FiBell, FiShield, FiSettings, FiBarChart2, FiCompass, FiMessageCircle, FiTrendingUp, FiImage } from 'react-icons/fi';
 import { useAuthStore } from '../../store/authStore.js';
 import { useChatStore } from '../../store/chatStore.js';
 import { supabase } from '../../lib/supabase.js';
 import api from '../../lib/api.js';
 
-// Mobile bottom nav (5 items max)
+// Mobile bottom nav — Descubrir y Momentos ahora accesibles
 const mobileNavItems = [
   { to: '/home',          icon: FiHome,           label: 'Inicio',    badge: false },
+  { to: '/discover',      icon: FiCompass,        label: 'Descubrir', badge: false },
   { to: '/matches',       icon: FiHeart,          label: 'Matches',   badge: false },
   { to: '/messages',      icon: FiMessageCircle,  label: 'Mensajes',  badge: 'chat' },
-  { to: '/notifications', icon: FiBell,           label: 'Notifs',    badge: 'notifs' },
   { to: '/profile',       icon: FiUser,           label: 'Perfil',    badge: false },
 ];
 
@@ -19,6 +19,7 @@ const mobileNavItems = [
 const sidebarNavItems = [
   { to: '/home',          icon: FiHome,           label: 'Inicio' },
   { to: '/discover',      icon: FiCompass,        label: 'Descubrir' },
+  { to: '/moments',       icon: FiImage,          label: 'Momentos' },
   { to: '/matches',       icon: FiHeart,          label: 'Matches' },
   { to: '/messages',      icon: FiMessageCircle,  label: 'Mensajes' },
   { to: '/search',        icon: FiSearch,         label: 'Buscar' },
@@ -279,7 +280,8 @@ export default function Navbar() {
       <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-dark-800/95 backdrop-blur-md border-t border-white/5">
         <div className="flex items-center justify-around px-2 py-2 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))]">
           {mobileNavItems.map(({ to, icon: Icon, label, badge }) => {
-            const count = badge === 'chat' ? unreadTotal : badge === 'notifs' ? unreadNotifs : 0;
+            const count = badge === 'chat' ? unreadTotal : 0;
+            const notifBadge = to === '/profile' ? unreadNotifs : 0;
             return (
               <NavLink key={to} to={to} className={mobileLink}>
                 <span className="relative">
@@ -287,6 +289,11 @@ export default function Navbar() {
                   {count > 0 && (
                     <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 bg-brand-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-0.5">
                       {count > 99 ? '99+' : count}
+                    </span>
+                  )}
+                  {notifBadge > 0 && (
+                    <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-0.5">
+                      {notifBadge > 99 ? '99+' : notifBadge}
                     </span>
                   )}
                 </span>

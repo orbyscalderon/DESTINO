@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiPlus, FiHeart, FiMessageCircle, FiImage, FiX, FiLock, FiTrash2, FiMoreVertical } from 'react-icons/fi';
-import { Link } from 'react-router-dom';
+import { FiPlus, FiHeart, FiMessageCircle, FiImage, FiX, FiLock, FiTrash2, FiShare2, FiHash, FiTrendingUp } from 'react-icons/fi';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore.js';
 import { compressImage } from '../lib/imageCompressor.js';
 import api from '../lib/api.js';
@@ -10,12 +10,55 @@ import StoriesBar from '../components/ui/StoriesBar.jsx';
 import { PostCardSkeleton } from '../components/ui/Skeleton.jsx';
 import toast from 'react-hot-toast';
 
-function PostCard({ post, onLike, onComment, onDelete, onPurchased, currentUserId }) {
+function renderCaption(caption, onHashtagClick) {
+  if (!caption) return null;
+  const parts = caption.split(/(#[\wÀ-ž]+)/g);
+  return parts.map((part, i) =>
+    part.startsWith('#') ? (
+      <button
+        key={i}
+        onClick={() => onHashtagClick(part.slice(1))}
+        className="text-brand-400 hover:text-brand-300 font-medium transition-colors"
+      >
+        {part}
+      </button>
+    ) : part
+  );
+}
+
+async function sharePost(post) {
+  const url = window.location.origin + `/#/moments`;
+  const text = post.caption?.substring(0, 100) || 'Mira este momento en Destino TV';
+  if (navigator.share) {
+    try {
+      await navigator.share({ title: 'Destino TV', text, url });
+    } catch {}
+  } else {
+    await navigator.clipboard.writeText(`${text}\n${url}`);
+    toast.success('Enlace copiado');
+  }
+}
+
+function PostCard({ post, onLike, onComment, onDelete, onPurchased, currentUserId, onHashtagClick }) {
   const [showComments, setShowComments] = useState(false);
   const [comments, setComments] = useState([]);
   const [commentText, setCommentText] = useState('');
   const [loadingComments, setLoadingComments] = useState(false);
   const [buying, setBuying] = useState(false);
+  const cardRef = useRef(null);
+  const viewedRef = useRef(false);
+
+  useEffect(() => {
+    if (!cardRef.current || viewedRef.current) return;
+    const obs = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting && !viewedRef.current) {
+        viewedRef.current = true;
+        api.post(`/api/posts/${post.id}/view`).catch(() => {});
+      }
+    }, { threshold: 0.5 });
+    obs.observe(cardRef.current);
+    return () => obs.disconnect();
+  }, [post.id]);
 
   const handleToggleComments = async () => {
     if (!showComments && comments.length === 0) {
@@ -59,7 +102,7 @@ function PostCard({ post, onLike, onComment, onDelete, onPurchased, currentUserI
   };
 
   return (
-    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="card overflow-hidden">
+    <motion.div ref={cardRef} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="card overflow-hidden">
       {/* Header del post */}
       <div className="flex items-center gap-3 p-3">
         <Link to={`/profile/${post.author?.id}`}>
@@ -139,9 +182,11 @@ function PostCard({ post, onLike, onComment, onDelete, onPurchased, currentUserI
         )
       ) : null}
 
-      {/* Caption */}
+      {/* Caption con hashtags */}
       {post.caption && (
-        <p className="px-3 py-2 text-gray-300 text-sm leading-relaxed">{post.caption}</p>
+        <p className="px-3 py-2 text-gray-300 text-sm leading-relaxed">
+          {renderCaption(post.caption, onHashtagClick)}
+        </p>
       )}
 
       {/* Acciones */}
@@ -159,6 +204,13 @@ function PostCard({ post, onLike, onComment, onDelete, onPurchased, currentUserI
         >
           <FiMessageCircle size={16} />
           {post.comments_count > 0 && <span>{post.comments_count}</span>}
+        </button>
+        <button
+          onClick={() => sharePost(post)}
+          className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-white transition-colors ml-auto"
+          title="Compartir"
+        >
+          <FiShare2 size={15} />
         </button>
       </div>
 
@@ -208,6 +260,7 @@ function PostCard({ post, onLike, onComment, onDelete, onPurchased, currentUserI
 
 export default function Moments() {
   const { user, profile } = useAuthStore();
+  const navigate = useNavigate();
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [hasMore, setHasMore] = useState(false);
@@ -217,10 +270,29 @@ export default function Moments() {
   const [newPost, setNewPost] = useState({ caption: '', is_adult: false, is_subscribers_only: false });
   const [mediaFile, setMediaFile] = useState(null);
   const [mediaPreview, setMediaPreview] = useState(null);
+  const [activeHashtag, setActiveHashtag] = useState(null);
+  const [trending, setTrending] = useState([]);
+  const [showTrending, setShowTrending] = useState(false);
   const fileRef = useRef(null);
   const sentinelRef = useRef(null);
 
   useEffect(() => { loadPosts(); }, []);
+
+  useEffect(() => {
+    if (activeHashtag) {
+      api.get(`/api/posts/hashtag/${encodeURIComponent(activeHashtag)}`)
+        .then(({ data }) => { setPosts(data.posts || []); setHasMore(false); })
+        .catch(() => {});
+    } else {
+      loadPosts();
+    }
+  }, [activeHashtag]);
+
+  useEffect(() => {
+    api.get('/api/posts/trending-hashtags')
+      .then(({ data }) => setTrending(data.trending || []))
+      .catch(() => {});
+  }, []);
 
   // IntersectionObserver — auto-load next page when sentinel enters viewport
   useEffect(() => {
@@ -331,18 +403,54 @@ export default function Moments() {
   return (
     <div className="min-h-screen pb-20">
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-dark-900/95 backdrop-blur-sm border-b border-white/5 px-4 py-3 flex items-center justify-between">
-        <h1 className="text-lg font-black gradient-text">Momentos</h1>
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="w-9 h-9 bg-brand-500 rounded-xl flex items-center justify-center hover:bg-brand-600 transition-colors"
-        >
-          <FiPlus className="text-white" size={18} />
-        </button>
+      <div className="sticky top-0 z-10 bg-dark-900/95 backdrop-blur-sm border-b border-white/5 px-4 py-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            {activeHashtag && (
+              <button onClick={() => setActiveHashtag(null)} className="text-brand-400 hover:text-white">
+                ←
+              </button>
+            )}
+            <h1 className="text-lg font-black gradient-text">
+              {activeHashtag ? `#${activeHashtag}` : 'Momentos'}
+            </h1>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowTrending(v => !v)}
+              className="w-9 h-9 bg-dark-700 rounded-xl flex items-center justify-center hover:bg-dark-600 transition-colors"
+              title="Trending"
+            >
+              <FiTrendingUp className="text-yellow-400" size={16} />
+            </button>
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="w-9 h-9 bg-brand-500 rounded-xl flex items-center justify-center hover:bg-brand-600 transition-colors"
+            >
+              <FiPlus className="text-white" size={18} />
+            </button>
+          </div>
+        </div>
+
+        {/* Trending hashtags */}
+        {showTrending && trending.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-1.5 pb-1">
+            {trending.slice(0, 12).map(({ tag, count }) => (
+              <button
+                key={tag}
+                onClick={() => { setActiveHashtag(tag); setShowTrending(false); }}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-brand-500/15 text-brand-400 text-xs hover:bg-brand-500/30 transition-colors border border-brand-500/20"
+              >
+                <FiHash size={9} /> {tag}
+                <span className="text-gray-500 ml-0.5">·{count}</span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Stories */}
-      <StoriesBar />
+      {!activeHashtag && <StoriesBar />}
 
       <div className="max-w-lg mx-auto px-4 pt-4 space-y-4">
         {posts.length === 0 ? (
@@ -364,6 +472,7 @@ export default function Moments() {
                 onDelete={handleDeletePost}
                 onPurchased={(id) => setPosts(prev => prev.map(p => p.id === id ? { ...p, locked: false } : p))}
                 currentUserId={user?.id}
+                onHashtagClick={tag => setActiveHashtag(tag)}
               />
             ))}
             <div ref={sentinelRef} className="py-4 flex justify-center">

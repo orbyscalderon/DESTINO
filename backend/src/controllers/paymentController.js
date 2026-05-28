@@ -90,6 +90,16 @@ export const handleWebhook = async (req, res) => {
 
   const getUserIdFromEvent = (obj) => obj?.metadata?.supabase_user_id;
 
+  // Idempotency: skip already-processed events
+  try {
+    const { error: insertErr } = await supabase
+      .from('processed_stripe_events')
+      .insert({ event_id: event.id });
+    if (insertErr?.code === '23505') {
+      return res.json({ received: true, skipped: true });
+    }
+  } catch { /* table might not exist yet — continue */ }
+
   try {
     switch (event.type) {
       case 'customer.subscription.created':

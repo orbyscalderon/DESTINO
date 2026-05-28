@@ -63,6 +63,7 @@ export default function Profile() {
   const [coinsBalance, setCoinsBalance] = useState(0);
   const [completionClaimed, setCompletionClaimed] = useState(false);
   const [boostSecsLeft, setBoostSecsLeft] = useState(0);
+  const [streakInfo, setStreakInfo] = useState(null);
   const fileRef = useRef(null);
   const photoRef = useRef(null);
   const videoRef = useRef(null);
@@ -98,6 +99,9 @@ export default function Profile() {
       api.get('/api/profiles/completion/status')
         .then(({ data }) => setCompletionClaimed(data.claimed || false))
         .catch(() => setCompletionClaimed(false));
+      api.get('/api/coins/daily-reward/status')
+        .then(({ data }) => setStreakInfo({ streak: data.streak || 0, alreadyClaimed: data.alreadyClaimed }))
+        .catch(() => {});
     }
   }, [user?.id]);
 
@@ -466,6 +470,17 @@ export default function Profile() {
                 </motion.span>
               )}
             </div>
+
+            {/* Streak visual */}
+            {streakInfo && streakInfo.streak > 0 && (
+              <div className="flex items-center gap-2 justify-center">
+                <span className="text-orange-400 text-lg">🔥</span>
+                <div className="text-left">
+                  <p className="text-orange-400 font-black text-sm">{streakInfo.streak} días seguidos</p>
+                  <p className="text-gray-600 text-[10px]">{streakInfo.alreadyClaimed ? 'Recompensa reclamada hoy' : 'Reclama tu recompensa diaria'}</p>
+                </div>
+              </div>
+            )}
 
             {/* Stats rápidos */}
             <div className="grid grid-cols-3 gap-2 text-center">

@@ -1051,3 +1051,33 @@ export const getPublicCreatorProfile = async (req, res) => {
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
+
+
+// GET /api/creator/story-analytics — vistas de mis stories
+export const getStoryAnalytics = async (req, res) => {
+  try {
+    const creatorId = req.user.id;
+
+    const { data: stories } = await supabase
+      .from('stories')
+      .select('id, media_url, media_type, created_at')
+      .eq('user_id', creatorId)
+      .order('created_at', { ascending: false })
+      .limit(20);
+
+    if (!stories?.length) return res.json({ stories: [] });
+
+    const storyIds = stories.map(s => s.id);
+    const { data: views } = await supabase
+      .from('story_views')
+      .select('story_id')
+      .in('story_id', storyIds);
+
+    const viewCounts = {};
+    (views || []).forEach(v => { viewCounts[v.story_id] = (viewCounts[v.story_id] || 0) + 1; });
+
+    res.json({ stories: stories.map(s => ({ ...s, views_count: viewCounts[s.id] || 0 })) });
+  } catch (err) {
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};

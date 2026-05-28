@@ -27,6 +27,7 @@ import {
   galleryMediaMiddleware,
   sendBroadcast,
   exportAnalyticsCsv,
+  getStoryAnalytics,
 } from '../controllers/creatorController.js';
 
 const router = Router();
@@ -44,6 +45,7 @@ router.get('/dashboard', getCreatorDashboard);
 router.get('/earnings', getEarnings);
 router.get('/analytics', getAnalytics);
 router.get('/post-analytics', getPostAnalytics);
+router.get('/story-analytics', getStoryAnalytics);
 router.get('/subscribers', getSubscribers);
 router.post('/payout', requestPayout);
 router.put('/bio', updateCreatorBio);
