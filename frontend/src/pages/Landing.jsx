@@ -35,7 +35,7 @@ export default function Landing() {
       <div className="relative min-h-screen flex flex-col items-center justify-center px-6 text-center">
         {/* Fondo con gradiente */}
         <div className="absolute inset-0 bg-gradient-to-b from-brand-500/10 via-transparent to-dark-900 pointer-events-none" />
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[500px] h-[500px] bg-brand-500/5 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-64 h-64 sm:w-[500px] sm:h-[500px] bg-brand-500/5 rounded-full blur-3xl pointer-events-none" />
 
         <motion.div
           initial={{ opacity: 0, y: 30 }}
@@ -44,18 +44,18 @@ export default function Landing() {
           className="relative z-10 space-y-6"
         >
           <div className="text-7xl mb-4">💕</div>
-          <h1 className="text-6xl sm:text-7xl font-black tracking-tight">
+          <h1 className="text-5xl sm:text-7xl font-black tracking-tight">
             <span className="gradient-text">Destino TV</span>
           </h1>
-          <p className="text-xl text-gray-300 max-w-md mx-auto leading-relaxed">
+          <p className="text-base sm:text-xl text-gray-300 max-w-md mx-auto leading-relaxed px-2">
             Conoce personas reales. Conecta en video. Descubre Destino TV.
           </p>
 
-          <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
-            <Link to="/register" className="btn-primary text-lg px-8 py-4">
+          <div className="flex flex-col gap-3 justify-center pt-4 w-full max-w-xs mx-auto sm:max-w-none sm:flex-row sm:gap-4">
+            <Link to="/register" className="btn-primary text-base sm:text-lg px-6 py-3 sm:px-8 sm:py-4">
               Comenzar gratis
             </Link>
-            <Link to="/login" className="btn-secondary text-lg px-8 py-4">
+            <Link to="/login" className="btn-secondary text-base sm:text-lg px-6 py-3 sm:px-8 sm:py-4">
               Iniciar sesión
             </Link>
           </div>
@@ -73,15 +73,15 @@ export default function Landing() {
           >
             Todo lo que necesitas
           </motion.h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {features.map(({ icon: Icon, title, desc }, i) => (
               <motion.div
                 key={title}
-                initial={{ opacity: 0, y: 30 }}
+                initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.1 }}
-                className="card p-6 hover:border-brand-500/30 transition-colors"
+                viewport={{ once: true, margin: '-40px' }}
+                transition={{ delay: i * 0.08 }}
+                className="card p-5 hover:border-brand-500/30 transition-colors"
               >
                 <div className="w-12 h-12 bg-brand-500/20 rounded-xl flex items-center justify-center mb-4">
                   <Icon size={22} className="text-brand-400" />

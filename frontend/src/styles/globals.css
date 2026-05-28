@@ -3,12 +3,17 @@
 @tailwind utilities;
 
 @layer base {
+  html {
+    /* Evitar scroll horizontal por elementos que sobresalen */
+    overflow-x: hidden;
+  }
+
   body {
     @apply bg-dark-900 text-white font-sans antialiased;
     -webkit-font-smoothing: antialiased;
-    /* Safe area para notch iOS y Android */
+    overflow-x: hidden;
+    /* Solo safe-area lateral/top — el bottom lo maneja la bottom nav */
     padding-top: env(safe-area-inset-top);
-    padding-bottom: env(safe-area-inset-bottom);
     padding-left: env(safe-area-inset-left);
     padding-right: env(safe-area-inset-right);
   }
@@ -70,6 +75,17 @@
   }
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
+  }
+
+  /* Altura correcta para páginas con fixed bottom nav en iOS */
+  .h-screen-nav {
+    height: calc(100dvh - 80px);
+    height: calc(100dvh - 80px - env(safe-area-inset-bottom, 0px));
+  }
+
+  /* Padding bottom para páginas con fixed bottom nav en iOS */
+  .pb-nav {
+    padding-bottom: calc(6rem + env(safe-area-inset-bottom, 0px));
   }
 }
 

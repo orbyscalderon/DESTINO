@@ -47,7 +47,7 @@ export default function BecomeCreator() {
   const isStripeActive = profile?.stripe_account_status === 'active';
 
   return (
-    <div className="min-h-screen px-4 pt-8 pb-8 max-w-2xl mx-auto">
+    <div className="min-h-screen px-4 pt-8 pb-28 lg:pb-8 max-w-2xl mx-auto">
       <button onClick={() => navigate(-1)} className="text-gray-500 hover:text-white text-sm mb-6 flex items-center gap-1">
         ← Volver
       </button>

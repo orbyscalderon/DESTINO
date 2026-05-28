@@ -389,7 +389,7 @@ export default function Moments() {
   };
 
   if (loading) return (
-    <div className="min-h-screen pb-20">
+    <div className="min-h-screen pb-24">
       <div className="sticky top-0 z-10 bg-dark-900/95 backdrop-blur-sm border-b border-white/5 px-4 py-3 flex items-center justify-between">
         <h1 className="text-lg font-black gradient-text">Momentos</h1>
         <div className="w-9 h-9 bg-brand-500 rounded-xl" />
@@ -401,7 +401,7 @@ export default function Moments() {
   );
 
   return (
-    <div className="min-h-screen pb-20">
+    <div className="min-h-screen pb-24">
       {/* Header */}
       <div className="sticky top-0 z-10 bg-dark-900/95 backdrop-blur-sm border-b border-white/5 px-4 py-3">
         <div className="flex items-center justify-between">

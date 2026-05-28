@@ -269,7 +269,7 @@ export default function Discover() {
   };
 
   if (loading) return (
-    <div className="min-h-screen px-4 pt-8 pb-6 lg:px-10 lg:pt-10">
+    <div className="min-h-screen px-4 pt-8 pb-28 lg:pb-6 lg:px-10 lg:pt-10">
       <div className="flex items-center justify-between mb-8">
         <div className="space-y-2">
           <div className="h-7 w-32 bg-dark-700 rounded-full animate-pulse" />
@@ -306,7 +306,7 @@ export default function Discover() {
   );
 
   return (
-    <div className="min-h-screen px-4 pt-8 pb-6 lg:px-10 lg:pt-10">
+    <div className="min-h-screen px-4 pt-8 pb-28 lg:pb-6 lg:px-10 lg:pt-10">
 
       {/* Header */}
       <div className="flex items-center justify-between mb-8 lg:mb-10">

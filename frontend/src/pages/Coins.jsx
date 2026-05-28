@@ -98,7 +98,7 @@ export default function Coins() {
   );
 
   return (
-    <div className="min-h-screen px-4 pt-8 pb-20 max-w-lg mx-auto">
+    <div className="min-h-screen px-4 pt-8 pb-28 max-w-lg mx-auto">
       <div className="flex items-center gap-3 mb-6">
         <button onClick={() => navigate(-1)} className="text-gray-400 hover:text-white">
           <FiArrowLeft size={20} />

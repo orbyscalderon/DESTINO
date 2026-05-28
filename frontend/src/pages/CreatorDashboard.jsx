@@ -616,7 +616,7 @@ export default function CreatorDashboard() {
                       <Link to="/profile" className="text-brand-400 text-xs font-medium hover:underline">Ir a mi perfil →</Link>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-5 lg:grid-cols-8 gap-2">
+                    <div className="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-8 gap-2">
                       {data.paid_photos.map(photo => (
                         <div key={photo.id} className="relative aspect-square rounded-xl overflow-hidden group">
                           <img src={photo.url} alt="" className="w-full h-full object-cover transition-transform group-hover:scale-105" />

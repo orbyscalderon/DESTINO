@@ -389,7 +389,7 @@ export default function Profile() {
   };
 
   return (
-    <div className="min-h-screen px-4 pt-8 pb-8 lg:px-10 lg:pt-10">
+    <div className="min-h-screen px-4 pt-8 pb-28 lg:pb-8 lg:px-10 lg:pt-10">
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-2xl lg:text-3xl font-black gradient-text">Mi Perfil</h1>

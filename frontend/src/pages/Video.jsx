@@ -63,7 +63,7 @@ export default function Video() {
   const recentList      = recentCodes.map(code => COUNTRIES.find(c => c.code === code)).filter(Boolean);
 
   return (
-    <div className="min-h-screen px-4 pt-8 pb-6 lg:px-10 lg:pt-10">
+    <div className="min-h-screen px-4 pt-8 pb-28 lg:pb-6 lg:px-10 lg:pt-10">
 
       {/* Header */}
       <div className="mb-6 lg:mb-8">

@@ -142,7 +142,7 @@ const QUICK_INTERESTS = ['🎵 Música', '✈️ Viajes', '💪 Fitness', '🎮 
   const hasActiveFilters = filters.gender !== 'all' || filters.minAge || filters.maxAge || filters.country || filters.creatorOnly || filters.interests?.length > 0;
 
   return (
-    <div className="min-h-screen px-4 pt-8 pb-20 max-w-lg mx-auto">
+    <div className="min-h-screen px-4 pt-8 pb-28 max-w-lg mx-auto">
       <h1 className="text-2xl font-black gradient-text mb-6">Buscar</h1>
 
       {/* Input de búsqueda + filtros */}

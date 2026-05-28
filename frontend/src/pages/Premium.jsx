@@ -152,7 +152,7 @@ export default function Premium() {
     const activePlan = PLANS.find(p => p.key === currentTier);
     const c = COLOR[activePlan?.color || 'brand'];
     return (
-      <div className="min-h-screen px-4 pt-8 pb-8 max-w-lg mx-auto">
+      <div className="min-h-screen px-4 pt-8 pb-28 lg:pb-8 max-w-lg mx-auto">
         <div className="text-center mb-8">
           <motion.div
             animate={{ rotate: [0, -10, 10, -10, 0] }}
@@ -221,7 +221,7 @@ export default function Premium() {
 
   // ── Vista upgrade (Básico) ───────────────────────────────────────────────────
   return (
-    <div className="min-h-screen px-4 pt-8 pb-10 lg:px-10">
+    <div className="min-h-screen px-4 pt-8 pb-28 lg:pb-10 lg:px-10">
       <div className="max-w-4xl mx-auto">
         <div className="text-center mb-10">
           <p className="text-gray-400 text-sm font-semibold uppercase tracking-widest mb-2">Planes Destino TV</p>

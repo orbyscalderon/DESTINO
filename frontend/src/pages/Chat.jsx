@@ -48,7 +48,7 @@ export default function Chat() {
   );
 
   return (
-    <div className="h-[calc(100dvh-80px)] lg:h-screen flex flex-col bg-dark-900">
+    <div className="h-screen-nav lg:h-screen flex flex-col bg-dark-900">
       {/* Header */}
       <div className="flex items-center gap-3 px-4 py-3 border-b border-white/5 bg-dark-800 shrink-0">
         <Link to="/matches" className="text-gray-400 hover:text-white transition-colors p-1">

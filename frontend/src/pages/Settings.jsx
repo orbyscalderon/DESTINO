@@ -352,7 +352,7 @@ export default function Settings() {
   };
 
   return (
-    <div className="min-h-screen px-4 pt-8 pb-8 lg:px-10 lg:pt-10">
+    <div className="min-h-screen px-4 pt-8 pb-28 lg:pb-8 lg:px-10 lg:pt-10">
       <div className="max-w-xl mx-auto">
         <div className="flex items-center gap-3 mb-6">
           <Link to="/profile" className="text-gray-400 hover:text-white transition-colors">
