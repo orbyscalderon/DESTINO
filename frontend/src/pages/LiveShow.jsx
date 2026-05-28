@@ -217,6 +217,7 @@ export default function LiveShow() {
   const hostVideoRef    = useRef(null);
   const localVideoRef   = useRef(null);
   const previewVideoRef = useRef(null);
+  const autoJoinRef     = useRef(false);
 
   // Refs to track live state and role for cleanup/pagehide (avoid stale closures)
   const isLiveRef    = useRef(false);
@@ -238,6 +239,13 @@ export default function LiveShow() {
   useEffect(() => {
     loadShow();
   }, [id]);
+
+  // Auto-join: cuando show carga con acceso directo, entra sin pantalla intermedia
+  useEffect(() => {
+    if (!show || !autoJoinRef.current) return;
+    autoJoinRef.current = false;
+    handleJoinAsViewer();
+  }, [show]);
 
   // Keep refs in sync so cleanup handlers always see current values
   useEffect(() => { isLiveRef.current = isLive; }, [isLive]);
@@ -319,6 +327,13 @@ export default function LiveShow() {
       if (s.status === 'live') {
         loadTipGoal();
         loadPoll();
+      }
+
+      // Auto-join inmediato si el show está en vivo y el viewer ya tiene acceso
+      const canAutoJoin = s.status === 'live' && !s.is_host && s.has_ticket;
+      if (canAutoJoin) {
+        // Llamamos handleJoinAsViewer directamente con el show cargado
+        autoJoinRef.current = true;
       }
     } catch (err) {
       if (err.response?.data?.code === 'AGE_VERIFICATION_REQUIRED') {
