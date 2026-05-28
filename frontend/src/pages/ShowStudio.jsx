@@ -775,7 +775,7 @@ export default function ShowStudio() {
   // ── DERIVED ──────────────────────────────────────────────────────────────────
   const audioVu    = isLive ? audioLevel : vuLevel / 100;
   const tipTotal   = tippers.reduce((s, t) => s + t.coins_total, 0);
-  const tipGoal    = parseFloat(show.tip_goal) * 20 || 0;
+  const tipGoal    = parseFloat(show.tip_goal) || 0;
   const tipGoalPct = tipGoal > 0 ? Math.min(100, (tipTotal / tipGoal) * 100) : 0;
 
   // ── DOCK SECTION HEADER ──────────────────────────────────────────────────────
@@ -1161,19 +1161,38 @@ export default function ShowStudio() {
             </div>
             <div>
               <label className="text-[10px] text-gray-500 font-medium mb-1 block">Meta de propinas (coins)</label>
-              <input className="w-full bg-[#111115] border border-white/10 text-white text-xs rounded px-2.5 py-1.5 placeholder-gray-600 outline-none focus:border-brand-500/50 transition-colors"
-                type="number" placeholder="Ej: 500"
-                value={show.tip_goal} onChange={e => set('tip_goal', e.target.value)} min="0" />
+              <div className="flex gap-1.5">
+                <input className="flex-1 bg-[#111115] border border-white/10 text-white text-xs rounded px-2.5 py-1.5 placeholder-gray-600 outline-none focus:border-yellow-500/50 transition-colors"
+                  type="number" placeholder="Ej: 500"
+                  value={show.tip_goal} onChange={e => set('tip_goal', e.target.value)} min="0" />
+                {isLive && (
+                  <button
+                    onClick={async () => {
+                      try {
+                        await api.patch(`/api/shows/${showId}/tip-goal`, { tip_goal: parseFloat(show.tip_goal) || null });
+                        toast.success('Meta actualizada');
+                      } catch { toast.error('Error al actualizar meta'); }
+                    }}
+                    className="px-2.5 py-1.5 bg-yellow-500/20 hover:bg-yellow-500/30 border border-yellow-500/30 text-yellow-400 text-[10px] font-bold rounded transition-colors shrink-0"
+                  >
+                    Aplicar
+                  </button>
+                )}
+              </div>
+              {tipGoal > 0 && (
+                <p className="text-[9px] text-yellow-600 mt-1">Meta activa: {tipGoal.toLocaleString()} coins</p>
+              )}
             </div>
             {isLive && tipGoal > 0 && (
               <div className="bg-yellow-500/5 border border-yellow-500/20 rounded-lg p-2">
                 <div className="flex justify-between text-[10px] mb-1">
                   <span className="text-yellow-400">⚡ Meta de propinas</span>
-                  <span className="text-yellow-400 font-bold">{tipTotal} / {tipGoal}</span>
+                  <span className="text-yellow-400 font-bold">{tipTotal.toLocaleString()} / {tipGoal.toLocaleString()}</span>
                 </div>
                 <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
                   <div className="h-full rounded-full bg-yellow-500 transition-all" style={{ width: `${tipGoalPct}%` }} />
                 </div>
+                {tipGoalPct >= 100 && <p className="text-[9px] text-yellow-400 text-center mt-1 font-bold">🎉 ¡Meta alcanzada!</p>}
               </div>
             )}
 

@@ -1102,6 +1102,25 @@ export const heartbeatShow = async (req, res) => {
   }
 };
 
+// PATCH /api/shows/:id/tip-goal — actualizar meta de propinas en vivo
+export const updateTipGoal = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const hostId = req.user.id;
+    const { tip_goal } = req.body;
+
+    const { data: show } = await supabase.from('live_shows').select('host_id').eq('id', id).single();
+    if (!show) return res.status(404).json({ error: 'Show no encontrado' });
+    if (show.host_id !== hostId) return res.status(403).json({ error: 'No autorizado' });
+
+    const goal = tip_goal ? Math.max(1, parseFloat(tip_goal)) : null;
+    await supabase.from('live_shows').update({ tip_goal: goal }).eq('id', id);
+    res.json({ tip_goal: goal });
+  } catch {
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
 // GET /api/shows/:id/tip-goal — progreso actual del tip goal
 export const getTipGoalProgress = async (req, res) => {
   try {

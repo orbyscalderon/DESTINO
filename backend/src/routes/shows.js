@@ -23,6 +23,7 @@ import {
   privateShowTick,
   heartbeatShow,
   getTipGoalProgress,
+  updateTipGoal,
   setPoll,
   votePoll,
   getPoll,
@@ -53,6 +54,7 @@ router.post('/:id/private/validate',  validatePrivateShow);
 router.post('/:id/private/tick',      privateShowTick);
 router.post('/:id/heartbeat',         heartbeatShow);
 router.get('/:id/tip-goal',           getTipGoalProgress);
+router.patch('/:id/tip-goal',         updateTipGoal);
 router.post('/:id/poll',              setPoll);
 router.post('/:id/poll/vote',         votePoll);
 router.get('/:id/poll',               getPoll);
