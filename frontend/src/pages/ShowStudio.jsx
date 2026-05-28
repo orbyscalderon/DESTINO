@@ -1176,6 +1176,48 @@ export default function ShowStudio() {
                 </div>
               </div>
             )}
+
+            {/* ── BOTONES DE ACCIÓN — solo móvil (en desktop están en el dock) ── */}
+            {!isDesktop && (
+              <div className="space-y-2 pt-2 border-t border-white/5">
+                {isLive ? (
+                  <button
+                    onClick={handleEndShow}
+                    className="w-full flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white font-bold text-sm py-3 rounded-xl transition-colors"
+                  >
+                    <FiX size={16} /> Terminar show
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      onClick={startCountdown}
+                      disabled={goingLive || !show.title.trim()}
+                      className="w-full flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 active:bg-red-800 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold text-sm py-3 rounded-xl transition-colors"
+                    >
+                      {goingLive
+                        ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        : <><span className="w-2 h-2 rounded-full bg-white animate-pulse" /> Ir en vivo</>
+                      }
+                    </button>
+                    <button
+                      onClick={handleSave}
+                      disabled={saving || !show.title.trim()}
+                      className="w-full flex items-center justify-center gap-2 bg-dark-700 hover:bg-dark-600 disabled:opacity-40 disabled:cursor-not-allowed text-gray-300 font-medium text-sm py-2.5 rounded-xl border border-white/10 transition-all"
+                    >
+                      {saving
+                        ? <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                        : <><FiSave size={14} /> Guardar para después</>
+                      }
+                    </button>
+                    {!show.title.trim() && (
+                      <p className="text-[11px] text-yellow-500/70 text-center flex items-center justify-center gap-1">
+                        <FiAlertCircle size={11} /> Escribe un título para continuar
+                      </p>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
           </div>
         )}
 
