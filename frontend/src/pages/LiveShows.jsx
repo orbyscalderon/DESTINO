@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { supabase } from '../lib/supabase.js';
 import {
   FiRadio, FiUsers, FiLock, FiSearch, FiX,
   FiRefreshCw, FiPlus, FiBarChart2, FiClock,
@@ -211,13 +212,43 @@ export default function LiveShows() {
 
   useEffect(() => {
     loadShows();
-    const interval = setInterval(() => loadShows(true), 30_000);
+    // Polling cada 15s (antes 30s)
+    const interval = setInterval(() => loadShows(true), 15_000);
     const onVisible = () => { if (document.visibilityState === 'visible') loadShows(true); };
     document.addEventListener('visibilitychange', onVisible);
     return () => { clearInterval(interval); document.removeEventListener('visibilitychange', onVisible); };
   }, [loadShows]);
 
+  // Realtime: recarga al instante cuando un show cambia a 'live' o 'ended'
+  useEffect(() => {
+    const ch = supabase
+      .channel('live-shows-feed')
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'live_shows',
+      }, (payload) => {
+        const { status, id } = payload.new || {};
+        if (status === 'live') {
+          // Show nuevo en vivo — recarga silenciosa inmediata
+          loadShows(true);
+        } else if (status === 'ended') {
+          // Show terminado — quitar de la lista sin llamada extra
+          setShows(prev => prev.filter(s => s.id !== id));
+        }
+      })
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'live_shows',
+      }, () => loadShows(true))
+      .subscribe();
+    return () => supabase.removeChannel(ch);
+  }, [loadShows]);
+
   /* ── Derived ── */
+  // Show propio del host (si está en vivo, incluye adultos porque es suyo)
+  const myLiveShow = shows.find(s => s.status === 'live' && s.host_id === profile?.id);
   const liveShows = shows.filter(s => s.status === 'live' && s.category !== 'adult');
   const upcomingShows = shows.filter(s => s.status === 'scheduled' && s.category !== 'adult');
 
@@ -384,6 +415,27 @@ export default function LiveShows() {
             </button>
           ))}
         </div>
+
+        {/* ── Banner: el host tiene un show en vivo ─────────────── */}
+        {myLiveShow && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex items-center gap-3 bg-red-500/10 border border-red-500/30 rounded-2xl px-4 py-3"
+          >
+            <span className="flex items-center gap-1.5 text-red-400 text-sm font-bold shrink-0">
+              <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+              TU SHOW EN VIVO
+            </span>
+            <p className="text-white text-sm truncate flex-1">{myLiveShow.title}</p>
+            <button
+              onClick={() => navigate('/studio')}
+              className="text-xs bg-red-500 text-white px-3 py-1.5 rounded-xl font-semibold hover:bg-red-600 transition-colors shrink-0"
+            >
+              Volver al studio
+            </button>
+          </motion.div>
+        )}
 
         {/* ── Live channels grid ────────────────────────────────── */}
         {loading ? (

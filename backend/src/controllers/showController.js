@@ -29,35 +29,53 @@ export const listShows = async (req, res) => {
       }
     }
 
-    let query = supabase
-      .from('live_shows')
-      .select(`
-        id, title, description, show_type, ticket_price, status,
-        cover_url, scheduled_at, started_at, category,
-        host:profiles!host_id(id, full_name, avatar_url, is_verified)
-      `)
-      .in('status', status === 'live' ? ['live'] : ['scheduled', 'live'])
-      .order('started_at', { ascending: false, nullsFirst: false })
-      .order('scheduled_at', { ascending: true })
-      .limit(50);
+    const statusFilter = status === 'live' ? ['live'] : ['scheduled', 'live'];
 
-    if (type && ['broadcast', 'private'].includes(type)) {
-      query = query.eq('show_type', type);
+    const buildQuery = (withHost) => {
+      let q = supabase
+        .from('live_shows')
+        .select(withHost
+          ? `id, title, description, show_type, ticket_price, status,
+             cover_url, scheduled_at, started_at, ended_at, category, host_id,
+             host:profiles!host_id(id, full_name, avatar_url, is_verified)`
+          : `id, title, description, show_type, ticket_price, status,
+             cover_url, scheduled_at, started_at, ended_at, category, host_id`
+        )
+        .in('status', statusFilter)
+        .order('started_at', { ascending: false, nullsFirst: false })
+        .order('scheduled_at', { ascending: true })
+        .limit(50);
+
+      if (type && ['broadcast', 'private'].includes(type)) q = q.eq('show_type', type);
+
+      if (isAdultSection) {
+        q = q.eq('category', 'adult');
+      } else if (category && VALID_CATEGORIES.includes(category)) {
+        q = q.eq('category', category);
+      } else {
+        q = q.neq('category', 'adult');
+      }
+      return q;
+    };
+
+    let { data, error } = await buildQuery(true);
+
+    // Fallback sin join si el FK no está correctamente nombrado en el schema
+    if (error) {
+      ({ data, error } = await buildQuery(false));
+      if (error) throw error;
+
+      // Enriquecer con perfiles manualmente
+      const hostIds = [...new Set((data || []).map(s => s.host_id).filter(Boolean))];
+      if (hostIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, full_name, avatar_url, is_verified')
+          .in('id', hostIds);
+        const profileMap = Object.fromEntries((profiles || []).map(p => [p.id, p]));
+        data = (data || []).map(s => ({ ...s, host: profileMap[s.host_id] || null }));
+      }
     }
-
-    if (isAdultSection) {
-      // Sección adulta: solo adultos
-      query = query.eq('category', 'adult');
-    } else if (category && VALID_CATEGORIES.includes(category)) {
-      // Categoría específica no adulta
-      query = query.eq('category', category);
-    } else {
-      // Listado general: NUNCA incluir adultos
-      query = query.neq('category', 'adult');
-    }
-
-    const { data, error } = await query;
-    if (error) throw error;
 
     // Agregar conteo de tickets vendidos (viewers)
     const showIds = (data || []).map(s => s.id);
