@@ -1105,6 +1105,32 @@ export default function ShowStudio() {
           </div>
         )}
 
+        {/* Controles rápidos móvil en vivo: Mic, Cam, Terminar */}
+        {!isDesktop && isLive && (
+          <div className="flex items-center gap-2 px-3 py-2 border-b border-white/5 shrink-0 bg-dark-800">
+            <button
+              onClick={toggleMute}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold transition-colors ${muted ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-white/5 text-gray-300 border border-white/10'}`}
+            >
+              {muted ? <FiMicOff size={13} /> : <FiMic size={13} />}
+              {muted ? 'Silenciado' : 'Mic'}
+            </button>
+            <button
+              onClick={toggleCamera}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold transition-colors ${cameraOff ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-white/5 text-gray-300 border border-white/10'}`}
+            >
+              {cameraOff ? <FiVideoOff size={13} /> : <FiVideo size={13} />}
+              {cameraOff ? 'Cam Off' : 'Cam'}
+            </button>
+            <button
+              onClick={handleEndShow}
+              className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold bg-red-600 hover:bg-red-700 text-white transition-colors shrink-0"
+            >
+              <FiX size={14} /> Terminar
+            </button>
+          </div>
+        )}
+
         {/* 4 Tabs — siempre visibles */}
         <div className="flex border-b border-white/5 shrink-0">
           {[
@@ -1731,14 +1757,14 @@ export default function ShowStudio() {
       {/* Body */}
       <div className="flex-1 flex flex-col min-h-0">
 
-        {/* ── LAYOUT MÓVIL: cámara arriba fija + panel abajo scrollable ── */}
+        {/* ── LAYOUT MÓVIL ── */}
         {!isDesktop ? (
           <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-            {/* Cámara — altura fija 220px */}
-            <div className="shrink-0" style={{ height: '220px' }}>
+            {/* Cámara — más grande cuando está en vivo (55vh) que en preview (220px) */}
+            <div className="shrink-0" style={{ height: isLive ? '55vh' : '220px' }}>
               {renderCanvas()}
             </div>
-            {/* Panel configuración — ocupa el resto, scroll interno */}
+            {/* Panel — chat/controles cuando live, config cuando preview */}
             <div className="flex-1 min-h-0 flex flex-col overflow-hidden" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
               {renderRightPanelFull()}
             </div>
