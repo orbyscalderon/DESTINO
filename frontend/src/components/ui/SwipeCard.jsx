@@ -1,8 +1,9 @@
 import { useState, useRef } from 'react';
 import { motion, useMotionValue, useTransform } from 'framer-motion';
-import { FiHeart, FiX, FiStar, FiPlay } from 'react-icons/fi';
+import { FiHeart, FiX, FiStar, FiPlay, FiMapPin } from 'react-icons/fi';
 import VerifiedBadge from './VerifiedBadge.jsx';
 import { hapticImpact, hapticNotification } from '../../lib/haptics.js';
+import { formatDistance } from '../../lib/geolocation.js';
 
 export default function SwipeCard({ profile, onLike, onDislike, onSuperLike, isPremium, isOnline, compatibilityPct }) {
   const [decision, setDecision] = useState(null);
@@ -188,6 +189,11 @@ export default function SwipeCard({ profile, onLike, onDislike, onSuperLike, isP
                   <span className="inline-block w-2.5 h-2.5 rounded-full bg-green-400 shadow-[0_0_6px_rgba(74,222,128,0.8)] flex-shrink-0" />
                 )}
               </h2>
+              {profile.distance_km != null && (
+                <p className="text-gray-300 text-xs mt-0.5 flex items-center gap-1">
+                  <FiMapPin size={11} /> {formatDistance(profile.distance_km)}
+                </p>
+              )}
               {profile.bio && (
                 <p className="text-gray-300 text-sm mt-1 line-clamp-2">{profile.bio}</p>
               )}

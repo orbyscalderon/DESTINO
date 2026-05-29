@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiCamera, FiEdit2, FiLogOut, FiStar, FiSettings, FiPlus, FiTrash2, FiSearch, FiShield, FiClock, FiLock, FiDollarSign, FiUsers, FiExternalLink, FiZap, FiBarChart2, FiChevronRight, FiMove, FiEyeOff, FiEye, FiShare2, FiFilm, FiPlay } from 'react-icons/fi';
+import { FiCamera, FiEdit2, FiLogOut, FiStar, FiSettings, FiPlus, FiTrash2, FiSearch, FiShield, FiClock, FiLock, FiDollarSign, FiUsers, FiExternalLink, FiZap, FiBarChart2, FiChevronRight, FiMove, FiEyeOff, FiEye, FiShare2, FiFilm, FiPlay, FiGrid, FiCheckCircle } from 'react-icons/fi';
+import ProfileQRModal from '../components/ui/ProfileQRModal.jsx';
+import SelfieVerifyModal from '../components/ui/SelfieVerifyModal.jsx';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import VerifiedBadge from '../components/ui/VerifiedBadge.jsx';
 import { useAuthStore } from '../store/authStore.js';
@@ -52,6 +54,7 @@ export default function Profile() {
     height: profile?.height || '',
     zodiac: profile?.zodiac || '',
     interests: profile?.interests || [],
+    looking_for: profile?.looking_for || '',
   });
   const [countrySearch, setCountrySearch] = useState('');
   const [dragIdx, setDragIdx] = useState(null);
@@ -64,6 +67,8 @@ export default function Profile() {
   const [completionClaimed, setCompletionClaimed] = useState(false);
   const [boostSecsLeft, setBoostSecsLeft] = useState(0);
   const [streakInfo, setStreakInfo] = useState(null);
+  const [showQR, setShowQR] = useState(false);
+  const [showSelfie, setShowSelfie] = useState(false);
   const fileRef = useRef(null);
   const photoRef = useRef(null);
   const videoRef = useRef(null);
@@ -394,6 +399,9 @@ export default function Profile() {
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-2xl lg:text-3xl font-black gradient-text">Mi Perfil</h1>
         <div className="flex gap-2">
+          <button onClick={() => setShowQR(true)} title="Compartir perfil (QR)" className="w-9 h-9 rounded-xl bg-dark-700 flex items-center justify-center text-gray-400 hover:text-white transition-colors">
+            <FiGrid size={16} />
+          </button>
           <Link to="/settings" className="w-9 h-9 rounded-xl bg-dark-700 flex items-center justify-center text-gray-400 hover:text-white transition-colors">
             <FiSettings size={16} />
           </Link>
@@ -639,8 +647,8 @@ export default function Profile() {
             </Link>
           )}
 
-          {/* Verificación de identidad — solo usuarios Premium+ */}
-          {profile?.is_premium && !profile?.is_verified && (
+          {/* Verificación de identidad */}
+          {!profile?.is_verified && (
             <div className="card p-4">
               {verificationStatus === 'pending' ? (
                 <div className="flex items-center gap-3">
@@ -686,6 +694,12 @@ export default function Profile() {
                       ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                       : <><FiExternalLink size={14} /> Verificar con Stripe</>
                     }
+                  </button>
+                  <button
+                    onClick={() => setShowSelfie(true)}
+                    className="btn-secondary w-full text-xs flex items-center justify-center gap-2"
+                  >
+                    <FiCheckCircle size={13} /> Verificar con selfie (gratis)
                   </button>
                 </div>
               )}
@@ -851,6 +865,32 @@ export default function Profile() {
                     </div>
                   </div>
 
+                  {/* Looking for */}
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1.5 uppercase tracking-wide">¿Qué buscas?</p>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {[
+                        { v: 'relationship', label: '💕 Relación' },
+                        { v: 'casual',       label: '🔥 Casual' },
+                        { v: 'friendship',   label: '👋 Amistad' },
+                        { v: 'unsure',       label: '🤷 Aún no sé' },
+                      ].map(({ v, label }) => (
+                        <button
+                          key={v}
+                          type="button"
+                          onClick={() => setForm(f => ({ ...f, looking_for: f.looking_for === v ? '' : v }))}
+                          className={`py-2 rounded-xl text-xs font-medium transition-all ${
+                            form.looking_for === v
+                              ? 'bg-brand-500 text-white'
+                              : 'bg-dark-700 text-gray-400 hover:bg-dark-600'
+                          }`}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
                   {/* Intereses */}
                   <div>
                     <div className="flex items-center justify-between mb-2">
@@ -915,6 +955,17 @@ export default function Profile() {
                       <div className="lg:col-span-2 bg-dark-700/50 rounded-xl px-4 py-3">
                         <p className="text-xs text-gray-500 mb-1">Bio</p>
                         <p className="text-gray-300 text-sm leading-relaxed">{profile.bio}</p>
+                      </div>
+                    )}
+                    {profile?.looking_for && (
+                      <div className="bg-dark-700/50 rounded-xl px-4 py-3">
+                        <p className="text-xs text-gray-500 mb-0.5">Busca</p>
+                        <p className="text-white font-medium">
+                          {profile.looking_for === 'relationship' && '💕 Relación'}
+                          {profile.looking_for === 'casual'       && '🔥 Casual'}
+                          {profile.looking_for === 'friendship'   && '👋 Amistad'}
+                          {profile.looking_for === 'unsure'       && '🤷 Aún no sé'}
+                        </p>
                       </div>
                     )}
                     {(profile?.height || profile?.zodiac) && (
@@ -1325,6 +1376,11 @@ export default function Profile() {
           )}
         </div>
       </div>
+
+      <AnimatePresence>
+        {showQR && profile && <ProfileQRModal profile={profile} onClose={() => setShowQR(false)} />}
+        {showSelfie && <SelfieVerifyModal onClose={() => setShowSelfie(false)} onVerified={() => fetchProfile(user.id)} />}
+      </AnimatePresence>
     </div>
   );
 }

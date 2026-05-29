@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiSend, FiLock, FiCheck, FiGlobe, FiImage, FiZap, FiX, FiCornerUpLeft, FiClock, FiSearch, FiMic, FiPlay, FiPause, FiTrash2, FiBookmark } from 'react-icons/fi';
+import { FiSend, FiLock, FiCheck, FiGlobe, FiImage, FiZap, FiX, FiCornerUpLeft, FiClock, FiSearch, FiMic, FiPlay, FiPause, FiTrash2, FiBookmark, FiVideo } from 'react-icons/fi';
 
 function DoubleCheck({ isRead, light = false }) {
   const color = isRead ? 'text-blue-400' : light ? 'text-white/40' : 'text-gray-600';
@@ -112,6 +112,8 @@ export default function ChatWindow({ matchId, otherUser }) {
   const reactChannelRef   = useRef(null);
   const translationCache  = useRef({});
   const imageInputRef     = useRef(null);
+  const videoInputRef     = useRef(null);
+  const [sendingVideo, setSendingVideo] = useState(false);
   const ppvFileRef        = useRef(null);
   const longPressRef      = useRef(null);
 
@@ -382,6 +384,30 @@ export default function ChatWindow({ matchId, otherUser }) {
       await api.post('/api/messages', { matchId, content: gif.url, type: 'gif' });
       if (!isPremiumPlus) decrementRemaining();
     } catch {}
+  };
+
+  // ── Video ──────────────────────────────────────────────────────────────────────
+  const handleVideoSelect = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    e.target.value = '';
+    if (file.size > 30 * 1024 * 1024) {
+      toast.error('Video demasiado grande (máx 30 MB)');
+      return;
+    }
+    if (!isPremiumPlus && remaining <= 0) { setShowPremiumModal(true); return; }
+    setSendingVideo(true);
+    const fd = new FormData();
+    fd.append('video', file);
+    fd.append('matchId', matchId);
+    try {
+      await api.post('/api/messages/video', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      if (!isPremiumPlus) decrementRemaining();
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Error al enviar video');
+    } finally {
+      setSendingVideo(false);
+    }
   };
 
   // ── Imagen ─────────────────────────────────────────────────────────────────────
@@ -763,6 +789,15 @@ export default function ChatWindow({ matchId, otherUser }) {
                         {isMe && <DoubleCheck isRead={msg.is_read} />}
                       </div>
                     </div>
+                  ) : (msg.type === 'video' || msg.message_type === 'video') ? (
+                    // Video
+                    <div className={`flex flex-col gap-1 ${isMe ? 'items-end' : 'items-start'}`}>
+                      <video src={msg.content} controls playsInline className="rounded-2xl max-w-[240px] max-h-72 object-cover shadow-lg" />
+                      <div className={`flex items-center gap-1 ${isMe ? 'justify-end' : 'justify-start'}`}>
+                        <span className="text-[10px] text-gray-600">{new Date(msg.created_at).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })}</span>
+                        {isMe && <DoubleCheck isRead={msg.is_read} />}
+                      </div>
+                    </div>
                   ) : msg.image_url ? (
                     // Imagen
                     <div className={`flex flex-col gap-1 ${isMe ? 'items-end' : 'items-start'}`}>
@@ -885,6 +920,18 @@ export default function ChatWindow({ matchId, otherUser }) {
             }
           </button>
           <input ref={imageInputRef} type="file" accept="image/*" onChange={handleImageSelect} className="hidden" />
+
+          <button type="button" onClick={() => videoInputRef.current?.click()}
+            disabled={sendingVideo || (!isPremiumPlus && remaining <= 0)}
+            className="w-10 h-10 shrink-0 rounded-xl bg-dark-700 flex items-center justify-center text-gray-400 hover:text-brand-400 hover:bg-dark-600 transition-colors disabled:opacity-40"
+            title="Enviar video"
+          >
+            {sendingVideo
+              ? <div className="w-4 h-4 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
+              : <FiVideo size={16} />
+            }
+          </button>
+          <input ref={videoInputRef} type="file" accept="video/*" capture="user" onChange={handleVideoSelect} className="hidden" />
 
           {profile?.is_creator && (
             <button type="button" onClick={() => ppvFileRef.current?.click()}

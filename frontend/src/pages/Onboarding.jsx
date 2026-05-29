@@ -69,6 +69,13 @@ export default function Onboarding() {
       });
 
       await fetchProfile(user.id);
+
+      // Pedir geolocalización (no bloqueante)
+      try {
+        const { requestAndSaveLocation } = await import('../lib/geolocation.js');
+        requestAndSaveLocation().catch(() => {});
+      } catch {}
+
       toast.success('¡Perfil creado!');
       navigate('/home');
     } catch (err) {

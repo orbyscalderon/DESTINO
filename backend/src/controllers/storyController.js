@@ -166,6 +166,56 @@ export const markStoryViewed = async (req, res) => {
   }
 };
 
+// POST /api/stories/:id/reply — enviar mensaje en respuesta a una story
+export const replyToStory = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { content } = req.body;
+    const senderId = req.user.id;
+    if (!content?.trim()) return res.status(400).json({ error: 'Mensaje vacío' });
+
+    const { data: story } = await supabase
+      .from('stories').select('user_id, media_url').eq('id', id).single();
+    if (!story) return res.status(404).json({ error: 'Story no encontrada' });
+    if (story.user_id === senderId) return res.status(400).json({ error: 'No puedes responder a tu propia story' });
+
+    // Buscar o crear match con el autor de la story
+    let { data: match } = await supabase
+      .from('matches')
+      .select('id, is_match, user1_id, user2_id')
+      .or(`and(user1_id.eq.${senderId},user2_id.eq.${story.user_id}),and(user1_id.eq.${story.user_id},user2_id.eq.${senderId})`)
+      .maybeSingle();
+
+    if (!match) {
+      const { data: newMatch, error: matchErr } = await supabase
+        .from('matches')
+        .insert({ user1_id: senderId, user2_id: story.user_id, is_match: false })
+        .select('id')
+        .single();
+      if (matchErr) throw matchErr;
+      match = newMatch;
+    }
+
+    const { data: message, error: msgErr } = await supabase
+      .from('messages')
+      .insert({
+        match_id: match.id,
+        sender_id: senderId,
+        content: content.trim(),
+        message_type: 'text',
+        reply_to_story_id: id,
+      })
+      .select()
+      .single();
+    if (msgErr) throw msgErr;
+
+    res.status(201).json({ message, match_id: match.id });
+  } catch (err) {
+    console.error('replyToStory error:', err.message);
+    res.status(500).json({ error: 'Error al responder story' });
+  }
+};
+
 // GET /api/stories/:id/viewers — quién vio mi story (solo el autor puede consultarlo)
 export const getStoryViewers = async (req, res) => {
   try {

@@ -18,7 +18,17 @@ import { useAds } from '../hooks/useAds.js';
 import { compressImage } from '../lib/imageCompressor.js';
 import toast from 'react-hot-toast';
 
-const DEFAULT_FILTERS = { gender: 'all', minAge: '', maxAge: '', country: '', language: '', interests: [] };
+const DEFAULT_FILTERS = { gender: 'all', minAge: '', maxAge: '', country: '', language: '', interests: [], maxDistance: '', lookingFor: '' };
+
+const FILTERS_STORAGE_KEY = 'destino_discover_filters';
+
+function loadStoredFilters() {
+  try {
+    const raw = localStorage.getItem(FILTERS_STORAGE_KEY);
+    if (raw) return { ...DEFAULT_FILTERS, ...JSON.parse(raw) };
+  } catch {}
+  return DEFAULT_FILTERS;
+}
 
 const QUICK_INTERESTS = ['🎵 Música', '✈️ Viajes', '💪 Fitness', '🎮 Gaming', '📸 Fotografía', '🍷 Vinos'];
 
@@ -30,8 +40,8 @@ export default function Discover() {
   const [matchData, setMatchData] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
   const [showPremiumModal, setShowPremiumModal] = useState(false);
-  const [filters, setFilters] = useState(DEFAULT_FILTERS);
-  const [activeFilters, setActiveFilters] = useState(DEFAULT_FILTERS);
+  const [filters, setFilters] = useState(loadStoredFilters);
+  const [activeFilters, setActiveFilters] = useState(loadStoredFilters);
   const [likesRemaining, setLikesRemaining] = useState(null);
   const [countrySearch, setCountrySearch] = useState('');
   const [watchingAd, setWatchingAd]   = useState(false);
@@ -132,6 +142,8 @@ export default function Discover() {
       if (f.maxAge) params.set('maxAge', f.maxAge);
       if (f.country) params.set('country', f.country);
       if (f.language) params.set('language', f.language);
+      if (f.maxDistance) params.set('maxDistance', f.maxDistance);
+      if (f.lookingFor) params.set('lookingFor', f.lookingFor);
       if (f.interests?.length) params.set('interests', f.interests.join(','));
       const { data } = await api.get(`/api/profiles/feed?${params}`);
       const profiles = (data.profiles || []).filter(p => !p.is_adult_creator);
@@ -148,10 +160,12 @@ export default function Discover() {
     setActiveFilters(filters);
     setShowFilters(false);
     setCountrySearch('');
+    try { localStorage.setItem(FILTERS_STORAGE_KEY, JSON.stringify(filters)); } catch {}
     loadFeed(filters);
   };
 
   const resetFilters = () => {
+    try { localStorage.removeItem(FILTERS_STORAGE_KEY); } catch {}
     setFilters(DEFAULT_FILTERS);
     setActiveFilters(DEFAULT_FILTERS);
     setShowFilters(false);
@@ -159,7 +173,7 @@ export default function Discover() {
     loadFeed(DEFAULT_FILTERS);
   };
 
-  const hasActiveFilters = activeFilters.gender !== 'all' || activeFilters.minAge || activeFilters.maxAge
+  const hasActiveFilters = activeFilters.gender !== 'all' || activeFilters.minAge || activeFilters.maxAge || activeFilters.maxDistance || activeFilters.lookingFor
     || activeFilters.country || activeFilters.language || activeFilters.interests?.length > 0;
 
   const handleLike = async (targetId) => {
@@ -926,6 +940,53 @@ export default function Discover() {
                       }`}
                     >
                       {l.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Distancia máxima */}
+              <div className="mb-6">
+                <p className="text-xs text-gray-500 mb-2 uppercase tracking-wide flex items-center justify-between">
+                  Distancia máxima
+                  <span className="text-brand-400 normal-case font-bold">
+                    {filters.maxDistance ? `${filters.maxDistance} km` : 'Sin límite'}
+                  </span>
+                </p>
+                <input
+                  type="range"
+                  min="0"
+                  max="500"
+                  step="5"
+                  value={filters.maxDistance || 0}
+                  onChange={e => setFilters(f => ({ ...f, maxDistance: e.target.value === '0' ? '' : e.target.value }))}
+                  className="w-full accent-brand-500"
+                />
+                <div className="flex justify-between text-[10px] text-gray-600 mt-1">
+                  <span>Cerca</span><span>500+ km</span>
+                </div>
+              </div>
+
+              {/* Looking for */}
+              <div className="mb-6">
+                <p className="text-xs text-gray-500 mb-2 uppercase tracking-wide">Busca</p>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {[
+                    { v: 'relationship', label: '💕 Relación', },
+                    { v: 'casual',       label: '🔥 Casual',   },
+                    { v: 'friendship',   label: '👋 Amistad',  },
+                    { v: 'unsure',       label: '🤷 Aún no sé',},
+                  ].map(({ v, label }) => (
+                    <button
+                      key={v}
+                      onClick={() => setFilters(f => ({ ...f, lookingFor: f.lookingFor === v ? '' : v }))}
+                      className={`py-2 rounded-xl text-xs font-medium transition-all ${
+                        filters.lookingFor === v
+                          ? 'bg-brand-500 text-white'
+                          : 'bg-dark-700 text-gray-400 hover:bg-dark-600'
+                      }`}
+                    >
+                      {label}
                     </button>
                   ))}
                 </div>

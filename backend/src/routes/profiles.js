@@ -27,6 +27,14 @@ import {
   pauseAccount,
   unpauseAccount,
   exportData,
+  updateLocation,
+  setLookingFor,
+  setTravelMode,
+  clearTravelMode,
+  saveSearchPreferences,
+  getSearchPreferences,
+  uploadSelfieMiddleware,
+  verifySelfie,
 } from '../controllers/profileController.js';
 import {
   uploadProfileVideo,
@@ -52,6 +60,13 @@ router.put('/hide-online', toggleHideOnlineStatus);
 router.post('/pause', pauseAccount);
 router.post('/unpause', unpauseAccount);
 router.get('/export', exportData);
+router.post('/location', updateLocation);
+router.put('/looking-for', setLookingFor);
+router.post('/travel', setTravelMode);
+router.delete('/travel', clearTravelMode);
+router.put('/search-preferences', saveSearchPreferences);
+router.get('/search-preferences', getSearchPreferences);
+router.post('/selfie-verify', uploadSelfieMiddleware, verifySelfie);
 router.post('/verify-age', verifyAge);
 router.get('/geoip', getGeoIp);
 router.get('/completion/status', getCompletionStatus);

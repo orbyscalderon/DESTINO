@@ -41,6 +41,23 @@ export const chatAudioMiddleware = (req, res, next) => {
   });
 };
 
+const ALLOWED_VIDEO_MIME = ['video/mp4', 'video/webm', 'video/quicktime'];
+const chatVideoUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 30 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (ALLOWED_VIDEO_MIME.includes(file.mimetype)) cb(null, true);
+    else cb(new Error('Formato de video no soportado'), false);
+  },
+});
+export const chatVideoMiddleware = (req, res, next) => {
+  chatVideoUpload.single('video')(req, res, (err) => {
+    if (err?.code === 'LIMIT_FILE_SIZE') return res.status(400).json({ error: 'El video no puede superar 30 MB' });
+    if (err) return res.status(400).json({ error: err.message });
+    next();
+  });
+};
+
 // Contenido PPV privado — usa Supabase signed URLs (bucket privado)
 // Al migrar a Backblaze B2: B2 soporta private files + presigned URLs igual que S3
 const PPV_BUCKET = 'Destino TV-PPV';
@@ -450,6 +467,56 @@ export const sendVoiceMessage = async (req, res) => {
     res.json({ message });
   } catch (err) {
     console.error('sendVoiceMessage error:', err.message);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
+// POST /api/messages/video — enviar mensaje de video
+export const sendVideoMessage = async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No se recibió video' });
+    const { matchId } = req.body;
+    if (!matchId || !isValidUUID(matchId)) return res.status(400).json({ error: 'matchId inválido' });
+    const userId = req.user.id;
+
+    const { data: match } = await supabase
+      .from('matches')
+      .select('user1_id, user2_id, is_match')
+      .eq('id', matchId)
+      .single();
+    if (!match?.is_match || (match.user1_id !== userId && match.user2_id !== userId)) {
+      return res.status(403).json({ error: 'No tienes acceso a este chat' });
+    }
+
+    const ext = req.file.mimetype.includes('webm') ? 'webm' : 'mp4';
+    const storagePath = `chat-video/${matchId}/${userId}-${Date.now()}.${ext}`;
+    const videoUrl = await uploadFile(storagePath, req.file.buffer, req.file.mimetype);
+
+    const { data: message, error } = await supabase
+      .from('messages')
+      .insert({
+        match_id: matchId,
+        sender_id: userId,
+        content: videoUrl,
+        type: 'video',
+        message_type: 'video',
+      })
+      .select(`id, sender_id, content, type, message_type, created_at, is_read,
+        sender:profiles!sender_id(id, full_name, avatar_url)`)
+      .single();
+    if (error) throw error;
+
+    const recipientId = match.user1_id === userId ? match.user2_id : match.user1_id;
+    const { data: sp } = await supabase.from('profiles').select('full_name').eq('id', userId).single();
+    sendPushToUser(recipientId, {
+      title: sp?.full_name || 'Nuevo mensaje',
+      body: '🎥 Mensaje de video',
+      url: `/chat/${matchId}`,
+    }).catch(() => {});
+
+    res.json({ message });
+  } catch (err) {
+    console.error('sendVideoMessage error:', err.message);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };

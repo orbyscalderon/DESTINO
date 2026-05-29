@@ -11,6 +11,8 @@ import {
   unlockPPV,
   sendVoiceMessage,
   chatAudioMiddleware,
+  sendVideoMessage,
+  chatVideoMiddleware,
   toggleReaction,
   deleteMessage,
   clearConversation,
@@ -28,6 +30,7 @@ router.get('/:matchId', getMessages);
 router.post('/', messageLimitMiddleware, sendMessage);
 router.post('/image', chatImageMiddleware, sendImageMessage);
 router.post('/voice', chatAudioMiddleware, sendVoiceMessage);
+router.post('/video', chatVideoMiddleware, sendVideoMessage);
 router.post('/:id/reactions', toggleReaction);
 router.post('/ppv', chatImageMiddleware, sendPPVMessage);
 router.post('/ppv/:messageId/unlock', unlockPPV);

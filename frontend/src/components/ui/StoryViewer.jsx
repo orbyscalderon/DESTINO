@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiX, FiChevronLeft, FiChevronRight, FiPlus } from 'react-icons/fi';
+import { FiX, FiChevronLeft, FiChevronRight, FiPlus, FiSend } from 'react-icons/fi';
 import { compressImage } from '../../lib/imageCompressor.js';
+import { useNavigate } from 'react-router-dom';
 import api from '../../lib/api.js';
 import toast from 'react-hot-toast';
 
@@ -12,9 +13,32 @@ export default function StoryViewer({ groups, initialGroupIndex = 0, onClose, on
   const [progress, setProgress] = useState(0);
   const [paused, setPaused] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
+  const [replyText, setReplyText] = useState('');
+  const [sendingReply, setSendingReply] = useState(false);
+  const navigate = useNavigate();
   const progressRef = useRef(null);
   const fileRef = useRef(null);
   const DURATION = 5000; // 5 segundos por foto
+
+  const sendStoryReply = async () => {
+    if (!replyText.trim() || sendingReply || !currentStory) return;
+    setSendingReply(true);
+    setPaused(true);
+    try {
+      const { data } = await api.post(`/api/stories/${currentStory.id}/reply`, { content: replyText.trim() });
+      setReplyText('');
+      toast.success('Respuesta enviada');
+      if (data.match_id) {
+        onClose?.();
+        navigate(`/chat/${data.match_id}`);
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Error al enviar respuesta');
+    } finally {
+      setSendingReply(false);
+      setPaused(false);
+    }
+  };
 
   const currentGroup = groups[groupIdx];
   const currentStory = currentGroup?.stories[storyIdx];
@@ -152,6 +176,35 @@ export default function StoryViewer({ groups, initialGroupIndex = 0, onClose, on
           onClick={goNext}
           className="absolute right-0 top-0 w-1/3 h-full z-10"
         />
+
+        {/* Input de respuesta — solo si NO es propia */}
+        {!isOwn && currentStory && (
+          <div className="absolute bottom-4 left-4 right-4 z-20 flex items-center gap-2">
+            <input
+              type="text"
+              value={replyText}
+              onChange={e => setReplyText(e.target.value)}
+              onFocus={() => setPaused(true)}
+              onBlur={() => setPaused(false)}
+              onKeyDown={e => e.key === 'Enter' && sendStoryReply()}
+              placeholder={`Responder a ${currentGroup?.user?.full_name?.split(' ')[0] || ''}...`}
+              maxLength={200}
+              className="flex-1 bg-white/10 backdrop-blur-md border border-white/20 rounded-full px-4 py-2.5 text-white text-sm placeholder-white/60 outline-none focus:border-brand-500/50 focus:bg-white/15"
+            />
+            {replyText.trim() && (
+              <button
+                onClick={sendStoryReply}
+                disabled={sendingReply}
+                className="w-10 h-10 rounded-full bg-brand-500 hover:bg-brand-600 flex items-center justify-center disabled:opacity-50 transition-colors"
+              >
+                {sendingReply
+                  ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  : <FiSend size={16} className="text-white" />
+                }
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Botón añadir story (solo propia) */}
         {isOwn && groupIdx === 0 && (

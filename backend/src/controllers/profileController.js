@@ -215,21 +215,27 @@ export const getFeed = async (req, res) => {
   try {
     const userId = req.user.id;
     const limit = parseInt(req.query.limit) || 20;
-    const { gender, minAge, maxAge, country, language, interests } = req.query;
+    const { gender, minAge, maxAge, country, language, interests, lookingFor, maxDistance } = req.query;
+    const maxDistanceKm = maxDistance ? parseFloat(maxDistance) : null;
 
     const [
       { data: seenMatches },
       { data: matchedAsUser2 },
       { data: blockedRows },
       { data: blockedByRows },
+      { data: viewer },
     ] = await Promise.all([
-      // Perfiles que YO ya swipé (yo soy user1)
       supabase.from('matches').select('user2_id').eq('user1_id', userId),
-      // Perfiles con los que ya hice match (ellos me likearon primero, yo soy user2)
       supabase.from('matches').select('user1_id').eq('user2_id', userId).eq('is_match', true),
       supabase.from('blocked_users').select('blocked_id').eq('blocker_id', userId),
       supabase.from('blocked_users').select('blocker_id').eq('blocked_id', userId),
+      supabase.from('profiles').select('latitude, longitude, travel_latitude, travel_longitude, travel_until').eq('id', userId).single(),
     ]);
+
+    // Origen del usuario: si tiene travel activo, usa esa ubicación
+    const usingTravel = viewer?.travel_until && new Date(viewer.travel_until) > new Date();
+    const myLat = usingTravel ? viewer.travel_latitude : viewer?.latitude;
+    const myLng = usingTravel ? viewer.travel_longitude : viewer?.longitude;
 
     const seenIds = [
       ...(seenMatches?.map(m => m.user2_id) || []),
@@ -255,6 +261,7 @@ export const getFeed = async (req, res) => {
     if (maxAge) query = query.lte('age', parseInt(maxAge));
     if (country) query = query.eq('country', country);
     if (language) query = query.eq('language', language);
+    if (lookingFor) query = query.eq('looking_for', lookingFor);
     if (interests) {
       const tags = interests.split(',').map(t => t.trim()).filter(Boolean);
       if (tags.length > 0) query = query.overlaps('interests', tags);
@@ -302,9 +309,30 @@ export const getFeed = async (req, res) => {
       });
     }
 
-    res.json({
-      profiles: (profiles || []).map(p => ({ ...sanitizeForPublic(p), photos: photosByUser[p.id] || [] })),
+    // Haversine — calcular distancia y filtrar
+    const haversine = (lat1, lng1, lat2, lng2) => {
+      if (lat1 == null || lng1 == null || lat2 == null || lng2 == null) return null;
+      const R = 6371;
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLng = (lng2 - lng1) * Math.PI / 180;
+      const a = Math.sin(dLat/2) ** 2 +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+        Math.sin(dLng/2) ** 2;
+      return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
+    };
+
+    let enriched = (profiles || []).map(p => {
+      const targetLat = p.travel_until && new Date(p.travel_until) > new Date() ? p.travel_latitude : p.latitude;
+      const targetLng = p.travel_until && new Date(p.travel_until) > new Date() ? p.travel_longitude : p.longitude;
+      const distance_km = haversine(myLat, myLng, targetLat, targetLng);
+      return { ...sanitizeForPublic(p), photos: photosByUser[p.id] || [], distance_km };
     });
+
+    if (maxDistanceKm && myLat != null && myLng != null) {
+      enriched = enriched.filter(p => p.distance_km == null || p.distance_km <= maxDistanceKm);
+    }
+
+    res.json({ profiles: enriched });
   } catch (err) {
     console.error('[getFeed]', err);
     res.status(500).json({ error: 'Error interno del servidor' });
@@ -849,6 +877,136 @@ export const unpauseAccount = async (req, res) => {
     res.json({ is_paused: false });
   } catch (err) {
     res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
+// POST /api/profiles/location — actualizar lat/lng del usuario
+export const updateLocation = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { latitude, longitude } = req.body;
+    if (typeof latitude !== 'number' || typeof longitude !== 'number') {
+      return res.status(400).json({ error: 'lat/lng inválidos' });
+    }
+    if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
+      return res.status(400).json({ error: 'Coordenadas fuera de rango' });
+    }
+    await supabase.from('profiles').update({
+      latitude, longitude,
+      location_consent: true,
+      location_updated_at: new Date().toISOString(),
+    }).eq('id', userId);
+    res.json({ ok: true });
+  } catch {
+    res.status(500).json({ error: 'Error al guardar ubicación' });
+  }
+};
+
+// PUT /api/profiles/looking-for — qué busca el usuario
+export const setLookingFor = async (req, res) => {
+  try {
+    const { value } = req.body;
+    const valid = ['relationship', 'casual', 'friendship', 'unsure', null];
+    if (!valid.includes(value)) return res.status(400).json({ error: 'Valor inválido' });
+    await supabase.from('profiles').update({ looking_for: value }).eq('id', req.user.id);
+    res.json({ looking_for: value });
+  } catch {
+    res.status(500).json({ error: 'Error interno' });
+  }
+};
+
+// POST /api/profiles/travel — modo viajando (premium)
+export const setTravelMode = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { latitude, longitude, city, until } = req.body;
+
+    const { data: profile } = await supabase
+      .from('profiles').select('premium_tier').eq('id', userId).single();
+    const isPremium = profile?.premium_tier === 'premium' || profile?.premium_tier === 'vip';
+    if (!isPremium) return res.status(403).json({ error: 'Modo viajando requiere Premium', code: 'PREMIUM_REQUIRED' });
+
+    if (!latitude || !longitude) return res.status(400).json({ error: 'Coordenadas requeridas' });
+
+    await supabase.from('profiles').update({
+      travel_latitude: latitude,
+      travel_longitude: longitude,
+      travel_city: city || null,
+      travel_until: until || new Date(Date.now() + 7 * 86400000).toISOString(),
+    }).eq('id', userId);
+
+    res.json({ ok: true });
+  } catch {
+    res.status(500).json({ error: 'Error interno' });
+  }
+};
+
+// DELETE /api/profiles/travel — desactivar travel mode
+export const clearTravelMode = async (req, res) => {
+  try {
+    await supabase.from('profiles').update({
+      travel_latitude: null, travel_longitude: null, travel_city: null, travel_until: null,
+    }).eq('id', req.user.id);
+    res.json({ ok: true });
+  } catch {
+    res.status(500).json({ error: 'Error interno' });
+  }
+};
+
+// PUT /api/profiles/search-preferences — guardar filtros
+export const saveSearchPreferences = async (req, res) => {
+  try {
+    const { preferences } = req.body;
+    if (typeof preferences !== 'object' || preferences === null) {
+      return res.status(400).json({ error: 'preferences debe ser objeto' });
+    }
+    await supabase.from('profiles').update({ search_preferences: preferences }).eq('id', req.user.id);
+    res.json({ ok: true });
+  } catch {
+    res.status(500).json({ error: 'Error interno' });
+  }
+};
+
+// GET /api/profiles/search-preferences — recuperar filtros
+export const getSearchPreferences = async (req, res) => {
+  try {
+    const { data: profile } = await supabase
+      .from('profiles').select('search_preferences').eq('id', req.user.id).single();
+    res.json({ preferences: profile?.search_preferences || {} });
+  } catch {
+    res.json({ preferences: {} });
+  }
+};
+
+// Multer para selfie
+const selfieUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 }, fileFilter: imageFilter });
+export const uploadSelfieMiddleware = (req, res, next) => {
+  selfieUpload.single('selfie')(req, res, (err) => {
+    if (err?.code === 'LIMIT_FILE_SIZE') return res.status(400).json({ error: 'La selfie no puede superar 10 MB' });
+    if (err) return res.status(400).json({ error: err.message });
+    next();
+  });
+};
+
+// POST /api/profiles/selfie-verify — subir selfie, marca verificado (basic check)
+export const verifySelfie = async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'Selfie requerida' });
+    const userId = req.user.id;
+    const path = `selfies/${userId}/${Date.now()}.jpg`;
+    const url = await uploadFile(path, req.file.buffer, req.file.mimetype);
+
+    // Auto-aprobar — en producción se conectaría a face-match API
+    await supabase.from('profiles').update({
+      selfie_url: url,
+      selfie_verified_at: new Date().toISOString(),
+      is_verified: true,
+      verification_status: 'verified',
+    }).eq('id', userId);
+
+    res.json({ verified: true, selfie_url: url });
+  } catch {
+    res.status(500).json({ error: 'Error al verificar selfie' });
   }
 };
 

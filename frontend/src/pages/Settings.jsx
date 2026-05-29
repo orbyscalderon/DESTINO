@@ -299,6 +299,43 @@ export default function Settings() {
   const [isPaused, setIsPaused] = useState(false);
   const [pausingAccount, setPausingAccount] = useState(false);
   const [exportingData, setExportingData] = useState(false);
+  const [travelCity, setTravelCity] = useState('');
+  const [travelActive, setTravelActive] = useState(false);
+  const [activatingTravel, setActivatingTravel] = useState(false);
+
+  const activateTravel = async () => {
+    if (!travelCity.trim()) return toast.error('Ingresa una ciudad');
+    setActivatingTravel(true);
+    try {
+      // Geocode con OpenStreetMap Nominatim (gratis)
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(travelCity)}`);
+      const data = await res.json();
+      if (!data[0]) { toast.error('Ciudad no encontrada'); setActivatingTravel(false); return; }
+      const { lat, lon, display_name } = data[0];
+      await api.post('/api/profiles/travel', {
+        latitude: parseFloat(lat),
+        longitude: parseFloat(lon),
+        city: display_name.split(',')[0],
+      });
+      setTravelActive(true);
+      toast.success(`Modo viajando: ${display_name.split(',')[0]}`);
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Error al activar travel mode');
+    } finally {
+      setActivatingTravel(false);
+    }
+  };
+
+  const clearTravel = async () => {
+    try {
+      await api.delete('/api/profiles/travel');
+      setTravelActive(false);
+      setTravelCity('');
+      toast.success('Modo viajando desactivado');
+    } catch {
+      toast.error('Error al desactivar');
+    }
+  };
 
   const handleToggleHideOnline = async () => {
     setTogglingHideOnline(true);
@@ -724,6 +761,38 @@ export default function Settings() {
               </p>
             </div>
           </button>
+
+          {/* Modo viajando — Premium */}
+          <div className="card p-4">
+            <div className="flex items-center gap-3 mb-2">
+              <span className="text-2xl">✈️</span>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-white">Modo viajando</p>
+                <p className="text-xs text-gray-500">{travelActive ? 'Activo' : 'Match con gente de otra ciudad (Premium)'}</p>
+              </div>
+            </div>
+            {travelActive ? (
+              <button onClick={clearTravel} className="btn-secondary w-full text-xs py-2">
+                Desactivar modo viajando
+              </button>
+            ) : (
+              <div className="flex gap-2">
+                <input
+                  className="input-field text-xs py-2 flex-1"
+                  placeholder="Ej: Madrid, Buenos Aires..."
+                  value={travelCity}
+                  onChange={e => setTravelCity(e.target.value)}
+                />
+                <button
+                  onClick={activateTravel}
+                  disabled={activatingTravel || !travelCity.trim()}
+                  className="btn-primary text-xs px-3 py-2 disabled:opacity-40"
+                >
+                  {activatingTravel ? '...' : 'Activar'}
+                </button>
+              </div>
+            )}
+          </div>
 
           {/* Exportar datos (GDPR) */}
           <button
