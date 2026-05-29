@@ -737,9 +737,9 @@ export const sendGift = async (req, res) => {
     if (!show || show.status !== 'live') return res.status(400).json({ error: 'Show no está en vivo' });
     if (show.host_id === senderId) return res.status(400).json({ error: 'No puedes enviarte un regalo a ti mismo' });
 
-    await spendCoins(senderId, gift.coins, 'tip_sent', id);
+    await spendCoins(senderId, gift.coins, 'gift_sent', id);
 
-    const amountUSD      = coinsToUSD(gift.coins);
+    const amountUSD       = coinsToUSD(gift.coins);
     const creatorEarnings = creatorCutUSD(gift.coins);
 
     await supabase.from('show_gifts').insert({
@@ -750,10 +750,12 @@ export const sendGift = async (req, res) => {
       coins_spent: gift.coins,
     });
 
-    await addCoins(show.host_id, Math.round(gift.coins * 0.7), 'tip_received', id);
+    await addCoins(show.host_id, Math.round(gift.coins * 0.7), 'gift_received', id);
     await upsertCreatorEarnings(show.host_id, creatorEarnings);
 
-    const { data: sender } = await supabase.from('profiles').select('full_name').eq('id', senderId).single();
+    const { data: sender }    = await supabase.from('profiles').select('full_name').eq('id', senderId).single();
+    const { data: balanceRow } = await supabase.from('profiles').select('coins_balance').eq('id', senderId).single();
+
     createNotification(show.host_id, 'tip', `¡${sender?.full_name} te envió un regalo!`, `${gift.label} · ${gift.coins} coins`, { show_id: id });
     sendPushToUser(show.host_id, {
       title: `¡${sender?.full_name} te envió un ${gift.label}!`,
@@ -761,11 +763,17 @@ export const sendGift = async (req, res) => {
       url: `/shows/${id}`,
     }).catch(() => {});
 
-    res.json({ success: true, gift_type, coins_spent: gift.coins });
+    res.json({
+      success: true,
+      gift_type,
+      coins_spent: gift.coins,
+      new_balance: balanceRow?.coins_balance ?? null,
+    });
   } catch (err) {
     if (err?.code === 'INSUFFICIENT_COINS') {
       return res.status(400).json({ error: 'Saldo de coins insuficiente', code: 'INSUFFICIENT_COINS' });
     }
+    console.error('sendGift error:', err.message);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };

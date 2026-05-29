@@ -389,7 +389,7 @@ export default function LiveShow() {
     const gid = `${Date.now()}-${Math.random()}`;
     setGiftAnimations(prev => [...prev, { id: gid, emoji, senderName }]);
     setTimeout(() => setGiftAnimations(prev => prev.filter(g => g.id !== gid)), 3000);
-    loadTippers();
+    // loadTippers se llama solo al abrir el leaderboard (no en cada animación)
   }, []);
 
   const joinShowChannel = useCallback((showId, role = 'viewer') => {
@@ -1018,9 +1018,12 @@ export default function LiveShow() {
   // Cleanup private tick on unmount
   useEffect(() => () => clearInterval(privateTickRef.current), []);
 
-  const handleGiftSent = (giftType, emoji) => {
+  const handleGiftSent = (giftType, emoji, newBalance) => {
     const GIFT_COINS = { rose: 10, heart: 50, diamond: 200, crown: 500 };
-    setCoinBalance(b => Math.max(0, b - (GIFT_COINS[giftType] || 0)));
+    // Si el server devolvió el balance real, úsalo. Si no, decrementa local.
+    if (typeof newBalance === 'number') setCoinBalance(newBalance);
+    else setCoinBalance(b => Math.max(0, b - (GIFT_COINS[giftType] || 0)));
+
     chatChannelRef.current?.send({
       type: 'broadcast', event: 'gift',
       payload: { emoji, senderName: authProfile?.full_name || 'Alguien', coins: GIFT_COINS[giftType] || 0 },

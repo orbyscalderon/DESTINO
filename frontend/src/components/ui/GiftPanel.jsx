@@ -13,21 +13,26 @@ const GIFTS = [
 
 export default function GiftPanel({ showId, coinBalance, onClose, onGiftSent }) {
   const [sending, setSending] = useState(null);
+  const balance = Number(coinBalance) || 0;
 
   const handleSend = async (gift) => {
     if (sending) return;
-    if (coinBalance < gift.coins) {
-      toast.error(`Necesitas ${gift.coins} coins. Tienes ${coinBalance}.`);
+    if (balance < gift.coins) {
+      toast.error(`Necesitas ${gift.coins} coins. Tienes ${balance}.`);
       return;
     }
     setSending(gift.type);
     try {
-      await api.post(`/api/shows/${showId}/gift`, { gift_type: gift.type });
-      onGiftSent?.(gift.type, gift.emoji);
+      const { data } = await api.post(`/api/shows/${showId}/gift`, { gift_type: gift.type });
+      onGiftSent?.(gift.type, gift.emoji, data?.new_balance);
       toast.success(`${gift.emoji} ${gift.label} enviado`);
       onClose();
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Error al enviar regalo');
+      if (err.response?.data?.code === 'INSUFFICIENT_COINS') {
+        toast.error('Coins insuficientes — recarga en la sección Coins');
+      } else {
+        toast.error(err.response?.data?.error || 'Error al enviar regalo');
+      }
     } finally {
       setSending(null);
     }
@@ -48,7 +53,7 @@ export default function GiftPanel({ showId, coinBalance, onClose, onGiftSent }) 
         <div className="flex items-center justify-between px-3 py-2.5 border-b border-white/5">
           <div>
             <span className="text-white font-bold text-sm">Regalos</span>
-            <span className="text-yellow-400 text-[10px] ml-2">⚡ {coinBalance.toLocaleString()}</span>
+            <span className="text-yellow-400 text-[10px] ml-2">⚡ {balance.toLocaleString()}</span>
           </div>
           <button onClick={onClose} className="text-gray-500 hover:text-white"><FiX size={14} /></button>
         </div>
@@ -58,9 +63,9 @@ export default function GiftPanel({ showId, coinBalance, onClose, onGiftSent }) 
             <button
               key={gift.type}
               onClick={() => handleSend(gift)}
-              disabled={!!sending || coinBalance < gift.coins}
+              disabled={!!sending || balance < gift.coins}
               className={`flex flex-col items-center gap-1 py-2 rounded-xl border transition-all active:scale-90
-                ${coinBalance >= gift.coins
+                ${balance >= gift.coins
                   ? 'bg-dark-700 border-white/10 hover:border-brand-500/40 hover:bg-dark-600'
                   : 'bg-dark-800 border-white/5 opacity-35 cursor-not-allowed'}
                 ${sending === gift.type ? 'opacity-60' : ''}
