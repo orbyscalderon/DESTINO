@@ -1059,7 +1059,8 @@ export default function ShowStudio() {
         }}
       >
         {/* Header */}
-        <div className="px-2 py-1 border-b border-white/5 shrink-0 flex items-center gap-1">
+        {/* Header del panel — solo en desktop para no duplicar info del header del studio */}
+        <div className={`${!isDesktop && isLive ? 'hidden' : 'flex'} px-2 py-1 border-b border-white/5 shrink-0 items-center gap-1`}>
           {isLive && (
             <span className="flex items-center gap-1 bg-red-500/15 border border-red-500/30 text-red-400 text-[9px] font-bold px-1.5 py-0.5 rounded-full mr-1 shrink-0">
               <span className="w-1 h-1 bg-red-500 rounded-full animate-pulse" /> VIVO
@@ -1760,8 +1761,9 @@ export default function ShowStudio() {
         {/* ── LAYOUT MÓVIL ── */}
         {!isDesktop ? (
           <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-            {/* Cámara — más grande cuando está en vivo (55vh) que en preview (220px) */}
-            <div className="shrink-0" style={{ height: isLive ? '55vh' : '220px' }}>
+            {/* Cámara — full bleed cuando live, preview compacta cuando setup
+                IMPORTANTE: usar flex para que renderCanvas (flex-1) llene la altura */}
+            <div className="shrink-0 flex" style={{ height: isLive ? '50vh' : '220px' }}>
               {renderCanvas()}
             </div>
             {/* Panel — chat/controles cuando live, config cuando preview */}
