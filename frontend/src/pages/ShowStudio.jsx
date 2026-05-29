@@ -16,6 +16,7 @@ import { supabase } from '../lib/supabase.js';
 import { LiveKitSession } from '../lib/livekitSession.js';
 import { useAuthStore } from '../store/authStore.js';
 import { SHOW_CATEGORIES } from './LiveShows.jsx';
+import DraggableTipGoal from '../components/ui/DraggableTipGoal.jsx';
 
 const REACTIONS = ['❤️', '🔥', '⭐', '😍'];
 
@@ -134,6 +135,7 @@ export default function ShowStudio() {
   // ── REFS ─────────────────────────────────────────────────────────────────────
   const previewStreamRef = useRef(null);
   const previewVideoRef  = useRef(null);
+  const canvasContainerRef = useRef(null);
   const vuIntervalRef    = useRef(null);
   const audioCtxRef      = useRef(null);
   const analyserRef      = useRef(null);
@@ -1581,7 +1583,7 @@ export default function ShowStudio() {
 
   // ── CANVAS ───────────────────────────────────────────────────────────────────
   const renderCanvas = () => (
-    <div className="flex-1 bg-black relative flex items-center justify-center min-w-0 overflow-hidden">
+    <div ref={canvasContainerRef} className="flex-1 bg-black relative flex items-center justify-center min-w-0 overflow-hidden">
       {!isLive && previewActive && permCamera === 'granted' && (
         <video ref={previewVideoRef} autoPlay muted playsInline className="w-full h-full object-contain" />
       )}
@@ -1630,21 +1632,11 @@ export default function ShowStudio() {
         <span className="text-white/35 text-[10px] font-mono">{videoQuality}</span>
       </div>
       {isLive && tipGoal > 0 && (
-        <div className="absolute bottom-10 left-3 right-3 pointer-events-none">
-          <div className="bg-black/80 backdrop-blur-sm rounded-xl px-3 py-2 border border-white/10">
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="text-white text-[10px] font-bold flex items-center gap-1">
-                <FiZap size={9} className="text-yellow-400" />
-                {tipGoalPct >= 100 ? '🎉 ¡Meta alcanzada!' : 'Meta de propinas'}
-              </span>
-              <span className="text-yellow-400 text-[10px] font-bold">{tipTotal} / {tipGoal} ⚡</span>
-            </div>
-            <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
-              <motion.div className="h-full rounded-full bg-gradient-to-r from-yellow-500 to-brand-500"
-                animate={{ width: `${tipGoalPct}%` }} transition={{ duration: 0.8, ease: 'easeOut' }} />
-            </div>
-          </div>
-        </div>
+        <DraggableTipGoal
+          collected={tipTotal}
+          goal={tipGoal}
+          containerRef={canvasContainerRef}
+        />
       )}
       {isLive && (
         <div className="absolute top-4 left-4 pointer-events-none z-10">

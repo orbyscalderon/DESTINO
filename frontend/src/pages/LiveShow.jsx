@@ -11,6 +11,7 @@ import {
 } from 'react-icons/fi';
 import GiftPanel from '../components/ui/GiftPanel.jsx';
 import AgeVerificationModal from '../components/ui/AgeVerificationModal.jsx';
+import DraggableTipGoal from '../components/ui/DraggableTipGoal.jsx';
 import { useAuthStore } from '../store/authStore.js';
 import { useAds } from '../hooks/useAds.js';
 import { supabase } from '../lib/supabase.js';
@@ -215,6 +216,7 @@ export default function LiveShow() {
   const localStreamRef  = useRef(null);
   const previewStreamRef = useRef(null);
   const hostVideoRef    = useRef(null);
+  const videoContainerRef = useRef(null);
   const localVideoRef   = useRef(null);
   const previewVideoRef = useRef(null);
   const autoJoinRef     = useRef(false);
@@ -1929,7 +1931,7 @@ export default function LiveShow() {
 
         {/* Video principal */}
         <div className="flex-1 flex flex-col min-w-0 relative">
-        <div className="flex-1 relative bg-dark-900 overflow-hidden">
+        <div ref={videoContainerRef} className="flex-1 relative bg-dark-900 overflow-hidden">
           <video ref={hostVideoRef} autoPlay playsInline className="w-full h-full object-cover" />
 
           {/* Info overlay top */}
@@ -2063,31 +2065,13 @@ export default function LiveShow() {
           </div>
         </div>
 
-        {/* Tip Goal Bar */}
+        {/* Tip Goal Bar — draggable + resizable */}
         {tipGoal?.tip_goal > 0 && (
-          <div className="absolute top-16 left-4 right-4 z-20">
-            <div className="bg-black/60 backdrop-blur-sm rounded-xl px-3 py-2 border border-yellow-500/20">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-yellow-400 text-xs font-bold flex items-center gap-1">
-                  <FiZap size={10} /> Meta de propinas
-                </span>
-                <span className="text-yellow-300 text-xs font-bold">
-                  {tipGoal.collected || 0} / {tipGoal.tip_goal} coins
-                </span>
-              </div>
-              <div className="h-2 bg-dark-700 rounded-full overflow-hidden">
-                <motion.div
-                  className="h-full bg-gradient-to-r from-yellow-500 to-yellow-300 rounded-full"
-                  initial={{ width: 0 }}
-                  animate={{ width: `${Math.min(100, ((tipGoal.collected || 0) / tipGoal.tip_goal) * 100)}%` }}
-                  transition={{ duration: 0.5 }}
-                />
-              </div>
-              {tipGoal.collected >= tipGoal.tip_goal && (
-                <p className="text-yellow-400 text-[10px] mt-0.5 text-center font-bold">🎉 ¡Meta alcanzada!</p>
-              )}
-            </div>
-          </div>
+          <DraggableTipGoal
+            collected={tipGoal.collected || 0}
+            goal={tipGoal.tip_goal}
+            containerRef={videoContainerRef}
+          />
         )}
 
         {/* Poll activo */}
