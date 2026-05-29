@@ -316,7 +316,7 @@ function SentLikeCard({ item, i }) {
       animate={{ opacity: 1, scale: 1 }}
       transition={{ delay: i * 0.04 }}
       className="card p-4 text-center hover:border-brand-500/30 transition-all group cursor-pointer"
-      onClick={() => navigate(`/user/${item.id}`)}
+      onClick={() => navigate(`/profile/${item.id}`)}
     >
       <div className="relative inline-block mb-3">
         <div className="w-20 h-20 rounded-full overflow-hidden mx-auto ring-2 ring-transparent group-hover:ring-brand-500/30 transition-all">
