@@ -632,6 +632,12 @@ export default function ShowStudio() {
         setTotalCoinsEarned(c => c + Math.round((payload.coins || 0) * 0.7));
         api.get(`/api/shows/${id}/tippers`).then(r => setTippers(r.data.tippers || [])).catch(() => {});
       })
+      .on('broadcast', { event: 'tip' }, ({ payload }) => {
+        addGiftAnimation('⚡', payload.senderName);
+        setTotalCoinsEarned(c => c + Math.round((payload.coins || 0) * 0.7));
+        api.get(`/api/shows/${id}/tippers`).then(r => setTippers(r.data.tippers || [])).catch(() => {});
+        toast(`⚡ ${payload.senderName} envió ${payload.coins} coins${payload.message ? ': ' + payload.message : ''}`, { duration: 4000 });
+      })
       .on('broadcast', { event: 'private_request' }, ({ payload }) => {
         setPrivateRequest(payload);
         setRightTab('private'); // auto-switch al tab privado

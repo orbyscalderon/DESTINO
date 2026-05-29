@@ -14,3 +14,28 @@ export const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_KEY
 );
+
+/**
+ * Envía un evento broadcast a un canal de Supabase Realtime.
+ * Útil para garantizar entrega cuando el cliente no puede hacerlo
+ * confiablemente (regalos, tips, etc).
+ */
+export async function broadcastToChannel(channelName, event, payload) {
+  try {
+    const ch = supabase.channel(channelName);
+    await new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error('subscribe timeout')), 3000);
+      ch.subscribe((status) => {
+        if (status === 'SUBSCRIBED') { clearTimeout(timeout); resolve(); }
+        else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          clearTimeout(timeout);
+          reject(new Error(status));
+        }
+      });
+    });
+    await ch.send({ type: 'broadcast', event, payload });
+    await supabase.removeChannel(ch);
+  } catch (err) {
+    console.warn(`broadcastToChannel(${channelName}, ${event}) failed:`, err.message);
+  }
+}

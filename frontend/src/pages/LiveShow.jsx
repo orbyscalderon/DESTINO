@@ -424,8 +424,16 @@ export default function LiveShow() {
         addReaction(payload.emoji);
       })
       .on('broadcast', { event: 'gift' }, ({ payload }) => {
+        // El sender ya vio su animación local; ignorar el broadcast eco del backend
+        if (payload.senderId && payload.senderId === user?.id) return;
         addGiftAnimation(payload.emoji, payload.senderName);
         if (role === 'host') setTotalCoinsEarned(c => c + Math.round((payload.coins || 0) * 0.7));
+      })
+      .on('broadcast', { event: 'tip' }, ({ payload }) => {
+        if (payload.senderId && payload.senderId === user?.id) return;
+        addGiftAnimation('⚡', payload.senderName);
+        setLatestTip({ coins: payload.coins, message: payload.message });
+        setTimeout(() => setLatestTip(null), 4000);
       })
       .on('broadcast', { event: 'show_ended' }, () => {
         if (role !== 'host') {
@@ -1020,14 +1028,11 @@ export default function LiveShow() {
 
   const handleGiftSent = (giftType, emoji, newBalance) => {
     const GIFT_COINS = { rose: 10, heart: 50, diamond: 200, crown: 500 };
-    // Si el server devolvió el balance real, úsalo. Si no, decrementa local.
     if (typeof newBalance === 'number') setCoinBalance(newBalance);
     else setCoinBalance(b => Math.max(0, b - (GIFT_COINS[giftType] || 0)));
 
-    chatChannelRef.current?.send({
-      type: 'broadcast', event: 'gift',
-      payload: { emoji, senderName: authProfile?.full_name || 'Alguien', coins: GIFT_COINS[giftType] || 0 },
-    }).catch(() => {});
+    // Animación local inmediata para feedback al sender.
+    // El backend hace el broadcast a los demás (host + viewers) vía Realtime.
     addGiftAnimation(emoji, authProfile?.full_name || 'Tú');
   };
 

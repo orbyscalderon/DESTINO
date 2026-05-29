@@ -1,4 +1,4 @@
-import { supabase } from '../lib/supabase.js';
+import { supabase, broadcastToChannel } from '../lib/supabase.js';
 import { stripe } from '../lib/stripe.js';
 import { v4 as uuidv4 } from 'uuid';
 import { spendCoins, addCoins, coinsToUSD, creatorCutUSD } from './coinController.js';
@@ -687,7 +687,9 @@ export const sendTip = async (req, res) => {
 
     // Notificar al creador
     const { data: tipper } = await supabase
-      .from('profiles').select('full_name').eq('id', tipperId).single();
+      .from('profiles').select('full_name, avatar_url').eq('id', tipperId).single();
+    const { data: tipperBalance } = await supabase
+      .from('profiles').select('coins_balance').eq('id', tipperId).single();
     createNotification(
       show.host_id,
       'tip',
@@ -701,7 +703,20 @@ export const sendTip = async (req, res) => {
       url: `/shows/${id}`,
     }).catch(() => {});
 
-    res.json({ success: true, coins_sent: coinsAmount });
+    // Broadcast desde el server — garantiza entrega
+    broadcastToChannel(`show:${id}`, 'tip', {
+      senderName: tipper?.full_name || 'Alguien',
+      senderId:   tipperId,
+      avatar:     tipper?.avatar_url || null,
+      coins:      coinsAmount,
+      message:    message?.trim() || null,
+    }).catch(() => {});
+
+    res.json({
+      success: true,
+      coins_sent: coinsAmount,
+      new_balance: tipperBalance?.coins_balance ?? null,
+    });
   } catch (err) {
     if (err?.code === 'INSUFFICIENT_COINS') {
       return res.status(400).json({ error: 'Saldo de coins insuficiente', code: 'INSUFFICIENT_COINS' });
@@ -713,10 +728,10 @@ export const sendTip = async (req, res) => {
 
 // POST /api/shows/:id/gift — enviar regalo animado con coins
 const GIFT_TYPES = {
-  rose:    { coins: 10,  label: 'Rosa' },
-  heart:   { coins: 50,  label: 'Corazón' },
-  diamond: { coins: 200, label: 'Diamante' },
-  crown:   { coins: 500, label: 'Corona' },
+  rose:    { coins: 10,  label: 'Rosa',     emoji: '🌹' },
+  heart:   { coins: 50,  label: 'Corazón',  emoji: '💝' },
+  diamond: { coins: 200, label: 'Diamante', emoji: '💎' },
+  crown:   { coins: 500, label: 'Corona',   emoji: '👑' },
 };
 
 export const sendGift = async (req, res) => {
@@ -753,7 +768,7 @@ export const sendGift = async (req, res) => {
     await addCoins(show.host_id, Math.round(gift.coins * 0.7), 'gift_received', id);
     await upsertCreatorEarnings(show.host_id, creatorEarnings);
 
-    const { data: sender }    = await supabase.from('profiles').select('full_name').eq('id', senderId).single();
+    const { data: sender }    = await supabase.from('profiles').select('full_name, avatar_url').eq('id', senderId).single();
     const { data: balanceRow } = await supabase.from('profiles').select('coins_balance').eq('id', senderId).single();
 
     createNotification(show.host_id, 'tip', `¡${sender?.full_name} te envió un regalo!`, `${gift.label} · ${gift.coins} coins`, { show_id: id });
@@ -761,6 +776,17 @@ export const sendGift = async (req, res) => {
       title: `¡${sender?.full_name} te envió un ${gift.label}!`,
       body: `${gift.coins} coins`,
       url: `/shows/${id}`,
+    }).catch(() => {});
+
+    // Broadcast desde el server — garantiza entrega aunque el cliente no pueda
+    broadcastToChannel(`show:${id}`, 'gift', {
+      emoji:      gift.emoji,
+      senderName: sender?.full_name || 'Alguien',
+      senderId,
+      avatar:     sender?.avatar_url || null,
+      coins:      gift.coins,
+      gift_type,
+      label:      gift.label,
     }).catch(() => {});
 
     res.json({
