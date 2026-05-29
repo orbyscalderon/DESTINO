@@ -9,12 +9,27 @@ import {
   deliverVideoRequest,
   deliverVideoMiddleware,
   cancelVideoRequest,
+  listPackages,
+  getMyPackages,
+  createPackage,
+  updatePackage,
+  deletePackage,
+  updateVideoRequestSettings,
 } from '../controllers/videoRequestController.js';
 
 const router = Router();
 
 router.use(requireAuth);
 
+// Packages — el listado público va primero para evitar conflictos
+router.get('/my-packages',             getMyPackages);
+router.post('/packages',               createPackage);
+router.put('/packages/:id',            updatePackage);
+router.delete('/packages/:id',         deletePackage);
+router.get('/packages/:creatorId',     listPackages);
+router.put('/settings',                updateVideoRequestSettings);
+
+// Requests
 router.post('/',                       createVideoRequest);
 router.get('/received',                getReceivedRequests);
 router.get('/sent',                    getSentRequests);

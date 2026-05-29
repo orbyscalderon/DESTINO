@@ -14,6 +14,7 @@ import api from '../lib/api.js';
 import toast from 'react-hot-toast';
 import { SHOW_CATEGORIES } from './LiveShows.jsx';
 import VerifiedBadge from '../components/ui/VerifiedBadge.jsx';
+import VideoPackagesManager from '../components/ui/VideoPackagesManager.jsx';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 
 /* ── Helpers ─────────────────────────────────────────────── */
@@ -117,6 +118,7 @@ const NAV_ITEMS = [
   { key: 'overview',    label: 'Resumen',      icon: FiGrid },
   { key: 'shows',       label: 'Mis Shows',    icon: FiVideo },
   { key: 'content',     label: 'Contenido',    icon: FiImage },
+  { key: 'packages',    label: 'Encargos',     icon: FiSend },
   { key: 'subscribers', label: 'Suscriptores', icon: FiUsers },
   { key: 'earnings',    label: 'Ingresos',     icon: FiDollarSign },
   { key: 'analytics',   label: 'Analytics',    icon: FiBarChart2 },
@@ -756,6 +758,16 @@ export default function CreatorDashboard() {
                     }}
                   />
                 </div>
+              </motion.div>
+            )}
+
+            {/* ══ ENCARGOS DE VIDEO ════════════════════════════ */}
+            {tab === 'packages' && (
+              <motion.div key="packages" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-5">
+                <h2 className="font-bold text-white text-lg flex items-center gap-2">
+                  <FiSend size={18} className="text-brand-400" /> Encargos de video
+                </h2>
+                <VideoPackagesManager />
               </motion.div>
             )}
 

@@ -39,8 +39,12 @@ export default function UserProfile() {
   const [showAgeModal, setShowAgeModal]     = useState(false);
   const [photosBlocked, setPhotosBlocked]   = useState(false);
   const [showRequestModal, setShowRequestModal] = useState(false);
-  const [requestForm, setRequestForm]           = useState({ message: '', price: 50 });
+  const [requestForm, setRequestForm]           = useState({ message: '', price: 50, package_id: null });
   const [sendingRequest, setSendingRequest]     = useState(false);
+  const [videoPackages, setVideoPackages]       = useState([]);
+  const [videoMinPrice, setVideoMinPrice]       = useState(50);
+  const [videoAccepts, setVideoAccepts]         = useState(true);
+  const [packagesLoaded, setPackagesLoaded]     = useState(false);
 
   const loadPhotos = async () => {
     const phRes = await api.get(`/api/profiles/${userId}/photos`).catch(() => ({ data: { photos: [], requires_vip: false } }));
@@ -230,15 +234,40 @@ export default function UserProfile() {
     }
   };
 
+  const openRequestModal = async () => {
+    setShowRequestModal(true);
+    if (!packagesLoaded) {
+      try {
+        const { data } = await api.get(`/api/video-requests/packages/${userId}`);
+        setVideoPackages(data.packages || []);
+        setVideoMinPrice(data.min_price || 50);
+        setVideoAccepts(data.accepts !== false);
+        setRequestForm(f => ({ ...f, price: Math.max(data.min_price || 50, f.price) }));
+      } catch {}
+      setPackagesLoaded(true);
+    }
+  };
+
   const handleSendVideoRequest = async () => {
     if (!requestForm.message.trim()) { toast.error('Escribe un mensaje para el creador'); return; }
-    if (requestForm.price < 10)      { toast.error('El precio mínimo es 10 monedas'); return; }
+    const isPackage = !!requestForm.package_id;
+    if (!isPackage && requestForm.price < videoMinPrice) {
+      toast.error(`El precio mínimo es ${videoMinPrice} monedas`);
+      return;
+    }
     setSendingRequest(true);
     try {
-      await api.post('/api/video-requests', { creator_id: userId, message: requestForm.message.trim(), price: requestForm.price });
+      const payload = {
+        creator_id: userId,
+        message: requestForm.message.trim(),
+      };
+      if (isPackage) payload.package_id = requestForm.package_id;
+      else           payload.price = requestForm.price;
+
+      await api.post('/api/video-requests', payload);
       toast.success('Solicitud enviada. Monedas en escrow hasta la entrega.');
       setShowRequestModal(false);
-      setRequestForm({ message: '', price: 50 });
+      setRequestForm({ message: '', price: videoMinPrice, package_id: null });
     } catch (err) {
       if (err.response?.data?.code === 'INSUFFICIENT_COINS') {
         toast.error('Monedas insuficientes — recarga en la sección Monedas');
@@ -429,7 +458,7 @@ export default function UserProfile() {
 
               {/* Encargar video */}
               <button
-                onClick={() => setShowRequestModal(true)}
+                onClick={openRequestModal}
                 className="flex-1 min-w-[80px] bg-dark-700 rounded-xl p-3 text-center hover:bg-dark-600 transition-colors"
               >
                 <FiSend className="text-brand-400 mx-auto mb-1" size={18} />
@@ -795,69 +824,134 @@ export default function UserProfile() {
             initial={{ y: 60, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 60, opacity: 0 }}
-            className="w-full max-w-md bg-dark-800 rounded-2xl p-6 space-y-4"
+            className="w-full max-w-md bg-dark-800 rounded-2xl p-5 space-y-3 max-h-[90vh] overflow-y-auto"
           >
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between sticky top-0 bg-dark-800 pb-2">
               <h3 className="text-white font-bold text-lg">Encargar video</h3>
               <button onClick={() => setShowRequestModal(false)} className="text-gray-500 hover:text-white">
                 <FiX size={20} />
               </button>
             </div>
 
-            <p className="text-gray-400 text-sm">
-              Describe qué quieres que <span className="text-white font-medium">{profile?.full_name}</span> grabe para ti.
-              Las monedas quedan en escrow y se liberan cuando entregue el video.
-            </p>
-
-            <div className="space-y-3">
-              <div>
-                <label className="text-xs text-gray-500 mb-1 block">Mensaje para el creador</label>
-                <textarea
-                  rows={4}
-                  placeholder="Describe el video que quieres recibir..."
-                  value={requestForm.message}
-                  onChange={e => setRequestForm(f => ({ ...f, message: e.target.value }))}
-                  maxLength={500}
-                  className="w-full bg-dark-700 border border-white/10 rounded-xl px-3 py-2.5 text-white text-sm placeholder-gray-600 resize-none focus:outline-none focus:border-brand-500/50"
-                />
-                <p className="text-right text-[10px] text-gray-600 mt-0.5">{requestForm.message.length}/500</p>
+            {!videoAccepts ? (
+              <div className="text-center py-8">
+                <p className="text-gray-400 text-sm">Este creador no acepta encargos en este momento.</p>
               </div>
+            ) : (
+              <>
+                <p className="text-gray-400 text-xs">
+                  Elige un paquete del catálogo de <span className="text-white font-medium">{profile?.full_name}</span> o pide un video personalizado.
+                </p>
 
-              <div>
-                <label className="text-xs text-gray-500 mb-1 block">Precio ofrecido (monedas)</label>
-                <div className="flex gap-2 items-center">
-                  <input
-                    type="number"
-                    min={10}
-                    max={10000}
-                    value={requestForm.price}
-                    onChange={e => setRequestForm(f => ({ ...f, price: Math.max(10, parseInt(e.target.value) || 10) }))}
-                    className="flex-1 bg-dark-700 border border-white/10 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-brand-500/50"
-                  />
-                  <FiZap className="text-yellow-400 shrink-0" size={18} />
+                {/* Catálogo de paquetes */}
+                {videoPackages.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-[10px] text-gray-500 uppercase tracking-wide">Paquetes disponibles</p>
+                    {videoPackages.map(pkg => {
+                      const selected = requestForm.package_id === pkg.id;
+                      return (
+                        <button
+                          key={pkg.id}
+                          onClick={() => setRequestForm(f => ({ ...f, package_id: selected ? null : pkg.id, price: selected ? videoMinPrice : pkg.price }))}
+                          className={`w-full text-left rounded-xl p-3 border transition-all ${selected ? 'bg-brand-500/15 border-brand-500/50' : 'bg-dark-700 border-white/5 hover:border-white/15'}`}
+                        >
+                          <div className="flex items-center gap-3">
+                            {pkg.cover_url && (
+                              <img src={pkg.cover_url} alt="" className="w-12 h-12 rounded-lg object-cover shrink-0" />
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between gap-2">
+                                <p className="text-white text-sm font-bold truncate">{pkg.title}</p>
+                                <span className="flex items-center gap-1 text-yellow-400 text-sm font-black shrink-0">
+                                  <FiZap size={12} /> {pkg.price.toLocaleString()}
+                                </span>
+                              </div>
+                              {pkg.description && (
+                                <p className="text-gray-500 text-[11px] mt-0.5 line-clamp-2">{pkg.description}</p>
+                              )}
+                              <div className="flex items-center gap-3 mt-1.5 text-[10px] text-gray-600">
+                                <span>⏱ {Math.round(pkg.max_duration_sec / 60 * 10) / 10} min</span>
+                                <span>📅 {pkg.delivery_days}d</span>
+                              </div>
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Video personalizado */}
+                <div className="space-y-2 pt-1">
+                  <p className="text-[10px] text-gray-500 uppercase tracking-wide">{videoPackages.length > 0 ? 'O video personalizado' : 'Video personalizado'}</p>
+                  <button
+                    onClick={() => setRequestForm(f => ({ ...f, package_id: null, price: videoMinPrice }))}
+                    className={`w-full text-left rounded-xl p-3 border transition-all ${!requestForm.package_id ? 'bg-brand-500/15 border-brand-500/50' : 'bg-dark-700 border-white/5 hover:border-white/15'}`}
+                  >
+                    <p className="text-white text-sm font-bold flex items-center justify-between">
+                      <span className="flex items-center gap-2">🎬 Video custom</span>
+                      <span className="text-[10px] text-gray-500 font-normal">Desde {videoMinPrice} coins</span>
+                    </p>
+                    <p className="text-gray-500 text-[11px] mt-0.5">Tú decides el precio (mínimo {videoMinPrice} coins)</p>
+                  </button>
                 </div>
-                <p className="text-[11px] text-gray-600 mt-1">El creador recibe el 70% si acepta y entrega el video.</p>
-              </div>
-            </div>
 
-            <div className="flex gap-3 pt-1">
-              <button
-                onClick={() => setShowRequestModal(false)}
-                className="flex-1 py-3 rounded-xl bg-dark-700 text-gray-400 text-sm font-semibold hover:bg-dark-600 transition-colors"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleSendVideoRequest}
-                disabled={sendingRequest}
-                className="flex-1 py-3 rounded-xl bg-brand-500 text-white text-sm font-semibold hover:bg-brand-600 transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
-              >
-                {sendingRequest
-                  ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  : <><FiSend size={14} /> Enviar solicitud</>
-                }
-              </button>
-            </div>
+                {/* Mensaje */}
+                <div>
+                  <label className="text-[10px] text-gray-500 mb-1 block uppercase tracking-wide">Mensaje para el creador *</label>
+                  <textarea
+                    rows={3}
+                    placeholder="Describe qué quieres que diga / haga..."
+                    value={requestForm.message}
+                    onChange={e => setRequestForm(f => ({ ...f, message: e.target.value }))}
+                    maxLength={500}
+                    className="w-full bg-dark-700 border border-white/10 rounded-xl px-3 py-2 text-white text-sm placeholder-gray-600 resize-none focus:outline-none focus:border-brand-500/50"
+                  />
+                  <p className="text-right text-[10px] text-gray-600 mt-0.5">{requestForm.message.length}/500</p>
+                </div>
+
+                {/* Precio (solo si es custom) */}
+                {!requestForm.package_id && (
+                  <div>
+                    <label className="text-[10px] text-gray-500 mb-1 block uppercase tracking-wide">Precio ofrecido</label>
+                    <div className="flex gap-2 items-center">
+                      <input
+                        type="number"
+                        min={videoMinPrice}
+                        max={99999}
+                        value={requestForm.price}
+                        onChange={e => setRequestForm(f => ({ ...f, price: Math.max(videoMinPrice, parseInt(e.target.value) || videoMinPrice) }))}
+                        className="flex-1 bg-dark-700 border border-white/10 rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-brand-500/50"
+                      />
+                      <FiZap className="text-yellow-400 shrink-0" size={16} />
+                    </div>
+                  </div>
+                )}
+
+                <p className="text-[10px] text-gray-600 text-center">
+                  Total: <span className="text-yellow-400 font-bold">⚡{requestForm.price.toLocaleString()}</span> · escrow hasta entrega
+                </p>
+
+                <div className="flex gap-2 pt-1">
+                  <button
+                    onClick={() => setShowRequestModal(false)}
+                    className="flex-1 py-2.5 rounded-xl bg-dark-700 text-gray-400 text-sm font-semibold hover:bg-dark-600 transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={handleSendVideoRequest}
+                    disabled={sendingRequest || !requestForm.message.trim()}
+                    className="flex-1 py-2.5 rounded-xl bg-brand-500 text-white text-sm font-semibold hover:bg-brand-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {sendingRequest
+                      ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      : <><FiSend size={14} /> Enviar</>
+                    }
+                  </button>
+                </div>
+              </>
+            )}
           </motion.div>
         </motion.div>
       )}
