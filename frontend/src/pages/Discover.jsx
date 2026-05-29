@@ -657,10 +657,10 @@ export default function Discover() {
                     <p className="text-white text-sm font-semibold group-hover:text-brand-300 transition-colors">Shows en vivo</p>
                     <p className="text-gray-500 text-xs">Descubre a los creadores</p>
                   </Link>
-                  <Link to="/moments" className="card p-4 hover:border-brand-500/40 transition-all group">
+                  <Link to="/home" className="card p-4 hover:border-brand-500/40 transition-all group">
                     <div className="text-2xl mb-2">📸</div>
-                    <p className="text-white text-sm font-semibold group-hover:text-brand-300 transition-colors">Momentos</p>
-                    <p className="text-gray-500 text-xs">Explora el feed de fotos</p>
+                    <p className="text-white text-sm font-semibold group-hover:text-brand-300 transition-colors">Feed</p>
+                    <p className="text-gray-500 text-xs">Explora publicaciones y stories</p>
                   </Link>
                 </div>
 

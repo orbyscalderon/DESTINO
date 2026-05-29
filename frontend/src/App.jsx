@@ -214,7 +214,7 @@ export default function App() {
         {/* Rutas protegidas */}
         <Route element={<ProtectedRoute />}>
           <Route path="/onboarding" element={<Onboarding />} />
-          <Route path="/home" element={<Home />} />
+          <Route path="/home" element={<Moments />} />
           <Route path="/discover" element={<Discover />} />
           <Route path="/matches" element={<Matches />} />
           <Route path="/messages" element={<Messages />} />
@@ -231,7 +231,7 @@ export default function App() {
           <Route path="/shows" element={<LiveShows />} />
           <Route path="/shows/:id" element={<LiveShow />} />
           <Route path="/coins" element={<Coins />} />
-          <Route path="/moments" element={<Moments />} />
+          <Route path="/moments" element={<Navigate to="/home" replace />} />
           <Route path="/search" element={<Search />} />
           <Route path="/notifications" element={<Notifications />} />
           <Route path="/call/:matchId" element={<VideoCall />} />

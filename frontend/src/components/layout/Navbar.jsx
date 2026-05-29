@@ -23,7 +23,6 @@ const MOBILE_MAIN = [
 const sidebarNavItems = [
   { to: '/home',        icon: FiHome,          label: 'Inicio'       },
   { to: '/discover',    icon: FiCompass,       label: 'Descubrir'    },
-  { to: '/moments',     icon: FiImage,         label: 'Momentos'     },
   { to: '/matches',     icon: FiHeart,         label: 'Matches'      },
   { to: '/messages',    icon: FiMessageCircle, label: 'Mensajes'     },
   { to: '/search',      icon: FiSearch,        label: 'Buscar'       },
@@ -102,7 +101,6 @@ export default function Navbar() {
   const moreItems = [
     { to: '/profile',          icon: FiUser,       label: 'Mi Perfil'    },
     { to: '/notifications',    icon: FiBell,       label: 'Notificaciones', badge: unreadNotifs },
-    { to: '/moments',          icon: FiImage,      label: 'Momentos'     },
     { to: '/shows',            icon: FiFilm,       label: 'Shows en vivo'},
     { to: '/search',           icon: FiSearch,     label: 'Buscar'       },
     { to: '/coins',            icon: FiZap,        label: 'Coins', sub: coinsBalance !== null ? `${coinsBalance.toLocaleString()} disponibles` : null },

@@ -391,7 +391,7 @@ export default function Moments() {
   if (loading) return (
     <div className="min-h-screen pb-24">
       <div className="sticky top-0 z-10 bg-dark-900/95 backdrop-blur-sm border-b border-white/5 px-4 py-3 flex items-center justify-between">
-        <h1 className="text-lg font-black gradient-text">Momentos</h1>
+        <h1 className="text-lg font-black gradient-text">Destino TV 💕</h1>
         <div className="w-9 h-9 bg-brand-500 rounded-xl" />
       </div>
       <div className="max-w-lg mx-auto px-4 pt-4 space-y-4">
@@ -412,7 +412,7 @@ export default function Moments() {
               </button>
             )}
             <h1 className="text-lg font-black gradient-text">
-              {activeHashtag ? `#${activeHashtag}` : 'Momentos'}
+              {activeHashtag ? `#${activeHashtag}` : 'Destino TV 💕'}
             </h1>
           </div>
           <div className="flex items-center gap-2">
