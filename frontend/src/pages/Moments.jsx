@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiPlus, FiHeart, FiMessageCircle, FiImage, FiX, FiLock, FiTrash2, FiShare2, FiHash, FiTrendingUp } from 'react-icons/fi';
+import { FiPlus, FiHeart, FiMessageCircle, FiImage, FiX, FiLock, FiTrash2, FiShare2, FiHash, FiTrendingUp, FiCompass } from 'react-icons/fi';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore.js';
 import { compressImage } from '../lib/imageCompressor.js';
@@ -27,7 +27,7 @@ function renderCaption(caption, onHashtagClick) {
 }
 
 async function sharePost(post) {
-  const url = window.location.origin + `/#/moments`;
+  const url = window.location.origin + `/#/home`;
   const text = post.caption?.substring(0, 100) || 'Mira este momento en Destino TV';
   if (navigator.share) {
     try {
@@ -452,11 +452,31 @@ export default function Moments() {
       {/* Stories */}
       {!activeHashtag && <StoriesBar />}
 
+      {/* Banner hacia Descubrir */}
+      {!activeHashtag && (
+        <div className="max-w-lg mx-auto px-4 pt-3 pb-1">
+          <Link
+            to="/discover"
+            className="flex items-center gap-3 bg-gradient-to-r from-brand-600/20 to-purple-500/10 border border-brand-500/20 rounded-2xl px-4 py-3 hover:border-brand-500/40 transition-all group"
+          >
+            <div className="w-9 h-9 rounded-xl bg-brand-500/20 flex items-center justify-center shrink-0">
+              <FiCompass size={16} className="text-brand-400" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-white text-sm font-semibold">Descubrir personas</p>
+              <p className="text-gray-500 text-xs">Explora perfiles y encuentra tu conexión</p>
+            </div>
+            <span className="text-gray-600 group-hover:text-brand-400 transition-colors text-sm">→</span>
+          </Link>
+        </div>
+      )}
+
       <div className="max-w-lg mx-auto px-4 pt-4 space-y-4">
         {posts.length === 0 ? (
           <div className="text-center py-16">
             <FiImage className="text-gray-700 mx-auto mb-3" size={40} />
-            <p className="text-gray-500">No hay publicaciones aún</p>
+            <p className="text-gray-500 mb-1">El feed está vacío</p>
+            <p className="text-gray-600 text-sm">Sé el primero en publicar algo</p>
             <button onClick={() => setShowCreateModal(true)} className="btn-primary mt-4 text-sm">
               Publicar algo
             </button>

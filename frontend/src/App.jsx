@@ -21,7 +21,6 @@ const Register    = lazy(() => import('./pages/Register.jsx'));
 const Login       = lazy(() => import('./pages/Login.jsx'));
 const AuthCallback= lazy(() => import('./pages/AuthCallback.jsx'));
 const Onboarding  = lazy(() => import('./pages/Onboarding.jsx'));
-const Home        = lazy(() => import('./pages/Home.jsx'));
 const Discover    = lazy(() => import('./pages/Discover.jsx'));
 const Matches     = lazy(() => import('./pages/Matches.jsx'));
 const Messages    = lazy(() => import('./pages/Messages.jsx'));
