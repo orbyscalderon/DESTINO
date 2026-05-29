@@ -789,7 +789,7 @@ export default function ChatWindow({ matchId, otherUser }) {
                         {isMe && <DoubleCheck isRead={msg.is_read} />}
                       </div>
                     </div>
-                  ) : (msg.type === 'video' || msg.message_type === 'video') ? (
+                  ) : msg.type === 'video' ? (
                     // Video
                     <div className={`flex flex-col gap-1 ${isMe ? 'items-end' : 'items-start'}`}>
                       <video src={msg.content} controls playsInline className="rounded-2xl max-w-[240px] max-h-72 object-cover shadow-lg" />

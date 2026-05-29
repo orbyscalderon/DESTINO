@@ -499,9 +499,8 @@ export const sendVideoMessage = async (req, res) => {
         sender_id: userId,
         content: videoUrl,
         type: 'video',
-        message_type: 'video',
       })
-      .select(`id, sender_id, content, type, message_type, created_at, is_read,
+      .select(`id, sender_id, content, type, created_at, is_read,
         sender:profiles!sender_id(id, full_name, avatar_url)`)
       .single();
     if (error) throw error;

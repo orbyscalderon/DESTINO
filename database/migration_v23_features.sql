@@ -28,8 +28,8 @@ ALTER TABLE profiles ADD COLUMN IF NOT EXISTS selfie_url TEXT;
 ALTER TABLE messages ADD COLUMN IF NOT EXISTS reply_to_story_id UUID REFERENCES stories(id) ON DELETE SET NULL;
 CREATE INDEX IF NOT EXISTS idx_messages_reply_to_story ON messages(reply_to_story_id);
 
--- 7. Video messages — ya existe message_type column. Solo aseguramos índice
-CREATE INDEX IF NOT EXISTS idx_messages_type ON messages(message_type) WHERE message_type IS NOT NULL;
+-- 7. Video messages — la columna se llama 'type' (text, gif, voice, image, video, ppv)
+CREATE INDEX IF NOT EXISTS idx_messages_type ON messages(type);
 
 -- 8. Función Haversine para distancia (km entre dos lat/lng)
 CREATE OR REPLACE FUNCTION calc_distance_km(
