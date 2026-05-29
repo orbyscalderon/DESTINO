@@ -1,6 +1,0 @@
-- generic [ref=e237]:
-  - generic [ref=e238]: 💔
-  - heading "404" [level=1] [ref=e239]
-  - paragraph [ref=e240]: Esta página no existe o fue eliminada.
-  - link "Volver al inicio" [ref=e241] [cursor=pointer]:
-    - /url: "#/"

@@ -7,3 +7,7 @@ Thumbs.db
 .idea/
 .claude/
 *.iml
+
+# Playwright MCP test artifacts
+.playwright-mcp/
+mobile-*.png
