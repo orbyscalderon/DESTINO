@@ -16,6 +16,7 @@ import {
   getPostAnalytics,
   getEarningsBreakdown,
   getIncomeFeed,
+  syncEarnings,
   toggleAdultMode,
   getSubscribers,
   discoverAdultCreators,
@@ -48,6 +49,7 @@ router.get('/earnings', getEarnings);
 router.get('/analytics', getAnalytics);
 router.get('/breakdown', getEarningsBreakdown);
 router.get('/income-feed', getIncomeFeed);
+router.post('/sync-earnings', syncEarnings);
 router.get('/post-analytics', getPostAnalytics);
 router.get('/story-analytics', getStoryAnalytics);
 router.get('/subscribers', getSubscribers);

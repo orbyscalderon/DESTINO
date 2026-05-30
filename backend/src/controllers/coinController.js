@@ -1,9 +1,10 @@
 import { stripe } from '../lib/stripe.js';
 import { supabase } from '../lib/supabase.js';
 
-// 1 coin = $0.05 USD
-const COIN_VALUE_USD = 0.05;
-const PLATFORM_FEE_RATE = 0.30;
+// 1 coin = $0.05 USD (20 coins por dólar)
+export const COIN_VALUE_USD = 0.05;
+export const PLATFORM_FEE_RATE = 0.30;
+export const CREATOR_CUT = 1 - PLATFORM_FEE_RATE; // 0.70
 
 export const COIN_PACKAGES = [
   { id: 'coins_100',  coins: 100,  price_usd: 5.00,  label: '100 Coins',  bonus: '' },

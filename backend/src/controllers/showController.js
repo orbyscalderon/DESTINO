@@ -1076,11 +1076,48 @@ export const getLeaderboard = async (req, res) => {
 };
 
 export async function upsertCreatorEarnings(creatorId, amount) {
-  const { error } = await supabase.rpc('add_creator_earnings', {
-    p_creator_id: creatorId,
-    p_amount: amount,
-  });
-  if (error) throw error;
+  const amt = parseFloat(amount) || 0;
+  if (amt === 0) return;
+
+  // Intento 1: RPC atómico (preferido)
+  try {
+    const { error } = await supabase.rpc('add_creator_earnings', {
+      p_creator_id: creatorId,
+      p_amount: amt,
+    });
+    if (!error) return;
+    console.warn('[upsertCreatorEarnings] RPC failed, using fallback:', error.message);
+  } catch (rpcErr) {
+    console.warn('[upsertCreatorEarnings] RPC threw, using fallback:', rpcErr.message);
+  }
+
+  // Fallback: upsert manual (no atómico pero garantiza que el balance se actualice
+  // incluso si la migración v13 no se aplicó)
+  try {
+    const { data: existing } = await supabase
+      .from('creator_earnings')
+      .select('total_earned, available_balance')
+      .eq('creator_id', creatorId)
+      .maybeSingle();
+
+    if (existing) {
+      await supabase.from('creator_earnings').update({
+        total_earned:      parseFloat(existing.total_earned || 0) + amt,
+        available_balance: parseFloat(existing.available_balance || 0) + amt,
+        updated_at:        new Date().toISOString(),
+      }).eq('creator_id', creatorId);
+    } else {
+      await supabase.from('creator_earnings').insert({
+        creator_id:        creatorId,
+        total_earned:      amt,
+        available_balance: amt,
+        pending_balance:   0,
+        total_paid_out:    0,
+      });
+    }
+  } catch (fallbackErr) {
+    console.error('[upsertCreatorEarnings] both RPC and fallback failed:', fallbackErr.message);
+  }
 }
 
 // ── SHOW PRIVADO ──────────────────────────────────────────────────────────────

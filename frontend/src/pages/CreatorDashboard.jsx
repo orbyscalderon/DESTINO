@@ -889,6 +889,30 @@ export default function CreatorDashboard() {
                       <FiArrowDown size={20} className="text-green-400" />
                     </div>
                   </div>
+
+                  {/* Aviso de desync — el balance no refleja todo lo cobrado */}
+                  {breakdown && parseFloat(breakdown.total_current || 0) > 0 &&
+                   parseFloat(data?.earnings?.total_earned || 0) === 0 && (
+                    <div className="mt-3 pt-3 border-t border-green-500/20">
+                      <p className="text-yellow-300 text-xs mb-2">
+                        ⚠ Detectamos ingresos que no se reflejan en tu balance. Sincroniza para corregir.
+                      </p>
+                      <button
+                        onClick={async () => {
+                          try {
+                            const { data: r } = await api.post('/api/creator/sync-earnings');
+                            toast.success(`Balance actualizado: $${r.total_earned}`);
+                            loadDashboard(true);
+                          } catch {
+                            toast.error('Error al sincronizar');
+                          }
+                        }}
+                        className="bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-300 text-xs font-bold px-3 py-1.5 rounded-xl"
+                      >
+                        Sincronizar balance
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {/* Desglose por tipo — UNIFICADO (7 categorías) */}

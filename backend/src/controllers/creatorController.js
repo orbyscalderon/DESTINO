@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase.js';
 import { uploadFile } from '../lib/storageProvider.js';
 import multer from 'multer';
 import { upsertCreatorEarnings } from './showController.js';
+import { COIN_VALUE_USD, CREATOR_CUT } from './coinController.js';
 import { createNotification } from './inAppNotifController.js';
 import { sendPushToUser } from './notificationController.js';
 const GALLERY_ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp', 'video/mp4', 'video/quicktime'];
@@ -593,9 +594,9 @@ export const getEarningsBreakdown = async (req, res) => {
 
     const safe = (i) => Array.isArray(queries[i].data) ? queries[i].data : [];
 
-    // Conversión: 1 coin = $0.04 USD. Creator recibe 70%.
-    const COIN_USD = 0.04;
-    const CUT = 0.70;
+    // Conversión consistente con coinController (1 coin = $0.05 USD, creador 70%)
+    const COIN_USD = COIN_VALUE_USD;
+    const CUT = CREATOR_CUT;
     const coinsToUSD = (coins) => parseFloat(coins || 0) * COIN_USD * CUT;
 
     const inRange = (dateStr, since) => new Date(dateStr) >= new Date(since);
@@ -686,9 +687,8 @@ export const getIncomeFeed = async (req, res) => {
 
     const safe = (i) => Array.isArray(queries[i].data) ? queries[i].data : [];
 
-    const COIN_USD = 0.04;
-    const CUT = 0.70;
-    const fromCoins = (c) => parseFloat((parseFloat(c || 0) * COIN_USD * CUT).toFixed(2));
+    // Conversión consistente con coinController
+    const fromCoins = (c) => parseFloat((parseFloat(c || 0) * COIN_VALUE_USD * CREATOR_CUT).toFixed(2));
 
     const feed = [
       ...safe(0).map(r => ({
@@ -748,6 +748,85 @@ export const getIncomeFeed = async (req, res) => {
   } catch (err) {
     console.error('getIncomeFeed error:', err.message);
     res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
+// POST /api/creator/sync-earnings — reconstruye creator_earnings desde las fuentes
+// Útil para corregir balances que quedaron desincronizados (RPC fallido, etc).
+// Suma TODO el histórico, no solo 30 días. NO toca total_paid_out ni pending_balance.
+export const syncEarnings = async (req, res) => {
+  try {
+    const creatorId = req.user.id;
+    const { data: profile } = await supabase
+      .from('profiles').select('is_creator').eq('id', creatorId).single();
+    if (!profile?.is_creator) return res.status(403).json({ error: 'No eres creador' });
+
+    const { data: myShows } = await supabase
+      .from('live_shows').select('id').eq('host_id', creatorId);
+    const showIds = (myShows || []).map(s => s.id);
+    const showIdsSafe = showIds.length ? showIds : ['00000000-0000-0000-0000-000000000000'];
+
+    const queries = await Promise.all([
+      supabase.from('show_tickets').select('creator_earnings').in('show_id', showIdsSafe),
+      supabase.from('show_tips').select('creator_earnings').eq('creator_id', creatorId),
+      supabase.from('show_gifts').select('coins_spent').eq('creator_id', creatorId),
+      supabase.from('content_purchases').select('creator_earnings').eq('seller_id', creatorId),
+      supabase.from('video_requests').select('price').eq('creator_id', creatorId).eq('status', 'completed'),
+      supabase.from('creator_subscriptions').select('subscription_price').eq('creator_id', creatorId),
+      supabase.from('gallery_purchases').select('coins_paid').eq('creator_id', creatorId),
+      supabase.from('creator_earnings').select('total_paid_out, pending_balance').eq('creator_id', creatorId).maybeSingle(),
+    ]);
+    const safe = (i) => Array.isArray(queries[i].data) ? queries[i].data : [];
+
+    const sumUsd  = (rows) => rows.reduce((s, r) => s + parseFloat(r.creator_earnings || 0), 0);
+    const fromCoins = (c)  => parseFloat(c || 0) * COIN_VALUE_USD * CREATOR_CUT;
+
+    const ticketsUsd  = sumUsd(safe(0));
+    const tipsUsd     = sumUsd(safe(1));
+    const giftsUsd    = safe(2).reduce((s, r) => s + fromCoins(r.coins_spent), 0);
+    const photosUsd   = sumUsd(safe(3));
+    const requestsUsd = safe(4).reduce((s, r) => s + fromCoins(r.price), 0);
+    const subsUsd     = safe(5).reduce((s, r) => s + parseFloat(r.subscription_price || 0) * CREATOR_CUT, 0);
+    const galleryUsd  = safe(6).reduce((s, r) => s + fromCoins(r.coins_paid), 0);
+
+    const totalEarned = ticketsUsd + tipsUsd + giftsUsd + photosUsd + requestsUsd + subsUsd + galleryUsd;
+    const existing    = queries[7].data;
+    const paidOut     = parseFloat(existing?.total_paid_out || 0);
+    const pending     = parseFloat(existing?.pending_balance || 0);
+    const available   = Math.max(0, totalEarned - paidOut - pending);
+
+    const payload = {
+      creator_id:        creatorId,
+      total_earned:      parseFloat(totalEarned.toFixed(2)),
+      available_balance: parseFloat(available.toFixed(2)),
+      pending_balance:   pending,
+      total_paid_out:    paidOut,
+      updated_at:        new Date().toISOString(),
+    };
+
+    if (existing) {
+      await supabase.from('creator_earnings').update(payload).eq('creator_id', creatorId);
+    } else {
+      await supabase.from('creator_earnings').insert(payload);
+    }
+
+    res.json({
+      ok: true,
+      total_earned:      payload.total_earned,
+      available_balance: payload.available_balance,
+      breakdown: {
+        show_tickets: parseFloat(ticketsUsd.toFixed(2)),
+        show_tips:    parseFloat(tipsUsd.toFixed(2)),
+        show_gifts:   parseFloat(giftsUsd.toFixed(2)),
+        photo_sales:  parseFloat(photosUsd.toFixed(2)),
+        video_requests: parseFloat(requestsUsd.toFixed(2)),
+        subscriptions:  parseFloat(subsUsd.toFixed(2)),
+        gallery_sales:  parseFloat(galleryUsd.toFixed(2)),
+      },
+    });
+  } catch (err) {
+    console.error('syncEarnings error:', err.message);
+    res.status(500).json({ error: 'Error al sincronizar' });
   }
 };
 
