@@ -596,9 +596,9 @@ export default function ShowStudio() {
   const toggleCamera = () => { rtcRef.current?.setCam(cameraOff); setCameraOff(v => !v); };
 
   // ── SUPABASE REALTIME ────────────────────────────────────────────────────────
-  const addGiftAnimation = useCallback((emoji, senderName) => {
+  const addGiftAnimation = useCallback((emoji, senderName, imageUrl = null) => {
     const gid = `${Date.now()}-${Math.random()}`;
-    setGiftAnimations(prev => [...prev, { id: gid, emoji, senderName }]);
+    setGiftAnimations(prev => [...prev, { id: gid, emoji, senderName, imageUrl }]);
     setTimeout(() => setGiftAnimations(prev => prev.filter(g => g.id !== gid)), 3000);
   }, []);
 
@@ -628,7 +628,7 @@ export default function ShowStudio() {
         setTimeout(() => setReactions(prev => prev.filter(r => r.id !== rid)), 2600);
       })
       .on('broadcast', { event: 'gift' }, ({ payload }) => {
-        addGiftAnimation(payload.emoji, payload.senderName);
+        addGiftAnimation(payload.emoji, payload.senderName, payload.image_url);
         setTotalCoinsEarned(c => c + Math.round((payload.coins || 0) * 0.7));
         api.get(`/api/shows/${id}/tippers`).then(r => setTippers(r.data.tippers || [])).catch(() => {});
       })
@@ -641,6 +641,12 @@ export default function ShowStudio() {
       .on('broadcast', { event: 'private_request' }, ({ payload }) => {
         setPrivateRequest(payload);
         setRightTab('private'); // auto-switch al tab privado
+        toast(`${payload.viewerName} quiere un show privado (${payload.rate}/min)`, { icon: '🔒', duration: 6000 });
+      })
+      .on('broadcast', { event: 'private_end' }, ({ payload }) => {
+        // Si el viewer terminó la sesión, limpiar UI del host
+        if (privateRequest?.viewerId === payload.viewerId) setPrivateRequest(null);
+        if (payload.endedBy === 'viewer') toast(`Show privado finalizado por el viewer (${payload.reason || 'manual'})`, { icon: '📴' });
       })
       .on('broadcast', { event: 'dm' }, ({ payload }) => {
         setPrivateMessages(prev => [...prev.slice(-99), payload]);
@@ -706,19 +712,25 @@ export default function ShowStudio() {
     } catch { toast.error('Error al desbanear'); }
   };
 
-  const handleAcceptPrivate = () => {
+  const handleAcceptPrivate = async () => {
     if (!privateRequest) return;
-    chatChannelRef.current?.send({
-      type: 'broadcast', event: 'private_accept',
-      payload: { viewerId: privateRequest.viewerId, type: privateRequest.type, rate: privateRequest.rate, hostName: authProfile?.full_name || 'El host' },
-    }).catch(() => {});
-    setPrivateRequest(null);
-    toast.success(`Show privado iniciado con ${privateRequest.viewerName}`);
+    try {
+      await api.post(`/api/shows/${showId}/private/accept`, {
+        viewerId: privateRequest.viewerId,
+        type: privateRequest.type,
+      });
+      setPrivateRequest(null);
+      toast.success(`Show privado iniciado con ${privateRequest.viewerName}`);
+    } catch {
+      toast.error('Error al aceptar');
+    }
   };
 
-  const handleDeclinePrivate = () => {
+  const handleDeclinePrivate = async () => {
     if (!privateRequest) return;
-    chatChannelRef.current?.send({ type: 'broadcast', event: 'private_decline', payload: { viewerId: privateRequest.viewerId } }).catch(() => {});
+    try {
+      await api.post(`/api/shows/${showId}/private/decline`, { viewerId: privateRequest.viewerId });
+    } catch {}
     setPrivateRequest(null);
     toast('Solicitud rechazada');
   };
@@ -1680,7 +1692,7 @@ export default function ShowStudio() {
                 exit={{ opacity: 0 }} transition={{ duration: 2.4, ease: 'easeOut' }}
                 className="flex items-center gap-1.5 bg-black/60 backdrop-blur-sm rounded-full px-3 py-1.5 mb-1"
               >
-                <span className="text-xl">{g.emoji}</span>
+                {g.imageUrl ? <img src={g.imageUrl} alt="" className="w-6 h-6 object-contain" /> : <span className="text-xl">{g.emoji}</span>}
                 <span className="text-white text-xs font-medium">{g.senderName}</span>
               </motion.div>
             ))}

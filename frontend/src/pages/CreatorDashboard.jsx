@@ -6,7 +6,7 @@ import {
   FiTrendingUp, FiAlertCircle, FiUsers, FiBarChart2, FiSettings,
   FiGrid, FiEdit3, FiCheck, FiX, FiCalendar, FiClock,
   FiStar, FiZap, FiShield, FiChevronRight, FiRefreshCw,
-  FiCreditCard, FiArrowDown, FiPlay, FiTrash2, FiSend,
+  FiCreditCard, FiArrowDown, FiPlay, FiTrash2, FiSend, FiGift,
   FiRadio, FiLogOut, FiLock,
 } from 'react-icons/fi';
 import { useAuthStore } from '../store/authStore.js';
@@ -15,6 +15,7 @@ import toast from 'react-hot-toast';
 import { SHOW_CATEGORIES } from './LiveShows.jsx';
 import VerifiedBadge from '../components/ui/VerifiedBadge.jsx';
 import VideoPackagesManager from '../components/ui/VideoPackagesManager.jsx';
+import CreatorGiftsManager from '../components/ui/CreatorGiftsManager.jsx';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 
 /* ── Helpers ─────────────────────────────────────────────── */
@@ -119,6 +120,7 @@ const NAV_ITEMS = [
   { key: 'shows',       label: 'Mis Shows',    icon: FiVideo },
   { key: 'content',     label: 'Contenido',    icon: FiImage },
   { key: 'packages',    label: 'Encargos',     icon: FiSend },
+  { key: 'gifts',       label: 'Regalos',      icon: FiGift },
   { key: 'subscribers', label: 'Suscriptores', icon: FiUsers },
   { key: 'earnings',    label: 'Ingresos',     icon: FiDollarSign },
   { key: 'analytics',   label: 'Analytics',    icon: FiBarChart2 },
@@ -768,6 +770,15 @@ export default function CreatorDashboard() {
                   <FiSend size={18} className="text-brand-400" /> Encargos de video
                 </h2>
                 <VideoPackagesManager />
+              </motion.div>
+            )}
+
+            {tab === 'gifts' && (
+              <motion.div key="gifts" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-5">
+                <h2 className="font-bold text-white text-lg flex items-center gap-2">
+                  <FiGift size={18} className="text-brand-400" /> Regalos personalizados
+                </h2>
+                <CreatorGiftsManager />
               </motion.div>
             )}
 

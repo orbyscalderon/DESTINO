@@ -21,12 +21,21 @@ import {
   getLeaderboard,
   validatePrivateShow,
   privateShowTick,
+  requestPrivateShow,
+  acceptPrivateShow,
+  declinePrivateShow,
+  endPrivateShow,
   heartbeatShow,
   getTipGoalProgress,
   updateTipGoal,
   setPoll,
   votePoll,
   getPoll,
+  getGiftsCatalog,
+  getMyGifts,
+  createGift,
+  updateGift,
+  deleteGift,
 } from '../controllers/showController.js';
 
 const router = Router();
@@ -35,6 +44,13 @@ router.use(authMiddleware);
 router.get('/', listShows);
 router.get('/leaderboard', getLeaderboard);
 router.get('/my', getMyShows);
+
+// Creator gifts (custom catalog) — antes de :id para evitar conflictos
+router.get('/my/gifts', getMyGifts);
+router.post('/my/gifts', createGift);
+router.put('/my/gifts/:id', updateGift);
+router.delete('/my/gifts/:id', deleteGift);
+router.get('/host/:hostId/gifts/catalog', getGiftsCatalog);
 router.get('/:id', getShow);
 router.post('/', createShow);
 router.post('/:id/start', startShow);
@@ -52,6 +68,10 @@ router.delete('/:id/ban/:userId', unbanUserFromShow);
 router.patch('/:id/recording',        setRecordingUrl);
 router.post('/:id/private/validate',  validatePrivateShow);
 router.post('/:id/private/tick',      privateShowTick);
+router.post('/:id/private/request',   requestPrivateShow);
+router.post('/:id/private/accept',    acceptPrivateShow);
+router.post('/:id/private/decline',   declinePrivateShow);
+router.post('/:id/private/end',       endPrivateShow);
 router.post('/:id/heartbeat',         heartbeatShow);
 router.get('/:id/tip-goal',           getTipGoalProgress);
 router.patch('/:id/tip-goal',         updateTipGoal);

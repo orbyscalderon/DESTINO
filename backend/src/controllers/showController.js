@@ -727,6 +727,7 @@ export const sendTip = async (req, res) => {
 };
 
 // POST /api/shows/:id/gift — enviar regalo animado con coins
+// Regalos default: claves cortas. Custom: 'custom:UUID'
 const GIFT_TYPES = {
   rose:    { coins: 10,  label: 'Rosa',     emoji: '🌹' },
   heart:   { coins: 50,  label: 'Corazón',  emoji: '💝' },
@@ -734,14 +735,36 @@ const GIFT_TYPES = {
   crown:   { coins: 500, label: 'Corona',   emoji: '👑' },
 };
 
+async function resolveGift(gift_type, hostId) {
+  // Default
+  if (GIFT_TYPES[gift_type]) {
+    return { ...GIFT_TYPES[gift_type], custom_gift_id: null };
+  }
+  // Custom: 'custom:UUID'
+  if (typeof gift_type === 'string' && gift_type.startsWith('custom:')) {
+    const giftId = gift_type.slice(7);
+    const { data: cg } = await supabase
+      .from('creator_gifts')
+      .select('id, label, emoji, image_url, coins, active, creator_id')
+      .eq('id', giftId)
+      .single();
+    if (!cg || !cg.active || cg.creator_id !== hostId) return null;
+    return {
+      coins:      cg.coins,
+      label:      cg.label,
+      emoji:      cg.emoji || '🎁',
+      image_url:  cg.image_url || null,
+      custom_gift_id: cg.id,
+    };
+  }
+  return null;
+}
+
 export const sendGift = async (req, res) => {
   try {
     const { id } = req.params;
     const senderId = req.user.id;
     const { gift_type } = req.body;
-
-    const gift = GIFT_TYPES[gift_type];
-    if (!gift) return res.status(400).json({ error: 'Tipo de regalo inválido' });
 
     const { data: show } = await supabase
       .from('live_shows')
@@ -752,17 +775,21 @@ export const sendGift = async (req, res) => {
     if (!show || show.status !== 'live') return res.status(400).json({ error: 'Show no está en vivo' });
     if (show.host_id === senderId) return res.status(400).json({ error: 'No puedes enviarte un regalo a ti mismo' });
 
+    const gift = await resolveGift(gift_type, show.host_id);
+    if (!gift) return res.status(400).json({ error: 'Tipo de regalo inválido' });
+
     await spendCoins(senderId, gift.coins, 'gift_sent', id);
 
     const amountUSD       = coinsToUSD(gift.coins);
     const creatorEarnings = creatorCutUSD(gift.coins);
 
     await supabase.from('show_gifts').insert({
-      show_id:     id,
-      sender_id:   senderId,
-      creator_id:  show.host_id,
+      show_id:        id,
+      sender_id:      senderId,
+      creator_id:     show.host_id,
       gift_type,
-      coins_spent: gift.coins,
+      coins_spent:    gift.coins,
+      custom_gift_id: gift.custom_gift_id,
     });
 
     await addCoins(show.host_id, Math.round(gift.coins * 0.7), 'gift_received', id);
@@ -781,6 +808,7 @@ export const sendGift = async (req, res) => {
     // Broadcast desde el server — garantiza entrega aunque el cliente no pueda
     broadcastToChannel(`show:${id}`, 'gift', {
       emoji:      gift.emoji,
+      image_url:  gift.image_url || null,
       senderName: sender?.full_name || 'Alguien',
       senderId,
       avatar:     sender?.avatar_url || null,
@@ -1012,6 +1040,130 @@ export async function upsertCreatorEarnings(creatorId, amount) {
 
 // ── SHOW PRIVADO ──────────────────────────────────────────────────────────────
 
+// POST /api/shows/:id/private/request — viewer solicita show privado al host
+export const requestPrivateShow = async (req, res) => {
+  try {
+    const viewerId = req.user.id;
+    const { type = 'private' } = req.body;
+    const showId = req.params.id;
+
+    let { data: show } = await supabase
+      .from('live_shows')
+      .select('host_id, private_rate, exclusive_rate, min_private_minutes, status')
+      .eq('id', showId)
+      .single();
+
+    if (!show || show.status !== 'live') {
+      return res.status(400).json({ error: 'Show no activo', code: 'SHOW_ENDED' });
+    }
+    if (show.host_id === viewerId) {
+      return res.status(400).json({ error: 'No puedes solicitarte un show privado a ti mismo' });
+    }
+
+    const rate       = type === 'exclusive' ? (show.exclusive_rate ?? 35) : (show.private_rate ?? 20);
+    const minMinutes = show.min_private_minutes ?? 3;
+    const required   = rate * minMinutes;
+
+    const { data: profile } = await supabase
+      .from('profiles').select('coins_balance, full_name, avatar_url').eq('id', viewerId).single();
+
+    if ((profile?.coins_balance ?? 0) < required) {
+      return res.status(402).json({
+        error: `Necesitas al menos ${required} coins (${minMinutes} min mínimo)`,
+        code: 'INSUFFICIENT_COINS', required, balance: profile?.coins_balance ?? 0,
+      });
+    }
+
+    // Broadcast al host (vía backend, no cliente — entrega garantizada)
+    broadcastToChannel(`show:${showId}`, 'private_request', {
+      viewerId,
+      viewerName:   profile?.full_name || 'Alguien',
+      viewerAvatar: profile?.avatar_url || null,
+      type, rate, minMinutes,
+    }).catch(() => {});
+
+    res.json({ ok: true, rate, minMinutes });
+  } catch {
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
+// POST /api/shows/:id/private/accept — host acepta la solicitud
+export const acceptPrivateShow = async (req, res) => {
+  try {
+    const hostId = req.user.id;
+    const showId = req.params.id;
+    const { viewerId, type = 'private' } = req.body;
+
+    const { data: show } = await supabase
+      .from('live_shows')
+      .select('host_id, status, private_rate, exclusive_rate')
+      .eq('id', showId).single();
+
+    if (!show) return res.status(404).json({ error: 'Show no encontrado' });
+    if (show.host_id !== hostId) return res.status(403).json({ error: 'No autorizado' });
+    if (show.status !== 'live')  return res.status(400).json({ error: 'Show no activo' });
+
+    const rate = type === 'exclusive' ? (show.exclusive_rate ?? 35) : (show.private_rate ?? 20);
+    const { data: host } = await supabase.from('profiles').select('full_name').eq('id', hostId).single();
+
+    broadcastToChannel(`show:${showId}`, 'private_accept', {
+      viewerId, type, rate, hostName: host?.full_name || 'El host',
+    }).catch(() => {});
+
+    res.json({ ok: true, rate });
+  } catch {
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
+// POST /api/shows/:id/private/decline — host rechaza la solicitud
+export const declinePrivateShow = async (req, res) => {
+  try {
+    const hostId = req.user.id;
+    const showId = req.params.id;
+    const { viewerId } = req.body;
+
+    const { data: show } = await supabase
+      .from('live_shows').select('host_id').eq('id', showId).single();
+    if (!show) return res.status(404).json({ error: 'Show no encontrado' });
+    if (show.host_id !== hostId) return res.status(403).json({ error: 'No autorizado' });
+
+    broadcastToChannel(`show:${showId}`, 'private_decline', { viewerId }).catch(() => {});
+    res.json({ ok: true });
+  } catch {
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
+// POST /api/shows/:id/private/end — termina la sesión privada (viewer o host)
+export const endPrivateShow = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const showId = req.params.id;
+    const { viewerId, reason = 'manual' } = req.body;
+
+    const { data: show } = await supabase
+      .from('live_shows').select('host_id').eq('id', showId).single();
+    if (!show) return res.status(404).json({ error: 'Show no encontrado' });
+
+    // Solo el host o el propio viewer pueden terminar
+    if (show.host_id !== userId && viewerId !== userId) {
+      return res.status(403).json({ error: 'No autorizado' });
+    }
+
+    broadcastToChannel(`show:${showId}`, 'private_end', {
+      viewerId: viewerId || userId,
+      endedBy: show.host_id === userId ? 'host' : 'viewer',
+      reason,
+    }).catch(() => {});
+
+    res.json({ ok: true });
+  } catch {
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
 // POST /api/shows/:id/private/validate — verifica saldo antes de iniciar
 export const validatePrivateShow = async (req, res) => {
   try {
@@ -1152,6 +1304,120 @@ export const updateTipGoal = async (req, res) => {
     res.json({ tip_goal: goal });
   } catch {
     res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
+// ── CREATOR GIFTS (regalos personalizados) ───────────────────────────────────
+
+// GET /api/shows/:hostId/gifts/catalog — lista pública para mostrar en GiftPanel
+export const getGiftsCatalog = async (req, res) => {
+  try {
+    const { hostId } = req.params;
+    const { data } = await supabase
+      .from('creator_gifts')
+      .select('id, label, emoji, image_url, coins, position')
+      .eq('creator_id', hostId)
+      .eq('active', true)
+      .order('position', { ascending: true })
+      .order('coins', { ascending: true });
+    res.json({ custom_gifts: data || [] });
+  } catch {
+    res.json({ custom_gifts: [] });
+  }
+};
+
+// GET /api/shows/my/gifts — gifts del creador autenticado (para gestión)
+export const getMyGifts = async (req, res) => {
+  try {
+    const { data } = await supabase
+      .from('creator_gifts')
+      .select('*')
+      .eq('creator_id', req.user.id)
+      .order('position', { ascending: true })
+      .order('created_at', { ascending: true });
+    res.json({ gifts: data || [] });
+  } catch {
+    res.status(500).json({ error: 'Error interno' });
+  }
+};
+
+// POST /api/shows/my/gifts
+export const createGift = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { label, emoji, image_url, coins, position } = req.body;
+
+    const { data: profile } = await supabase.from('profiles').select('is_creator').eq('id', userId).single();
+    if (!profile?.is_creator) return res.status(403).json({ error: 'Solo creadores pueden crear regalos' });
+
+    if (!label?.trim()) return res.status(400).json({ error: 'El nombre es obligatorio' });
+    if (!emoji && !image_url) return res.status(400).json({ error: 'Debes proporcionar emoji o imagen' });
+    const c = parseInt(coins);
+    if (!c || c < 1 || c > 99999) return res.status(400).json({ error: 'Coins entre 1 y 99999' });
+
+    const { data: gift, error } = await supabase
+      .from('creator_gifts')
+      .insert({
+        creator_id: userId,
+        label: label.trim().substring(0, 50),
+        emoji: emoji || null,
+        image_url: image_url || null,
+        coins: c,
+        position: parseInt(position) || 0,
+      })
+      .select().single();
+    if (error) throw error;
+    res.status(201).json({ gift });
+  } catch {
+    res.status(500).json({ error: 'Error al crear regalo' });
+  }
+};
+
+// PUT /api/shows/my/gifts/:id
+export const updateGift = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { data: existing } = await supabase
+      .from('creator_gifts').select('creator_id').eq('id', id).single();
+    if (!existing) return res.status(404).json({ error: 'Regalo no encontrado' });
+    if (existing.creator_id !== req.user.id) return res.status(403).json({ error: 'No autorizado' });
+
+    const updates = {};
+    const { label, emoji, image_url, coins, active, position } = req.body;
+    if (label !== undefined) updates.label = String(label).trim().substring(0, 50);
+    if (emoji !== undefined) updates.emoji = emoji || null;
+    if (image_url !== undefined) updates.image_url = image_url || null;
+    if (coins !== undefined) {
+      const c = parseInt(coins);
+      if (!c || c < 1 || c > 99999) return res.status(400).json({ error: 'Coins inválidos' });
+      updates.coins = c;
+    }
+    if (active !== undefined) updates.active = !!active;
+    if (position !== undefined) updates.position = parseInt(position) || 0;
+    updates.updated_at = new Date().toISOString();
+
+    const { data: gift, error } = await supabase
+      .from('creator_gifts').update(updates).eq('id', id).select().single();
+    if (error) throw error;
+    res.json({ gift });
+  } catch {
+    res.status(500).json({ error: 'Error al actualizar' });
+  }
+};
+
+// DELETE /api/shows/my/gifts/:id
+export const deleteGift = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { data: existing } = await supabase
+      .from('creator_gifts').select('creator_id').eq('id', id).single();
+    if (!existing) return res.status(404).json({ error: 'Regalo no encontrado' });
+    if (existing.creator_id !== req.user.id) return res.status(403).json({ error: 'No autorizado' });
+
+    await supabase.from('creator_gifts').delete().eq('id', id);
+    res.json({ success: true });
+  } catch {
+    res.status(500).json({ error: 'Error al eliminar' });
   }
 };
 

@@ -385,11 +385,10 @@ export default function LiveShow() {
   };
 
   // ── Supabase Realtime: chat + reacciones + presencia ─────────────────────────
-  const addGiftAnimation = useCallback((emoji, senderName) => {
+  const addGiftAnimation = useCallback((emoji, senderName, imageUrl = null) => {
     const gid = `${Date.now()}-${Math.random()}`;
-    setGiftAnimations(prev => [...prev, { id: gid, emoji, senderName }]);
+    setGiftAnimations(prev => [...prev, { id: gid, emoji, senderName, imageUrl }]);
     setTimeout(() => setGiftAnimations(prev => prev.filter(g => g.id !== gid)), 3000);
-    // loadTippers se llama solo al abrir el leaderboard (no en cada animación)
   }, []);
 
   const joinShowChannel = useCallback((showId, role = 'viewer') => {
@@ -424,9 +423,8 @@ export default function LiveShow() {
         addReaction(payload.emoji);
       })
       .on('broadcast', { event: 'gift' }, ({ payload }) => {
-        // El sender ya vio su animación local; ignorar el broadcast eco del backend
         if (payload.senderId && payload.senderId === user?.id) return;
-        addGiftAnimation(payload.emoji, payload.senderName);
+        addGiftAnimation(payload.emoji, payload.senderName, payload.image_url);
         if (role === 'host') setTotalCoinsEarned(c => c + Math.round((payload.coins || 0) * 0.7));
       })
       .on('broadcast', { event: 'tip' }, ({ payload }) => {
@@ -459,12 +457,19 @@ export default function LiveShow() {
         }
       })
       .on('broadcast', { event: 'private_end' }, ({ payload }) => {
-        if (role === 'viewer' && privateSession) {
-          clearInterval(privateTickRef.current);
-          setPrivateSession(null);
-          toast('Show privado terminado por el host', { icon: '📴' });
+        // Viewer: termina la sesión si su ID coincide y la finaliza otro lado
+        if (role === 'viewer' && privateSession && (!payload.viewerId || payload.viewerId === user?.id)) {
+          if (payload.endedBy === 'host') {
+            clearInterval(privateTickRef.current);
+            setPrivateSession(null);
+            setPrivateMinutes(0);
+            toast('Show privado terminado por el host', { icon: '📴' });
+          }
         }
-        if (role === 'host') setPrivateRequest(null);
+        // Host: limpiar cualquier solicitud pendiente del mismo viewer
+        if (role === 'host' && privateRequest?.viewerId === payload.viewerId) {
+          setPrivateRequest(null);
+        }
       })
       .on('broadcast', { event: 'dm' }, ({ payload }) => {
         if (role === 'host' || payload.fromId === user?.id || payload.toId === user?.id) {
@@ -967,58 +972,40 @@ export default function LiveShow() {
     if (reason === 'balance') toast.error('Show privado terminado: saldo insuficiente');
     else if (reason === 'host') toast('El host terminó el show privado', { icon: '📴' });
     else toast('Show privado terminado');
-    chatChannelRef.current?.send({
-      type: 'broadcast', event: 'private_end', payload: { reason },
-    }).catch(() => {});
+    // Backend hace broadcast confiable
+    api.post(`/api/shows/${id}/private/end`, { viewerId: user?.id, reason }).catch(() => {});
   };
 
   const handleRequestPrivate = async (type) => {
     setPrivateModal(false);
-    let rate;
     try {
-      const { data } = await api.post(`/api/shows/${id}/private/validate`, { type });
-      rate = data.rate;
+      // El nuevo endpoint /request valida saldo Y hace broadcast vía backend
+      await api.post(`/api/shows/${id}/private/request`, { type });
+      toast('Solicitud enviada, esperando al host…', { icon: '⏳' });
     } catch (err) {
       toast.error(err.response?.data?.error || 'Saldo insuficiente');
-      return;
     }
-    chatChannelRef.current?.send({
-      type: 'broadcast',
-      event: 'private_request',
-      payload: {
-        viewerId: user?.id,
-        viewerName: authProfile?.full_name || 'Alguien',
-        viewerAvatar: authProfile?.avatar_url || null,
-        type,
-        rate,
-      },
-    }).catch(() => {});
-    toast('Solicitud enviada, esperando al host…', { icon: '⏳' });
   };
 
-  const handleAcceptPrivate = () => {
+  const handleAcceptPrivate = async () => {
     if (!privateRequest) return;
-    chatChannelRef.current?.send({
-      type: 'broadcast',
-      event: 'private_accept',
-      payload: {
+    try {
+      await api.post(`/api/shows/${id}/private/accept`, {
         viewerId: privateRequest.viewerId,
         type: privateRequest.type,
-        rate: privateRequest.rate,
-        hostName: authProfile?.full_name || 'El host',
-      },
-    }).catch(() => {});
-    setPrivateRequest(null);
-    toast.success(`Show privado iniciado con ${privateRequest.viewerName}`);
+      });
+      setPrivateRequest(null);
+      toast.success(`Show privado iniciado con ${privateRequest.viewerName}`);
+    } catch {
+      toast.error('Error al aceptar el show privado');
+    }
   };
 
-  const handleDeclinePrivate = () => {
+  const handleDeclinePrivate = async () => {
     if (!privateRequest) return;
-    chatChannelRef.current?.send({
-      type: 'broadcast',
-      event: 'private_decline',
-      payload: { viewerId: privateRequest.viewerId },
-    }).catch(() => {});
+    try {
+      await api.post(`/api/shows/${id}/private/decline`, { viewerId: privateRequest.viewerId });
+    } catch {}
     setPrivateRequest(null);
     toast('Solicitud privada rechazada');
   };
@@ -1336,7 +1323,7 @@ export default function LiveShow() {
                     transition={{ duration: 2.4, ease: 'easeOut' }}
                     className="flex items-center gap-1.5 bg-black/60 backdrop-blur-sm rounded-full px-3 py-1.5 mb-1"
                   >
-                    <span className="text-xl">{g.emoji}</span>
+                    {g.imageUrl ? <img src={g.imageUrl} alt="" className="w-6 h-6 object-contain" /> : <span className="text-xl">{g.emoji}</span>}
                     <span className="text-white text-xs font-medium">{g.senderName}</span>
                   </motion.div>
                 ))}
@@ -2028,7 +2015,7 @@ export default function LiveShow() {
                   transition={{ duration: 2.6, ease: 'easeOut' }}
                   className="flex items-center gap-1.5 bg-black/60 backdrop-blur-sm rounded-full px-3 py-1.5 mb-1"
                 >
-                  <span className="text-xl">{g.emoji}</span>
+                  {g.imageUrl ? <img src={g.imageUrl} alt="" className="w-6 h-6 object-contain" /> : <span className="text-xl">{g.emoji}</span>}
                   <span className="text-white text-xs font-medium">{g.senderName}</span>
                 </motion.div>
               ))}
@@ -2210,7 +2197,7 @@ export default function LiveShow() {
         {/* Gift Panel */}
         <AnimatePresence>
           {showGifts && (
-            <GiftPanel showId={id} coinBalance={coinBalance} onClose={() => setShowGifts(false)} onGiftSent={handleGiftSent} />
+            <GiftPanel showId={id} hostId={show?.host?.id} coinBalance={coinBalance} onClose={() => setShowGifts(false)} onGiftSent={handleGiftSent} />
           )}
         </AnimatePresence>
 
