@@ -2,7 +2,7 @@ import { supabase } from '../lib/supabase.js';
 import { uploadFile } from '../lib/storageProvider.js';
 import multer from 'multer';
 import { createNotification } from './inAppNotifController.js';
-import { spendCoins, addCoins } from './coinController.js';
+import { spendCoins, addCoins, CREATOR_CUT } from './coinController.js';
 import { moderateImage } from '../lib/moderation.js';
 
 const ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp', 'video/mp4', 'video/quicktime'];
@@ -401,7 +401,7 @@ export const purchasePost = async (req, res) => {
       coins_paid: post.price,
     });
 
-    const creatorShare = Math.floor(post.price * 0.7);
+    const creatorShare = Math.floor(post.price * CREATOR_CUT);
     if (creatorShare > 0) {
       await addCoins(post.user_id, creatorShare, 'post_sale').catch(() => {});
     }

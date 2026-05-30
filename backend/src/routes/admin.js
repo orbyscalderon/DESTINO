@@ -10,6 +10,7 @@ import {
   getContentQueue, processContent,
   endShow, broadcastNotification,
   getReports, processReport,
+  getPlatformRevenue,
 } from '../controllers/adminController.js';
 
 const router = Router();
@@ -17,6 +18,7 @@ router.use(authMiddleware);
 router.use(isAdmin);
 
 router.get('/stats',    getStats);
+router.get('/platform-revenue', getPlatformRevenue);
 router.get('/users',    getUsers);
 router.get('/creators', getCreators);
 router.get('/shows',    getShows);

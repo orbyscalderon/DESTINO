@@ -2,6 +2,166 @@ import { supabase } from '../lib/supabase.js';
 import { decryptField } from '../lib/encrypt.js';
 import { sendBroadcastNotification } from './notificationController.js';
 import { sendWithdrawalStatusEmail } from '../lib/emailService.js';
+import { COIN_VALUE_USD, PLATFORM_FEE_RATE } from './coinController.js';
+
+// GET /api/admin/platform-revenue?days=30 — ingresos de la plataforma (el 30%)
+// Solo accesible para admin. Suma TODAS las fuentes y devuelve:
+// - coin_sales: 100% de las compras de coins (ingreso directo)
+// - tx_commission: 30% de cada transacción creator→fan
+// - Total + desglose por categoría + comparativa
+export const getPlatformRevenue = async (req, res) => {
+  try {
+    const days = Math.max(1, Math.min(365, parseInt(req.query.days) || 30));
+    const now = Date.now();
+    const periodMs = days * 24 * 60 * 60 * 1000;
+    const startCurrent  = new Date(now - periodMs).toISOString();
+    const startPrevious = new Date(now - 2 * periodMs).toISOString();
+
+    const queries = await Promise.all([
+      // [0] Compras de coins (100% va a la plataforma directamente)
+      supabase.from('coin_transactions').select('amount, created_at')
+        .eq('type', 'purchase').gte('created_at', startPrevious),
+      // [1] Tickets de shows — platform_fee directamente almacenado
+      supabase.from('show_tickets').select('amount_paid, platform_fee, creator_earnings, purchased_at')
+        .gte('purchased_at', startPrevious),
+      // [2] Tips en shows — platform_fee
+      supabase.from('show_tips').select('amount_usd, platform_fee, creator_earnings, created_at')
+        .gte('created_at', startPrevious),
+      // [3] Regalos en shows — calculamos USD desde coins
+      supabase.from('show_gifts').select('coins_spent, created_at')
+        .gte('created_at', startPrevious),
+      // [4] Ventas de contenido (PPV en chat / posts pagados)
+      supabase.from('content_purchases').select('amount_paid, platform_fee, creator_earnings, created_at')
+        .gte('created_at', startPrevious),
+      // [5] Encargos de video
+      supabase.from('video_requests').select('price, completed_at').eq('status', 'completed')
+        .gte('completed_at', startPrevious),
+      // [6] Suscripciones a creadores
+      supabase.from('creator_subscriptions').select('subscription_price, created_at')
+        .gte('created_at', startPrevious),
+      // [7] Boost de visibilidad (50 coins por boost, 100% plataforma)
+      supabase.from('coin_transactions').select('amount, created_at')
+        .eq('type', 'boost').gte('created_at', startPrevious),
+      // [8] Suscripciones Premium/VIP — solo desde Stripe webhooks no se guarda en DB
+      // Por ahora la suscripción a app premium no aparece desglosada aquí
+    ]);
+    const safe = (i) => Array.isArray(queries[i].data) ? queries[i].data : [];
+
+    const inRange = (d, since) => new Date(d) >= new Date(since);
+    const coinsToUSD = (c) => parseFloat(c || 0) * COIN_VALUE_USD;
+
+    // Definir cada categoría: cómo calcular USD que va a la plataforma
+    const cats = {
+      coin_sales: {
+        rows: safe(0),
+        getUsd: r => parseFloat(r.amount || 0) * COIN_VALUE_USD, // amount es +coins comprados
+        date: 'created_at',
+      },
+      show_tickets: {
+        rows: safe(1),
+        getUsd: r => parseFloat(r.platform_fee || 0) || (parseFloat(r.amount_paid || 0) - parseFloat(r.creator_earnings || 0)),
+        date: 'purchased_at',
+      },
+      show_tips: {
+        rows: safe(2),
+        getUsd: r => parseFloat(r.platform_fee || 0) || (parseFloat(r.amount_usd || 0) - parseFloat(r.creator_earnings || 0)),
+        date: 'created_at',
+      },
+      show_gifts: {
+        // No tienen platform_fee column → calcular desde coins
+        rows: safe(3),
+        getUsd: r => coinsToUSD(r.coins_spent) * PLATFORM_FEE_RATE,
+        date: 'created_at',
+      },
+      content_sales: {
+        rows: safe(4),
+        getUsd: r => parseFloat(r.platform_fee || 0) || (parseFloat(r.amount_paid || 0) - parseFloat(r.creator_earnings || 0)),
+        date: 'created_at',
+      },
+      video_requests: {
+        rows: safe(5),
+        getUsd: r => coinsToUSD(r.price) * PLATFORM_FEE_RATE,
+        date: 'completed_at',
+      },
+      subscriptions: {
+        rows: safe(6),
+        getUsd: r => parseFloat(r.subscription_price || 0) * PLATFORM_FEE_RATE,
+        date: 'created_at',
+      },
+      boosts: {
+        rows: safe(7),
+        // type='boost' tiene amount negativo (-50). Tomar abs.
+        getUsd: r => Math.abs(parseFloat(r.amount || 0)) * COIN_VALUE_USD,
+        date: 'created_at',
+      },
+    };
+
+    const totals_usd       = {};
+    const previous_usd     = {};
+    const breakdown_detail = {};
+
+    Object.entries(cats).forEach(([key, { rows, getUsd, date }]) => {
+      const current  = rows.filter(r => r[date] && inRange(r[date], startCurrent));
+      const previous = rows.filter(r => r[date] && inRange(r[date], startPrevious) && !inRange(r[date], startCurrent));
+
+      const sumCur  = current.reduce((s, r) => s + getUsd(r), 0);
+      const sumPrev = previous.reduce((s, r) => s + getUsd(r), 0);
+      const maxUsd  = current.reduce((m, r) => Math.max(m, getUsd(r)), 0);
+
+      totals_usd[key]   = parseFloat(sumCur.toFixed(2));
+      previous_usd[key] = parseFloat(sumPrev.toFixed(2));
+      breakdown_detail[key] = {
+        total_usd: parseFloat(sumCur.toFixed(2)),
+        count:     current.length,
+        avg_usd:   current.length > 0 ? parseFloat((sumCur / current.length).toFixed(2)) : 0,
+        max_usd:   parseFloat(maxUsd.toFixed(2)),
+      };
+    });
+
+    const totalCurrent  = Object.values(totals_usd).reduce((s, v) => s + v, 0);
+    const totalPrevious = Object.values(previous_usd).reduce((s, v) => s + v, 0);
+    const pctChange = totalPrevious > 0
+      ? parseFloat((((totalCurrent - totalPrevious) / totalPrevious) * 100).toFixed(1))
+      : (totalCurrent > 0 ? 100 : 0);
+
+    // Chart por día
+    const byDay = {};
+    Object.values(cats).forEach(({ rows, getUsd, date }) => {
+      rows.filter(r => r[date] && inRange(r[date], startCurrent)).forEach(r => {
+        const day = r[date].substring(0, 10);
+        byDay[day] = (byDay[day] || 0) + getUsd(r);
+      });
+    });
+    const chart = Object.entries(byDay)
+      .map(([date, amount]) => ({ date, amount: parseFloat(amount.toFixed(2)) }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    // Cuánto ganaron los creadores en el mismo período (referencia)
+    const creatorEarningsCurrent =
+      safe(1).filter(r => inRange(r.purchased_at, startCurrent)).reduce((s, r) => s + parseFloat(r.creator_earnings || 0), 0) +
+      safe(2).filter(r => inRange(r.created_at, startCurrent)).reduce((s, r) => s + parseFloat(r.creator_earnings || 0), 0) +
+      safe(3).filter(r => inRange(r.created_at, startCurrent)).reduce((s, r) => s + coinsToUSD(r.coins_spent) * (1 - PLATFORM_FEE_RATE), 0) +
+      safe(4).filter(r => inRange(r.created_at, startCurrent)).reduce((s, r) => s + parseFloat(r.creator_earnings || 0), 0) +
+      safe(5).filter(r => inRange(r.completed_at, startCurrent)).reduce((s, r) => s + coinsToUSD(r.price) * (1 - PLATFORM_FEE_RATE), 0) +
+      safe(6).filter(r => inRange(r.created_at, startCurrent)).reduce((s, r) => s + parseFloat(r.subscription_price || 0) * (1 - PLATFORM_FEE_RATE), 0);
+
+    res.json({
+      totals_usd,
+      previous_usd,
+      breakdown_detail,
+      total_current:        parseFloat(totalCurrent.toFixed(2)),
+      total_previous:       parseFloat(totalPrevious.toFixed(2)),
+      pct_change:           pctChange,
+      chart,
+      creator_earnings_current: parseFloat(creatorEarningsCurrent.toFixed(2)),
+      coin_rate: { usd_per_coin: COIN_VALUE_USD, platform_fee: PLATFORM_FEE_RATE },
+      days,
+    });
+  } catch (err) {
+    console.error('getPlatformRevenue error:', err.message);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
 
 // GET /api/admin/stats
 export const getStats = async (req, res) => {

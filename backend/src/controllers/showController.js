@@ -3,7 +3,7 @@ import { stripe } from '../lib/stripe.js';
 import { v4 as uuidv4 } from 'uuid';
 import multer from 'multer';
 import { uploadFile } from '../lib/storageProvider.js';
-import { spendCoins, addCoins, coinsToUSD, creatorCutUSD } from './coinController.js';
+import { spendCoins, addCoins, coinsToUSD, creatorCutUSD, CREATOR_CUT } from './coinController.js';
 import { createNotification } from './inAppNotifController.js';
 import { sendPushToUser } from './notificationController.js';
 
@@ -701,7 +701,7 @@ export const sendTip = async (req, res) => {
     });
 
     // Acreditar coins (como ingresos) al creador
-    await addCoins(show.host_id, Math.round(coinsAmount * 0.7), 'tip_received', id);
+    await addCoins(show.host_id, Math.round(coinsAmount * CREATOR_CUT), 'tip_received', id);
     await upsertCreatorEarnings(show.host_id, creatorEarnings);
 
     // Notificar al creador
@@ -811,7 +811,7 @@ export const sendGift = async (req, res) => {
       custom_gift_id: gift.custom_gift_id,
     });
 
-    await addCoins(show.host_id, Math.round(gift.coins * 0.7), 'gift_received', id);
+    await addCoins(show.host_id, Math.round(gift.coins * CREATOR_CUT), 'gift_received', id);
     await upsertCreatorEarnings(show.host_id, creatorEarnings);
 
     const { data: sender }    = await supabase.from('profiles').select('full_name, avatar_url').eq('id', senderId).single();
@@ -1328,7 +1328,7 @@ export const privateShowTick = async (req, res) => {
     await spendCoins(viewerId, rate, 'private_show');
 
     // Acreditar al creador (70%)
-    const creatorCut = Math.round(rate * 0.7);
+    const creatorCut = Math.round(rate * CREATOR_CUT);
     await addCoins(show.host_id, creatorCut, 'private_show_earning');
     await upsertCreatorEarnings(show.host_id, creatorCut);
 

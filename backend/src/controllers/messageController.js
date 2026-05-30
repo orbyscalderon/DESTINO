@@ -1,7 +1,7 @@
 import { supabase } from '../lib/supabase.js';
 import { uploadFile } from '../lib/storageProvider.js';
 import { sendPushToUser } from './notificationController.js';
-import { spendCoins, addCoins, coinsToUSD, creatorCutUSD } from './coinController.js';
+import { spendCoins, addCoins, coinsToUSD, creatorCutUSD, CREATOR_CUT } from './coinController.js';
 import { createNotification } from './inAppNotifController.js';
 import { upsertCreatorEarnings } from './showController.js';
 import multer from 'multer';
@@ -393,7 +393,7 @@ export const unlockPPV = async (req, res) => {
 
     await spendCoins(buyerId, coins, 'ppv_spent', messageId);
 
-    await addCoins(msg.sender_id, Math.round(coins * 0.7), 'ppv_received', messageId);
+    await addCoins(msg.sender_id, Math.round(coins * CREATOR_CUT), 'ppv_received', messageId);
     await upsertCreatorEarnings(msg.sender_id, earningsUSD);
 
     const { data: buyer } = await supabase.from('profiles').select('full_name').eq('id', buyerId).single();

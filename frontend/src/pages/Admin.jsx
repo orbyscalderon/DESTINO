@@ -11,6 +11,7 @@ import { SHOW_CATEGORIES } from './LiveShows.jsx';
 
 const TABS = [
   { key: 'overview',       label: 'Resumen',    icon: FiGrid },
+  { key: 'revenue',        label: 'Ingresos',   icon: FiDollarSign },
   { key: 'users',          label: 'Usuarios',   icon: FiUsers },
   { key: 'creators',       label: 'Creadores',  icon: FiVideo },
   { key: 'shows',          label: 'Shows',      icon: FiRadio },
@@ -19,6 +20,17 @@ const TABS = [
   { key: 'verifications',  label: 'ID',         icon: FiShield },
   { key: 'reports',        label: 'Reportes',   icon: FiFlag },
   { key: 'appeals',        label: 'Apelaciones', icon: FiMessageCircle },
+];
+
+const REVENUE_CATS = [
+  { key: 'coin_sales',     label: 'Venta de coins',   subtitle: '100% plataforma' },
+  { key: 'show_tickets',   label: 'Entradas a shows', subtitle: '30% de cada ticket' },
+  { key: 'show_tips',      label: 'Tips en shows',    subtitle: '30% de cada tip' },
+  { key: 'show_gifts',     label: 'Regalos en shows', subtitle: '30% de cada regalo' },
+  { key: 'content_sales',  label: 'Contenido pagado', subtitle: '30% de PPV / fotos' },
+  { key: 'video_requests', label: 'Encargos de video',subtitle: '30% de cada encargo' },
+  { key: 'subscriptions',  label: 'Suscripciones',    subtitle: '30% mensual' },
+  { key: 'boosts',         label: 'Boost de visibilidad', subtitle: '100% plataforma' },
 ];
 
 function Badge({ on, onLabel, offLabel, color = 'yellow' }) {
@@ -63,8 +75,28 @@ export default function Admin() {
   const [reports, setReports] = useState([]);
   const [reportsFilter, setReportsFilter] = useState('pending');
   const [processingReport, setProcessingReport] = useState(null);
+  const [platformRevenue, setPlatformRevenue] = useState(null);
+  const [revenueDays, setRevenueDays] = useState(30);
+  const [revenueLoading, setRevenueLoading] = useState(false);
 
   useEffect(() => { loadAll(); }, []);
+  useEffect(() => {
+    if (tab === 'revenue') loadPlatformRevenue(revenueDays);
+  }, [tab, revenueDays]);
+
+  const loadPlatformRevenue = async (days) => {
+    try {
+      setRevenueLoading(true);
+      const { data } = await api.get(`/api/admin/platform-revenue?days=${days}`);
+      setPlatformRevenue(data);
+    } catch (err) {
+      toast.error('Error cargando ingresos de plataforma');
+    } finally {
+      setRevenueLoading(false);
+    }
+  };
+
+  const fmtUsd = (n) => `$${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   const loadAll = async () => {
     try {
@@ -341,6 +373,148 @@ export default function Admin() {
               ))}
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ── INGRESOS PLATAFORMA (solo admin) ── */}
+      {tab === 'revenue' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div>
+              <h2 className="text-lg font-bold text-white">Ingresos de la plataforma</h2>
+              <p className="text-xs text-gray-500">Comisión del 30% sobre transacciones + 100% de venta de coins y boosts</p>
+            </div>
+            <div className="flex gap-1 bg-dark-800 rounded-lg p-1">
+              {[7, 30, 90, 365].map(d => (
+                <button
+                  key={d}
+                  onClick={() => setRevenueDays(d)}
+                  className={`px-3 py-1 rounded-md text-xs font-bold transition ${
+                    revenueDays === d ? 'bg-brand-500 text-white' : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  {d === 365 ? '1 año' : `${d}d`}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {revenueLoading && !platformRevenue && (
+            <div className="card p-8 text-center text-gray-500 text-sm">Cargando ingresos…</div>
+          )}
+
+          {platformRevenue && (
+            <>
+              {/* Totales */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="card p-5 bg-gradient-to-br from-green-500/15 to-emerald-500/5 border-green-500/30">
+                  <div className="flex items-center gap-2 mb-2">
+                    <FiDollarSign size={18} className="text-green-400" />
+                    <span className="text-xs text-gray-400 font-semibold uppercase tracking-wide">Total plataforma</span>
+                  </div>
+                  <div className="text-3xl font-black text-white">{fmtUsd(platformRevenue.total_current)}</div>
+                  <div className="text-xs mt-1">
+                    {platformRevenue.total_previous > 0 ? (
+                      <span className={platformRevenue.pct_change >= 0 ? 'text-green-400' : 'text-red-400'}>
+                        {platformRevenue.pct_change >= 0 ? '↑' : '↓'} {Math.abs(platformRevenue.pct_change)}% vs período anterior
+                      </span>
+                    ) : platformRevenue.total_current > 0 ? (
+                      <span className="text-brand-400">🎉 Primer período con ingresos</span>
+                    ) : (
+                      <span className="text-gray-600">Sin datos previos</span>
+                    )}
+                  </div>
+                </div>
+                <div className="card p-5">
+                  <div className="flex items-center gap-2 mb-2">
+                    <FiUsers size={18} className="text-blue-400" />
+                    <span className="text-xs text-gray-400 font-semibold uppercase tracking-wide">Pagado a creadores (70%)</span>
+                  </div>
+                  <div className="text-3xl font-black text-white">{fmtUsd(platformRevenue.creator_earnings_current)}</div>
+                  <div className="text-xs mt-1 text-gray-500">en el mismo período</div>
+                </div>
+                <div className="card p-5">
+                  <div className="flex items-center gap-2 mb-2">
+                    <FiZap size={18} className="text-yellow-400" />
+                    <span className="text-xs text-gray-400 font-semibold uppercase tracking-wide">GMV (volumen total)</span>
+                  </div>
+                  <div className="text-3xl font-black text-white">
+                    {fmtUsd(platformRevenue.total_current + platformRevenue.creator_earnings_current)}
+                  </div>
+                  <div className="text-xs mt-1 text-gray-500">
+                    1 coin = ${platformRevenue.coin_rate?.usd_per_coin} • {Math.round((platformRevenue.coin_rate?.platform_fee || 0) * 100)}% comisión
+                  </div>
+                </div>
+              </div>
+
+              {/* Desglose por categoría */}
+              <div className="card p-4">
+                <h3 className="text-sm font-bold text-white mb-3">Desglose por categoría</h3>
+                <div className="space-y-2">
+                  {REVENUE_CATS.map(cat => {
+                    const detail = platformRevenue.breakdown_detail?.[cat.key] || { total_usd: 0, count: 0, avg_usd: 0, max_usd: 0 };
+                    const total  = platformRevenue.total_current || 1;
+                    const pct    = (detail.total_usd / total) * 100;
+                    return (
+                      <div key={cat.key} className="bg-dark-800 rounded-lg p-3">
+                        <div className="flex items-center justify-between mb-1.5">
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-white">{cat.label}</p>
+                            <p className="text-[10px] text-gray-500">{cat.subtitle}</p>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <p className="text-base font-black text-white">{fmtUsd(detail.total_usd)}</p>
+                            <p className="text-[10px] text-gray-500">{pct.toFixed(1)}% del total</p>
+                          </div>
+                        </div>
+                        <div className="w-full h-1.5 bg-dark-700 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-gradient-to-r from-brand-500 to-pink-500 rounded-full"
+                            style={{ width: `${Math.min(100, pct)}%` }}
+                          />
+                        </div>
+                        {detail.count > 0 && (
+                          <div className="flex gap-4 text-[10px] text-gray-500 mt-1.5">
+                            <span>{detail.count} {detail.count === 1 ? 'transacción' : 'transacciones'}</span>
+                            <span>Promedio: {fmtUsd(detail.avg_usd)}</span>
+                            <span>Máx: {fmtUsd(detail.max_usd)}</span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Mini chart de barras día por día */}
+              {Array.isArray(platformRevenue.chart) && platformRevenue.chart.length > 0 && (
+                <div className="card p-4">
+                  <h3 className="text-sm font-bold text-white mb-3">Evolución diaria ({revenueDays}d)</h3>
+                  <div className="flex items-end gap-1 h-32 overflow-x-auto pb-2">
+                    {(() => {
+                      const max = Math.max(...platformRevenue.chart.map(p => p.amount), 1);
+                      return platformRevenue.chart.map(p => (
+                        <div key={p.date} className="flex flex-col items-center gap-1 min-w-[16px]" title={`${p.date}: ${fmtUsd(p.amount)}`}>
+                          <div
+                            className="w-3 bg-gradient-to-t from-brand-500 to-pink-500 rounded-t"
+                            style={{ height: `${(p.amount / max) * 100}%`, minHeight: p.amount > 0 ? '2px' : '0' }}
+                          />
+                          <span className="text-[8px] text-gray-600 rotate-45 origin-left whitespace-nowrap">
+                            {p.date.substring(5)}
+                          </span>
+                        </div>
+                      ));
+                    })()}
+                  </div>
+                </div>
+              )}
+
+              <div className="text-[10px] text-gray-600 text-center px-4">
+                Los creadores únicamente pueden ver sus ganancias (70%) en su panel.
+                Esta vista de plataforma solo es visible para administradores.
+              </div>
+            </>
+          )}
         </div>
       )}
 

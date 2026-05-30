@@ -1,8 +1,7 @@
 import { stripe } from '../lib/stripe.js';
 import { supabase } from '../lib/supabase.js';
 import { upsertCreatorEarnings } from './showController.js';
-
-const PLATFORM_FEE_RATE = 0.30;
+import { PLATFORM_FEE_RATE } from './coinController.js';
 
 const PREMIUM_PRICE_ID = process.env.STRIPE_PRICE_ID;
 const VIP_PRICE_ID     = process.env.STRIPE_VIP_PRICE_ID;

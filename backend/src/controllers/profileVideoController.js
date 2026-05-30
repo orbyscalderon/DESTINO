@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabase.js';
 import { uploadFile, deleteFile } from '../lib/storageProvider.js';
-import { spendCoins, addCoins } from './coinController.js';
+import { spendCoins, addCoins, CREATOR_CUT } from './coinController.js';
 import multer from 'multer';
 const ALLOWED_VIDEO_MIME = ['video/mp4', 'video/webm', 'video/quicktime', 'video/x-msvideo'];
 
@@ -214,7 +214,7 @@ export const purchaseProfileVideo = async (req, res) => {
     });
 
     // Credit creator (70% of price)
-    const creatorShare = Math.floor(video.price * 0.7);
+    const creatorShare = Math.floor(video.price * CREATOR_CUT);
     if (creatorShare > 0) {
       await addCoins(video.user_id, creatorShare, 'video_sale').catch(() => {});
     }
