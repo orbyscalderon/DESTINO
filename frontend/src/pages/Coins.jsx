@@ -1,14 +1,53 @@
 import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiZap, FiArrowLeft, FiClock, FiStar, FiTag, FiFilter } from 'react-icons/fi';
+import { FiZap, FiArrowLeft, FiClock, FiStar, FiTag, FiArrowDown, FiArrowUp } from 'react-icons/fi';
 import { Link, useNavigate } from 'react-router-dom';
 import api from '../lib/api.js';
 import toast from 'react-hot-toast';
 import PaymentModal from '../components/ui/PaymentModal.jsx';
 import { useAuthStore } from '../store/authStore.js';
 
-const BEST_VALUE_IDX = 2; // índice del paquete con mejor valor (3er paquete)
-const POPULAR_IDX    = 1; // índice del más popular (2do paquete)
+// 1 coin = $0.05 USD (consistente con backend coinController)
+const COIN_VALUE_USD = 0.05;
+
+const BEST_VALUE_IDX = 2; // 3er paquete
+const POPULAR_IDX    = 1; // 2do paquete
+
+// Etiquetas en español de los tipos de transacción que vienen del backend.
+// Mantener sincronizado con coinController/showController/etc.
+const TX_LABELS = {
+  purchase:              { label: 'Compra de coins',    icon: '💳' },
+  bonus:                 { label: 'Bonus',              icon: '🎁' },
+  completion_reward:     { label: 'Perfil completado',  icon: '✅' },
+  boost:                 { label: 'Boost de perfil',    icon: '⚡' },
+  tip_sent:              { label: 'Propina enviada',    icon: '💸' },
+  tip_received:          { label: 'Propina recibida',   icon: '💰' },
+  gift_sent:             { label: 'Regalo enviado',     icon: '🎁' },
+  gift_received:         { label: 'Regalo recibido',    icon: '🎁' },
+  private_show:          { label: 'Show privado',       icon: '🔒' },
+  private_show_earning:  { label: 'Ganancia privado',   icon: '🔒' },
+  ppv_spent:             { label: 'PPV desbloqueado',   icon: '🔓' },
+  ppv_received:          { label: 'PPV vendido',        icon: '💵' },
+  post_purchase:         { label: 'Post desbloqueado',  icon: '🖼' },
+  post_sale:             { label: 'Post vendido',       icon: '🖼' },
+  video_purchase:        { label: 'Video desbloqueado', icon: '🎥' },
+  video_sale:            { label: 'Video vendido',      icon: '🎥' },
+  video_request_escrow:  { label: 'Encargo de video',   icon: '🎬' },
+  video_request_refund:  { label: 'Reembolso encargo',  icon: '↩️' },
+  video_request_sale:    { label: 'Encargo entregado',  icon: '🎬' },
+};
+
+// Categorizar para los filtros de pestañas
+const INCOME_TYPES = new Set([
+  'tip_received', 'gift_received', 'private_show_earning',
+  'ppv_received', 'post_sale', 'video_sale', 'video_request_sale',
+  'bonus', 'completion_reward', 'video_request_refund',
+]);
+const SPEND_TYPES = new Set([
+  'tip_sent', 'gift_sent', 'private_show',
+  'ppv_spent', 'post_purchase', 'video_purchase', 'video_request_escrow',
+  'boost',
+]);
 
 export default function Coins() {
   const navigate = useNavigate();
@@ -18,7 +57,7 @@ export default function Coins() {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [buying, setBuying] = useState(null);
-  const [paymentModal, setPaymentModal] = useState(null); // { clientSecret, paymentIntentId, pkg }
+  const [paymentModal, setPaymentModal] = useState(null);
   const [txFilter, setTxFilter] = useState('all');
 
   useEffect(() => {
@@ -58,30 +97,12 @@ export default function Coins() {
     }
   };
 
-  const typeLabel = {
-    purchase:       'Compra',
-    tip_sent:       'Propina enviada',
-    tip_received:   'Propina recibida',
-    ppv_spent:      'PPV desbloqueado',
-    ppv_received:   'PPV vendido',
-    video_purchase: 'Vídeo desbloqueado',
-    video_sale:     'Vídeo vendido',
-    bonus:          'Bonus',
-    refund:         'Reembolso',
-    boost:          'Boost de visibilidad',
-    show_tip:       'Propina en show',
-    video_request:  'Solicitud de vídeo',
-  };
-
   const TX_FILTERS = [
     { key: 'all',      label: 'Todo' },
     { key: 'income',   label: 'Ingresos' },
     { key: 'spend',    label: 'Gastos' },
     { key: 'purchase', label: 'Compras' },
   ];
-
-  const INCOME_TYPES  = new Set(['tip_received', 'ppv_received', 'video_sale', 'bonus', 'refund', 'show_tip']);
-  const SPEND_TYPES   = new Set(['tip_sent', 'ppv_spent', 'video_purchase', 'boost', 'video_request']);
 
   const filteredTx = useMemo(() => {
     if (txFilter === 'all')      return transactions;
@@ -90,6 +111,10 @@ export default function Coins() {
     if (txFilter === 'purchase') return transactions.filter(t => t.type === 'purchase');
     return transactions;
   }, [transactions, txFilter]);
+
+  // Formato consistente: separador de miles US (10,515 no 10.515)
+  const fmtCoins = (n) => Number(n || 0).toLocaleString('en-US');
+  const fmtUsd   = (n) => Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center">
@@ -109,11 +134,11 @@ export default function Coins() {
       {/* Balance */}
       <div className="card p-6 mb-6 text-center bg-gradient-to-br from-yellow-500/10 to-brand-500/10 border-yellow-500/20">
         <FiZap className="text-yellow-400 mx-auto mb-2" size={32} />
-        <p className="text-4xl font-black text-white">{balance.toLocaleString()}</p>
-        <p className="text-gray-400 text-sm mt-1">≈ ${(balance * 0.05).toFixed(2)} USD</p>
+        <p className="text-4xl font-black text-white">{fmtCoins(balance)}</p>
+        <p className="text-gray-400 text-sm mt-1">≈ ${fmtUsd(balance * COIN_VALUE_USD)} USD</p>
       </div>
 
-      {/* Banner Premium trial si no es premium */}
+      {/* Banner Premium */}
       {!profile?.is_premium && (
         <Link to="/premium" className="block mb-6">
           <div className="card p-4 border-yellow-500/30 bg-gradient-to-r from-yellow-500/10 to-orange-500/5 flex items-center gap-3">
@@ -121,10 +146,10 @@ export default function Coins() {
               <FiStar className="text-yellow-400" size={18} />
             </div>
             <div className="flex-1">
-              <p className="text-white font-bold text-sm">Prueba Premium gratis 3 días</p>
+              <p className="text-white font-bold text-sm">Hazte Premium</p>
               <p className="text-gray-400 text-xs">Likes ilimitados · sin anuncios · filtros avanzados</p>
             </div>
-            <span className="text-xs bg-yellow-500/20 text-yellow-400 font-bold px-2 py-1 rounded-xl border border-yellow-500/30">GRATIS</span>
+            <span className="text-xs bg-yellow-500/20 text-yellow-400 font-bold px-2 py-1 rounded-xl border border-yellow-500/30">VER</span>
           </div>
         </Link>
       )}
@@ -135,7 +160,13 @@ export default function Coins() {
         {packages.map((pkg, idx) => {
           const isBestValue = idx === BEST_VALUE_IDX;
           const isPopular   = idx === POPULAR_IDX;
-          const coinsPerDollar = pkg.price_usd > 0 ? Math.round(pkg.coins / pkg.price_usd) : 0;
+          const totalCoins  = pkg.bonus
+            ? pkg.coins + parseInt(String(pkg.bonus).replace(/\D/g, '')) || pkg.coins
+            : pkg.coins;
+          const coinsPerDollar = pkg.price_usd > 0 ? Math.round(totalCoins / pkg.price_usd) : 0;
+          const baseRate = 20; // 20 coins/$ = $0.05/coin (sin descuento)
+          const discount = coinsPerDollar > baseRate ? Math.round(((coinsPerDollar - baseRate) / baseRate) * 100) : 0;
+
           return (
             <motion.button
               key={pkg.id}
@@ -160,7 +191,7 @@ export default function Coins() {
               )}
               <div className="flex items-center gap-2 mb-2">
                 <FiZap className="text-yellow-400" size={16} />
-                <span className="text-white font-bold">{pkg.coins.toLocaleString()}</span>
+                <span className="text-white font-bold">{fmtCoins(pkg.coins)}</span>
                 {pkg.bonus && (
                   <span className="text-[10px] bg-green-500/20 text-green-400 px-1.5 py-0.5 rounded-full font-medium">
                     {pkg.bonus}
@@ -168,7 +199,12 @@ export default function Coins() {
                 )}
               </div>
               <p className="text-2xl font-black text-white">${pkg.price_usd}</p>
-              <p className="text-gray-600 text-[10px] mt-0.5">{coinsPerDollar} coins/$ </p>
+              <p className="text-gray-600 text-[10px] mt-0.5">
+                {discount > 0
+                  ? <span className="text-green-400">Ahorras {discount}%</span>
+                  : <>${(pkg.price_usd / totalCoins).toFixed(3)} por coin</>
+                }
+              </p>
               {buying === pkg.id && (
                 <div className="mt-2 w-4 h-4 border-2 border-yellow-400 border-t-transparent rounded-full animate-spin" />
               )}
@@ -177,20 +213,20 @@ export default function Coins() {
         })}
       </div>
 
-      {/* Historial */}
       {/* Payment Modal */}
       <AnimatePresence>
         {paymentModal && (
           <PaymentModal
             clientSecret={paymentModal.clientSecret}
             amount={`$${paymentModal.pkg.price_usd}`}
-            description={`${paymentModal.pkg.coins.toLocaleString()} Coins`}
+            description={`${fmtCoins(paymentModal.pkg.coins)} Coins`}
             onSuccess={handlePaymentSuccess}
             onClose={() => setPaymentModal(null)}
           />
         )}
       </AnimatePresence>
 
+      {/* Historial */}
       {transactions.length > 0 && (
         <>
           <div className="flex items-center justify-between mb-3">
@@ -216,17 +252,25 @@ export default function Coins() {
           <div className="card divide-y divide-white/5">
             {filteredTx.length === 0 ? (
               <p className="text-gray-600 text-sm text-center py-6">Sin transacciones en esta categoría</p>
-            ) : filteredTx.map(t => (
-              <div key={t.id} className="flex items-center justify-between p-3">
-                <div>
-                  <p className="text-white text-sm">{typeLabel[t.type] || t.type}</p>
-                  <p className="text-gray-600 text-xs">{new Date(t.created_at).toLocaleDateString()}</p>
+            ) : filteredTx.map(t => {
+              const meta = TX_LABELS[t.type] || { label: t.type, icon: '⚡' };
+              const isPositive = t.amount > 0;
+              return (
+                <div key={t.id} className="flex items-center gap-3 p-3">
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 text-sm ${isPositive ? 'bg-green-500/10' : 'bg-red-500/10'}`}>
+                    <span>{meta.icon}</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white text-sm truncate">{meta.label}</p>
+                    <p className="text-gray-600 text-xs">{new Date(t.created_at).toLocaleDateString('es', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                  </div>
+                  <span className={`font-bold text-sm flex items-center gap-0.5 ${isPositive ? 'text-green-400' : 'text-red-400'}`}>
+                    {isPositive ? <FiArrowUp size={12} /> : <FiArrowDown size={12} />}
+                    {isPositive ? '+' : ''}{fmtCoins(t.amount)}
+                  </span>
                 </div>
-                <span className={`font-bold text-sm ${t.amount > 0 ? 'text-green-400' : 'text-red-400'}`}>
-                  {t.amount > 0 ? '+' : ''}{t.amount}
-                </span>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </>
       )}
