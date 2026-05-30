@@ -90,9 +90,10 @@ function StoryAnalyticsCard() {
 function BarChart({ data }) {
   if (!data?.length) return null;
   const chartData = data.slice(-30).map(d => ({ date: d.date?.slice(5), amount: d.amount }));
+  const isSparse = chartData.length < 5;
   return (
-    <ResponsiveContainer width="100%" height={120}>
-      <AreaChart data={chartData} margin={{ top: 4, right: 0, left: -30, bottom: 0 }}>
+    <ResponsiveContainer width="100%" height={140}>
+      <AreaChart data={chartData} margin={{ top: 4, right: 10, left: -30, bottom: 0 }}>
         <defs>
           <linearGradient id="incomeGrad" x1="0" y1="0" x2="0" y2="1">
             <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.5} />
@@ -100,7 +101,7 @@ function BarChart({ data }) {
           </linearGradient>
         </defs>
         <CartesianGrid strokeDasharray="3 3" stroke="#ffffff08" />
-        <XAxis dataKey="date" tick={{ fill: '#6b7280', fontSize: 9 }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
+        <XAxis dataKey="date" tick={{ fill: '#6b7280', fontSize: 9 }} axisLine={false} tickLine={false} interval="preserveStartEnd" padding={{ left: 20, right: 20 }} />
         <YAxis tick={{ fill: '#6b7280', fontSize: 9 }} axisLine={false} tickLine={false} tickFormatter={v => `$${v}`} />
         <Tooltip
           contentStyle={{ background: '#1a1a2e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8 }}
@@ -108,7 +109,15 @@ function BarChart({ data }) {
           itemStyle={{ color: '#a78bfa', fontSize: 11 }}
           formatter={v => [`$${v}`, 'Ingresos']}
         />
-        <Area type="monotone" dataKey="amount" stroke="#8b5cf6" strokeWidth={2} fill="url(#incomeGrad)" dot={false} />
+        <Area
+          type="monotone"
+          dataKey="amount"
+          stroke="#8b5cf6"
+          strokeWidth={2}
+          fill="url(#incomeGrad)"
+          dot={isSparse ? { fill: '#8b5cf6', r: 4 } : false}
+          activeDot={{ r: 6, fill: '#a78bfa' }}
+        />
       </AreaChart>
     </ResponsiveContainer>
   );
@@ -922,11 +931,13 @@ export default function CreatorDashboard() {
                       <h3 className="font-semibold text-white text-sm flex items-center gap-2">
                         <FiBarChart2 size={13} className="text-brand-400" /> Ingresos por tipo (30 días)
                       </h3>
-                      {breakdown.pct_change !== 0 && (
+                      {parseFloat(breakdown.total_previous || 0) === 0 && parseFloat(breakdown.total_current || 0) > 0 ? (
+                        <span className="text-xs font-bold text-brand-400">🎉 Primer período</span>
+                      ) : breakdown.pct_change !== 0 ? (
                         <span className={`text-xs font-bold ${breakdown.pct_change > 0 ? 'text-green-400' : 'text-red-400'}`}>
                           {breakdown.pct_change > 0 ? '↑' : '↓'} {Math.abs(breakdown.pct_change)}% vs anterior
                         </span>
-                      )}
+                      ) : null}
                     </div>
                     <div className="space-y-3">
                       {[
@@ -1086,6 +1097,32 @@ export default function CreatorDashboard() {
                   </button>
                 </div>
 
+                {/* Aviso de desync del balance */}
+                {breakdown && parseFloat(breakdown.total_current || 0) > 0 &&
+                 parseFloat(data?.earnings?.total_earned || 0) === 0 && (
+                  <div className="rounded-2xl bg-yellow-500/10 border border-yellow-500/30 p-4 flex items-start gap-3">
+                    <FiAlertCircle size={18} className="text-yellow-400 shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-yellow-300 text-sm font-semibold mb-1">Balance desincronizado</p>
+                      <p className="text-gray-400 text-xs mb-3">Detectamos ingresos por ${fmt(breakdown.total_current)} que no se reflejan en tu balance de retiro.</p>
+                      <button
+                        onClick={async () => {
+                          try {
+                            const { data: r } = await api.post('/api/creator/sync-earnings');
+                            toast.success(`Balance actualizado: $${r.total_earned}`);
+                            loadDashboard(true);
+                          } catch {
+                            toast.error('Error al sincronizar');
+                          }
+                        }}
+                        className="bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-300 text-xs font-bold px-3 py-1.5 rounded-xl"
+                      >
+                        Sincronizar balance
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 {/* Suscriptores */}
                 <div className="rounded-2xl bg-gradient-to-r from-brand-500/10 to-purple-500/5 border border-brand-500/20 p-5">
                   <div className="flex items-center justify-between">
@@ -1116,7 +1153,7 @@ export default function CreatorDashboard() {
                           <s.icon size={11} className={s.color} />
                           <p className="text-gray-500 text-xs">{s.label}</p>
                         </div>
-                        <p className={`text-xl font-black ${s.color}`}>${value.toFixed(0)}</p>
+                        <p className={`text-xl font-black ${s.color}`}>${value.toFixed(2)}</p>
                       </div>
                     );
                   })}
@@ -1130,10 +1167,16 @@ export default function CreatorDashboard() {
                     </h3>
                     <div className="text-right">
                       <span className="text-brand-400 font-black text-xl">${fmt(breakdown?.total_current ?? analytics?.totals?.thirty_days)}</span>
-                      {breakdown?.pct_change !== undefined && breakdown.pct_change !== 0 && (
-                        <p className={`text-[10px] font-bold ${breakdown.pct_change > 0 ? 'text-green-400' : 'text-red-400'}`}>
-                          {breakdown.pct_change > 0 ? '↑' : '↓'} {Math.abs(breakdown.pct_change)}% vs anterior
-                        </p>
+                      {breakdown && (
+                        <>
+                          {parseFloat(breakdown.total_previous || 0) === 0 && parseFloat(breakdown.total_current || 0) > 0 ? (
+                            <p className="text-[10px] font-bold text-brand-400">🎉 Primer período con ingresos</p>
+                          ) : breakdown.pct_change !== 0 ? (
+                            <p className={`text-[10px] font-bold ${breakdown.pct_change > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                              {breakdown.pct_change > 0 ? '↑' : '↓'} {Math.abs(breakdown.pct_change)}% vs anterior
+                            </p>
+                          ) : null}
+                        </>
                       )}
                     </div>
                   </div>

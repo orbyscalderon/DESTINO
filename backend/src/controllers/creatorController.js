@@ -1275,29 +1275,62 @@ export const exportAnalyticsCsv = async (req, res) => {
     const { data: profile } = await supabase.from('profiles').select('is_creator').eq('id', creatorId).single();
     if (!profile?.is_creator) return res.status(403).json({ error: 'No eres creador' });
 
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    // IDs de mis shows
+    const { data: myShows } = await supabase.from('live_shows').select('id, title').eq('host_id', creatorId);
+    const showMap = Object.fromEntries((myShows || []).map(s => [s.id, s.title]));
+    const showIds = (myShows || []).map(s => s.id);
+    const showIdsSafe = showIds.length ? showIds : ['00000000-0000-0000-0000-000000000000'];
 
-    const { data: subs } = await supabase
-      .from('creator_subscriptions')
-      .select('subscriber:profiles!subscriber_id(full_name), subscription_price, created_at, current_period_end')
-      .eq('creator_id', creatorId)
-      .order('created_at', { ascending: false });
+    const queries = await Promise.all([
+      supabase.from('show_tickets').select('creator_earnings, purchased_at, show_id, buyer:profiles!buyer_id(full_name)').in('show_id', showIdsSafe),
+      supabase.from('show_tips').select('creator_earnings, coins_spent, message, created_at, show_id, sender:profiles!sender_id(full_name)').eq('creator_id', creatorId),
+      supabase.from('show_gifts').select('coins_spent, gift_type, created_at, show_id, sender:profiles!sender_id(full_name)').eq('creator_id', creatorId),
+      supabase.from('content_purchases').select('creator_earnings, coins_paid, created_at, buyer:profiles!buyer_id(full_name)').eq('seller_id', creatorId),
+      supabase.from('video_requests').select('price, completed_at, requester:profiles!requester_id(full_name)').eq('creator_id', creatorId).eq('status', 'completed'),
+      supabase.from('creator_subscriptions').select('subscriber:profiles!subscriber_id(full_name), subscription_price, status, created_at, current_period_end').eq('creator_id', creatorId),
+    ]);
+    const safe = (i) => Array.isArray(queries[i].data) ? queries[i].data : [];
 
-    const rows = [['Suscriptor', 'Precio', 'Fecha inicio', 'Próxima renovación']];
-    (subs || []).forEach(s => {
-      rows.push([
-        s.subscriber?.full_name || '',
-        s.subscription_price || 0,
-        s.created_at ? new Date(s.created_at).toLocaleDateString('es') : '',
-        s.current_period_end ? new Date(s.current_period_end).toLocaleDateString('es') : '',
-      ]);
-    });
+    const fromCoins = (c) => parseFloat(parseFloat(c || 0) * COIN_VALUE_USD * CREATOR_CUT).toFixed(2);
 
-    const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+    // Hoja unificada de transacciones
+    const txRows = [['Fecha', 'Tipo', 'De', 'Show', 'Coins', 'USD (70%)', 'Mensaje']];
+    safe(0).forEach(r => txRows.push([
+      r.purchased_at ? new Date(r.purchased_at).toLocaleString('es') : '',
+      'Ticket de show', r.buyer?.full_name || '', showMap[r.show_id] || '', '', parseFloat(r.creator_earnings || 0).toFixed(2), '',
+    ]));
+    safe(1).forEach(r => txRows.push([
+      r.created_at ? new Date(r.created_at).toLocaleString('es') : '',
+      'Propina en show', r.sender?.full_name || '', showMap[r.show_id] || '', r.coins_spent || '', parseFloat(r.creator_earnings || 0).toFixed(2), r.message || '',
+    ]));
+    safe(2).forEach(r => txRows.push([
+      r.created_at ? new Date(r.created_at).toLocaleString('es') : '',
+      `Regalo: ${r.gift_type || ''}`, r.sender?.full_name || '', showMap[r.show_id] || '', r.coins_spent || '', fromCoins(r.coins_spent), '',
+    ]));
+    safe(3).forEach(r => txRows.push([
+      r.created_at ? new Date(r.created_at).toLocaleString('es') : '',
+      'Venta de contenido', r.buyer?.full_name || '', '', r.coins_paid || '', parseFloat(r.creator_earnings || 0).toFixed(2), '',
+    ]));
+    safe(4).forEach(r => txRows.push([
+      r.completed_at ? new Date(r.completed_at).toLocaleString('es') : '',
+      'Encargo de video', r.requester?.full_name || '', '', r.price || '', fromCoins(r.price), '',
+    ]));
+    safe(5).forEach(r => txRows.push([
+      r.created_at ? new Date(r.created_at).toLocaleString('es') : '',
+      `Suscripción (${r.status})`, r.subscriber?.full_name || '', '', '', (parseFloat(r.subscription_price || 0) * CREATOR_CUT).toFixed(2), '',
+    ]));
+
+    // Ordenar por fecha desc
+    const header = txRows[0];
+    const dataRows = txRows.slice(1).sort((a, b) => new Date(b[0]) - new Date(a[0]));
+    const allRows = [header, ...dataRows];
+
+    const csv = allRows.map(r => r.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader('Content-Disposition', 'attachment; filename="analytics.csv"');
+    res.setHeader('Content-Disposition', `attachment; filename="ingresos-${new Date().toISOString().slice(0,10)}.csv"`);
     res.send('﻿' + csv); // BOM for Excel
   } catch (err) {
+    console.error('exportAnalyticsCsv error:', err.message);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
