@@ -543,6 +543,214 @@ export const getAnalytics = async (req, res) => {
   }
 };
 
+// GET /api/creator/breakdown?days=30 — desglose unificado y comparativa
+// Todos los ingresos en USD ya con el 70% (creator_earnings)
+export const getEarningsBreakdown = async (req, res) => {
+  try {
+    const creatorId = req.user.id;
+    const days = Math.max(1, Math.min(365, parseInt(req.query.days) || 30));
+    const now = Date.now();
+    const periodMs = days * 24 * 60 * 60 * 1000;
+    const startCurrent  = new Date(now - periodMs).toISOString();
+    const startPrevious = new Date(now - 2 * periodMs).toISOString();
+
+    const { data: profile } = await supabase
+      .from('profiles').select('is_creator').eq('id', creatorId).single();
+    if (!profile?.is_creator) return res.status(403).json({ error: 'No eres creador' });
+
+    // IDs de shows del creador (necesarios para tickets/tips/gifts)
+    const { data: myShows } = await supabase
+      .from('live_shows').select('id').eq('host_id', creatorId);
+    const showIds = (myShows || []).map(s => s.id);
+    const showIdsSafe = showIds.length ? showIds : ['00000000-0000-0000-0000-000000000000'];
+
+    const queries = await Promise.all([
+      // [0] Tickets de shows
+      supabase.from('show_tickets').select('creator_earnings, purchased_at')
+        .in('show_id', showIdsSafe).gte('purchased_at', startPrevious),
+      // [1] Tips en shows
+      supabase.from('show_tips').select('creator_earnings, created_at')
+        .eq('creator_id', creatorId).gte('created_at', startPrevious),
+      // [2] Regalos en shows (coins_spent * 0.04 USD/coin * 0.70)
+      supabase.from('show_gifts').select('coins_spent, created_at')
+        .eq('creator_id', creatorId).gte('created_at', startPrevious),
+      // [3] Ventas de fotos/posts
+      supabase.from('content_purchases').select('creator_earnings, created_at')
+        .eq('seller_id', creatorId).gte('created_at', startPrevious),
+      // [4] Encargos de video (price es coins → USD)
+      supabase.from('video_requests').select('price, completed_at, status')
+        .eq('creator_id', creatorId).eq('status', 'completed').gte('completed_at', startPrevious),
+      // [5] Suscripciones a este creador
+      supabase.from('creator_subscriptions').select('subscription_price, created_at')
+        .eq('creator_id', creatorId).gte('created_at', startPrevious),
+      // [6] Suscriptores activos
+      supabase.from('creator_subscriptions').select('*', { count: 'exact', head: true })
+        .eq('creator_id', creatorId).eq('status', 'active'),
+      // [7] Galería purchases (si la tabla existe)
+      supabase.from('gallery_purchases').select('coins_paid, created_at')
+        .eq('creator_id', creatorId).gte('created_at', startPrevious),
+    ]);
+
+    const safe = (i) => Array.isArray(queries[i].data) ? queries[i].data : [];
+
+    // Conversión: 1 coin = $0.04 USD. Creator recibe 70%.
+    const COIN_USD = 0.04;
+    const CUT = 0.70;
+    const coinsToUSD = (coins) => parseFloat(coins || 0) * COIN_USD * CUT;
+
+    const inRange = (dateStr, since) => new Date(dateStr) >= new Date(since);
+
+    // Sumar por categoría en cada período
+    const sumCategory = (rows, getAmount, dateField, since) => rows
+      .filter(r => r[dateField] && inRange(r[dateField], since))
+      .reduce((s, r) => s + parseFloat(getAmount(r) || 0), 0);
+
+    const cats = {
+      show_tickets:   { rows: safe(0), getAmount: r => r.creator_earnings, date: 'purchased_at' },
+      show_tips:      { rows: safe(1), getAmount: r => r.creator_earnings, date: 'created_at' },
+      show_gifts:     { rows: safe(2), getAmount: r => coinsToUSD(r.coins_spent), date: 'created_at' },
+      photo_sales:    { rows: safe(3), getAmount: r => r.creator_earnings, date: 'created_at' },
+      video_requests: { rows: safe(4), getAmount: r => coinsToUSD(r.price), date: 'completed_at' },
+      subscriptions:  { rows: safe(5), getAmount: r => parseFloat(r.subscription_price || 0) * CUT, date: 'created_at' },
+      gallery_sales:  { rows: safe(7), getAmount: r => coinsToUSD(r.coins_paid), date: 'created_at' },
+    };
+
+    const totals_usd = {};
+    const previous_usd = {};
+    Object.entries(cats).forEach(([key, { rows, getAmount, date }]) => {
+      totals_usd[key]   = parseFloat(sumCategory(rows, getAmount, date, startCurrent).toFixed(2));
+      previous_usd[key] = parseFloat(sumCategory(rows, getAmount, date, startPrevious).toFixed(2)) - totals_usd[key];
+    });
+
+    const totalCurrent  = Object.values(totals_usd).reduce((s, v) => s + v, 0);
+    const totalPrevious = Object.values(previous_usd).reduce((s, v) => s + v, 0);
+    const pctChange = totalPrevious > 0
+      ? parseFloat((((totalCurrent - totalPrevious) / totalPrevious) * 100).toFixed(1))
+      : (totalCurrent > 0 ? 100 : 0);
+
+    // Chart por día (solo período actual, agregado total)
+    const byDay = {};
+    Object.values(cats).forEach(({ rows, getAmount, date }) => {
+      rows.filter(r => r[date] && inRange(r[date], startCurrent)).forEach(r => {
+        const day = r[date].substring(0, 10);
+        byDay[day] = (byDay[day] || 0) + parseFloat(getAmount(r) || 0);
+      });
+    });
+    const chart = Object.entries(byDay)
+      .map(([date, amount]) => ({ date, amount: parseFloat(amount.toFixed(2)) }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    res.json({
+      totals_usd,
+      previous_usd,
+      total_current:  parseFloat(totalCurrent.toFixed(2)),
+      total_previous: parseFloat(totalPrevious.toFixed(2)),
+      pct_change:     pctChange,
+      chart,
+      subscribers_active: queries[6].count || 0,
+      coin_rate: { usd_per_coin: COIN_USD, creator_cut: CUT, coins_per_usd: 1 / COIN_USD },
+      days,
+    });
+  } catch (err) {
+    console.error('getEarningsBreakdown error:', err.message);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
+// GET /api/creator/income-feed?limit=50 — historial unificado de ingresos
+export const getIncomeFeed = async (req, res) => {
+  try {
+    const creatorId = req.user.id;
+    const limit = Math.max(10, Math.min(100, parseInt(req.query.limit) || 50));
+
+    const { data: myShows } = await supabase
+      .from('live_shows').select('id, title').eq('host_id', creatorId);
+    const showMap = Object.fromEntries((myShows || []).map(s => [s.id, s.title]));
+    const showIds = (myShows || []).map(s => s.id);
+    const showIdsSafe = showIds.length ? showIds : ['00000000-0000-0000-0000-000000000000'];
+
+    const queries = await Promise.all([
+      supabase.from('show_tips').select('id, coins_spent, message, created_at, show_id, sender:profiles!sender_id(full_name, avatar_url)')
+        .eq('creator_id', creatorId).order('created_at', { ascending: false }).limit(limit),
+      supabase.from('show_gifts').select('id, coins_spent, gift_type, created_at, show_id, sender:profiles!sender_id(full_name, avatar_url)')
+        .eq('creator_id', creatorId).order('created_at', { ascending: false }).limit(limit),
+      supabase.from('show_tickets').select('id, creator_earnings, purchased_at, show_id, buyer:profiles!buyer_id(full_name, avatar_url)')
+        .in('show_id', showIdsSafe).order('purchased_at', { ascending: false }).limit(limit),
+      supabase.from('profile_tips').select('id, amount_coins, message, created_at, sender:profiles!sender_id(full_name, avatar_url)')
+        .eq('recipient_id', creatorId).order('created_at', { ascending: false }).limit(limit),
+      supabase.from('content_purchases').select('id, creator_earnings, created_at, buyer:profiles!buyer_id(full_name, avatar_url)')
+        .eq('seller_id', creatorId).order('created_at', { ascending: false }).limit(limit),
+      supabase.from('video_requests').select('id, price, completed_at, requester:profiles!requester_id(full_name, avatar_url)')
+        .eq('creator_id', creatorId).eq('status', 'completed').order('completed_at', { ascending: false }).limit(limit),
+    ]);
+
+    const safe = (i) => Array.isArray(queries[i].data) ? queries[i].data : [];
+
+    const COIN_USD = 0.04;
+    const CUT = 0.70;
+    const fromCoins = (c) => parseFloat((parseFloat(c || 0) * COIN_USD * CUT).toFixed(2));
+
+    const feed = [
+      ...safe(0).map(r => ({
+        id: 't_' + r.id, type: 'show_tip',
+        title: 'Propina en show',
+        subtitle: showMap[r.show_id] || 'Show',
+        message: r.message,
+        from: r.sender,
+        coins: r.coins_spent,
+        usd: fromCoins(r.coins_spent),
+        at: r.created_at,
+      })),
+      ...safe(1).map(r => ({
+        id: 'g_' + r.id, type: 'show_gift',
+        title: 'Regalo en show',
+        subtitle: showMap[r.show_id] || 'Show',
+        from: r.sender,
+        coins: r.coins_spent,
+        usd: fromCoins(r.coins_spent),
+        at: r.created_at,
+      })),
+      ...safe(2).map(r => ({
+        id: 'k_' + r.id, type: 'show_ticket',
+        title: 'Ticket de show',
+        subtitle: showMap[r.show_id] || 'Show',
+        from: r.buyer,
+        usd: parseFloat(r.creator_earnings || 0),
+        at: r.purchased_at,
+      })),
+      ...safe(3).map(r => ({
+        id: 'p_' + r.id, type: 'profile_tip',
+        title: 'Propina de perfil',
+        message: r.message,
+        from: r.sender,
+        coins: r.amount_coins,
+        usd: fromCoins(r.amount_coins),
+        at: r.created_at,
+      })),
+      ...safe(4).map(r => ({
+        id: 'c_' + r.id, type: 'content_sale',
+        title: 'Venta de contenido',
+        from: r.buyer,
+        usd: parseFloat(r.creator_earnings || 0),
+        at: r.created_at,
+      })),
+      ...safe(5).map(r => ({
+        id: 'v_' + r.id, type: 'video_request',
+        title: 'Encargo de video',
+        from: r.requester,
+        coins: r.price,
+        usd: fromCoins(r.price),
+        at: r.completed_at,
+      })),
+    ].sort((a, b) => new Date(b.at) - new Date(a.at)).slice(0, limit);
+
+    res.json({ items: feed });
+  } catch (err) {
+    console.error('getIncomeFeed error:', err.message);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
 // PUT /api/creator/adult-mode — activar/desactivar modo creador adulto
 export const toggleAdultMode = async (req, res) => {
   try {

@@ -14,6 +14,8 @@ import {
   cancelCreatorSubscription,
   getAnalytics,
   getPostAnalytics,
+  getEarningsBreakdown,
+  getIncomeFeed,
   toggleAdultMode,
   getSubscribers,
   discoverAdultCreators,
@@ -44,6 +46,8 @@ router.get('/onboarding-link', getOnboardingLink);
 router.get('/dashboard', getCreatorDashboard);
 router.get('/earnings', getEarnings);
 router.get('/analytics', getAnalytics);
+router.get('/breakdown', getEarningsBreakdown);
+router.get('/income-feed', getIncomeFeed);
 router.get('/post-analytics', getPostAnalytics);
 router.get('/story-analytics', getStoryAnalytics);
 router.get('/subscribers', getSubscribers);

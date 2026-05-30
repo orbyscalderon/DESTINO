@@ -150,6 +150,8 @@ export default function CreatorDashboard() {
   // Tips & Withdrawals
   const [tips, setTips]         = useState([]);
   const [tipsTotal, setTipsTotal] = useState(0);
+  const [breakdown, setBreakdown] = useState(null);
+  const [incomeFeed, setIncomeFeed] = useState([]);
   const [earnings, setEarnings] = useState(null);
   const [withdrawals, setWithdrawals]     = useState([]);
   const [withdrawForm, setWithdrawForm]   = useState({ amount: '' });
@@ -187,12 +189,14 @@ export default function CreatorDashboard() {
   const loadDashboard = useCallback(async (silent = false) => {
     if (!silent) setLoading(true); else setRefreshing(true);
     try {
-      const [dashRes, analyticsRes, postRes, earningsRes, tipsRes] = await Promise.all([
+      const [dashRes, analyticsRes, postRes, earningsRes, tipsRes, breakdownRes, feedRes] = await Promise.all([
         api.get('/api/creator/dashboard'),
         api.get('/api/creator/analytics'),
         api.get('/api/creator/post-analytics').catch(() => ({ data: null })),
         api.get('/api/withdrawals/earnings').catch(() => ({ data: null })),
         api.get('/api/tips/received').catch(() => ({ data: { tips: [], total_coins: 0 } })),
+        api.get('/api/creator/breakdown?days=30').catch(() => ({ data: null })),
+        api.get('/api/creator/income-feed?limit=50').catch(() => ({ data: { items: [] } })),
       ]);
       setData(dashRes.data);
       setAnalytics(analyticsRes.data);
@@ -200,6 +204,8 @@ export default function CreatorDashboard() {
       setEarnings(earningsRes.data);
       setTips(tipsRes.data?.tips || []);
       setTipsTotal(tipsRes.data?.total_coins || 0);
+      setBreakdown(breakdownRes.data);
+      setIncomeFeed(feedRes.data?.items || []);
       setSubPrice(dashRes.data.profile?.creator_subscription_price ?? '');
       setBio(dashRes.data.profile?.creator_bio ?? '');
     } catch {
@@ -807,11 +813,11 @@ export default function CreatorDashboard() {
                       </div>
                       <div className="rounded-2xl bg-dark-800 border border-white/5 p-4 text-center">
                         <p className="text-2xl font-black text-green-400">${fmt(subscribers.total_revenue)}</p>
-                        <p className="text-xs text-gray-500 mt-1">Recaudado</p>
+                        <p className="text-xs text-gray-500 mt-1">Bruto / mes</p>
                       </div>
                       <div className="rounded-2xl bg-dark-800 border border-white/5 p-4 text-center">
                         <p className="text-2xl font-black text-brand-400">${fmt((subscribers.total_revenue||0)*0.7)}</p>
-                        <p className="text-xs text-gray-500 mt-1">Tu corte (70%)</p>
+                        <p className="text-xs text-gray-500 mt-1">Tu corte / mes</p>
                       </div>
                     </div>
 
@@ -872,7 +878,12 @@ export default function CreatorDashboard() {
                     <div>
                       <p className="text-gray-400 text-xs mb-1">Disponible para retirar</p>
                       <p className="text-3xl font-black text-white">${fmt(available)}</p>
-                      <p className="text-gray-500 text-xs mt-1">Total ganado: ${fmt(data?.earnings?.total_earned)}</p>
+                      <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
+                        <span>Total ganado: ${fmt(data?.earnings?.total_earned)}</span>
+                        {breakdown && (
+                          <span>Últimos {breakdown.days}d: <span className="text-white font-semibold">${fmt(breakdown.total_current)}</span></span>
+                        )}
+                      </div>
                     </div>
                     <div className="w-12 h-12 bg-green-500/20 rounded-2xl flex items-center justify-center">
                       <FiArrowDown size={20} className="text-green-400" />
@@ -880,26 +891,38 @@ export default function CreatorDashboard() {
                   </div>
                 </div>
 
-                {/* Desglose por tipo */}
-                {analytics?.totals && (
+                {/* Desglose por tipo — UNIFICADO (7 categorías) */}
+                {breakdown?.totals_usd && (
                   <div className="rounded-2xl bg-dark-800 border border-white/5 p-5">
-                    <h3 className="font-semibold text-white text-sm mb-4 flex items-center gap-2">
-                      <FiBarChart2 size={13} className="text-brand-400" /> Ingresos por tipo (30 días)
-                    </h3>
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="font-semibold text-white text-sm flex items-center gap-2">
+                        <FiBarChart2 size={13} className="text-brand-400" /> Ingresos por tipo (30 días)
+                      </h3>
+                      {breakdown.pct_change !== 0 && (
+                        <span className={`text-xs font-bold ${breakdown.pct_change > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                          {breakdown.pct_change > 0 ? '↑' : '↓'} {Math.abs(breakdown.pct_change)}% vs anterior
+                        </span>
+                      )}
+                    </div>
                     <div className="space-y-3">
                       {[
-                        { label: 'Tickets de shows', value: analytics.totals.show_tickets, color: 'bg-purple-500' },
-                        { label: 'Ventas de fotos',  value: analytics.totals.photo_sales,  color: 'bg-pink-500' },
-                        { label: 'Propinas',          value: analytics.totals.tips,          color: 'bg-green-500' },
-                        { label: 'Suscripciones',     value: analytics.totals.subscriptions, color: 'bg-blue-500' },
+                        { key: 'show_tickets',   label: 'Tickets de shows',    color: 'bg-purple-500' },
+                        { key: 'show_tips',      label: 'Propinas en shows',   color: 'bg-green-500' },
+                        { key: 'show_gifts',     label: 'Regalos en shows',    color: 'bg-yellow-500' },
+                        { key: 'photo_sales',    label: 'Ventas de contenido', color: 'bg-pink-500' },
+                        { key: 'video_requests', label: 'Encargos de video',   color: 'bg-orange-500' },
+                        { key: 'subscriptions',  label: 'Suscripciones',       color: 'bg-blue-500' },
+                        { key: 'gallery_sales',  label: 'Galerías',            color: 'bg-cyan-500' },
                       ].map(item => {
-                        const total = ['show_tickets','photo_sales','tips','subscriptions'].reduce((s,k) => s + parseFloat(analytics.totals[k]||0), 0) || 1;
-                        const pct = Math.round((parseFloat(item.value||0)/total)*100);
+                        const value = parseFloat(breakdown.totals_usd[item.key] || 0);
+                        const total = breakdown.total_current || 1;
+                        const pct = total > 0 ? Math.round((value / total) * 100) : 0;
+                        if (value === 0 && total > 0) return null;
                         return (
-                          <div key={item.label}>
+                          <div key={item.key}>
                             <div className="flex items-center justify-between text-xs mb-1">
                               <span className="text-gray-400">{item.label}</span>
-                              <span className="text-white font-semibold">${fmt(item.value)} <span className="text-gray-600">({pct}%)</span></span>
+                              <span className="text-white font-semibold">${value.toFixed(2)} <span className="text-gray-600">({pct}%)</span></span>
                             </div>
                             <div className="h-1.5 bg-dark-700 rounded-full overflow-hidden">
                               <motion.div initial={{width:0}} animate={{width:`${pct}%`}} transition={{duration:0.8,ease:'easeOut'}}
@@ -909,33 +932,48 @@ export default function CreatorDashboard() {
                         );
                       })}
                     </div>
+                    <p className="text-[10px] text-gray-600 mt-3 text-right">
+                      Tasa: {breakdown.coin_rate?.coins_per_usd ?? 25} coins ≈ $1 USD · creador recibe {Math.round((breakdown.coin_rate?.creator_cut ?? 0.7) * 100)}%
+                    </p>
                   </div>
                 )}
 
-                {/* Propinas */}
+                {/* Historial de ingresos unificado */}
                 <div className="rounded-2xl bg-dark-800 border border-white/5 p-5">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-semibold text-white text-sm flex items-center gap-2"><FiStar size={13} className="text-yellow-400"/> Propinas recibidas</h3>
-                    <span className="text-yellow-400 text-sm font-bold">⚡{tipsTotal}</span>
+                    <h3 className="font-semibold text-white text-sm flex items-center gap-2"><FiStar size={13} className="text-yellow-400"/> Ingresos recientes</h3>
+                    <span className="text-gray-500 text-[10px]">{incomeFeed.length} entradas</span>
                   </div>
-                  {tips.length === 0 ? (
-                    <p className="text-center text-gray-600 text-sm py-4">Sin propinas aún</p>
+                  {incomeFeed.length === 0 ? (
+                    <p className="text-center text-gray-600 text-sm py-4">Sin ingresos aún</p>
                   ) : (
-                    <div className="max-h-60 overflow-y-auto space-y-0">
-                      {tips.map(t => (
-                        <div key={t.id} className="flex items-center gap-3 py-2.5 border-b border-white/5 last:border-0">
-                          <img src={t.sender?.avatar_url||`https://ui-avatars.com/api/?name=${encodeURIComponent(t.sender?.full_name||'U')}&size=60&background=1a1a2e&color=f43f5e`}
-                            className="w-8 h-8 rounded-full object-cover shrink-0" alt="" />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-white text-xs font-medium truncate">{t.sender?.full_name||'Usuario'}</p>
-                            {t.message && <p className="text-gray-500 text-xs truncate">{t.message}</p>}
+                    <div className="max-h-72 overflow-y-auto space-y-0">
+                      {incomeFeed.map(item => {
+                        const iconMap = {
+                          show_tip: '💰', show_gift: '🎁', show_ticket: '🎟',
+                          profile_tip: '💝', content_sale: '🖼', video_request: '🎬',
+                        };
+                        return (
+                          <div key={item.id} className="flex items-center gap-3 py-2.5 border-b border-white/5 last:border-0">
+                            <img src={item.from?.avatar_url||`https://ui-avatars.com/api/?name=${encodeURIComponent(item.from?.full_name||'U')}&size=60&background=1a1a2e&color=f43f5e`}
+                              className="w-8 h-8 rounded-full object-cover shrink-0" alt="" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-white text-xs font-medium truncate flex items-center gap-1">
+                                <span>{iconMap[item.type] || '⚡'}</span>
+                                {item.from?.full_name || 'Usuario'}
+                                <span className="text-gray-500 font-normal">· {item.title}</span>
+                              </p>
+                              {item.message && <p className="text-gray-500 text-xs truncate">"{item.message}"</p>}
+                              {item.subtitle && !item.message && <p className="text-gray-600 text-[10px] truncate">{item.subtitle}</p>}
+                            </div>
+                            <div className="text-right shrink-0">
+                              <p className="text-green-400 text-xs font-bold">${item.usd.toFixed(2)}</p>
+                              {item.coins && <p className="text-yellow-500 text-[10px]">⚡{item.coins}</p>}
+                              <p className="text-gray-600 text-[10px]">{new Date(item.at).toLocaleDateString('es', { day:'numeric', month:'short' })}</p>
+                            </div>
                           </div>
-                          <div className="text-right shrink-0">
-                            <p className="text-yellow-400 text-xs font-bold">⚡{t.amount_coins}</p>
-                            <p className="text-gray-600 text-[10px]">{new Date(t.created_at).toLocaleDateString()}</p>
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -1029,7 +1067,7 @@ export default function CreatorDashboard() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-gray-400 text-sm mb-1">Suscriptores activos</p>
-                      <p className="text-4xl font-black text-white">{analytics?.subscribers??0}</p>
+                      <p className="text-4xl font-black text-white">{breakdown?.subscribers_active ?? analytics?.subscribers ?? 0}</p>
                     </div>
                     <div className="w-14 h-14 bg-brand-500/20 rounded-2xl flex items-center justify-center">
                       <FiUsers size={24} className="text-brand-400" />
@@ -1037,40 +1075,52 @@ export default function CreatorDashboard() {
                   </div>
                 </div>
 
-                {/* Totales 30d */}
-                <div className="grid grid-cols-2 gap-3">
+                {/* Totales 30d — 7 categorías unificadas */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   {[
-                    { label: 'Tickets shows', value: analytics?.totals?.show_tickets, color: 'text-purple-400', bg: 'bg-purple-500/10 border-purple-500/20', icon: FiVideo },
-                    { label: 'Ventas fotos',  value: analytics?.totals?.photo_sales,  color: 'text-pink-400',   bg: 'bg-pink-500/10 border-pink-500/20',     icon: FiImage },
-                    { label: 'Propinas',       value: analytics?.totals?.tips,          color: 'text-green-400',  bg: 'bg-green-500/10 border-green-500/20',   icon: FiStar },
-                    { label: 'Suscripciones',  value: analytics?.totals?.subscriptions, color: 'text-blue-400',   bg: 'bg-blue-500/10 border-blue-500/20',     icon: FiUsers },
-                  ].map(s => (
-                    <div key={s.label} className={`rounded-2xl border p-4 ${s.bg}`}>
-                      <div className="flex items-center gap-1.5 mb-1">
-                        <s.icon size={11} className={s.color} />
-                        <p className="text-gray-500 text-xs">{s.label}</p>
+                    { key: 'show_tickets',   label: 'Tickets shows', color: 'text-purple-400', bg: 'bg-purple-500/10 border-purple-500/20', icon: FiVideo },
+                    { key: 'show_tips',      label: 'Propinas',      color: 'text-green-400',  bg: 'bg-green-500/10 border-green-500/20',   icon: FiStar },
+                    { key: 'show_gifts',     label: 'Regalos',       color: 'text-yellow-400', bg: 'bg-yellow-500/10 border-yellow-500/20', icon: FiGift },
+                    { key: 'photo_sales',    label: 'Contenido',     color: 'text-pink-400',   bg: 'bg-pink-500/10 border-pink-500/20',     icon: FiImage },
+                    { key: 'video_requests', label: 'Encargos',      color: 'text-orange-400', bg: 'bg-orange-500/10 border-orange-500/20', icon: FiPlay },
+                    { key: 'subscriptions',  label: 'Suscripciones', color: 'text-blue-400',   bg: 'bg-blue-500/10 border-blue-500/20',     icon: FiUsers },
+                  ].map(s => {
+                    const value = parseFloat(breakdown?.totals_usd?.[s.key] || 0);
+                    return (
+                      <div key={s.key} className={`rounded-2xl border p-4 ${s.bg}`}>
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <s.icon size={11} className={s.color} />
+                          <p className="text-gray-500 text-xs">{s.label}</p>
+                        </div>
+                        <p className={`text-xl font-black ${s.color}`}>${value.toFixed(0)}</p>
                       </div>
-                      <p className={`text-xl font-black ${s.color}`}>{fmtK(s.value)}</p>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
 
                 {/* Chart */}
                 <div className="rounded-2xl bg-dark-800 border border-white/5 p-5">
                   <div className="flex items-center justify-between mb-1">
                     <h3 className="text-sm font-bold text-gray-300 flex items-center gap-2">
-                      <FiBarChart2 size={13} className="text-brand-400" /> Últimos 30 días
+                      <FiBarChart2 size={13} className="text-brand-400" /> Últimos {breakdown?.days ?? 30} días
                     </h3>
-                    <span className="text-brand-400 font-black text-xl">${fmt(analytics?.totals?.thirty_days)}</span>
+                    <div className="text-right">
+                      <span className="text-brand-400 font-black text-xl">${fmt(breakdown?.total_current ?? analytics?.totals?.thirty_days)}</span>
+                      {breakdown?.pct_change !== undefined && breakdown.pct_change !== 0 && (
+                        <p className={`text-[10px] font-bold ${breakdown.pct_change > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                          {breakdown.pct_change > 0 ? '↑' : '↓'} {Math.abs(breakdown.pct_change)}% vs anterior
+                        </p>
+                      )}
+                    </div>
                   </div>
-                  <p className="text-gray-600 text-xs mb-4">Ingresos netos (70% tuyo)</p>
-                  {analytics?.chart?.length > 0
-                    ? <BarChart data={analytics.chart} />
-                    : <div className="h-14 flex items-center justify-center"><p className="text-gray-600 text-xs">Sin datos</p></div>
+                  <p className="text-gray-600 text-xs mb-4">Ingresos netos ({Math.round((breakdown?.coin_rate?.creator_cut ?? 0.7) * 100)}% tuyo)</p>
+                  {(breakdown?.chart || analytics?.chart)?.length > 0
+                    ? <BarChart data={breakdown?.chart || analytics.chart} />
+                    : <div className="h-14 flex items-center justify-center"><p className="text-gray-600 text-xs">Sin datos en este período</p></div>
                   }
                 </div>
 
-                {/* Rendimiento por show */}
+                {/* Rendimiento por show — usa tasa del backend */}
                 {data?.shows?.filter(s=>s.status==='ended').length > 0 && (
                   <div className="rounded-2xl bg-dark-800 border border-white/5 p-5">
                     <h3 className="text-sm font-bold text-gray-300 flex items-center gap-2 mb-4">
@@ -1080,7 +1130,9 @@ export default function CreatorDashboard() {
                       {data.shows.filter(s=>s.status==='ended').slice(0,8).map((show,i) => {
                         const durationMin = show.started_at && show.ended_at
                           ? Math.round((new Date(show.ended_at)-new Date(show.started_at))/60000) : null;
-                        const usd = ((show.total_coins_earned||0)*0.04*0.7).toFixed(2);
+                        const coinUsd = breakdown?.coin_rate?.usd_per_coin ?? 0.04;
+                        const cut     = breakdown?.coin_rate?.creator_cut  ?? 0.70;
+                        const usd = ((show.total_coins_earned||0) * coinUsd * cut).toFixed(2);
                         return (
                           <div key={show.id||i} className="bg-dark-700/60 rounded-xl p-3">
                             <div className="flex items-center justify-between gap-2 mb-1">
