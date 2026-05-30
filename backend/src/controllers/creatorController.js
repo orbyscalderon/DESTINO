@@ -561,66 +561,77 @@ export const getEarningsBreakdown = async (req, res) => {
 
     // IDs de shows del creador (necesarios para tickets/tips/gifts)
     const { data: myShows } = await supabase
-      .from('live_shows').select('id').eq('host_id', creatorId);
+      .from('live_shows').select('id, title').eq('host_id', creatorId);
+    const showMap = Object.fromEntries((myShows || []).map(s => [s.id, s.title]));
     const showIds = (myShows || []).map(s => s.id);
     const showIdsSafe = showIds.length ? showIds : ['00000000-0000-0000-0000-000000000000'];
 
     const queries = await Promise.all([
-      // [0] Tickets de shows
-      supabase.from('show_tickets').select('creator_earnings, purchased_at')
+      // [0] Tickets de shows — con buyer y show_id para top-shows/top-fans
+      supabase.from('show_tickets').select('creator_earnings, purchased_at, show_id, buyer:profiles!buyer_id(id, full_name, avatar_url)')
         .in('show_id', showIdsSafe).gte('purchased_at', startPrevious),
       // [1] Tips en shows
-      supabase.from('show_tips').select('creator_earnings, created_at')
+      supabase.from('show_tips').select('creator_earnings, coins_spent, created_at, show_id, sender:profiles!sender_id(id, full_name, avatar_url)')
         .eq('creator_id', creatorId).gte('created_at', startPrevious),
-      // [2] Regalos en shows (coins_spent * 0.04 USD/coin * 0.70)
-      supabase.from('show_gifts').select('coins_spent, created_at')
+      // [2] Regalos en shows
+      supabase.from('show_gifts').select('coins_spent, created_at, show_id, sender:profiles!sender_id(id, full_name, avatar_url)')
         .eq('creator_id', creatorId).gte('created_at', startPrevious),
-      // [3] Ventas de fotos/posts
-      supabase.from('content_purchases').select('creator_earnings, created_at')
+      // [3] Ventas de contenido
+      supabase.from('content_purchases').select('creator_earnings, created_at, buyer:profiles!buyer_id(id, full_name, avatar_url)')
         .eq('seller_id', creatorId).gte('created_at', startPrevious),
-      // [4] Encargos de video (price es coins → USD)
-      supabase.from('video_requests').select('price, completed_at, status')
+      // [4] Encargos de video
+      supabase.from('video_requests').select('price, completed_at, requester:profiles!requester_id(id, full_name, avatar_url)')
         .eq('creator_id', creatorId).eq('status', 'completed').gte('completed_at', startPrevious),
-      // [5] Suscripciones a este creador
-      supabase.from('creator_subscriptions').select('subscription_price, created_at')
+      // [5] Suscripciones
+      supabase.from('creator_subscriptions').select('subscription_price, created_at, subscriber:profiles!subscriber_id(id, full_name, avatar_url)')
         .eq('creator_id', creatorId).gte('created_at', startPrevious),
       // [6] Suscriptores activos
       supabase.from('creator_subscriptions').select('*', { count: 'exact', head: true })
         .eq('creator_id', creatorId).eq('status', 'active'),
-      // [7] Galería purchases (si la tabla existe)
-      supabase.from('gallery_purchases').select('coins_paid, created_at')
+      // [7] Galería purchases
+      supabase.from('gallery_purchases').select('coins_paid, created_at, buyer:profiles!buyer_id(id, full_name, avatar_url)')
         .eq('creator_id', creatorId).gte('created_at', startPrevious),
     ]);
 
     const safe = (i) => Array.isArray(queries[i].data) ? queries[i].data : [];
 
-    // Conversión consistente con coinController (1 coin = $0.05 USD, creador 70%)
     const COIN_USD = COIN_VALUE_USD;
     const CUT = CREATOR_CUT;
     const coinsToUSD = (coins) => parseFloat(coins || 0) * COIN_USD * CUT;
-
     const inRange = (dateStr, since) => new Date(dateStr) >= new Date(since);
 
-    // Sumar por categoría en cada período
-    const sumCategory = (rows, getAmount, dateField, since) => rows
-      .filter(r => r[dateField] && inRange(r[dateField], since))
-      .reduce((s, r) => s + parseFloat(getAmount(r) || 0), 0);
-
+    // Cada categoría con su fuente, función USD, campos relacionados y categoría visual
     const cats = {
-      show_tickets:   { rows: safe(0), getAmount: r => r.creator_earnings, date: 'purchased_at' },
-      show_tips:      { rows: safe(1), getAmount: r => r.creator_earnings, date: 'created_at' },
-      show_gifts:     { rows: safe(2), getAmount: r => coinsToUSD(r.coins_spent), date: 'created_at' },
-      photo_sales:    { rows: safe(3), getAmount: r => r.creator_earnings, date: 'created_at' },
-      video_requests: { rows: safe(4), getAmount: r => coinsToUSD(r.price), date: 'completed_at' },
-      subscriptions:  { rows: safe(5), getAmount: r => parseFloat(r.subscription_price || 0) * CUT, date: 'created_at' },
-      gallery_sales:  { rows: safe(7), getAmount: r => coinsToUSD(r.coins_paid), date: 'created_at' },
+      show_tickets:   { rows: safe(0), getUsd: r => parseFloat(r.creator_earnings || 0),     date: 'purchased_at', userKey: 'buyer',     hasShow: true },
+      show_tips:      { rows: safe(1), getUsd: r => parseFloat(r.creator_earnings || 0),     date: 'created_at',   userKey: 'sender',    hasShow: true },
+      show_gifts:     { rows: safe(2), getUsd: r => coinsToUSD(r.coins_spent),               date: 'created_at',   userKey: 'sender',    hasShow: true },
+      photo_sales:    { rows: safe(3), getUsd: r => parseFloat(r.creator_earnings || 0),     date: 'created_at',   userKey: 'buyer' },
+      video_requests: { rows: safe(4), getUsd: r => coinsToUSD(r.price),                     date: 'completed_at', userKey: 'requester' },
+      subscriptions:  { rows: safe(5), getUsd: r => parseFloat(r.subscription_price || 0) * CUT, date: 'created_at', userKey: 'subscriber' },
+      gallery_sales:  { rows: safe(7), getUsd: r => coinsToUSD(r.coins_paid),                date: 'created_at',   userKey: 'buyer' },
     };
 
-    const totals_usd = {};
-    const previous_usd = {};
-    Object.entries(cats).forEach(([key, { rows, getAmount, date }]) => {
-      totals_usd[key]   = parseFloat(sumCategory(rows, getAmount, date, startCurrent).toFixed(2));
-      previous_usd[key] = parseFloat(sumCategory(rows, getAmount, date, startPrevious).toFixed(2)) - totals_usd[key];
+    // Por categoría: total + count + avg + max en período actual; previous_usd para comparativa
+    const totals_usd       = {};
+    const previous_usd     = {};
+    const breakdown_detail = {};
+
+    Object.entries(cats).forEach(([key, { rows, getUsd, date }]) => {
+      const current  = rows.filter(r => r[date] && inRange(r[date], startCurrent));
+      const previous = rows.filter(r => r[date] && inRange(r[date], startPrevious) && !inRange(r[date], startCurrent));
+
+      const sumCur  = current.reduce((s, r) => s + getUsd(r), 0);
+      const sumPrev = previous.reduce((s, r) => s + getUsd(r), 0);
+      const maxUsd  = current.reduce((m, r) => Math.max(m, getUsd(r)), 0);
+
+      totals_usd[key]   = parseFloat(sumCur.toFixed(2));
+      previous_usd[key] = parseFloat(sumPrev.toFixed(2));
+      breakdown_detail[key] = {
+        total_usd: parseFloat(sumCur.toFixed(2)),
+        count:     current.length,
+        avg_usd:   current.length > 0 ? parseFloat((sumCur / current.length).toFixed(2)) : 0,
+        max_usd:   parseFloat(maxUsd.toFixed(2)),
+      };
     });
 
     const totalCurrent  = Object.values(totals_usd).reduce((s, v) => s + v, 0);
@@ -629,25 +640,60 @@ export const getEarningsBreakdown = async (req, res) => {
       ? parseFloat((((totalCurrent - totalPrevious) / totalPrevious) * 100).toFixed(1))
       : (totalCurrent > 0 ? 100 : 0);
 
-    // Chart por día (solo período actual, agregado total)
+    // Chart por día
     const byDay = {};
-    Object.values(cats).forEach(({ rows, getAmount, date }) => {
+    Object.values(cats).forEach(({ rows, getUsd, date }) => {
       rows.filter(r => r[date] && inRange(r[date], startCurrent)).forEach(r => {
         const day = r[date].substring(0, 10);
-        byDay[day] = (byDay[day] || 0) + parseFloat(getAmount(r) || 0);
+        byDay[day] = (byDay[day] || 0) + getUsd(r);
       });
     });
     const chart = Object.entries(byDay)
       .map(([date, amount]) => ({ date, amount: parseFloat(amount.toFixed(2)) }))
       .sort((a, b) => a.date.localeCompare(b.date));
 
+    // Top shows del período (solo categorías que tienen show_id)
+    const showTotals = {};
+    Object.entries(cats).filter(([, c]) => c.hasShow).forEach(([catKey, { rows, getUsd, date }]) => {
+      rows.filter(r => r[date] && inRange(r[date], startCurrent) && r.show_id).forEach(r => {
+        const id = r.show_id;
+        if (!showTotals[id]) showTotals[id] = { show_id: id, title: showMap[id] || 'Show', total_usd: 0, count: 0 };
+        showTotals[id].total_usd += getUsd(r);
+        showTotals[id].count += 1;
+      });
+    });
+    const top_shows = Object.values(showTotals)
+      .map(s => ({ ...s, total_usd: parseFloat(s.total_usd.toFixed(2)) }))
+      .filter(s => s.total_usd > 0)
+      .sort((a, b) => b.total_usd - a.total_usd)
+      .slice(0, 5);
+
+    // Top fans del período — suma de TODAS sus contribuciones al creador
+    const fanTotals = {};
+    Object.entries(cats).forEach(([, { rows, getUsd, date, userKey }]) => {
+      rows.filter(r => r[date] && inRange(r[date], startCurrent) && r[userKey]?.id).forEach(r => {
+        const u = r[userKey];
+        if (!fanTotals[u.id]) fanTotals[u.id] = { id: u.id, name: u.full_name, avatar_url: u.avatar_url, total_usd: 0, count: 0 };
+        fanTotals[u.id].total_usd += getUsd(r);
+        fanTotals[u.id].count += 1;
+      });
+    });
+    const top_fans = Object.values(fanTotals)
+      .map(f => ({ ...f, total_usd: parseFloat(f.total_usd.toFixed(2)) }))
+      .filter(f => f.total_usd > 0)
+      .sort((a, b) => b.total_usd - a.total_usd)
+      .slice(0, 10);
+
     res.json({
       totals_usd,
       previous_usd,
+      breakdown_detail,
       total_current:  parseFloat(totalCurrent.toFixed(2)),
       total_previous: parseFloat(totalPrevious.toFixed(2)),
       pct_change:     pctChange,
       chart,
+      top_shows,
+      top_fans,
       subscribers_active: queries[6].count || 0,
       coin_rate: { usd_per_coin: COIN_USD, creator_cut: CUT, coins_per_usd: 1 / COIN_USD },
       days,

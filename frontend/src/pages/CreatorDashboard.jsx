@@ -1136,17 +1136,21 @@ export default function CreatorDashboard() {
                   </div>
                 </div>
 
-                {/* Totales 30d — 7 categorías unificadas */}
+                {/* Totales 30d — 7 categorías con detalle (count + avg + max) */}
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   {[
-                    { key: 'show_tickets',   label: 'Tickets shows', color: 'text-purple-400', bg: 'bg-purple-500/10 border-purple-500/20', icon: FiVideo },
-                    { key: 'show_tips',      label: 'Propinas',      color: 'text-green-400',  bg: 'bg-green-500/10 border-green-500/20',   icon: FiStar },
-                    { key: 'show_gifts',     label: 'Regalos',       color: 'text-yellow-400', bg: 'bg-yellow-500/10 border-yellow-500/20', icon: FiGift },
-                    { key: 'photo_sales',    label: 'Contenido',     color: 'text-pink-400',   bg: 'bg-pink-500/10 border-pink-500/20',     icon: FiImage },
-                    { key: 'video_requests', label: 'Encargos',      color: 'text-orange-400', bg: 'bg-orange-500/10 border-orange-500/20', icon: FiPlay },
-                    { key: 'subscriptions',  label: 'Suscripciones', color: 'text-blue-400',   bg: 'bg-blue-500/10 border-blue-500/20',     icon: FiUsers },
+                    { key: 'show_tickets',   label: 'Tickets shows', color: 'text-purple-400', bg: 'bg-purple-500/10 border-purple-500/20', icon: FiVideo,  noun: 'ticket' },
+                    { key: 'show_tips',      label: 'Propinas',      color: 'text-green-400',  bg: 'bg-green-500/10 border-green-500/20',   icon: FiStar,   noun: 'propina' },
+                    { key: 'show_gifts',     label: 'Regalos',       color: 'text-yellow-400', bg: 'bg-yellow-500/10 border-yellow-500/20', icon: FiGift,   noun: 'regalo' },
+                    { key: 'photo_sales',    label: 'Contenido',     color: 'text-pink-400',   bg: 'bg-pink-500/10 border-pink-500/20',     icon: FiImage,  noun: 'venta' },
+                    { key: 'video_requests', label: 'Encargos',      color: 'text-orange-400', bg: 'bg-orange-500/10 border-orange-500/20', icon: FiPlay,   noun: 'encargo' },
+                    { key: 'subscriptions',  label: 'Suscripciones', color: 'text-blue-400',   bg: 'bg-blue-500/10 border-blue-500/20',     icon: FiUsers,  noun: 'sub' },
                   ].map(s => {
-                    const value = parseFloat(breakdown?.totals_usd?.[s.key] || 0);
+                    const d = breakdown?.breakdown_detail?.[s.key];
+                    const value = parseFloat(d?.total_usd ?? breakdown?.totals_usd?.[s.key] ?? 0);
+                    const count = d?.count ?? 0;
+                    const avg   = d?.avg_usd ?? 0;
+                    const max   = d?.max_usd ?? 0;
                     return (
                       <div key={s.key} className={`rounded-2xl border p-4 ${s.bg}`}>
                         <div className="flex items-center gap-1.5 mb-1">
@@ -1154,10 +1158,66 @@ export default function CreatorDashboard() {
                           <p className="text-gray-500 text-xs">{s.label}</p>
                         </div>
                         <p className={`text-xl font-black ${s.color}`}>${value.toFixed(2)}</p>
+                        {count > 0 ? (
+                          <div className="mt-1.5 space-y-0.5 text-[10px] text-gray-500">
+                            <p>{count} {s.noun}{count !== 1 ? 's' : ''} · prom. <span className="text-gray-300">${avg.toFixed(2)}</span></p>
+                            <p>Mejor: <span className="text-gray-300">${max.toFixed(2)}</span></p>
+                          </div>
+                        ) : (
+                          <p className="mt-1.5 text-[10px] text-gray-600">Sin transacciones</p>
+                        )}
                       </div>
                     );
                   })}
                 </div>
+
+                {/* Top fans del período */}
+                {breakdown?.top_fans?.length > 0 && (
+                  <div className="rounded-2xl bg-dark-800 border border-white/5 p-5">
+                    <h3 className="text-sm font-bold text-gray-300 flex items-center gap-2 mb-4">
+                      <FiStar size={13} className="text-yellow-400" /> Top fans · últimos {breakdown.days}d
+                    </h3>
+                    <div className="space-y-2">
+                      {breakdown.top_fans.map((fan, i) => (
+                        <div key={fan.id} className="flex items-center gap-3 bg-dark-700/60 rounded-xl p-2.5">
+                          <span className={`w-6 text-center font-black ${i === 0 ? 'text-yellow-400' : i === 1 ? 'text-gray-300' : i === 2 ? 'text-orange-400' : 'text-gray-600'} text-sm shrink-0`}>
+                            {i + 1}
+                          </span>
+                          <img src={fan.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(fan.name || 'U')}&size=60&background=1a1a2e&color=f43f5e`}
+                            className="w-8 h-8 rounded-full object-cover shrink-0" alt="" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-white text-sm font-medium truncate">{fan.name || 'Anónimo'}</p>
+                            <p className="text-gray-500 text-[10px]">{fan.count} contribucion{fan.count !== 1 ? 'es' : ''}</p>
+                          </div>
+                          <p className="text-green-400 text-sm font-bold shrink-0">${fan.total_usd.toFixed(2)}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Top shows que más generaron */}
+                {breakdown?.top_shows?.length > 0 && (
+                  <div className="rounded-2xl bg-dark-800 border border-white/5 p-5">
+                    <h3 className="text-sm font-bold text-gray-300 flex items-center gap-2 mb-4">
+                      <FiTrendingUp size={13} className="text-purple-400" /> Shows que más generaron · últimos {breakdown.days}d
+                    </h3>
+                    <div className="space-y-2">
+                      {breakdown.top_shows.map((show, i) => (
+                        <div key={show.show_id} className="flex items-center gap-3 bg-dark-700/60 rounded-xl p-2.5">
+                          <span className={`w-6 text-center font-black ${i === 0 ? 'text-yellow-400' : 'text-gray-500'} text-sm shrink-0`}>
+                            #{i + 1}
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-white text-sm font-semibold truncate">{show.title}</p>
+                            <p className="text-gray-500 text-[10px]">{show.count} transaccion{show.count !== 1 ? 'es' : ''}</p>
+                          </div>
+                          <p className="text-green-400 text-sm font-bold shrink-0">${show.total_usd.toFixed(2)}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Chart */}
                 <div className="rounded-2xl bg-dark-800 border border-white/5 p-5">
