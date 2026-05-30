@@ -18,6 +18,8 @@ import {
   banUserFromShow,
   unbanUserFromShow,
   setRecordingUrl,
+  uploadRecording,
+  uploadRecordingMiddleware,
   getLeaderboard,
   validatePrivateShow,
   privateShowTick,
@@ -66,6 +68,7 @@ router.get('/:id/interest',       checkInterest);
 router.post('/:id/ban/:userId',   banUserFromShow);
 router.delete('/:id/ban/:userId', unbanUserFromShow);
 router.patch('/:id/recording',        setRecordingUrl);
+router.post('/:id/recording/upload',  uploadRecordingMiddleware, uploadRecording);
 router.post('/:id/private/validate',  validatePrivateShow);
 router.post('/:id/private/tick',      privateShowTick);
 router.post('/:id/private/request',   requestPrivateShow);

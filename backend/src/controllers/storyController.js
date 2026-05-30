@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase.js';
 import { uploadFile } from '../lib/storageProvider.js';
+import { moderateImage } from '../lib/moderation.js';
 import multer from 'multer';
 const STORY_EXPIRY_HOURS = 24;
 const ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp', 'video/mp4', 'video/quicktime'];
@@ -114,6 +115,27 @@ export const createStory = async (req, res) => {
     const storagePath = `stories/${userId}/${Date.now()}.${ext}`;
 
     const mediaUrl = await uploadFile(storagePath, req.file.buffer, req.file.mimetype);
+
+    // ── Moderación automática (Sightengine, solo imágenes) ──────────────
+    let finalIsAdult = isAdult;
+    if (!isVideo) {
+      const { data: u } = await supabase
+        .from('profiles').select('is_adult_creator, age_verified_at').eq('id', userId).single();
+      const allowAdult = !!u?.is_adult_creator && !!u?.age_verified_at;
+      const mod = await moderateImage(mediaUrl, { allowAdult });
+      if (!mod.ok) {
+        return res.status(400).json({
+          error: mod.reason === 'minor_detected'
+            ? 'Story rechazada: no se permite contenido con menores'
+            : mod.reason === 'nudity'
+            ? 'Story rechazada: nudez no permitida'
+            : 'Story rechazada por moderación automática',
+          code: 'MODERATION_REJECTED', reason: mod.reason,
+        });
+      }
+      if (mod.isAdult && !isAdult) finalIsAdult = true;
+    }
+
     const expiresAt = new Date(Date.now() + STORY_EXPIRY_HOURS * 60 * 60 * 1000).toISOString();
 
     const { data: story, error } = await supabase
@@ -122,7 +144,7 @@ export const createStory = async (req, res) => {
         user_id: userId,
         media_url: mediaUrl,
         media_type: isVideo ? 'video' : 'photo',
-        is_adult: isAdult,
+        is_adult: finalIsAdult,
         expires_at: expiresAt,
       })
       .select()

@@ -3,6 +3,7 @@ import { uploadFile } from '../lib/storageProvider.js';
 import multer from 'multer';
 import { createNotification } from './inAppNotifController.js';
 import { spendCoins, addCoins } from './coinController.js';
+import { moderateImage } from '../lib/moderation.js';
 
 const ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp', 'video/mp4', 'video/quicktime'];
 
@@ -235,8 +236,39 @@ export const createPost = async (req, res) => {
       return res.status(400).json({ error: 'El post necesita texto o media' });
     }
 
-    // Adult content goes to moderation queue before publishing
-    const status = isAdult ? 'pending_review' : 'published';
+    // ── Moderación automática (Sightengine) ─────────────────────────────
+    let autoStatus = isAdult ? 'pending_review' : 'published';
+    let autoIsAdult = isAdult;
+
+    if (mediaUrl && mediaType === 'photo') {
+      const { data: u } = await supabase
+        .from('profiles').select('is_adult_creator, age_verified_at').eq('id', userId).single();
+      const allowAdult = !!u?.is_adult_creator && !!u?.age_verified_at;
+
+      const mod = await moderateImage(mediaUrl, { allowAdult });
+      if (!mod.ok) {
+        // Rechazo: borrar el archivo subido y devolver error
+        return res.status(400).json({
+          error: mod.reason === 'minor_detected'
+            ? 'Imagen rechazada: no se permite contenido con menores'
+            : mod.reason === 'gore'
+            ? 'Imagen rechazada: contenido violento'
+            : mod.reason === 'nudity'
+            ? 'Imagen rechazada: nudez no permitida para tu cuenta'
+            : 'Imagen rechazada por moderación automática',
+          code: 'MODERATION_REJECTED',
+          reason: mod.reason,
+        });
+      }
+      // Si la moderación detectó adulto, forzar is_adult=true
+      if (mod.isAdult && !isAdult) {
+        autoIsAdult = true;
+        autoStatus  = 'pending_review';
+      }
+    }
+
+    const status = autoStatus;
+    const finalIsAdult = autoIsAdult;
 
     const extractedHashtags = (caption || '').match(/#[\wÀ-ž]+/g)?.map(t => t.slice(1).toLowerCase()) || [];
 
@@ -247,7 +279,7 @@ export const createPost = async (req, res) => {
         caption: caption?.trim() || null,
         media_url: mediaUrl,
         media_type: mediaType,
-        is_adult: isAdult,
+        is_adult: finalIsAdult,
         is_subscribers_only: subOnly,
         is_paid: isPaid,
         price: coinPrice,

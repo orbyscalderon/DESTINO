@@ -117,6 +117,71 @@ export default function ShowStudio() {
   const [activeReconnect, setActiveReconnect]       = useState(null);
   const [slowMode, setSlowMode]                     = useState(false);
 
+  // ── Grabación ────────────────────────────────────────────────────────────────
+  const [recording, setRecording]       = useState(false);
+  const [uploadingRec, setUploadingRec] = useState(false);
+  const [recDuration, setRecDuration]   = useState(0);
+  const mediaRecorderRef = useRef(null);
+  const recChunksRef     = useRef([]);
+  const recTimerRef      = useRef(null);
+
+  const startRecording = () => {
+    if (recording || !localStreamRef.current) return;
+    try {
+      const mimeOptions = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm', 'video/mp4'];
+      const mimeType = mimeOptions.find(m => MediaRecorder.isTypeSupported(m)) || '';
+      const rec = new MediaRecorder(localStreamRef.current, { mimeType, videoBitsPerSecond: 2_500_000 });
+      recChunksRef.current = [];
+      rec.ondataavailable = e => { if (e.data?.size > 0) recChunksRef.current.push(e.data); };
+      rec.onstop = uploadRecording;
+      rec.start(1000);
+      mediaRecorderRef.current = rec;
+      setRecording(true);
+      setRecDuration(0);
+      recTimerRef.current = setInterval(() => setRecDuration(d => d + 1), 1000);
+      toast.success('Grabación iniciada');
+    } catch (e) {
+      toast.error('Tu navegador no soporta grabación');
+    }
+  };
+
+  const stopRecording = () => {
+    if (!recording || !mediaRecorderRef.current) return;
+    mediaRecorderRef.current.stop();
+    setRecording(false);
+    clearInterval(recTimerRef.current);
+    recTimerRef.current = null;
+  };
+
+  const uploadRecording = async () => {
+    if (recChunksRef.current.length === 0) return;
+    setUploadingRec(true);
+    try {
+      const blob = new Blob(recChunksRef.current, { type: mediaRecorderRef.current?.mimeType || 'video/webm' });
+      const fd = new FormData();
+      fd.append('recording', blob, `show-${showId}-${Date.now()}.webm`);
+      const { data } = await api.post(`/api/shows/${showId}/recording/upload`, fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 0,
+      });
+      toast.success('Grabación guardada — disponible como replay');
+      return data.recording_url;
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Error al subir grabación');
+    } finally {
+      setUploadingRec(false);
+      recChunksRef.current = [];
+    }
+  };
+
+  // Limpieza
+  useEffect(() => () => {
+    if (mediaRecorderRef.current && recording) {
+      try { mediaRecorderRef.current.stop(); } catch {}
+    }
+    clearInterval(recTimerRef.current);
+  }, []);
+
   // ── LAYOUT STATE (persiste en localStorage) ──────────────────────────────────
   const [layout, setLayout] = useState(() => {
     try {
@@ -950,6 +1015,14 @@ export default function ShowStudio() {
                 >
                   <FiX size={13} /> Terminar show
                 </button>
+                <button
+                  onClick={recording ? stopRecording : startRecording}
+                  disabled={uploadingRec}
+                  className={`w-full flex items-center justify-center gap-1.5 font-bold text-[10px] py-2 rounded transition-colors disabled:opacity-50 ${recording ? 'bg-red-700/40 border border-red-500/50 text-red-200 animate-pulse' : 'bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300'}`}
+                >
+                  <span className={`w-1.5 h-1.5 rounded-full ${recording ? 'bg-red-500' : 'bg-red-500'}`} />
+                  {uploadingRec ? 'Subiendo...' : recording ? `Grabando ${fmtDuration(recDuration)}` : 'Grabar replay'}
+                </button>
                 <div className="flex items-center gap-2">
                   <div className="flex items-end gap-px flex-1" style={{ height: 10 }}>
                     {[0.1, 0.3, 0.55, 0.3, 0.1].map((thr, i) => (
@@ -1126,26 +1199,35 @@ export default function ShowStudio() {
 
         {/* Controles rápidos móvil en vivo: Mic, Cam, Terminar */}
         {!isDesktop && isLive && (
-          <div className="flex items-center gap-2 px-3 py-2 border-b border-white/5 shrink-0 bg-dark-800">
+          <div className="flex items-center gap-1.5 px-3 py-2 border-b border-white/5 shrink-0 bg-dark-800">
             <button
               onClick={toggleMute}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold transition-colors ${muted ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-white/5 text-gray-300 border border-white/10'}`}
+              className={`flex-1 flex items-center justify-center gap-1 py-2 rounded-lg text-xs font-semibold transition-colors ${muted ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-white/5 text-gray-300 border border-white/10'}`}
             >
               {muted ? <FiMicOff size={13} /> : <FiMic size={13} />}
-              {muted ? 'Silenciado' : 'Mic'}
+              {muted ? 'Off' : 'Mic'}
             </button>
             <button
               onClick={toggleCamera}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold transition-colors ${cameraOff ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-white/5 text-gray-300 border border-white/10'}`}
+              className={`flex-1 flex items-center justify-center gap-1 py-2 rounded-lg text-xs font-semibold transition-colors ${cameraOff ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-white/5 text-gray-300 border border-white/10'}`}
             >
               {cameraOff ? <FiVideoOff size={13} /> : <FiVideo size={13} />}
-              {cameraOff ? 'Cam Off' : 'Cam'}
+              {cameraOff ? 'Off' : 'Cam'}
+            </button>
+            <button
+              onClick={recording ? stopRecording : startRecording}
+              disabled={uploadingRec}
+              className={`flex-1 flex items-center justify-center gap-1 py-2 rounded-lg text-xs font-semibold transition-colors ${recording ? 'bg-red-600 text-white animate-pulse' : 'bg-white/5 text-gray-300 border border-white/10'} disabled:opacity-50`}
+              title={recording ? 'Detener grabación' : 'Grabar replay'}
+            >
+              <span className={`w-2 h-2 rounded-full ${recording ? 'bg-white' : 'bg-red-500'}`} />
+              {uploadingRec ? '...' : recording ? fmtDuration(recDuration) : 'REC'}
             </button>
             <button
               onClick={handleEndShow}
-              className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold bg-red-600 hover:bg-red-700 text-white transition-colors shrink-0"
+              className="flex items-center justify-center gap-1 px-3 py-2 rounded-lg text-xs font-bold bg-red-600 hover:bg-red-700 text-white transition-colors shrink-0"
             >
-              <FiX size={14} /> Terminar
+              <FiX size={14} /> Fin
             </button>
           </div>
         )}

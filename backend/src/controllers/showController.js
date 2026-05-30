@@ -1,9 +1,28 @@
 import { supabase, broadcastToChannel } from '../lib/supabase.js';
 import { stripe } from '../lib/stripe.js';
 import { v4 as uuidv4 } from 'uuid';
+import multer from 'multer';
+import { uploadFile } from '../lib/storageProvider.js';
 import { spendCoins, addCoins, coinsToUSD, creatorCutUSD } from './coinController.js';
 import { createNotification } from './inAppNotifController.js';
 import { sendPushToUser } from './notificationController.js';
+
+// Multer para grabaciones de show (hasta 1GB)
+const recordingUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 1024 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (['video/webm', 'video/mp4', 'video/x-matroska'].includes(file.mimetype)) cb(null, true);
+    else cb(new Error('Formato de video no soportado'), false);
+  },
+});
+export const uploadRecordingMiddleware = (req, res, next) => {
+  recordingUpload.single('recording')(req, res, (err) => {
+    if (err?.code === 'LIMIT_FILE_SIZE') return res.status(400).json({ error: 'La grabación no puede superar 1 GB' });
+    if (err) return res.status(400).json({ error: err.message });
+    next();
+  });
+};
 
 const PLATFORM_FEE_RATE = 0.30;
 
@@ -972,6 +991,32 @@ export const setRecordingUrl = async (req, res) => {
     res.json({ success: true });
   } catch {
     res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
+// POST /api/shows/:id/recording/upload — subir grabación (host)
+export const uploadRecording = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const hostId = req.user.id;
+
+    if (!req.file) return res.status(400).json({ error: 'No se recibió ningún archivo' });
+
+    const { data: show } = await supabase
+      .from('live_shows').select('host_id, title').eq('id', id).single();
+    if (!show) return res.status(404).json({ error: 'Show no encontrado' });
+    if (show.host_id !== hostId) return res.status(403).json({ error: 'No autorizado' });
+
+    const ext = req.file.mimetype === 'video/mp4' ? 'mp4' : 'webm';
+    const path = `recordings/${hostId}/${id}-${Date.now()}.${ext}`;
+    const url = await uploadFile(path, req.file.buffer, req.file.mimetype);
+
+    await supabase.from('live_shows').update({ recording_url: url }).eq('id', id);
+
+    res.json({ success: true, recording_url: url });
+  } catch (err) {
+    console.error('uploadRecording error:', err.message);
+    res.status(500).json({ error: 'Error al subir grabación' });
   }
 };
 
