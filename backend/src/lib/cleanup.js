@@ -145,6 +145,13 @@ async function renewCreatorSubscriptions() {
           `Renovamos tu suscripción a ${sub.creator?.full_name} por $${parseFloat(sub.subscription_price).toFixed(2)}`,
           {}
         ).catch(() => {});
+
+        import('./emailNotifier.js').then(({ notifyUser }) =>
+          notifyUser(sub.subscriber_id, 'sub_renewed', {
+            creatorName: sub.creator?.full_name || 'Creador',
+            priceUsd: parseFloat(sub.subscription_price),
+          })
+        ).catch(() => {});
       } catch (err) {
         const newCount = (sub.failed_renewal_count || 0) + 1;
         await supabase.from('creator_subscriptions').update({
@@ -291,6 +298,10 @@ async function processAutoPayouts() {
           '💸 Payout automático enviado',
           `Te transferimos $${pending.toFixed(2)} USD a tu cuenta Stripe.`,
           {}
+        ).catch(() => {});
+
+        import('./emailNotifier.js').then(({ notifyUser }) =>
+          notifyUser(creator.id, 'payout', { amountUsd: pending })
         ).catch(() => {});
       } catch (err) {
         await supabase.from('auto_payouts').update({

@@ -1,5 +1,6 @@
 import { stripe } from '../lib/stripe.js';
 import { supabase } from '../lib/supabase.js';
+import { cached, cacheDel } from '../lib/cache.js';
 
 // 1 coin = $0.05 USD (20 coins por dólar)
 export const COIN_VALUE_USD = 0.05;
@@ -21,16 +22,16 @@ export function creatorCutUSD(coins) {
   return coinsToUSD(coins) * (1 - PLATFORM_FEE_RATE);
 }
 
-// GET /api/coins/balance
+// GET /api/coins/balance — cacheado 20s (invalidado al gastar/recibir)
 export const getBalance = async (req, res) => {
   try {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('coins_balance')
-      .eq('id', req.user.id)
-      .single();
-
-    res.json({ coins: profile?.coins_balance || 0 });
+    const userId = req.user.id;
+    const coins = await cached(`coins:${userId}`, 20_000, async () => {
+      const { data } = await supabase
+        .from('profiles').select('coins_balance').eq('id', userId).single();
+      return data?.coins_balance || 0;
+    });
+    res.json({ coins });
   } catch (err) {
     res.status(500).json({ error: 'Error interno del servidor' });
   }
@@ -108,6 +109,15 @@ export const confirmCoinPurchase = async (req, res) => {
       await addCoins(userId, bonusCoins, 'bonus', `pkg_bonus:${pi.metadata.package_id}`);
     }
 
+    // Email de confirmación de compra
+    import('../lib/emailNotifier.js').then(({ notifyUser }) =>
+      notifyUser(userId, 'coin_purchase', {
+        coinsBase: coins,
+        coinsBonus: bonusCoins,
+        priceUsd: (pi.amount || 0) / 100,
+      })
+    ).catch(() => {});
+
     // Reward referrer on user's first purchase (fire-and-forget, non-blocking)
     triggerReferralReward(userId).catch(() => {});
 
@@ -145,6 +155,7 @@ export async function addCoins(userId, coins, type, referenceId = null, stripePa
     reference_id: referenceId,
     stripe_payment_intent_id: stripePaymentIntentId,
   });
+  cacheDel(`coins:${userId}`);
 }
 
 // Recompensar al referidor en la primera compra del referido.
@@ -192,4 +203,5 @@ export async function spendCoins(userId, coins, type, referenceId = null) {
     type,
     reference_id: referenceId,
   });
+  cacheDel(`coins:${userId}`);
 }

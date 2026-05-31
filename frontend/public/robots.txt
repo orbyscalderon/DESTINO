@@ -1,0 +1,27 @@
+User-agent: *
+Allow: /
+Allow: /landing
+Allow: /privacy
+Allow: /terms
+Allow: /help
+Allow: /dmca
+
+# Páginas privadas / autenticadas
+Disallow: /admin
+Disallow: /settings
+Disallow: /messages
+Disallow: /chat
+Disallow: /matches
+Disallow: /coins
+Disallow: /creator/dashboard
+Disallow: /studio
+Disallow: /cohost
+Disallow: /onboarding
+
+# Contenido adulto: no indexar
+Disallow: /adult
+Disallow: /explore
+Disallow: /embed
+
+# Sitemap
+Sitemap: https://destino-sigma.vercel.app/sitemap.xml

@@ -13,6 +13,7 @@ import {
   getPlatformRevenue,
 } from '../controllers/adminController.js';
 import { listDMCA, processDMCA } from '../controllers/dmcaController.js';
+import { listTicketsAdmin, respondTicketAdmin } from '../controllers/supportController.js';
 
 const router = Router();
 router.use(authMiddleware);
@@ -48,5 +49,8 @@ router.patch('/reports/:id',        processReport);
 
 router.get('/dmca',                 listDMCA);
 router.patch('/dmca/:id',           processDMCA);
+
+router.get('/support',              listTicketsAdmin);
+router.patch('/support/:id',        respondTicketAdmin);
 
 export default router;

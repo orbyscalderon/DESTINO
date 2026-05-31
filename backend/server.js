@@ -53,6 +53,8 @@ import dmcaRoutes from './src/routes/dmca.js';
 import achievementsRoutes from './src/routes/achievements.js';
 import exploreRoutes from './src/routes/explore.js';
 import { embedVideo } from './src/controllers/exploreController.js';
+import supportRoutes from './src/routes/support.js';
+import draftsRoutes from './src/routes/drafts.js';
 import { supabase } from './src/lib/supabase.js';
 
 const app = express();
@@ -172,6 +174,8 @@ app.use('/api/gdpr', gdprRoutes);
 app.use('/api/dmca', dmcaRoutes);
 app.use('/api/achievements', achievementsRoutes);
 app.use('/api/explore', exploreRoutes);
+app.use('/api/support', supportRoutes);
+app.use('/api/drafts',  draftsRoutes);
 
 // Embed público de video adulto (iframe) — NO requiere auth pero geo-blocked
 app.get('/embed/v/:id', async (req, res, next) => {
@@ -246,6 +250,57 @@ app.get('/share/profile/:id', async (req, res) => {
     }));
   } catch {
     return res.redirect(302, fallback);
+  }
+});
+
+// ── SEO: sitemap dinámico ─────────────────────────────────────
+// Sirve XML con perfiles públicos verificados (no contenido adulto, no privado)
+app.get('/sitemap.xml', async (req, res) => {
+  const fe = process.env.FRONTEND_URL || 'https://destino-sigma.vercel.app';
+  try {
+    const staticUrls = [
+      { loc: `${fe}/`,        priority: 1.0,  changefreq: 'daily' },
+      { loc: `${fe}/#/login`,    priority: 0.6,  changefreq: 'monthly' },
+      { loc: `${fe}/#/register`, priority: 0.7,  changefreq: 'monthly' },
+      { loc: `${fe}/#/privacy`,  priority: 0.4,  changefreq: 'yearly' },
+      { loc: `${fe}/#/terms`,    priority: 0.4,  changefreq: 'yearly' },
+      { loc: `${fe}/#/help`,     priority: 0.5,  changefreq: 'monthly' },
+      { loc: `${fe}/#/dmca`,     priority: 0.3,  changefreq: 'yearly' },
+    ];
+
+    // Top creadoras verificadas y públicas (no adultas para SEO seguro)
+    const { data: creators } = await supabase
+      .from('profiles')
+      .select('id, username, updated_at')
+      .eq('is_creator', true)
+      .eq('is_verified', true)
+      .eq('is_adult_creator', false)
+      .neq('is_banned', true)
+      .order('updated_at', { ascending: false })
+      .limit(500);
+
+    const profileUrls = (creators || []).map(c => ({
+      loc: `${fe}/share/profile/${c.id}`,
+      priority: 0.6,
+      changefreq: 'weekly',
+      lastmod: c.updated_at,
+    }));
+
+    const all = [...staticUrls, ...profileUrls];
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${all.map(u => `  <url>
+    <loc>${u.loc}</loc>
+    <priority>${u.priority}</priority>
+    <changefreq>${u.changefreq}</changefreq>${u.lastmod ? `\n    <lastmod>${new Date(u.lastmod).toISOString().slice(0,10)}</lastmod>` : ''}
+  </url>`).join('\n')}
+</urlset>`;
+
+    res.setHeader('Content-Type', 'application/xml; charset=utf-8');
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+    res.send(xml);
+  } catch (err) {
+    res.status(500).send('<error>Error generating sitemap</error>');
   }
 });
 

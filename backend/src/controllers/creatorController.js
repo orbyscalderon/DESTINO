@@ -442,6 +442,14 @@ export const confirmCreatorSubscription = async (req, res) => {
       if ((activeSubs || 0) >= 10)  grantAchievement(creatorId, 'ten_subs').catch(() => {});
       if ((activeSubs || 0) >= 100) grantAchievement(creatorId, 'hundred_subs').catch(() => {});
     } catch {}
+
+    // Email al creador (new_subscriber)
+    import('../lib/emailNotifier.js').then(({ notifyUser }) =>
+      notifyUser(creatorId, 'new_subscriber', {
+        subscriberName: sub?.full_name || 'Un fan',
+        priceUsd: amountPaid,
+      })
+    ).catch(() => {});
     sendPushToUser(creatorId, {
       title: '¡Nuevo suscriptor!',
       body: `${sub?.full_name} se suscribió a tu contenido`,
@@ -1334,6 +1342,82 @@ export const sendBroadcast = async (req, res) => {
 
     res.json({ sent: subs.length });
   } catch (err) {
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
+// POST /api/creator/subscribers/blast-email — mass EMAIL a suscriptores activos
+// Body: { subject, body_html }
+// Respeta email_prefs.creator_blast del suscriptor.
+export const sendBlastEmail = async (req, res) => {
+  try {
+    const creatorId = req.user.id;
+    const { subject, body_html } = req.body;
+
+    const { data: profile } = await supabase.from('profiles')
+      .select('is_creator, full_name').eq('id', creatorId).single();
+    if (!profile?.is_creator) return res.status(403).json({ error: 'No eres creador' });
+    if (!subject?.trim()) return res.status(400).json({ error: 'Asunto requerido' });
+    if (!body_html?.trim()) return res.status(400).json({ error: 'Mensaje requerido' });
+    if (body_html.length > 20000) return res.status(400).json({ error: 'Mensaje demasiado largo' });
+
+    // Throttle: 1 blast por hora por creador
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    const { count: recent } = await supabase.from('creator_blasts')
+      .select('id', { count: 'exact', head: true })
+      .eq('creator_id', creatorId).gte('created_at', oneHourAgo);
+    if ((recent || 0) >= 1) {
+      return res.status(429).json({ error: 'Solo puedes enviar 1 blast por hora' });
+    }
+
+    const { data: subs } = await supabase
+      .from('creator_subscriptions')
+      .select('subscriber_id, subscriber:profiles!subscriber_id(id, full_name, email_prefs)')
+      .eq('creator_id', creatorId).eq('status', 'active');
+
+    if (!subs?.length) return res.json({ sent: 0 });
+
+    // Crear log
+    const { data: blast } = await supabase.from('creator_blasts').insert({
+      creator_id: creatorId, subject: subject.trim().substring(0, 200),
+      body_html, recipients_count: subs.length,
+    }).select('id').single();
+
+    // Sanitización mínima del HTML: solo permitir tags básicos
+    const safeHtml = String(body_html)
+      .replace(/<script[\s\S]*?<\/script>/gi, '')
+      .replace(/<style[\s\S]*?<\/style>/gi, '')
+      .replace(/on\w+="[^"]*"/gi, '')
+      .replace(/javascript:/gi, '');
+
+    // Enviar emails (fire-and-forget, throttled)
+    const { sendCreatorBlastEmail } = await import('../lib/emailService.js');
+    let sent = 0;
+    for (const sub of subs) {
+      const prefs = sub.subscriber?.email_prefs || {};
+      if (prefs.creator_blast === false) continue;
+
+      const { data: authUser } = await supabase.auth.admin.getUserById(sub.subscriber_id).catch(() => ({ data: null }));
+      const email = authUser?.user?.email;
+      if (!email) continue;
+
+      sendCreatorBlastEmail(
+        email,
+        sub.subscriber?.full_name || 'Suscriptor',
+        profile.full_name,
+        subject.trim(),
+        safeHtml
+      ).catch(() => {});
+      sent++;
+    }
+
+    await supabase.from('creator_blasts').update({
+      sent_count: sent, completed_at: new Date().toISOString(),
+    }).eq('id', blast.id);
+
+    res.json({ sent, total: subs.length });
+  } catch (err) {
+    console.error('sendBlastEmail error:', err.message);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };

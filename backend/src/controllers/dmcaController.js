@@ -144,6 +144,13 @@ export const processDMCA = async (req, res) => {
               : `Recibiste un strike por DMCA. Al 3er strike tu cuenta será bloqueada permanentemente.`,
             { url: '/help#dmca' }
           ).catch(() => {});
+
+          import('../lib/emailNotifier.js').then(({ notifyUser }) =>
+            notifyUser(dmca.reported_user_id, 'dmca', {
+              strikeCount: strikes,
+              banned,
+            })
+          ).catch(() => {});
         }
       }
     } else if (action === 'reject') {

@@ -533,6 +533,32 @@ export const toggleIncognito = async (req, res) => {
   }
 };
 
+// GET /api/profiles/email-prefs
+export const getEmailPrefs = async (req, res) => {
+  try {
+    const { data } = await supabase.from('profiles')
+      .select('email_prefs').eq('id', req.user.id).single();
+    res.json({ prefs: data?.email_prefs || {} });
+  } catch {
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
+// PATCH /api/profiles/email-prefs — body { key, enabled } o { prefs: {...} }
+export const updateEmailPrefs = async (req, res) => {
+  try {
+    const { key, enabled, prefs } = req.body;
+    const { data: cur } = await supabase.from('profiles')
+      .select('email_prefs').eq('id', req.user.id).single();
+    const current = cur?.email_prefs || {};
+    const next = prefs ? { ...current, ...prefs } : { ...current, [key]: !!enabled };
+    await supabase.from('profiles').update({ email_prefs: next }).eq('id', req.user.id);
+    res.json({ prefs: next });
+  } catch {
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
 // POST /api/profiles/verify-age — consumer declares 18+ consent
 export const verifyAge = async (req, res) => {
   try {

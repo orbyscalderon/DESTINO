@@ -35,6 +35,8 @@ import {
   getSearchPreferences,
   uploadSelfieMiddleware,
   verifySelfie,
+  getEmailPrefs,
+  updateEmailPrefs,
 } from '../controllers/profileController.js';
 import {
   uploadProfileVideo,
@@ -68,6 +70,8 @@ router.put('/search-preferences', saveSearchPreferences);
 router.get('/search-preferences', getSearchPreferences);
 router.post('/selfie-verify', uploadSelfieMiddleware, verifySelfie);
 router.post('/verify-age', verifyAge);
+router.get('/email-prefs',    getEmailPrefs);
+router.patch('/email-prefs',  updateEmailPrefs);
 router.get('/geoip', getGeoIp);
 router.get('/completion/status', getCompletionStatus);
 router.post('/completion/claim', claimCompletion);

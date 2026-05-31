@@ -29,6 +29,7 @@ import {
   unlockGallery,
   galleryMediaMiddleware,
   sendBroadcast,
+  sendBlastEmail,
   exportAnalyticsCsv,
   getStoryAnalytics,
 } from '../controllers/creatorController.js';
@@ -68,6 +69,7 @@ router.post('/galleries/:id/unlock', unlockGallery);
 
 // Broadcast & export
 router.post('/subscribers/broadcast', sendBroadcast);
+router.post('/subscribers/blast-email', sendBlastEmail);
 router.get('/analytics/export', exportAnalyticsCsv);
 
 // Subscriptions

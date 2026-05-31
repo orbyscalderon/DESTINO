@@ -9,6 +9,7 @@ import { useCallStore } from './store/callStore.js';
 import { useThemeStore } from './store/themeStore.js';
 import ProtectedRoute from './components/layout/ProtectedRoute.jsx';
 import { initPushNotifications } from './lib/pushNotifications.js';
+import { identify, reset as resetAnalytics } from './lib/analytics.js';
 import { initAdMob } from './lib/admob.js';
 import api from './lib/api.js';
 import { supabase } from './lib/supabase.js';
@@ -60,6 +61,7 @@ const CoHostStage     = lazy(() => import('./pages/CoHostStage.jsx'));
 const Explore         = lazy(() => import('./pages/Explore.jsx'));
 const ExploreVideo    = lazy(() => import('./pages/ExploreVideo.jsx'));
 const Playlists       = lazy(() => import('./pages/Playlists.jsx'));
+const Support         = lazy(() => import('./pages/Support.jsx'));
 
 const PageLoader = () => (
   <div className="min-h-screen flex items-center justify-center bg-dark-900">
@@ -157,8 +159,15 @@ export default function App() {
   useEffect(() => {
     if (!user) {
       clearInterval(heartbeatRef.current);
+      resetAnalytics().catch(() => {});
       return;
     }
+
+    // Identify para analytics
+    identify(user.id, {
+      email: user.email,
+      is_creator: !!user.user_metadata?.is_creator,
+    }).catch(() => {});
 
     // Latido inmediato al cargar
     api.post('/api/profiles/heartbeat').catch(() => {});
@@ -217,6 +226,7 @@ export default function App() {
         <Route path="/terms" element={<Terms />} />
         <Route path="/help" element={<Help />} />
         <Route path="/dmca" element={<DMCA />} />
+        <Route path="/support" element={<Support />} />
         <Route path="/403" element={<Error403 />} />
         <Route path="/500" element={<Error500 />} />
 

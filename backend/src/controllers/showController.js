@@ -382,10 +382,17 @@ export const startShow = async (req, res) => {
           icon: '/icon-192.png',
           data: { url: `/shows/${id}` },
         };
+        const { notifyUser } = await import('../lib/emailNotifier.js');
         interested.forEach(({ user_id }) => {
           if (user_id === hostId) return;
           sendPushToUser(user_id, interestPush).catch(() => {});
           createNotification(user_id, 'show_ticket', interestPush.title, interestPush.body, { show_id: id });
+          // Email — solo para interesados que activaron pref show_starting
+          notifyUser(user_id, 'show_starting', {
+            creatorName: host?.full_name || 'Un creador',
+            showTitle:   updated?.title || 'Show',
+            showId:      id,
+          }).catch(() => {});
         });
       }
 
@@ -783,6 +790,17 @@ export const sendTip = async (req, res) => {
       message:    message?.trim() || null,
     }).catch(() => {});
 
+    // Email al creador (respeta email_prefs.tip_received), solo si > $1
+    if (amountUSD >= 1) {
+      import('../lib/emailNotifier.js').then(({ notifyUser }) =>
+        notifyUser(show.host_id, 'tip_received', {
+          fromName: tipper?.full_name || 'Alguien',
+          amountUsd: creatorEarnings,
+          coinsAmount,
+        })
+      ).catch(() => {});
+    }
+
     res.json({
       success: true,
       coins_sent: coinsAmount,
@@ -887,6 +905,17 @@ export const sendGift = async (req, res) => {
       gift_type,
       label:      gift.label,
     }).catch(() => {});
+
+    // Email al creador
+    if (coinsToUSD(gift.coins) >= 1) {
+      import('../lib/emailNotifier.js').then(({ notifyUser }) =>
+        notifyUser(show.host_id, 'gift_received', {
+          fromName: sender?.full_name || 'Alguien',
+          giftName: gift.label,
+          amountUsd: creatorEarnings,
+        })
+      ).catch(() => {});
+    }
 
     res.json({
       success: true,
