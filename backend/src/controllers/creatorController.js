@@ -1712,25 +1712,40 @@ export const getPublicCreatorProfile = async (req, res) => {
 
     if (!profile) return res.status(404).json({ error: 'Creador no encontrado' });
 
-    // Shows del creador
-    const { data: shows } = await supabase
-      .from('live_shows')
-      .select('id, title, show_type, ticket_price, status, scheduled_at, cover_url')
-      .eq('host_id', userId)
-      .in('status', ['scheduled', 'live'])
-      .order('scheduled_at', { ascending: true })
-      .limit(5);
+    const [showsRes, photosRes, subsRes, postsRes] = await Promise.all([
+      supabase
+        .from('live_shows')
+        .select('id, title, show_type, ticket_price, status, scheduled_at, cover_url')
+        .eq('host_id', userId)
+        .in('status', ['scheduled', 'live'])
+        .order('scheduled_at', { ascending: true })
+        .limit(5),
+      supabase
+        .from('profile_photos')
+        .select('id, url, price, is_paid')
+        .eq('user_id', userId)
+        .eq('is_paid', true)
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('creator_subscriptions')
+        .select('id', { count: 'exact', head: true })
+        .eq('creator_id', userId)
+        .eq('status', 'active'),
+      supabase
+        .from('posts')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', userId),
+    ]);
 
-    // Fotos de pago
-    const { data: paidPhotos } = await supabase
-      .from('profile_photos')
-      .select('id, url, price, is_paid')
-      .eq('user_id', userId)
-      .eq('is_paid', true)
-      .order('created_at', { ascending: false });
-
-    res.json({ profile, shows: shows || [], paid_photos: paidPhotos || [] });
+    res.json({
+      profile,
+      shows: showsRes.data || [],
+      paid_photos: photosRes.data || [],
+      subscribers_count: subsRes.count || 0,
+      posts_count: postsRes.count || 0,
+    });
   } catch (err) {
+    console.error('getPublicCreatorProfile error:', err.message);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };

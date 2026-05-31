@@ -56,6 +56,10 @@ export default function UserProfile() {
   const [showGiftModal, setShowGiftModal]   = useState(false);
   const [mySub, setMySub]                   = useState(null);
   const [creatorHasTiers, setCreatorHasTiers] = useState(false);
+  const [creatorTiers, setCreatorTiers] = useState([]);
+  const [creatorLegacyPrice, setCreatorLegacyPrice] = useState(null);
+  const [subscribersCount, setSubscribersCount] = useState(0);
+  const [postsCount, setPostsCount] = useState(0);
 
   const loadPhotos = async () => {
     const phRes = await api.get(`/api/profiles/${userId}/photos`).catch(() => ({ data: { photos: [], requires_vip: false } }));
@@ -96,11 +100,21 @@ export default function UserProfile() {
           .then(({ data }) => setMySub(data.subscription || null))
           .catch(() => {});
       }
-      // Detectar si este creador tiene tiers (para mostrar el botón aunque no
-      // tenga legacy creator_subscription_price)
+      // Detectar tiers + stats del creador
       if (p?.is_creator) {
         api.get(`/api/creator/${userId}/tiers`)
-          .then(({ data }) => setCreatorHasTiers((data.tiers || []).length > 0))
+          .then(({ data }) => {
+            const tiers = data.tiers || [];
+            setCreatorTiers(tiers);
+            setCreatorHasTiers(tiers.length > 0);
+            setCreatorLegacyPrice(data.legacy_price ?? null);
+          })
+          .catch(() => {});
+        api.get(`/api/creator/${userId}/profile`)
+          .then(({ data }) => {
+            setSubscribersCount(data?.subscribers_count ?? 0);
+            setPostsCount(data?.posts_count ?? 0);
+          })
           .catch(() => {});
       }
     }).catch((err) => {
@@ -334,64 +348,105 @@ export default function UserProfile() {
   const paidPhotos = photos.filter(p => p.is_paid);
   const freePhotos = photos.filter(p => !p.is_paid);
 
+  const isOnline = profile.last_active && (Date.now() - new Date(profile.last_active).getTime()) < 5 * 60 * 1000;
+  const minTierPrice = creatorTiers.length > 0
+    ? Math.min(...creatorTiers.map(t => parseFloat(t.price)))
+    : (creatorLegacyPrice ?? profile.creator_subscription_price ?? null);
+  const canMatch = !isOwnProfile && !profile.is_creator; // bottom bar Pasar/Like solo en perfiles "match-ables"
+
   return (
     <div className="min-h-screen bg-dark-900">
-      {/* Foto principal */}
-      <div className="relative h-[55vh]">
-        <img
-          src={profile.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.full_name || 'U')}&size=600&background=1a1a2e&color=f43f5e`}
-          alt=""
-          className="w-full h-full object-cover"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-dark-900 via-transparent to-transparent" />
+      <div className="lg:max-w-6xl lg:mx-auto lg:grid lg:grid-cols-[minmax(0,400px)_minmax(0,1fr)] lg:gap-8 lg:px-8 lg:pt-6">
+        {/* ═══════════════════ FOTO PRINCIPAL ═══════════════════ */}
+        <div className="relative h-[55vh] lg:h-auto lg:rounded-3xl lg:overflow-hidden lg:aspect-[4/5] lg:sticky lg:top-6 lg:self-start">
+          <img
+            src={profile.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.full_name || 'U')}&size=600&background=1a1a2e&color=f43f5e`}
+            alt=""
+            className="w-full h-full object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-dark-900 via-dark-900/20 to-transparent lg:from-black/70 lg:via-transparent" />
 
-        <button
-          onClick={() => navigate(-1)}
-          className="absolute top-4 left-4 w-10 h-10 bg-black/40 backdrop-blur-sm rounded-full flex items-center justify-center text-white"
-        >
-          <FiArrowLeft />
-        </button>
-        <div className="absolute top-4 right-4 flex items-center gap-2">
           <button
-            onClick={handleShare}
-            className="w-10 h-10 bg-black/40 backdrop-blur-sm rounded-full flex items-center justify-center text-white"
+            onClick={() => navigate(-1)}
+            className="absolute top-4 left-4 w-10 h-10 bg-black/50 backdrop-blur-md rounded-full flex items-center justify-center text-white hover:bg-black/70 transition-colors"
           >
-            <FiShare2 size={17} />
+            <FiArrowLeft />
           </button>
-          <button
-            onClick={() => setShowBlockModal(true)}
-            className="w-10 h-10 bg-black/40 backdrop-blur-sm rounded-full flex items-center justify-center text-white"
-          >
-            <FiMoreVertical />
-          </button>
+          <div className="absolute top-4 right-4 flex items-center gap-2">
+            <button
+              onClick={handleShare}
+              className="w-10 h-10 bg-black/50 backdrop-blur-md rounded-full flex items-center justify-center text-white hover:bg-black/70 transition-colors"
+            >
+              <FiShare2 size={17} />
+            </button>
+            <button
+              onClick={() => setShowBlockModal(true)}
+              className="w-10 h-10 bg-black/50 backdrop-blur-md rounded-full flex items-center justify-center text-white hover:bg-black/70 transition-colors"
+            >
+              <FiMoreVertical />
+            </button>
+          </div>
+
+          {/* Overlay nombre/badges — solo en mobile, en desktop va en col derecha */}
+          <div className="absolute bottom-0 left-0 right-0 p-5 lg:hidden">
+            <div className="flex items-center gap-2 mb-2">
+              <h1 className="text-3xl font-bold text-white tracking-tight">
+                {profile.full_name}{profile.age ? `, ${profile.age}` : ''}
+              </h1>
+              {isOnline && (
+                <span className="flex items-center gap-1 bg-green-500/20 border border-green-500/40 text-green-400 text-[10px] font-semibold px-2 py-0.5 rounded-full">
+                  <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />
+                  En línea
+                </span>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {profile.premium_tier === 'vip' && (
+                <span className="bg-yellow-500/20 text-yellow-400 text-[10px] font-bold px-2 py-0.5 rounded-full border border-yellow-500/30">👑 VIP</span>
+              )}
+              {(profile.premium_tier === 'premium' || (!profile.premium_tier && profile.is_premium)) && (
+                <span className="bg-brand-500/20 text-brand-400 text-[10px] font-bold px-2 py-0.5 rounded-full border border-brand-500/30">⚡ Premium</span>
+              )}
+              {profile.is_verified && <VerifiedBadge size={18} />}
+              {profile.is_creator && (
+                <span className="bg-brand-500/90 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">Creador</span>
+              )}
+            </div>
+          </div>
         </div>
 
-        <div className="absolute bottom-6 left-6 right-6">
-          <div className="flex items-center gap-2 mb-1">
-            <h1 className="text-3xl font-bold text-white">
-              {profile.full_name}{profile.age ? `, ${profile.age}` : ''}
-            </h1>
-            {profile.last_active && (Date.now() - new Date(profile.last_active).getTime()) < 5 * 60 * 1000 && (
-              <span className="flex items-center gap-1 bg-green-500/20 border border-green-500/40 text-green-400 text-xs font-semibold px-2 py-0.5 rounded-full">
-                <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />
-                En línea
-              </span>
-            )}
+        {/* ═══════════════════ INFO + ACCIONES ═══════════════════ */}
+        <div className="px-5 pt-4 pb-28 lg:pb-12 lg:pt-0 space-y-4">
+          {/* HEADER DESKTOP — nombre/badges visibles solo en lg+ */}
+          <div className="hidden lg:block mb-6">
+            <div className="flex items-center gap-3 mb-3">
+              <h1 className="text-4xl font-bold text-white tracking-tight">
+                {profile.full_name}{profile.age ? `, ${profile.age}` : ''}
+              </h1>
+              {isOnline && (
+                <span className="flex items-center gap-1.5 bg-green-500/15 border border-green-500/40 text-green-400 text-xs font-semibold px-2.5 py-1 rounded-full">
+                  <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />
+                  En línea
+                </span>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-1.5 mb-2">
+              {profile.premium_tier === 'vip' && (
+                <span className="bg-yellow-500/20 text-yellow-400 text-xs font-bold px-2.5 py-0.5 rounded-full border border-yellow-500/30">👑 VIP</span>
+              )}
+              {(profile.premium_tier === 'premium' || (!profile.premium_tier && profile.is_premium)) && (
+                <span className="bg-brand-500/20 text-brand-400 text-xs font-bold px-2.5 py-0.5 rounded-full border border-brand-500/30">⚡ Premium</span>
+              )}
+              {profile.is_verified && <VerifiedBadge size={20} />}
+              {profile.is_creator && (
+                <span className="bg-brand-500/90 text-white text-xs font-bold px-2.5 py-0.5 rounded-full">Creador</span>
+              )}
+              {mySub?.tier && <TierBadge tier={mySub.tier} size="sm" showName />}
+            </div>
           </div>
-          <div className="flex flex-wrap gap-2 mt-2">
-            {profile.premium_tier === 'vip' && (
-              <span className="bg-yellow-500/20 text-yellow-400 text-xs font-bold px-2 py-0.5 rounded-full border border-yellow-500/30">👑 VIP</span>
-            )}
-            {profile.premium_tier === 'premium' && (
-              <span className="bg-brand-500/20 text-brand-400 text-xs font-bold px-2 py-0.5 rounded-full border border-brand-500/30">⚡ Premium</span>
-            )}
-            {!profile.premium_tier && profile.is_premium && (
-              <span className="bg-brand-500/20 text-brand-400 text-xs font-bold px-2 py-0.5 rounded-full border border-brand-500/30">⚡ Premium</span>
-            )}
-            {profile.is_verified && <VerifiedBadge size={20} />}
-            {profile.is_creator && (
-              <span className="bg-brand-500/80 text-white text-xs font-bold px-2 py-0.5 rounded-full">Creador</span>
-            )}
+
+          {/* Stats row + Follow button */}
+          <div className="flex items-center gap-3 flex-wrap">
             <button
               onClick={async () => {
                 setShowFollowers(true);
@@ -403,154 +458,208 @@ export default function UserProfile() {
                 } catch { }
                 setLoadingFollowers(false);
               }}
-              className="bg-dark-700/80 text-gray-300 text-xs font-medium px-2 py-0.5 rounded-full flex items-center gap-1 hover:bg-dark-600 transition-colors"
+              className="flex items-center gap-1.5 text-gray-300 text-sm hover:text-white transition-colors"
             >
-              <FiUsers size={9} /> {followersCount.toLocaleString()} seguidores
+              <FiUsers size={13} className="text-gray-500" />
+              <strong className="text-white">{followersCount.toLocaleString()}</strong>
+              <span className="text-gray-500">seguidores</span>
             </button>
+
+            {profile.is_creator && subscribersCount > 0 && (
+              <span className="flex items-center gap-1.5 text-gray-300 text-sm">
+                <FiHeart size={13} className="text-pink-400" />
+                <strong className="text-white">{subscribersCount.toLocaleString()}</strong>
+                <span className="text-gray-500">suscriptores</span>
+              </span>
+            )}
+
+            {profile.is_creator && postsCount > 0 && (
+              <span className="flex items-center gap-1.5 text-gray-300 text-sm">
+                <FiGrid size={13} className="text-gray-500" />
+                <strong className="text-white">{postsCount}</strong>
+                <span className="text-gray-500">posts</span>
+              </span>
+            )}
+
             {profile.profile_views > 0 && (
-              <span className="bg-dark-700/80 text-gray-300 text-xs font-medium px-2 py-0.5 rounded-full">
+              <span className="text-gray-500 text-sm flex items-center gap-1">
                 👁 {profile.profile_views.toLocaleString()}
               </span>
             )}
+
+            {!isOwnProfile && (
+              <button
+                onClick={handleToggleFollow}
+                disabled={togglingFollow}
+                className={`ml-auto px-4 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-colors ${
+                  following
+                    ? 'bg-white/10 text-gray-300 hover:bg-white/20'
+                    : 'bg-brand-500 text-white hover:bg-brand-400'
+                } disabled:opacity-50`}
+              >
+                <FiUserPlus size={11} />
+                {following ? 'Siguiendo' : 'Seguir'}
+              </button>
+            )}
           </div>
-
-          {/* Follow button */}
-          <button
-            onClick={handleToggleFollow}
-            disabled={togglingFollow}
-            className={`mt-3 px-4 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-colors ${
-              following
-                ? 'bg-white/10 text-gray-300 hover:bg-white/20'
-                : 'bg-brand-500/80 text-white hover:bg-brand-500'
-            } disabled:opacity-50`}
-          >
-            <FiUserPlus size={11} />
-            {following ? 'Siguiendo' : 'Seguir'}
-          </button>
-        </div>
-      </div>
-
-      {/* Info + Creator */}
-      <div className="px-6 pt-4 pb-28 space-y-4">
+        {/* Bio (más vistosa) */}
         {profile.bio && (
           <div className="card p-4">
-            <p className="text-gray-300 text-sm leading-relaxed">{profile.bio}</p>
+            <p className="text-gray-200 text-sm leading-relaxed whitespace-pre-line">{profile.bio}</p>
           </div>
         )}
 
-        <div className="card p-4 text-sm space-y-2">
-          {profile.gender && (
-            <div className="flex justify-between">
-              <span className="text-gray-500">Género</span>
-              <span className="text-white capitalize">{profile.gender}</span>
+        {/* CTA prominente de suscripción si es creador con tiers/precio */}
+        {hasSubscriptionOffer && !subscribed && (
+          <button
+            onClick={() => setShowTierModal(true)}
+            disabled={subscribing}
+            className="w-full bg-gradient-to-r from-brand-500 to-pink-500 hover:from-brand-400 hover:to-pink-400 rounded-2xl p-4 flex items-center justify-between gap-3 text-left transition-all shadow-lg shadow-brand-500/20 disabled:opacity-60"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 bg-white/15 rounded-xl flex items-center justify-center shrink-0">
+                <FiHeart className="text-white" size={20} />
+              </div>
+              <div>
+                <p className="text-white font-bold text-sm">Suscribirse</p>
+                <p className="text-white/80 text-xs">
+                  {creatorTiers.length > 1
+                    ? `Desde $${minTierPrice?.toFixed(2)}/mes · ${creatorTiers.length} niveles`
+                    : creatorTiers.length === 1
+                      ? `${creatorTiers[0].badge_emoji} ${creatorTiers[0].name} · $${minTierPrice?.toFixed(2)}/mes`
+                      : `$${minTierPrice?.toFixed(2)}/mes`}
+                </p>
+              </div>
             </div>
-          )}
-          <div className="flex justify-between">
-            <span className="text-gray-500">En Destino TV desde</span>
-            <span className="text-white">
-              {new Date(profile.created_at).toLocaleDateString('es', { month: 'long', year: 'numeric' })}
-            </span>
+            <FiArrowRight className="text-white" size={18} />
+          </button>
+        )}
+
+        {subscribed && mySub && (
+          <div className="card p-4 bg-green-500/5 border-green-500/30">
+            <div className="flex items-center justify-between gap-3 mb-2">
+              <div className="flex items-center gap-2">
+                <FiCheck className="text-green-400" size={16} />
+                <p className="text-green-400 font-semibold text-sm">Estás suscrito</p>
+                {mySub.tier && <TierBadge tier={mySub.tier} size="xs" showName />}
+                {mySub.is_gift && (
+                  <span className="text-[10px] bg-pink-500/20 text-pink-300 px-2 py-0.5 rounded-full">🎁 Regalo</span>
+                )}
+              </div>
+              <button
+                onClick={handleCancelSubscription}
+                disabled={cancelling}
+                className="text-[11px] text-gray-500 hover:text-red-400 transition-colors flex items-center gap-1 disabled:opacity-50"
+              >
+                <FiUserMinus size={10} />
+                {cancelling ? 'Cancelando...' : 'Cancelar'}
+              </button>
+            </div>
+            {mySub.current_period_end && (
+              <p className="text-[11px] text-gray-500">
+                Acceso hasta {new Date(mySub.current_period_end).toLocaleDateString('es', { day: 'numeric', month: 'short', year: 'numeric' })}
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Info básica del usuario (datos compactos) */}
+        <div className="card p-4 text-sm">
+          <div className="grid grid-cols-2 gap-3">
+            {profile.gender && (
+              <div>
+                <p className="text-gray-500 text-xs">Género</p>
+                <p className="text-white capitalize">{profile.gender}</p>
+              </div>
+            )}
+            <div>
+              <p className="text-gray-500 text-xs">Miembro desde</p>
+              <p className="text-white">
+                {new Date(profile.created_at).toLocaleDateString('es', { month: 'short', year: 'numeric' })}
+              </p>
+            </div>
+            {profile.country && (
+              <div>
+                <p className="text-gray-500 text-xs">País</p>
+                <p className="text-white">{profile.country}</p>
+              </div>
+            )}
+            {profile.is_creator && (
+              <div>
+                <p className="text-gray-500 text-xs">Tipo</p>
+                <p className="text-white">{profile.is_adult_creator ? 'Creador +18' : 'Creador'}</p>
+              </div>
+            )}
           </div>
         </div>
+
+        {/* ── Sección de CREADOR — rediseñada con grupos ──────────────────── */}
+        {profile.is_creator && !isOwnProfile && (
+          <div className="space-y-3">
+            {profile.creator_bio && (
+              <div className="card p-4 border-brand-500/20 bg-gradient-to-br from-brand-500/5 to-transparent">
+                <p className="text-gray-200 text-sm leading-relaxed">{profile.creator_bio}</p>
+              </div>
+            )}
+
+            {/* Grupo 1: APOYAR */}
+            <div className="card p-4">
+              <h3 className="text-[11px] uppercase tracking-wider text-gray-500 font-semibold mb-3 flex items-center gap-1.5">
+                <FiHeart size={11} /> Apoyar al creador
+              </h3>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => setShowTipModal(true)}
+                  className="bg-dark-700 hover:bg-dark-600 rounded-xl p-3 text-center transition-colors"
+                >
+                  <FiGift className="text-yellow-400 mx-auto mb-1.5" size={20} />
+                  <p className="text-xs text-white font-medium">Propina</p>
+                  <p className="text-[10px] text-gray-500">Envía coins</p>
+                </button>
+                {hasSubscriptionOffer && (
+                  <button
+                    onClick={() => setShowGiftModal(true)}
+                    className="bg-pink-500/10 border border-pink-500/30 hover:bg-pink-500/20 rounded-xl p-3 text-center transition-colors"
+                    title="Regala una suscripción a otro usuario"
+                  >
+                    <FiGift className="text-pink-400 mx-auto mb-1.5" size={20} />
+                    <p className="text-xs text-pink-200 font-medium">Regalar sub</p>
+                    <p className="text-[10px] text-pink-300/70">A otro fan</p>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Grupo 2: CONTENIDO */}
+            <div className="card p-4">
+              <h3 className="text-[11px] uppercase tracking-wider text-gray-500 font-semibold mb-3 flex items-center gap-1.5">
+                <FiVideo size={11} /> Contenido
+              </h3>
+              <div className="grid grid-cols-2 gap-2">
+                <Link
+                  to="/shows"
+                  className="bg-dark-700 hover:bg-dark-600 rounded-xl p-3 text-center transition-colors"
+                >
+                  <FiVideo className="text-brand-400 mx-auto mb-1.5" size={20} />
+                  <p className="text-xs text-white font-medium">Ver shows</p>
+                  <p className="text-[10px] text-gray-500">Lives + grabados</p>
+                </Link>
+                <button
+                  onClick={openRequestModal}
+                  className="bg-dark-700 hover:bg-dark-600 rounded-xl p-3 text-center transition-colors"
+                >
+                  <FiSend className="text-brand-400 mx-auto mb-1.5" size={20} />
+                  <p className="text-xs text-white font-medium">Encargar video</p>
+                  <p className="text-[10px] text-gray-500">Personalizado</p>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Tip menu del creador (visible si tiene items) */}
         {profile.is_creator && profile.id !== currentUserId && (
           <TipMenuPublic creatorId={profile.id} creatorName={profile.full_name} />
-        )}
-
-        {/* ── Sección de creador ──────────────────────────── */}
-        {profile.is_creator && (
-          <div className="card p-5 border-brand-500/20">
-            <div className="flex items-center gap-2 mb-3">
-              <FiVideo className="text-brand-400" size={16} />
-              <h2 className="font-semibold text-gray-300">Contenido de creador</h2>
-            </div>
-
-            {profile.creator_bio && (
-              <p className="text-gray-400 text-sm mb-4">{profile.creator_bio}</p>
-            )}
-
-            <div className="flex gap-3 flex-wrap">
-              {/* Ver shows */}
-              <Link
-                to="/shows"
-                className="flex-1 min-w-[80px] bg-dark-700 rounded-xl p-3 text-center hover:bg-dark-600 transition-colors"
-              >
-                <FiVideo className="text-brand-400 mx-auto mb-1" size={18} />
-                <p className="text-xs text-gray-400">Ver shows</p>
-              </Link>
-
-              {/* Propina */}
-              <button
-                onClick={() => setShowTipModal(true)}
-                className="flex-1 min-w-[80px] bg-dark-700 rounded-xl p-3 text-center hover:bg-dark-600 transition-colors"
-              >
-                <FiGift className="text-yellow-400 mx-auto mb-1" size={18} />
-                <p className="text-xs text-gray-400">Propina</p>
-              </button>
-
-              {/* Encargar video */}
-              <button
-                onClick={openRequestModal}
-                className="flex-1 min-w-[80px] bg-dark-700 rounded-xl p-3 text-center hover:bg-dark-600 transition-colors"
-              >
-                <FiSend className="text-brand-400 mx-auto mb-1" size={18} />
-                <p className="text-xs text-gray-400">Encargar</p>
-              </button>
-
-              {/* Suscripción mensual */}
-              {hasSubscriptionOffer && (
-                subscribed ? (
-                  <div className="flex-1 min-w-[80px] space-y-2">
-                    <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-3 text-center">
-                      <FiCheck className="text-green-400 mx-auto mb-1" size={18} />
-                      <p className="text-xs text-green-400 font-medium">Suscrito</p>
-                      {mySub?.tier && (
-                        <div className="mt-2 flex justify-center">
-                          <TierBadge tier={mySub.tier} size="xs" showName />
-                        </div>
-                      )}
-                      {mySub?.is_gift && (
-                        <p className="text-[10px] text-pink-400 mt-1">🎁 Regalado</p>
-                      )}
-                    </div>
-                    <button
-                      onClick={handleCancelSubscription}
-                      disabled={cancelling}
-                      className="w-full text-[11px] text-gray-500 hover:text-red-400 transition-colors flex items-center justify-center gap-1 disabled:opacity-50"
-                    >
-                      <FiUserMinus size={11} />
-                      {cancelling ? 'Cancelando...' : 'Cancelar suscripción'}
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => setShowTierModal(true)}
-                    disabled={subscribing}
-                    className="flex-1 min-w-[120px] btn-primary py-3 text-sm disabled:opacity-60"
-                  >
-                    {subscribing ? (
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mx-auto" />
-                    ) : (
-                      <>Suscribir</>
-                    )}
-                  </button>
-                )
-              )}
-
-              {/* Regalar suscripción */}
-              {hasSubscriptionOffer && (
-                <button
-                  onClick={() => setShowGiftModal(true)}
-                  className="flex-1 min-w-[80px] bg-pink-500/10 border border-pink-500/30 rounded-xl p-3 text-center hover:bg-pink-500/20 transition-colors"
-                  title="Regala una suscripción a otro usuario"
-                >
-                  <FiGift className="text-pink-400 mx-auto mb-1" size={18} />
-                  <p className="text-xs text-pink-300">Regalar sub</p>
-                </button>
-              )}
-            </div>
-          </div>
         )}
 
         {/* ── Gate VIP para contenido adulto ───────────────── */}
@@ -775,29 +884,52 @@ export default function UserProfile() {
         )}
       </div>
 
-      {/* Botones de acción fijos */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-dark-900/95 backdrop-blur-md border-t border-white/5 flex gap-3">
-        <button
-          onClick={() => navigate(-1)}
-          className="btn-secondary flex-1 flex items-center justify-center gap-2"
-        >
-          <FiX /> Pasar
-        </button>
-        {profile.match_id && (
+      </div>{/* cierra grid wrapper lg:max-w-6xl */}
+
+      {/* Botones de acción fijos — solo en mobile y solo si el perfil es match-eable
+          (no creator-only, no propio perfil). En desktop el botón Seguir+Mensaje vive en el header. */}
+      {canMatch && (
+        <div className="fixed bottom-0 left-0 right-0 p-4 bg-dark-900/95 backdrop-blur-md border-t border-white/5 flex gap-3 lg:hidden">
+          <button
+            onClick={() => navigate(-1)}
+            className="btn-secondary flex-1 flex items-center justify-center gap-2"
+          >
+            <FiX /> Pasar
+          </button>
+          {profile.match_id && (
+            <button
+              onClick={() => navigate(`/call/${profile.match_id}`)}
+              className="w-12 h-12 rounded-xl bg-dark-700 flex items-center justify-center text-green-400 hover:bg-dark-600 transition-colors shrink-0"
+            >
+              <FiVideo size={18} />
+            </button>
+          )}
+          <button
+            onClick={handleLike}
+            className="btn-primary flex-1 flex items-center justify-center gap-2"
+          >
+            <FiHeart /> Me gusta
+          </button>
+        </div>
+      )}
+
+      {/* Si NO es match-eable y hay match_id, mostrar shortcut a video llamada */}
+      {!canMatch && profile.match_id && !isOwnProfile && (
+        <div className="fixed bottom-0 left-0 right-0 p-4 bg-dark-900/95 backdrop-blur-md border-t border-white/5 flex gap-3 lg:hidden">
+          <button
+            onClick={() => navigate(`/messages?to=${userId}`)}
+            className="btn-secondary flex-1 flex items-center justify-center gap-2"
+          >
+            <FiMessageCircle size={16} /> Mensaje
+          </button>
           <button
             onClick={() => navigate(`/call/${profile.match_id}`)}
-            className="w-12 h-12 rounded-xl bg-dark-700 flex items-center justify-center text-green-400 hover:bg-dark-600 transition-colors shrink-0"
+            className="btn-primary flex-1 flex items-center justify-center gap-2"
           >
-            <FiVideo size={18} />
+            <FiVideo size={16} /> Videollamada
           </button>
-        )}
-        <button
-          onClick={handleLike}
-          className="btn-primary flex-1 flex items-center justify-center gap-2"
-        >
-          <FiHeart /> Me gusta
-        </button>
-      </div>
+        </div>
+      )}
 
       <AnimatePresence>
         {showBlockModal && (
