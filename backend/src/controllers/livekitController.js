@@ -24,6 +24,16 @@ async function assertRoomAccess(userId, roomName) {
     // Host siempre tiene acceso
     if (show.host_id === userId) return;
 
+    // Co-host aceptado tiene acceso como publisher
+    const { data: coHost } = await supabase
+      .from('show_co_hosts')
+      .select('status')
+      .eq('show_id', showId)
+      .eq('user_id', userId)
+      .eq('status', 'accepted')
+      .maybeSingle();
+    if (coHost) return;
+
     // Shows de pago: verificar ticket activo
     if (show.ticket_price > 0) {
       const { data: ticket } = await supabase

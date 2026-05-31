@@ -10,6 +10,7 @@ export class LiveKitSession {
     this.onReconnected     = null;
     this.onFailed          = null;
     this.onRemoteTrack     = null;
+    this.onRemoteTrackEnded = null;
     this.onParticipantLeft = null;
     this.onLocalVideo      = null;
   }
@@ -26,16 +27,20 @@ export class LiveKitSession {
       if (state === ConnectionState.Disconnected && !this._leaving) this.onFailed?.();
     });
 
-    this.room.on(RoomEvent.TrackSubscribed, (track, pub) => {
+    this.room.on(RoomEvent.TrackSubscribed, (track, pub, participant) => {
       // Solicitar calidad máxima para video de shows/llamadas
       if (track.kind === Track.Kind.Video && pub?.setVideoQuality) {
         pub.setVideoQuality(VideoQuality.High);
       }
-      this.onRemoteTrack?.(track);
+      this.onRemoteTrack?.(track, participant);
     });
 
-    this.room.on(RoomEvent.ParticipantDisconnected, () => {
-      this.onParticipantLeft?.();
+    this.room.on(RoomEvent.TrackUnsubscribed, (track, pub, participant) => {
+      this.onRemoteTrackEnded?.(track, participant);
+    });
+
+    this.room.on(RoomEvent.ParticipantDisconnected, (participant) => {
+      this.onParticipantLeft?.(participant);
     });
 
     this.room.on(RoomEvent.LocalTrackPublished, (pub) => {
@@ -71,7 +76,7 @@ export class LiveKitSession {
     this.room.remoteParticipants.forEach(participant => {
       participant.trackPublications.forEach(pub => {
         if (pub.track && pub.isSubscribed) {
-          this.onRemoteTrack?.(pub.track);
+          this.onRemoteTrack?.(pub.track, participant);
         }
       });
     });

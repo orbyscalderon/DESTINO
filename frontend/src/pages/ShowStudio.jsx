@@ -181,6 +181,122 @@ function PollPanel({ showId, isLive }) {
   );
 }
 
+function CoHostsPanel({ showId }) {
+  const [coHosts, setCoHosts] = useState([]);
+  const [search, setSearch]   = useState('');
+  const [results, setResults] = useState([]);
+  const [searching, setSearching] = useState(false);
+  const [inviting, setInviting]   = useState(null);
+
+  const load = async () => {
+    if (!showId) return;
+    try {
+      const { data } = await api.get(`/api/shows/${showId}/co-hosts`);
+      setCoHosts(data?.co_hosts || []);
+    } catch {}
+  };
+  useEffect(() => { load(); }, [showId]);
+
+  const doSearch = async (q) => {
+    setSearch(q);
+    if (!q || q.length < 2) { setResults([]); return; }
+    setSearching(true);
+    try {
+      const { data } = await api.get(`/api/profiles/search?q=${encodeURIComponent(q)}&is_creator=true`);
+      setResults(data?.profiles || data?.results || []);
+    } catch {
+      setResults([]);
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  const invite = async (userId) => {
+    if (!showId) {
+      toast.error('Guarda el show primero (Config)');
+      return;
+    }
+    setInviting(userId);
+    try {
+      await api.post(`/api/shows/${showId}/co-hosts/invite`, { user_id: userId });
+      toast.success('Invitación enviada');
+      setSearch(''); setResults([]);
+      load();
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Error');
+    } finally {
+      setInviting(null);
+    }
+  };
+
+  const remove = async (userId) => {
+    try {
+      await api.delete(`/api/shows/${showId}/co-hosts/${userId}`);
+      toast.success('Co-host removido');
+      load();
+    } catch {
+      toast.error('Error');
+    }
+  };
+
+  if (!showId) return (
+    <div className="flex-1 flex items-center justify-center p-4 text-center text-gray-500 text-xs">
+      Guarda el show primero para poder invitar co-hosts
+    </div>
+  );
+
+  return (
+    <div className="flex-1 overflow-y-auto p-2 space-y-2">
+      <p className="text-[10px] text-gray-500 uppercase font-bold">Invitar creador</p>
+      <input
+        className="w-full bg-[#111115] border border-white/10 text-white text-xs rounded px-2.5 py-1.5 outline-none focus:border-brand-500/50"
+        placeholder="Buscar por nombre o @username"
+        value={search}
+        onChange={e => doSearch(e.target.value)}
+      />
+      {searching && <p className="text-[10px] text-gray-500">Buscando…</p>}
+      {results.slice(0, 5).map(p => (
+        <div key={p.id} className="flex items-center gap-2 p-1.5 rounded bg-dark-800">
+          <img src={p.avatar_url || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(p.full_name || 'U')}
+            className="w-6 h-6 rounded-full" alt="" />
+          <span className="flex-1 text-xs text-white truncate">{p.full_name}</span>
+          <button
+            onClick={() => invite(p.id)}
+            disabled={inviting === p.id}
+            className="text-[10px] px-2 py-1 bg-brand-500 hover:bg-brand-600 text-white rounded font-bold disabled:opacity-50"
+          >
+            {inviting === p.id ? '…' : 'Invitar'}
+          </button>
+        </div>
+      ))}
+
+      <p className="text-[10px] text-gray-500 uppercase font-bold pt-2 border-t border-white/5">Co-hosts ({coHosts.length})</p>
+      {coHosts.length === 0 && (
+        <p className="text-xs text-gray-600 text-center py-3">Sin co-hosts. Invita a otros creadores para co-presentar.</p>
+      )}
+      {coHosts.map(c => (
+        <div key={c.user?.id} className="flex items-center gap-2 p-2 rounded bg-dark-800">
+          <img src={c.user?.avatar_url || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(c.user?.full_name || 'U')}
+            className="w-7 h-7 rounded-full" alt="" />
+          <div className="flex-1 min-w-0">
+            <p className="text-xs text-white font-semibold truncate">{c.user?.full_name}</p>
+            <p className="text-[9px] text-gray-500">
+              {c.status === 'invited' ? '⏳ Invitación pendiente' :
+               c.status === 'accepted' ? '✅ Aceptó' : c.status}
+            </p>
+          </div>
+          <button
+            onClick={() => remove(c.user?.id)}
+            className="text-[10px] px-2 py-1 bg-red-500/15 text-red-300 hover:bg-red-500/25 rounded font-bold"
+          >
+            Quitar
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function ShowStudio() {
   const navigate = useNavigate();
   const { user, profile: authProfile } = useAuthStore();
@@ -1355,6 +1471,7 @@ export default function ShowStudio() {
             { key: 'chat',    label: isLive ? `💬 ${chatMessages.length > 0 ? chatMessages.length : 'Chat'}` : '💬 Chat' },
             { key: 'private', label: `🔒${hasPrivateAlert ? ' 🔴' : ''}${privateMessages.length > 0 ? ` ${privateMessages.length}` : ''}` },
             { key: 'poll',    label: '📊 Poll' },
+            { key: 'cohosts', label: '🎬 Co' },
             { key: 'viewers', label: isLive ? `👥 ${viewerCount}` : '👥' },
           ].map(t => (
             <button key={t.key} onClick={() => setRightTab(t.key)}
@@ -1734,6 +1851,11 @@ export default function ShowStudio() {
         {/* ── TAB Poll (encuestas en vivo) ── */}
         {rightTab === 'poll' && (
           <PollPanel showId={showId} isLive={isLive} />
+        )}
+
+        {/* ── TAB Co-hosts ── */}
+        {rightTab === 'cohosts' && (
+          <CoHostsPanel showId={showId} />
         )}
 
         {/* ── TAB Viewers ── */}

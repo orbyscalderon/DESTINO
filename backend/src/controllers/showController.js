@@ -193,7 +193,27 @@ export const getShow = async (req, res) => {
       .eq('show_id', id)
       .eq('status', 'active');
 
-    res.json({ show: { ...show, is_host: isHost, has_ticket: hasTicket, viewer_count: viewerCount || 0 } });
+    // Mi estatus como co-host (si aplica)
+    let myCoHostStatus = null;
+    if (!isHost) {
+      const { data: co } = await supabase
+        .from('show_co_hosts')
+        .select('status')
+        .eq('show_id', id)
+        .eq('user_id', userId)
+        .maybeSingle();
+      myCoHostStatus = co?.status || null;
+    }
+
+    res.json({
+      show: {
+        ...show,
+        is_host: isHost,
+        has_ticket: hasTicket,
+        viewer_count: viewerCount || 0,
+        my_co_host_status: myCoHostStatus,
+      },
+    });
   } catch (err) {
     console.error('getShow error:', err.message);
     res.status(500).json({ error: 'Error interno del servidor' });
@@ -449,7 +469,20 @@ export const getShowToken = async (req, res) => {
 
     const isHost = show.host_id === userId;
 
+    // Co-host aceptado: acceso como publisher
+    let isCoHost = false;
     if (!isHost) {
+      const { data: co } = await supabase
+        .from('show_co_hosts')
+        .select('status')
+        .eq('show_id', id)
+        .eq('user_id', userId)
+        .eq('status', 'accepted')
+        .maybeSingle();
+      isCoHost = !!co;
+    }
+
+    if (!isHost && !isCoHost) {
       // Para shows privados, verificar que solo hay un viewer
       if (show.show_type === 'private') {
         const { count } = await supabase
@@ -489,7 +522,8 @@ export const getShowToken = async (req, res) => {
     }
 
     const roomId = `show_${id.replace(/-/g, '')}`;
-    res.json({ roomId, role: isHost ? 'host' : 'viewer' });
+    const role = isHost ? 'host' : isCoHost ? 'co_host' : 'viewer';
+    res.json({ roomId, role, can_publish: isHost || isCoHost });
   } catch (err) {
     console.error('getShowToken error:', err.message);
     res.status(500).json({ error: 'Error interno del servidor' });

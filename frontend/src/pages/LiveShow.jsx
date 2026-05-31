@@ -102,6 +102,32 @@ function OBSGuide() {
 }
 
 // ── Componente principal ──────────────────────────────────────────────────────
+function CoHostTile({ stream }) {
+  const videoRef = useRef(null);
+  const audioRef = useRef(null);
+
+  useEffect(() => {
+    if (videoRef.current && stream.video) {
+      videoRef.current.srcObject = new MediaStream([stream.video]);
+    }
+    if (audioRef.current && stream.audio) {
+      audioRef.current.srcObject = new MediaStream([stream.audio]);
+    }
+  }, [stream.video, stream.audio]);
+
+  return (
+    <div className="w-24 h-32 sm:w-32 sm:h-44 rounded-xl overflow-hidden border-2 border-white/20 shadow-lg bg-dark-800 relative">
+      <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
+      <audio ref={audioRef} autoPlay />
+      {stream.name && (
+        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent px-1.5 py-1">
+          <p className="text-[9px] text-white font-semibold truncate">{stream.name}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function LiveShow() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -114,6 +140,9 @@ export default function LiveShow() {
   const [joining, setJoining]         = useState(false);
   const [inShow, setInShow]           = useState(false);
   const [pendingViewerTracks, setPendingViewerTracks] = useState(null);
+  // Multi-host: co-host streams indexados por participant identity (userId).
+  // Cada entrada: { video?: MediaStreamTrack, audio?: MediaStreamTrack, name?: string }.
+  const [coHostStreams, setCoHostStreams] = useState({});
   const [isLive, setIsLive]           = useState(false);
   const [muted, setMuted]             = useState(false);
   const [cameraOff, setCameraOff]     = useState(false);
@@ -750,18 +779,55 @@ export default function LiveShow() {
 
       // Use pendingViewerTracks so the useEffect applies tracks once
       // hostVideoRef.current is mounted (inShow=true re-render).
-      rtc.onRemoteTrack = (track) => {
-        if (track.kind === 'video') {
-          setPendingViewerTracks(prev => ({ ...(prev || {}), video: track.mediaStreamTrack }));
-        }
-        if (track.kind === 'audio') {
-          setPendingViewerTracks(prev => ({ ...(prev || {}), audio: track.mediaStreamTrack }));
+      // For multi-host: identify the main host by show.host_id and route
+      // additional publishers into coHostStreams.
+      const hostUserId = show?.host_id;
+      rtc.onRemoteTrack = (track, participant) => {
+        const pid = participant?.identity;
+        const isHostTrack = !pid || pid === hostUserId;
+
+        if (isHostTrack) {
+          if (track.kind === 'video') {
+            setPendingViewerTracks(prev => ({ ...(prev || {}), video: track.mediaStreamTrack }));
+          } else if (track.kind === 'audio') {
+            setPendingViewerTracks(prev => ({ ...(prev || {}), audio: track.mediaStreamTrack }));
+          }
+        } else {
+          setCoHostStreams(prev => {
+            const cur = prev[pid] || {};
+            return {
+              ...prev,
+              [pid]: { ...cur, [track.kind]: track.mediaStreamTrack, name: participant?.name || cur.name },
+            };
+          });
         }
       };
 
-      rtc.onParticipantLeft = () => {
-        toast('El show terminó', { icon: '📺' });
-        navigate('/shows');
+      rtc.onRemoteTrackEnded = (track, participant) => {
+        const pid = participant?.identity;
+        if (pid && pid !== hostUserId) {
+          setCoHostStreams(prev => {
+            const next = { ...prev };
+            delete next[pid];
+            return next;
+          });
+        }
+      };
+
+      rtc.onParticipantLeft = (participant) => {
+        const pid = participant?.identity;
+        if (!pid || pid === hostUserId) {
+          // El host se fue → terminó el show
+          toast('El show terminó', { icon: '📺' });
+          navigate('/shows');
+        } else {
+          // Co-host se fue → remover su tile
+          setCoHostStreams(prev => {
+            const next = { ...prev };
+            delete next[pid];
+            return next;
+          });
+        }
       };
 
       rtcRef.current = rtc;
@@ -1929,6 +1995,15 @@ export default function LiveShow() {
         <div ref={videoContainerRef} className="flex-1 relative bg-dark-900 overflow-hidden">
           <video ref={hostVideoRef} autoPlay playsInline className="w-full h-full object-cover" />
 
+          {/* Co-host video tiles (overlay flotante) */}
+          {Object.keys(coHostStreams).length > 0 && (
+            <div className="absolute top-16 right-3 z-20 flex flex-col gap-2">
+              {Object.entries(coHostStreams).map(([pid, stream]) => (
+                <CoHostTile key={pid} stream={stream} />
+              ))}
+            </div>
+          )}
+
           {/* Info overlay top */}
           <div className="absolute top-4 left-4 right-4 flex items-center justify-between z-10">
             <div className="bg-black/50 backdrop-blur-sm rounded-xl px-3 py-2 flex items-center gap-2">
@@ -2433,6 +2508,50 @@ export default function LiveShow() {
               : <><FiRadio size={16} /> Iniciar show en vivo</>
             }
           </button>
+        )
+      ) : show?.my_co_host_status === 'invited' ? (
+        <div className="space-y-2">
+          <div className="card p-3 border-brand-500/30 bg-brand-500/5 text-center">
+            <p className="text-sm font-bold text-white">🎬 Invitación a co-presentar</p>
+            <p className="text-xs text-gray-400 mt-0.5">{show?.host?.full_name} te invitó a este show</p>
+          </div>
+          <button
+            onClick={async () => {
+              try {
+                await api.post(`/api/shows/${id}/co-hosts/accept`);
+                toast.success('¡Invitación aceptada!');
+                loadShow();
+              } catch (err) {
+                toast.error(err.response?.data?.error || 'Error');
+              }
+            }}
+            className="btn-primary w-full"
+          >
+            Aceptar invitación
+          </button>
+          <button
+            onClick={async () => {
+              await api.post(`/api/shows/${id}/co-hosts/decline`).catch(() => {});
+              toast('Invitación rechazada');
+              loadShow();
+            }}
+            className="btn-secondary w-full text-sm"
+          >
+            Rechazar
+          </button>
+        </div>
+      ) : show?.my_co_host_status === 'accepted' ? (
+        show?.status === 'live' ? (
+          <button
+            onClick={() => navigate(`/cohost/${id}`)}
+            className="btn-primary w-full flex items-center justify-center gap-2"
+          >
+            <FiRadio size={16} /> Unirme como co-host
+          </button>
+        ) : (
+          <div className="card p-3 text-center text-gray-400 text-sm">
+            Eres co-host de este show. Te avisaremos cuando empiece.
+          </div>
         )
       ) : needsTicket ? (
         <button onClick={handleBuyTicket} className="btn-primary w-full flex items-center justify-center gap-2">

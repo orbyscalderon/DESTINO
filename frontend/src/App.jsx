@@ -56,6 +56,7 @@ const Error500        = lazy(() => import('./pages/Error500.jsx'));
 const DMCA            = lazy(() => import('./pages/DMCA.jsx'));
 const Referrals       = lazy(() => import('./pages/Referrals.jsx'));
 const Achievements    = lazy(() => import('./pages/Achievements.jsx'));
+const CoHostStage     = lazy(() => import('./pages/CoHostStage.jsx'));
 
 const PageLoader = () => (
   <div className="min-h-screen flex items-center justify-center bg-dark-900">
@@ -245,6 +246,7 @@ export default function App() {
           <Route path="/leaderboard" element={<Leaderboard />} />
           <Route path="/referrals" element={<Referrals />} />
           <Route path="/achievements" element={<Achievements />} />
+          <Route path="/cohost/:showId" element={<CoHostStage />} />
         </Route>
 
         {/* 404 */}

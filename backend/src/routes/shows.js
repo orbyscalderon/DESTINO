@@ -39,6 +39,10 @@ import {
   updateGift,
   deleteGift,
 } from '../controllers/showController.js';
+import {
+  inviteCoHost, acceptCoHostInvite, declineCoHostInvite,
+  removeCoHost, listCoHosts,
+} from '../controllers/coHostController.js';
 
 const router = Router();
 router.use(authMiddleware);
@@ -81,5 +85,12 @@ router.patch('/:id/tip-goal',         updateTipGoal);
 router.post('/:id/poll',              setPoll);
 router.post('/:id/poll/vote',         votePoll);
 router.get('/:id/poll',               getPoll);
+
+// Co-hosts (multi-host shows)
+router.get('/:id/co-hosts',           listCoHosts);
+router.post('/:id/co-hosts/invite',   inviteCoHost);
+router.post('/:id/co-hosts/accept',   acceptCoHostInvite);
+router.post('/:id/co-hosts/decline',  declineCoHostInvite);
+router.delete('/:id/co-hosts/:userId', removeCoHost);
 
 export default router;
