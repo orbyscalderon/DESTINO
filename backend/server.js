@@ -50,6 +50,7 @@ import videoRequestRoutes from './src/routes/videoRequests.js';
 import authRoutes from './src/routes/auth.js';
 import gdprRoutes from './src/routes/gdpr.js';
 import dmcaRoutes from './src/routes/dmca.js';
+import achievementsRoutes from './src/routes/achievements.js';
 import { supabase } from './src/lib/supabase.js';
 
 const app = express();
@@ -167,6 +168,7 @@ app.use('/api/video-requests', videoRequestRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/gdpr', gdprRoutes);
 app.use('/api/dmca', dmcaRoutes);
+app.use('/api/achievements', achievementsRoutes);
 
 // ── Open Graph share routes (para WhatsApp / Telegram / Twitter) ──
 function ogHtml({ title, description, image, url, type = 'website' }) {

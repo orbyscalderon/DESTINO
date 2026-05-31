@@ -48,7 +48,9 @@ export const listShows = async (req, res) => {
       }
     }
 
-    const statusFilter = status === 'live' ? ['live'] : ['scheduled', 'live'];
+    const statusFilter = status === 'live' ? ['live']
+                       : status === 'scheduled' ? ['scheduled']
+                       : ['scheduled', 'live'];
 
     const buildQuery = (withHost) => {
       let q = supabase
@@ -313,6 +315,12 @@ export const startShow = async (req, res) => {
     if (startErr) throw startErr;
 
     res.json({ show: updated });
+
+    // Achievement: primer show del creador (fire-and-forget)
+    try {
+      const { grantAchievement } = await import('./achievementsController.js');
+      grantAchievement(hostId, 'first_show').catch(() => {});
+    } catch {}
 
     // Notificar a suscriptores del creador — fire & forget
     try {
@@ -703,6 +711,16 @@ export const sendTip = async (req, res) => {
     // Acreditar coins (como ingresos) al creador
     await addCoins(show.host_id, Math.round(coinsAmount * CREATOR_CUT), 'tip_received', id);
     await upsertCreatorEarnings(show.host_id, creatorEarnings);
+
+    // Achievements del tipper
+    try {
+      const { grantAchievement } = await import('./achievementsController.js');
+      grantAchievement(tipperId, 'first_tip').catch(() => {});
+      const { data: totalSpent } = await supabase.rpc('sum_user_spent_usd', { p_user_id: tipperId }).catch(() => ({ data: null }));
+      const spent = parseFloat(totalSpent || 0) || amountUSD;
+      if (spent >= 50)  grantAchievement(tipperId, 'big_spender').catch(() => {});
+      if (spent >= 500) grantAchievement(tipperId, 'whale').catch(() => {});
+    } catch {}
 
     // Notificar al creador
     const { data: tipper } = await supabase

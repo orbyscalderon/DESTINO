@@ -149,6 +149,30 @@ function ChannelCard({ show, index }) {
 /* ── Upcoming row (compacto) ────────────────────────────────────── */
 function UpcomingRow({ show }) {
   const cat = categoryLabel(show.category);
+  const [interested, setInterested] = useState(null); // null = loading
+  const [toggling, setToggling] = useState(false);
+
+  useEffect(() => {
+    api.get(`/api/shows/${show.id}/interest`)
+      .then(r => setInterested(!!r.data?.interested))
+      .catch(() => setInterested(false));
+  }, [show.id]);
+
+  const toggle = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setToggling(true);
+    try {
+      const { data } = await api.post(`/api/shows/${show.id}/interest`);
+      setInterested(!!data?.interested);
+      toast.success(data?.interested ? '🔔 Te avisaremos 15 min antes' : 'Recordatorio cancelado');
+    } catch {
+      toast.error('Error');
+    } finally {
+      setToggling(false);
+    }
+  };
+
   return (
     <Link to={`/shows/${show.id}`}>
       <div className="flex items-center gap-3 p-3 rounded-xl bg-dark-800 border border-white/5 hover:border-white/10 transition-colors">
@@ -165,6 +189,15 @@ function UpcomingRow({ show }) {
             {show.host?.is_verified && <VerifiedBadge size={10} />}
           </div>
         </div>
+        <button
+          onClick={toggle}
+          disabled={toggling || interested === null}
+          className={`shrink-0 px-2 py-1 rounded-lg text-[10px] font-bold transition ${
+            interested ? 'bg-brand-500/20 text-brand-300' : 'bg-dark-700 text-gray-400 hover:text-white'
+          }`}
+        >
+          {interested ? '🔔 Avísame' : '+ Recordar'}
+        </button>
         <div className="text-right shrink-0">
           <div className="text-[11px] text-gray-400 flex items-center gap-1 justify-end">
             <FiClock size={9} />

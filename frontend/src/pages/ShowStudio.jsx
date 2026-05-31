@@ -65,6 +65,122 @@ function StatusPill({ status, label, icon: Icon }) {
   );
 }
 
+function PollPanel({ showId, isLive }) {
+  const [poll, setPollData] = useState(null);
+  const [question, setQuestion] = useState('');
+  const [options, setOptions] = useState(['', '']);
+  const [submitting, setSubmitting] = useState(false);
+
+  const load = async () => {
+    if (!showId) return;
+    try {
+      const { data } = await api.get(`/api/shows/${showId}/poll`);
+      setPollData(data?.active ? data : null);
+    } catch {}
+  };
+
+  useEffect(() => { load(); }, [showId]);
+  useEffect(() => {
+    if (!poll?.active) return;
+    const t = setInterval(load, 5000);
+    return () => clearInterval(t);
+  }, [poll?.active]);
+
+  if (!isLive) return (
+    <div className="flex-1 flex items-center justify-center p-4 text-center text-gray-500 text-xs">
+      Las encuestas solo se pueden lanzar mientras el show está en vivo
+    </div>
+  );
+
+  const create = async () => {
+    const q = question.trim();
+    const opts = options.map(o => o.trim()).filter(Boolean);
+    if (!q || opts.length < 2) return toast.error('Pregunta y mínimo 2 opciones');
+    setSubmitting(true);
+    try {
+      await api.post(`/api/shows/${showId}/poll`, { question: q, options: opts, active: true });
+      toast.success('Encuesta publicada');
+      setQuestion(''); setOptions(['', '']);
+      load();
+    } catch {
+      toast.error('Error');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const close = async () => {
+    try {
+      await api.post(`/api/shows/${showId}/poll`, { question: poll.question, options: (poll.results || []).map(r => r.text), active: false });
+      toast.success('Encuesta cerrada');
+      setPollData(null);
+    } catch {
+      toast.error('Error');
+    }
+  };
+
+  if (poll?.active) {
+    const total = poll.total_votes || 0;
+    return (
+      <div className="flex-1 overflow-y-auto p-3 space-y-2">
+        <p className="text-white text-xs font-bold">{poll.question}</p>
+        <div className="space-y-1.5">
+          {(poll.results || []).map((r, i) => {
+            const pct = total > 0 ? Math.round((r.votes / total) * 100) : 0;
+            return (
+              <div key={i} className="bg-dark-800 rounded-lg p-2 relative overflow-hidden">
+                <div className="absolute inset-0 bg-brand-500/20" style={{ width: `${pct}%` }} />
+                <div className="relative flex items-center justify-between text-xs">
+                  <span className="text-white truncate">{r.text}</span>
+                  <span className="text-gray-400 font-mono">{r.votes} · {pct}%</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <p className="text-[10px] text-gray-500 text-center">{total} {total === 1 ? 'voto' : 'votos'}</p>
+        <button onClick={close} className="w-full text-xs font-bold py-2 rounded-lg bg-red-500/15 text-red-300 hover:bg-red-500/25">
+          Cerrar encuesta
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex-1 overflow-y-auto p-3 space-y-2">
+      <p className="text-[10px] text-gray-500 uppercase font-bold">Nueva encuesta</p>
+      <input
+        className="w-full bg-[#111115] border border-white/10 text-white text-xs rounded px-2.5 py-1.5 outline-none focus:border-brand-500/50"
+        placeholder="Pregunta…"
+        value={question}
+        onChange={e => setQuestion(e.target.value.substring(0, 200))}
+      />
+      {options.map((opt, i) => (
+        <div key={i} className="flex gap-1.5">
+          <input
+            className="flex-1 bg-[#111115] border border-white/10 text-white text-xs rounded px-2.5 py-1.5 outline-none focus:border-brand-500/50"
+            placeholder={`Opción ${i + 1}`}
+            value={opt}
+            onChange={e => setOptions(o => o.map((v, j) => j === i ? e.target.value.substring(0, 80) : v))}
+          />
+          {options.length > 2 && (
+            <button onClick={() => setOptions(o => o.filter((_, j) => j !== i))}
+              className="px-2 text-xs text-red-400 hover:text-red-300">×</button>
+          )}
+        </div>
+      ))}
+      {options.length < 4 && (
+        <button onClick={() => setOptions(o => [...o, ''])}
+          className="text-[10px] text-brand-400 hover:text-brand-300">+ Agregar opción</button>
+      )}
+      <button onClick={create} disabled={submitting}
+        className="btn-primary w-full text-xs py-2 disabled:opacity-50">
+        {submitting ? 'Publicando…' : 'Publicar encuesta'}
+      </button>
+    </div>
+  );
+}
+
 export default function ShowStudio() {
   const navigate = useNavigate();
   const { user, profile: authProfile } = useAuthStore();
@@ -1238,6 +1354,7 @@ export default function ShowStudio() {
             { key: 'config',  label: '⚙ Config' },
             { key: 'chat',    label: isLive ? `💬 ${chatMessages.length > 0 ? chatMessages.length : 'Chat'}` : '💬 Chat' },
             { key: 'private', label: `🔒${hasPrivateAlert ? ' 🔴' : ''}${privateMessages.length > 0 ? ` ${privateMessages.length}` : ''}` },
+            { key: 'poll',    label: '📊 Poll' },
             { key: 'viewers', label: isLive ? `👥 ${viewerCount}` : '👥' },
           ].map(t => (
             <button key={t.key} onClick={() => setRightTab(t.key)}
@@ -1612,6 +1729,11 @@ export default function ShowStudio() {
               ))}
             </div>
           )
+        )}
+
+        {/* ── TAB Poll (encuestas en vivo) ── */}
+        {rightTab === 'poll' && (
+          <PollPanel showId={showId} isLive={isLive} />
         )}
 
         {/* ── TAB Viewers ── */}

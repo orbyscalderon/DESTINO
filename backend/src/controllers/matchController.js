@@ -100,6 +100,22 @@ export const likeProfile = async (req, res) => {
     }
 
     if (isMatch) {
+      // Achievements relacionados con matches (idempotente)
+      try {
+        const { grantAchievement } = await import('./achievementsController.js');
+        // Para ambos usuarios
+        for (const uid of [userId, targetUserId]) {
+          const { count } = await supabase
+            .from('matches')
+            .select('id', { count: 'exact', head: true })
+            .eq('is_match', true)
+            .or(`user1_id.eq.${uid},user2_id.eq.${uid}`);
+          await grantAchievement(uid, 'first_match');
+          if ((count || 0) >= 10)  await grantAchievement(uid, 'ten_matches');
+          if ((count || 0) >= 100) await grantAchievement(uid, 'hundred_matches');
+        }
+      } catch {}
+
       sendPushToUser(targetUserId, {
         title: '¡Nuevo match! 💕',
         body: `${myProfile?.full_name || 'Alguien'} también te gustó. ¡Empieza a chatear!`,

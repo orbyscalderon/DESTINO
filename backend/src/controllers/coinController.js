@@ -161,6 +161,18 @@ async function triggerReferralReward(referredId) {
   const REFERRAL_REWARD_COINS = 50;
   await addCoins(use.referrer_id, REFERRAL_REWARD_COINS, 'bonus', 'Bono de referido');
   await supabase.from('referral_uses').update({ rewarded: true }).eq('id', use.id);
+
+  // Achievements de referidor
+  try {
+    const { grantAchievement } = await import('./achievementsController.js');
+    const { count } = await supabase
+      .from('referral_uses')
+      .select('id', { count: 'exact', head: true })
+      .eq('referrer_id', use.referrer_id)
+      .eq('rewarded', true);
+    grantAchievement(use.referrer_id, 'first_referral').catch(() => {});
+    if ((count || 0) >= 10) grantAchievement(use.referrer_id, 'ten_referrals').catch(() => {});
+  } catch {}
 }
 
 // Función utilitaria: gastar coins de un usuario (lanza error si saldo insuficiente)

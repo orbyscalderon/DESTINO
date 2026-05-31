@@ -6,6 +6,7 @@ import { PLATFORM_FEE_RATE } from '../controllers/coinController.js';
 
 const MAX_RENEWAL_RETRIES = 3;
 const AUTO_PAYOUT_INTERVAL_MS = 24 * 60 * 60 * 1000; // 1 vez al día
+const SHOW_REMINDER_INTERVAL_MS = 5 * 60 * 1000;     // cada 5 min
 
 const STALE_SESSION_MINUTES = 5;
 const MAX_LIVE_SHOW_HOURS = 6;
@@ -165,6 +166,64 @@ async function renewCreatorSubscriptions() {
     }
   } catch (err) {
     console.error('renewCreatorSubscriptions error:', err.message);
+  }
+}
+
+// Enviar push 15 min antes de que empiece un show programado
+async function notifyUpcomingScheduledShows() {
+  try {
+    const now = new Date();
+    const in15min = new Date(now.getTime() + 15 * 60 * 1000).toISOString();
+
+    const { data: shows } = await supabase
+      .from('live_shows')
+      .select(`
+        id, title, host_id, scheduled_at,
+        host:profiles!host_id(full_name)
+      `)
+      .eq('status', 'scheduled')
+      .not('scheduled_at', 'is', null)
+      .lt('scheduled_at', in15min)
+      .gte('scheduled_at', now.toISOString())
+      .is('reminder_notified_at', null);
+
+    for (const show of shows || []) {
+      const { data: interests } = await supabase
+        .from('show_interests')
+        .select('user_id, reminder_sent')
+        .eq('show_id', show.id)
+        .eq('reminder_sent', false);
+
+      const userIds = (interests || []).map(i => i.user_id);
+      if (userIds.length === 0) {
+        await supabase.from('live_shows').update({ reminder_notified_at: now.toISOString() }).eq('id', show.id);
+        continue;
+      }
+
+      const minsToStart = Math.max(1, Math.round((new Date(show.scheduled_at) - now) / 60000));
+      const body = `${show.host?.full_name || 'Un creador'} empieza "${show.title}" en ${minsToStart} min`;
+
+      for (const uid of userIds) {
+        createNotification(
+          uid,
+          'show_reminder',
+          '🔴 Tu show empieza pronto',
+          body,
+          { url: `/shows/${show.id}` }
+        ).catch(() => {});
+      }
+
+      await supabase.from('show_interests')
+        .update({ reminder_sent: true })
+        .eq('show_id', show.id)
+        .in('user_id', userIds);
+
+      await supabase.from('live_shows')
+        .update({ reminder_notified_at: now.toISOString() })
+        .eq('id', show.id);
+    }
+  } catch (err) {
+    console.error('notifyUpcomingScheduledShows error:', err.message);
   }
 }
 
@@ -377,5 +436,9 @@ export function startCleanupJob() {
   processAutoPayouts();
   setInterval(processAutoPayouts, AUTO_PAYOUT_INTERVAL_MS);
 
-  console.log('🧹 Cleanup job iniciado (sesiones video 30s, shows 5min, renovaciones/boosts/matches 6h, payouts 24h)');
+  // Recordatorios de shows programados cada 5 min
+  notifyUpcomingScheduledShows();
+  setInterval(notifyUpcomingScheduledShows, SHOW_REMINDER_INTERVAL_MS);
+
+  console.log('🧹 Cleanup job iniciado (sesiones video 30s, shows 5min, recordatorios 5min, renovaciones/boosts/matches 6h, payouts 24h)');
 }

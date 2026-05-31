@@ -429,6 +429,19 @@ export const confirmCreatorSubscription = async (req, res) => {
 
     const { data: sub } = await supabase.from('profiles').select('full_name').eq('id', subscriberId).single();
     createNotification(creatorId, 'subscription', '¡Nuevo suscriptor!', `${sub?.full_name} se suscribió a tu contenido`, { subscriber_id: subscriberId });
+
+    // Achievements de suscripciones (creator side)
+    try {
+      const { grantAchievement } = await import('./achievementsController.js');
+      const { count: activeSubs } = await supabase
+        .from('creator_subscriptions')
+        .select('id', { count: 'exact', head: true })
+        .eq('creator_id', creatorId)
+        .eq('status', 'active');
+      grantAchievement(creatorId, 'first_sub').catch(() => {});
+      if ((activeSubs || 0) >= 10)  grantAchievement(creatorId, 'ten_subs').catch(() => {});
+      if ((activeSubs || 0) >= 100) grantAchievement(creatorId, 'hundred_subs').catch(() => {});
+    } catch {}
     sendPushToUser(creatorId, {
       title: '¡Nuevo suscriptor!',
       body: `${sub?.full_name} se suscribió a tu contenido`,

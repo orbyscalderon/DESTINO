@@ -622,6 +622,28 @@ export default function Profile() {
               </div>
             </button>
 
+            <Link to="/achievements" className="flex items-center gap-3 p-3.5 hover:bg-white/5 transition-colors">
+              <div className="w-8 h-8 bg-yellow-500/20 rounded-xl flex items-center justify-center shrink-0">
+                <span className="text-base">🏆</span>
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-white">Logros y nivel</p>
+                <p className="text-xs text-gray-500">Sube de nivel y gana coins</p>
+              </div>
+              <FiChevronRight size={14} className="text-gray-600" />
+            </Link>
+
+            <Link to="/referrals" className="flex items-center gap-3 p-3.5 hover:bg-white/5 transition-colors">
+              <div className="w-8 h-8 bg-pink-500/20 rounded-xl flex items-center justify-center shrink-0">
+                <span className="text-base">🎁</span>
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-white">Invita y gana 50 coins</p>
+                <p className="text-xs text-gray-500">Por cada amigo que se una</p>
+              </div>
+              <FiChevronRight size={14} className="text-gray-600" />
+            </Link>
+
             <Link to="/settings" className="flex items-center gap-3 p-3.5 hover:bg-white/5 transition-colors">
               <div className="w-8 h-8 bg-dark-600 rounded-xl flex items-center justify-center shrink-0">
                 <FiSettings size={14} className="text-gray-400" />
