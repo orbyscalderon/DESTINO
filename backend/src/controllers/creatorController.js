@@ -28,24 +28,97 @@ const stripeNotConfigured = (res) =>
   res.status(503).json({ error: 'Pagos no configurados aún', code: 'STRIPE_NOT_CONFIGURED' });
 
 // POST /api/creator/register — activar cuenta de creador
+// Body:
+//   { creatorType: 'normal' | 'adult',
+//     acceptedTerms: true,
+//     acceptedAdultTerms?: true (requerido si creatorType==='adult'),
+//     country?: 'US' | 'ES' | ... (opcional, default 'US') }
 export const becomeCreator = async (req, res) => {
   try {
     const userId = req.user.id;
-    console.log('[becomeCreator] userId:', userId);
+    const userEmail = req.user.email;
+    const {
+      creatorType = 'normal',
+      acceptedTerms,
+      acceptedAdultTerms,
+      country,
+    } = req.body || {};
 
-    // Paso 1: activar is_creator en profiles
-    const { data: updated, error: updateErr } = await supabase
+    if (!['normal', 'adult'].includes(creatorType)) {
+      return res.status(400).json({ error: 'creatorType inválido' });
+    }
+    if (!acceptedTerms) {
+      return res.status(400).json({ error: 'Debes aceptar los términos de creador' });
+    }
+    if (creatorType === 'adult' && !acceptedAdultTerms) {
+      return res.status(400).json({ error: 'Debes aceptar los términos adicionales para contenido adulto' });
+    }
+
+    // Leer profile actual para country/edad
+    const { data: profile } = await supabase
       .from('profiles')
-      .update({ is_creator: true })
+      .select('id, is_creator, is_adult_creator, age, country, stripe_account_id, full_name')
       .eq('id', userId)
-      .select('id, is_creator');
+      .single();
 
-    console.log('[becomeCreator] update result:', { updated, updateErr });
+    if (!profile) return res.status(404).json({ error: 'Perfil no encontrado' });
+
+    // Validaciones para creator adulto
+    if (creatorType === 'adult') {
+      const age = profile.age;
+      if (age !== null && age !== undefined && age < 18) {
+        return res.status(403).json({ error: 'Debes ser mayor de 18 años para contenido adulto' });
+      }
+    }
+
+    const now = new Date().toISOString();
+    const update = {
+      is_creator: true,
+      creator_terms_accepted_at: now,
+      creator_terms_version: 'v1',
+    };
+    if (creatorType === 'adult') {
+      update.is_adult_creator = true;
+      update.adult_terms_accepted_at = now;
+      update.adult_terms_version = 'v1';
+    }
+
+    // Crear cuenta Stripe Connect Express si no existe (necesaria para payouts)
+    if (stripe && !profile.stripe_account_id) {
+      try {
+        const stripeCountry = (country || profile.country || 'US').toUpperCase();
+        const account = await stripe.accounts.create({
+          type: 'express',
+          country: stripeCountry,
+          email: userEmail,
+          capabilities: {
+            transfers: { requested: true },
+            card_payments: { requested: true },
+          },
+          business_type: 'individual',
+          metadata: {
+            supabase_user_id: userId,
+            creator_type: creatorType,
+          },
+        });
+        update.stripe_account_id = account.id;
+        update.stripe_account_status = 'pending';
+      } catch (err) {
+        console.warn('[becomeCreator] stripe.accounts.create failed:', err.message);
+        // No bloqueamos el registro de creator — se puede reintentar en setup
+      }
+    }
+
+    const { error: updateErr } = await supabase
+      .from('profiles')
+      .update(update)
+      .eq('id', userId);
+
     if (updateErr) {
       return res.status(500).json({ error: `Error actualizando perfil: ${updateErr.message}` });
     }
 
-    // Paso 2: crear fila de earnings (no crítico, ignorar error)
+    // Crear fila de earnings (no crítico)
     const { error: earnErr } = await supabase
       .from('creator_earnings')
       .upsert(
@@ -54,7 +127,11 @@ export const becomeCreator = async (req, res) => {
       );
     if (earnErr) console.warn('[becomeCreator] creator_earnings upsert warning:', earnErr.message);
 
-    res.json({ success: true });
+    res.json({
+      success: true,
+      creatorType,
+      stripeAccountCreated: !!update.stripe_account_id && !profile.stripe_account_id,
+    });
   } catch (err) {
     console.error('[becomeCreator] catch:', err.message);
     res.status(500).json({ error: err.message || 'Error interno del servidor' });
@@ -62,24 +139,56 @@ export const becomeCreator = async (req, res) => {
 };
 
 // GET /api/creator/onboarding-link — URL de configuración de pagos en Stripe
+// Si todavía no existe stripe_account_id, lo crea perezosamente. Esto cubre
+// cuentas de creador legacy que se activaron antes de v33, o cuando la creación
+// inicial en becomeCreator falló (stripe en mantenimiento, etc.)
 export const getOnboardingLink = async (req, res) => {
   if (!stripe) return stripeNotConfigured(res);
 
   try {
     const userId = req.user.id;
+    const userEmail = req.user.email;
 
     const { data: profile } = await supabase
       .from('profiles')
-      .select('stripe_account_id, is_creator')
+      .select('stripe_account_id, is_creator, is_adult_creator, country')
       .eq('id', userId)
       .single();
 
-    if (!profile?.is_creator || !profile?.stripe_account_id) {
+    if (!profile?.is_creator) {
       return res.status(400).json({ error: 'Primero debes activar tu cuenta de creador' });
     }
 
+    let accountId = profile.stripe_account_id;
+    if (!accountId) {
+      try {
+        const account = await stripe.accounts.create({
+          type: 'express',
+          country: (profile.country || 'US').toUpperCase(),
+          email: userEmail,
+          capabilities: {
+            transfers: { requested: true },
+            card_payments: { requested: true },
+          },
+          business_type: 'individual',
+          metadata: {
+            supabase_user_id: userId,
+            creator_type: profile.is_adult_creator ? 'adult' : 'normal',
+          },
+        });
+        accountId = account.id;
+        await supabase
+          .from('profiles')
+          .update({ stripe_account_id: accountId, stripe_account_status: 'pending' })
+          .eq('id', userId);
+      } catch (err) {
+        console.error('getOnboardingLink stripe.accounts.create:', err.message);
+        return res.status(500).json({ error: 'No se pudo crear la cuenta de Stripe: ' + err.message });
+      }
+    }
+
     const accountLink = await stripe.accountLinks.create({
-      account: profile.stripe_account_id,
+      account: accountId,
       refresh_url: `${process.env.FRONTEND_URL}/#/creator/dashboard?onboarding=refresh`,
       return_url: `${process.env.FRONTEND_URL}/#/creator/dashboard?onboarding=complete`,
       type: 'account_onboarding',
