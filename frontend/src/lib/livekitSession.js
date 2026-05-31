@@ -13,6 +13,7 @@ export class LiveKitSession {
     this.onRemoteTrackEnded = null;
     this.onParticipantLeft = null;
     this.onLocalVideo      = null;
+    this.onRemoteMuteChange = null; // (kind, muted, participant) — para indicadores UI
   }
 
   async join(canPublish = true, { skipAutoMedia = false } = {}) {
@@ -37,6 +38,18 @@ export class LiveKitSession {
 
     this.room.on(RoomEvent.TrackUnsubscribed, (track, pub, participant) => {
       this.onRemoteTrackEnded?.(track, participant);
+    });
+
+    // Indicadores de mute remoto (mic/cam off del partner)
+    this.room.on(RoomEvent.TrackMuted, (pub, participant) => {
+      if (!participant?.isLocal) {
+        this.onRemoteMuteChange?.(pub.kind, true, participant);
+      }
+    });
+    this.room.on(RoomEvent.TrackUnmuted, (pub, participant) => {
+      if (!participant?.isLocal) {
+        this.onRemoteMuteChange?.(pub.kind, false, participant);
+      }
     });
 
     this.room.on(RoomEvent.ParticipantDisconnected, (participant) => {

@@ -6,6 +6,8 @@ import api from '../../lib/api.js';
 import { LiveKitSession } from '../../lib/livekitSession.js';
 import { supabase } from '../../lib/supabase.js';
 import { useAuthStore } from '../../store/authStore.js';
+import { VideoEffectProcessor } from '../../lib/videoEffects.js';
+import VideoEffectsButton, { loadSavedEffect, saveEffect } from './VideoEffectsButton.jsx';
 import { countryByCode, languageByCode } from '../../lib/geodata.js';
 import { showInterstitial } from '../../lib/admob.js';
 import FlagImg from './FlagImg.jsx';
@@ -33,6 +35,10 @@ export default function VideoRoom({ genderFilter, countryFilter, videoCallsRemai
   const [localActive,   setLocalActive]   = useState(false);
   const [partnerId,     setPartnerId]     = useState(null);
   const [friendReq,     setFriendReq]     = useState('idle'); // 'idle'|'sending'|'sent'|'done'
+  const [partnerMicOff, setPartnerMicOff] = useState(false);
+  const [partnerCamOff, setPartnerCamOff] = useState(false);
+  const [effect, setEffectState] = useState(loadSavedEffect());
+  const effectRef = useRef(null);
 
   const rtcRef          = useRef(null);
   const localVidRef     = useRef(null);
@@ -84,11 +90,65 @@ export default function VideoRoom({ genderFilter, countryFilter, videoCallsRemai
     if (remoteVidRef.current) {
       try { remoteVidRef.current.srcObject = null; } catch {}
     }
+    if (effectRef.current) {
+      effectRef.current.stop();
+      effectRef.current = null;
+    }
     localStream.current?.getTracks().forEach(t => t.stop());
     localStream.current = null;
     setLocalActive(false);
     await rtcRef.current?.leave().catch(() => {});
     rtcRef.current = null;
+  };
+
+  // Cambia el efecto en vivo (sin reiniciar la llamada)
+  const handleEffectChange = async (next) => {
+    setEffectState(next);
+    saveEffect(next);
+
+    // Si no hay llamada activa, solo guarda preferencia
+    if (!rtcRef.current || !localStream.current) return;
+
+    // Si ya hay processor: solo cambia el modo (no hay reemplazo de track)
+    if (effectRef.current) {
+      if (next === 'none') {
+        // Apagar processor → republicar raw stream
+        const raw = await navigator.mediaDevices.getUserMedia({ audio: false, video: true });
+        const rawVideo = raw.getVideoTracks()[0];
+        await rtcRef.current.replaceVideoTrack(rawVideo).catch(() => {});
+        effectRef.current.stop();
+        effectRef.current = null;
+        // Reemplazar también la preview local
+        const audio = localStream.current.getAudioTracks()[0];
+        const merged = new MediaStream([rawVideo, ...(audio ? [audio] : [])]);
+        if (localVidRef.current) localVidRef.current.srcObject = merged;
+        localStream.current = merged;
+      } else {
+        effectRef.current.setEffect(next);
+      }
+      return;
+    }
+
+    // No había processor → crear uno con el stream actual
+    if (next !== 'none') {
+      try {
+        const audio = localStream.current.getAudioTracks()[0];
+        // Necesitamos el stream raw — obtener uno nuevo de la cámara
+        const raw = await navigator.mediaDevices.getUserMedia({ audio: false, video: true });
+        const processor = new VideoEffectProcessor();
+        const processed = await processor.process(raw, next);
+        effectRef.current = processor;
+        const procVideo = processed.getVideoTracks()[0];
+        await rtcRef.current.replaceVideoTrack(procVideo).catch(() => {});
+        const merged = new MediaStream([procVideo, ...(audio ? [audio] : [])]);
+        if (localVidRef.current) localVidRef.current.srcObject = merged;
+        localStream.current = merged;
+      } catch (err) {
+        toast.error('No se pudo activar el efecto');
+        setEffectState('none');
+        saveEffect('none');
+      }
+    }
   };
 
   const startCall = async (sessionData) => {
@@ -98,11 +158,32 @@ export default function VideoRoom({ genderFilter, countryFilter, videoCallsRemai
       if (sessionData.partner.id) setPartnerId(sessionData.partner.id);
     }
 
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
-    if (!activeRef.current) { stream.getTracks().forEach(t => t.stop()); return; }
-    localStream.current = stream;
+    const rawStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+    if (!activeRef.current) { rawStream.getTracks().forEach(t => t.stop()); return; }
+    localStream.current = rawStream;
+
+    // Aplicar efecto si está activo (blur/beauty). El stream "publicado" es el
+    // procesado; el preview local sigue mostrando el procesado también.
+    let publishStream = rawStream;
+    if (effect !== 'none') {
+      try {
+        effectRef.current = new VideoEffectProcessor();
+        publishStream = await effectRef.current.process(rawStream, effect);
+        // Mezclar audio original con video procesado
+        const audioTrack = rawStream.getAudioTracks()[0];
+        if (audioTrack) publishStream.addTrack(audioTrack);
+      } catch (err) {
+        console.warn('VideoEffects failed, fallback to raw stream:', err.message);
+        effectRef.current?.stop();
+        effectRef.current = null;
+        publishStream = rawStream;
+      }
+    }
+
     setLocalActive(true);
-    if (localVidRef.current) localVidRef.current.srcObject = stream;
+    if (localVidRef.current) localVidRef.current.srcObject = publishStream;
+    // Sustituir referencia para que cleanup() corte el track procesado también
+    localStream.current = publishStream;
 
     const rtc = new LiveKitSession(roomName);
     rtc.onReconnecting = () => toast.loading('Reconectando…', { id: 'rtc-reconnect' });
@@ -150,9 +231,15 @@ export default function VideoRoom({ genderFilter, countryFilter, videoCallsRemai
       clearInterval(timerRef.current);
     };
 
+    rtc.onRemoteMuteChange = (kind, muted) => {
+      if (!activeRef.current) return;
+      if (kind === 'audio') setPartnerMicOff(muted);
+      else if (kind === 'video') setPartnerCamOff(muted);
+    };
+
     rtcRef.current = rtc;
     await rtc.join(true, { skipAutoMedia: true });
-    await rtc.publishStream(stream);
+    await rtc.publishStream(publishStream);
 
     if (!sessionData.waiting) {
       setStatus('connected');
@@ -186,6 +273,8 @@ export default function VideoRoom({ genderFilter, countryFilter, videoCallsRemai
     setCallDuration(0);
     setPartnerId(null);
     setFriendReq('idle');
+    setPartnerMicOff(false);
+    setPartnerCamOff(false);
     clearInterval(timerRef.current);
     try {
       const { data } = await api.post('/api/video/find-partner', { genderFilter, countryFilter });
@@ -404,6 +493,24 @@ export default function VideoRoom({ genderFilter, countryFilter, videoCallsRemai
             )}
           </AnimatePresence>
 
+          {/* Partner cam OFF — overlay tipo "videocámara apagada" */}
+          {status === 'connected' && partnerCamOff && (
+            <div className="absolute inset-0 bg-dark-900/95 flex flex-col items-center justify-center z-20">
+              <div className="w-20 h-20 rounded-full bg-dark-700 flex items-center justify-center mb-3">
+                <FiVideoOff size={32} className="text-gray-500" />
+              </div>
+              <p className="text-white text-sm font-semibold">Pareja apagó la cámara</p>
+            </div>
+          )}
+
+          {/* Partner mic OFF — chip pequeño arriba */}
+          {status === 'connected' && partnerMicOff && (
+            <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 bg-red-500/90 backdrop-blur-sm rounded-full px-3 py-1.5">
+              <FiMicOff size={11} className="text-white" />
+              <span className="text-[10px] text-white font-bold uppercase tracking-wide">Pareja muteada</span>
+            </div>
+          )}
+
           {/* Partner country / language badge */}
           {status === 'connected' && partner && (partner.country || partner.language) && (
             <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-black/60 backdrop-blur-sm px-2.5 py-1.5 rounded-xl z-10">
@@ -499,6 +606,8 @@ export default function VideoRoom({ genderFilter, countryFilter, videoCallsRemai
           >
             {camOn ? <FiVideo size={18} /> : <FiVideoOff size={18} />}
           </button>
+
+          <VideoEffectsButton value={effect} onChange={handleEffectChange} />
         </div>
       )}
     </div>
