@@ -7,11 +7,11 @@ export const PLATFORM_FEE_RATE = 0.30;
 export const CREATOR_CUT = 1 - PLATFORM_FEE_RATE; // 0.70
 
 export const COIN_PACKAGES = [
-  { id: 'coins_100',  coins: 100,  price_usd: 5.00,  label: '100 Coins',  bonus: '' },
-  { id: 'coins_250',  coins: 250,  price_usd: 10.00, label: '250 Coins',  bonus: '' },
-  { id: 'coins_600',  coins: 600,  price_usd: 22.00, label: '600 Coins',  bonus: '+50 bonus' },
-  { id: 'coins_1500', coins: 1500, price_usd: 50.00, label: '1500 Coins', bonus: '+200 bonus' },
-  { id: 'coins_3500', coins: 3500, price_usd: 100.00, label: '3500 Coins', bonus: '+500 bonus' },
+  { id: 'coins_100',  coins: 100,  bonus_coins: 0,   price_usd: 5.00,   label: '100 Coins' },
+  { id: 'coins_250',  coins: 250,  bonus_coins: 0,   price_usd: 10.00,  label: '250 Coins' },
+  { id: 'coins_600',  coins: 600,  bonus_coins: 50,  price_usd: 22.00,  label: '600 Coins' },
+  { id: 'coins_1500', coins: 1500, bonus_coins: 200, price_usd: 50.00,  label: '1500 Coins' },
+  { id: 'coins_3500', coins: 3500, bonus_coins: 500, price_usd: 100.00, label: '3500 Coins' },
 ];
 
 export function coinsToUSD(coins) {
@@ -59,6 +59,7 @@ export const purchaseCoins = async (req, res) => {
         user_id: req.user.id,
         package_id: packageId,
         coins: pkg.coins,
+        bonus_coins: pkg.bonus_coins || 0,
       },
     });
 
@@ -98,14 +99,20 @@ export const confirmCoinPurchase = async (req, res) => {
       return res.json({ success: true, coins: profile?.coins_balance || 0 });
     }
 
-    const coins = parseInt(pi.metadata.coins);
+    const coins      = parseInt(pi.metadata.coins) || 0;
+    const bonusCoins = parseInt(pi.metadata.bonus_coins) || 0;
+
+    // Acreditar base + bonus en transacciones separadas para trazabilidad
     await addCoins(userId, coins, 'purchase', null, paymentIntentId);
+    if (bonusCoins > 0) {
+      await addCoins(userId, bonusCoins, 'bonus', `pkg_bonus:${pi.metadata.package_id}`);
+    }
 
     // Reward referrer on user's first purchase (fire-and-forget, non-blocking)
     triggerReferralReward(userId).catch(() => {});
 
     const { data: profile } = await supabase.from('profiles').select('coins_balance').eq('id', userId).single();
-    res.json({ success: true, coins: profile?.coins_balance || 0 });
+    res.json({ success: true, coins: profile?.coins_balance || 0, credited: coins + bonusCoins });
   } catch (err) {
     console.error('confirmCoinPurchase error:', err.message);
     res.status(500).json({ error: 'Error interno del servidor' });

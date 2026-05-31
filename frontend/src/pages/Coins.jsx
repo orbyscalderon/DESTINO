@@ -88,7 +88,8 @@ export default function Coins() {
     try {
       const confirm = await api.post('/api/coins/purchase/confirm', { paymentIntentId });
       setBalance(prev => confirm.data.coins ?? prev);
-      toast.success(`¡${paymentModal.pkg.coins} coins añadidos!`);
+      const total = paymentModal.pkg.coins + (paymentModal.pkg.bonus_coins || 0);
+      toast.success(`¡${fmtCoins(total)} coins añadidos!`);
       setPaymentModal(null);
       const t = await api.get('/api/coins/transactions');
       setTransactions(t.data.transactions || []);
@@ -160,9 +161,8 @@ export default function Coins() {
         {packages.map((pkg, idx) => {
           const isBestValue = idx === BEST_VALUE_IDX;
           const isPopular   = idx === POPULAR_IDX;
-          const totalCoins  = pkg.bonus
-            ? pkg.coins + parseInt(String(pkg.bonus).replace(/\D/g, '')) || pkg.coins
-            : pkg.coins;
+          const bonus       = pkg.bonus_coins || 0;
+          const totalCoins  = pkg.coins + bonus;
           const coinsPerDollar = pkg.price_usd > 0 ? Math.round(totalCoins / pkg.price_usd) : 0;
           const baseRate = 20; // 20 coins/$ = $0.05/coin (sin descuento)
           const discount = coinsPerDollar > baseRate ? Math.round(((coinsPerDollar - baseRate) / baseRate) * 100) : 0;
@@ -189,12 +189,12 @@ export default function Coins() {
                   ⭐ POPULAR
                 </div>
               )}
-              <div className="flex items-center gap-2 mb-2">
+              <div className="flex items-center gap-2 mb-2 flex-wrap">
                 <FiZap className="text-yellow-400" size={16} />
-                <span className="text-white font-bold">{fmtCoins(pkg.coins)}</span>
-                {pkg.bonus && (
+                <span className="text-white font-bold">{fmtCoins(totalCoins)}</span>
+                {bonus > 0 && (
                   <span className="text-[10px] bg-green-500/20 text-green-400 px-1.5 py-0.5 rounded-full font-medium">
-                    {pkg.bonus}
+                    +{fmtCoins(bonus)} bonus
                   </span>
                 )}
               </div>
@@ -219,7 +219,7 @@ export default function Coins() {
           <PaymentModal
             clientSecret={paymentModal.clientSecret}
             amount={`$${paymentModal.pkg.price_usd}`}
-            description={`${fmtCoins(paymentModal.pkg.coins)} Coins`}
+            description={`${fmtCoins(paymentModal.pkg.coins + (paymentModal.pkg.bonus_coins || 0))} Coins`}
             onSuccess={handlePaymentSuccess}
             onClose={() => setPaymentModal(null)}
           />
