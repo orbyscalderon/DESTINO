@@ -135,7 +135,11 @@ export default function VideoRoom({ genderFilter, countryFilter, videoCallsRemai
   };
 
   const startCall = async (sessionData) => {
-    const roomName = `video_${sessionData.sessionId.replace(/-/g, '')}`;
+    // Usar el channelName generado por el backend (formato "Destino TV_<hex>")
+    // que es el único que pasa el regex de assertRoomAccess en livekitController.
+    // Fallback al sessionId solo si por algún motivo el backend no lo envía.
+    const roomName = sessionData.channelName
+      || `Destino TV_${sessionData.sessionId.replace(/-/g, '').substring(0, 16)}`;
     if (sessionData.partner) {
       setPartner(sessionData.partner);
       if (sessionData.partner.id) setPartnerId(sessionData.partner.id);
