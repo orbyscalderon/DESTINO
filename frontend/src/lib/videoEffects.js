@@ -86,12 +86,15 @@ export class VideoEffectProcessor {
     this.maskCanvas.height = h;
     this.maskCtx = this.maskCanvas.getContext('2d');
 
+    // Dibujar primer frame (passthrough) ANTES de captureStream para que el
+    // track de video tenga frames cuando se publique a LiveKit
+    try { this.outCtx.drawImage(this.video, 0, 0, w, h); } catch {}
+
     // Stream de salida — FPS del input (típico 30)
     this.outStream = this.outCanvas.captureStream(30);
 
-    // Precargar segmenter si el efecto inicial lo necesita (lazy si es 'none')
-    if (this.effect === 'blur') this.segmenter = await getSegmenter().catch(() => null);
-
+    // No bloquear esperando MediaPipe. Si effect es 'blur', el modelo se carga
+    // en _loop() y mientras tanto se hace passthrough.
     this.running = true;
     this._loop();
     return this.outStream;
@@ -114,17 +117,19 @@ export class VideoEffectProcessor {
         this.outCtx.drawImage(this.video, 0, 0, w, h);
         this.outCtx.filter = 'none';
       } else if (this.effect === 'blur') {
-        // Si segmenter aún no listo, cargar y mientras tanto solo blur global
-        if (!this.segmenter) {
-          this.segmenter = await getSegmenter().catch(() => null);
-          if (!this.segmenter) {
-            // Fallback: cae a 'none' si MediaPipe falló
-            this.effect = 'none';
-            this.outCtx.filter = 'none';
-            this.outCtx.drawImage(this.video, 0, 0, w, h);
-          }
+        // Si segmenter aún no listo, hacer passthrough Y disparar carga lazy
+        if (!this.segmenter && !this._loadingSegmenter) {
+          this._loadingSegmenter = true;
+          getSegmenter()
+            .then(s => { this.segmenter = s; })
+            .catch(() => { this.effect = 'none'; })
+            .finally(() => { this._loadingSegmenter = false; });
         }
-        if (this.segmenter) {
+        if (!this.segmenter) {
+          // Passthrough mientras MediaPipe carga
+          this.outCtx.filter = 'none';
+          this.outCtx.drawImage(this.video, 0, 0, w, h);
+        } else {
           // 1) Background blureado en outCanvas
           this.outCtx.filter = 'blur(14px) brightness(0.95)';
           this.outCtx.drawImage(this.video, 0, 0, w, h);

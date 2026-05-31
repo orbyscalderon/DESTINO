@@ -101,53 +101,36 @@ export default function VideoRoom({ genderFilter, countryFilter, videoCallsRemai
     rtcRef.current = null;
   };
 
-  // Cambia el efecto en vivo (sin reiniciar la llamada)
+  // Cambia el efecto en vivo (sin reiniciar la llamada).
+  // localStream.current SIEMPRE apunta al stream raw original — el processor
+  // genera un track derivado que se intercambia vía replaceVideoTrack.
   const handleEffectChange = async (next) => {
     setEffectState(next);
     saveEffect(next);
 
-    // Si no hay llamada activa, solo guarda preferencia
     if (!rtcRef.current || !localStream.current) return;
 
-    // Si ya hay processor: solo cambia el modo (no hay reemplazo de track)
-    if (effectRef.current) {
-      if (next === 'none') {
-        // Apagar processor → republicar raw stream
-        const raw = await navigator.mediaDevices.getUserMedia({ audio: false, video: true });
-        const rawVideo = raw.getVideoTracks()[0];
-        await rtcRef.current.replaceVideoTrack(rawVideo).catch(() => {});
+    if (next === 'none') {
+      // Apagar: republicar el video raw original
+      if (effectRef.current) {
+        const rawVideo = localStream.current.getVideoTracks()[0];
+        if (rawVideo) {
+          await rtcRef.current.replaceVideoTrack(rawVideo).catch(() => {});
+          if (localVidRef.current) localVidRef.current.srcObject = localStream.current;
+        }
         effectRef.current.stop();
         effectRef.current = null;
-        // Reemplazar también la preview local
-        const audio = localStream.current.getAudioTracks()[0];
-        const merged = new MediaStream([rawVideo, ...(audio ? [audio] : [])]);
-        if (localVidRef.current) localVidRef.current.srcObject = merged;
-        localStream.current = merged;
-      } else {
-        effectRef.current.setEffect(next);
       }
       return;
     }
 
-    // No había processor → crear uno con el stream actual
-    if (next !== 'none') {
-      try {
-        const audio = localStream.current.getAudioTracks()[0];
-        // Necesitamos el stream raw — obtener uno nuevo de la cámara
-        const raw = await navigator.mediaDevices.getUserMedia({ audio: false, video: true });
-        const processor = new VideoEffectProcessor();
-        const processed = await processor.process(raw, next);
-        effectRef.current = processor;
-        const procVideo = processed.getVideoTracks()[0];
-        await rtcRef.current.replaceVideoTrack(procVideo).catch(() => {});
-        const merged = new MediaStream([procVideo, ...(audio ? [audio] : [])]);
-        if (localVidRef.current) localVidRef.current.srcObject = merged;
-        localStream.current = merged;
-      } catch (err) {
-        toast.error('No se pudo activar el efecto');
-        setEffectState('none');
-        saveEffect('none');
-      }
+    // Activar/cambiar effect
+    if (effectRef.current) {
+      // Solo cambiar modo
+      effectRef.current.setEffect(next);
+    } else {
+      // Crear nuevo processor con el rawStream actual (reusamos cámara)
+      await applyEffectInBackground(localStream.current, next);
     }
   };
 
@@ -162,28 +145,10 @@ export default function VideoRoom({ genderFilter, countryFilter, videoCallsRemai
     if (!activeRef.current) { rawStream.getTracks().forEach(t => t.stop()); return; }
     localStream.current = rawStream;
 
-    // Aplicar efecto si está activo (blur/beauty). El stream "publicado" es el
-    // procesado; el preview local sigue mostrando el procesado también.
-    let publishStream = rawStream;
-    if (effect !== 'none') {
-      try {
-        effectRef.current = new VideoEffectProcessor();
-        publishStream = await effectRef.current.process(rawStream, effect);
-        // Mezclar audio original con video procesado
-        const audioTrack = rawStream.getAudioTracks()[0];
-        if (audioTrack) publishStream.addTrack(audioTrack);
-      } catch (err) {
-        console.warn('VideoEffects failed, fallback to raw stream:', err.message);
-        effectRef.current?.stop();
-        effectRef.current = null;
-        publishStream = rawStream;
-      }
-    }
-
+    // Siempre empezamos con el stream RAW para que la llamada conecte rápido.
+    // Si hay efecto activo, se aplica en background y luego replaceVideoTrack.
     setLocalActive(true);
-    if (localVidRef.current) localVidRef.current.srcObject = publishStream;
-    // Sustituir referencia para que cleanup() corte el track procesado también
-    localStream.current = publishStream;
+    if (localVidRef.current) localVidRef.current.srcObject = rawStream;
 
     const rtc = new LiveKitSession(roomName);
     rtc.onReconnecting = () => toast.loading('Reconectando…', { id: 'rtc-reconnect' });
@@ -239,10 +204,49 @@ export default function VideoRoom({ genderFilter, countryFilter, videoCallsRemai
 
     rtcRef.current = rtc;
     await rtc.join(true, { skipAutoMedia: true });
-    await rtc.publishStream(publishStream);
+    await rtc.publishStream(rawStream);
 
     if (!sessionData.waiting) {
       setStatus('connected');
+    }
+
+    // Aplicar efecto en background si está activo (no bloquea la conexión)
+    if (effect !== 'none') {
+      applyEffectInBackground(rawStream, effect);
+    }
+  };
+
+  // Aplica un efecto (blur/beauty) al stream actual sin bloquear la llamada.
+  // Si tarda o falla, mantenemos el raw stream y avisamos al usuario.
+  const applyEffectInBackground = async (rawStream, nextEffect) => {
+    if (effectRef.current) {
+      // Ya hay processor — solo cambia el modo
+      effectRef.current.setEffect(nextEffect);
+      return;
+    }
+    try {
+      const processor = new VideoEffectProcessor();
+      const processed = await processor.process(rawStream, nextEffect);
+      // Verificar que seguimos en una llamada activa
+      if (!activeRef.current || !rtcRef.current) { processor.stop(); return; }
+
+      const procVideo = processed.getVideoTracks()[0];
+      if (!procVideo) { processor.stop(); return; }
+
+      // Esperar UN frame para asegurar que el canvas ya dibujó algo antes de publicar
+      await new Promise(r => requestAnimationFrame(() => r()));
+
+      effectRef.current = processor;
+      await rtcRef.current.replaceVideoTrack(procVideo).catch(() => {});
+
+      // Mostrar preview procesado localmente
+      const audio = rawStream.getAudioTracks()[0];
+      const previewStream = new MediaStream([procVideo, ...(audio ? [audio] : [])]);
+      if (localVidRef.current) localVidRef.current.srcObject = previewStream;
+    } catch (err) {
+      console.warn('Effect failed in background:', err.message);
+      effectRef.current?.stop();
+      effectRef.current = null;
     }
   };
 
