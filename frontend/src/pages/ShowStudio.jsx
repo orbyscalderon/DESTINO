@@ -17,6 +17,9 @@ import { LiveKitSession } from '../lib/livekitSession.js';
 import { useAuthStore } from '../store/authStore.js';
 import { SHOW_CATEGORIES } from './LiveShows.jsx';
 import DraggableTipGoal from '../components/ui/DraggableTipGoal.jsx';
+import BigGiftAnimation, { useGiftAnimationQueue } from '../components/ui/BigGiftAnimation.jsx';
+import CaptionOverlay from '../components/ui/CaptionOverlay.jsx';
+import { useCaptionsHost, captionsSupported } from '../lib/useLiveCaptions.js';
 
 const REACTIONS = ['❤️', '🔥', '⭐', '😍'];
 
@@ -321,6 +324,10 @@ export default function ShowStudio() {
   // ── LIVE STATE ───────────────────────────────────────────────────────────────
   const [showId, setShowId]                         = useState(null);
   const [isLive, setIsLive]                         = useState(false);
+  const [captionsOn, setCaptionsOn]                  = useState(false);
+  const bigGiftQueue                                 = useGiftAnimationQueue();
+  const bigGiftQueueRef                              = useRef(bigGiftQueue);
+  bigGiftQueueRef.current                            = bigGiftQueue;
   const [pendingLocalStream, setPendingLocalStream] = useState(null);
   const [liveDuration, setLiveDuration]             = useState(0);
   const [viewerCount, setViewerCount]               = useState(0);
@@ -484,6 +491,15 @@ export default function ShowStudio() {
     const timer = setInterval(ping, 30_000);
     return () => clearInterval(timer);
   }, [isLive, showId]);
+
+  // Live captions del host (cuando captionsOn + isLive)
+  useCaptionsHost(showId, profile?.language ? `${profile.language}-${profile.country || 'ES'}` : 'es-ES', isLive && captionsOn);
+
+  // Sincronizar captions_enabled en el show para que el viewer renderice el overlay
+  useEffect(() => {
+    if (!showId || !isLive) return;
+    supabase.from('live_shows').update({ captions_enabled: captionsOn }).eq('id', showId).then(() => {}).catch(() => {});
+  }, [captionsOn, showId, isLive]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -928,6 +944,14 @@ export default function ShowStudio() {
         addGiftAnimation(payload.emoji, payload.senderName, payload.image_url);
         setTotalCoinsEarned(c => c + Math.round((payload.coins || 0) * 0.7));
         api.get(`/api/shows/${id}/tippers`).then(r => setTippers(r.data.tippers || [])).catch(() => {});
+        // Animación full-screen para regalos grandes (>= 200 coins)
+        if ((payload.coins || 0) >= 200) {
+          bigGiftQueueRef.current?.enqueue({
+            senderName: payload.senderName, avatar: payload.avatar,
+            emoji: payload.emoji, image_url: payload.image_url,
+            coins: payload.coins, label: payload.label || 'Regalo',
+          });
+        }
       })
       .on('broadcast', { event: 'tip' }, ({ payload }) => {
         addGiftAnimation('⚡', payload.senderName);
@@ -2183,8 +2207,23 @@ export default function ShowStudio() {
           </>
         )}
         <div className="flex-1" />
+        {/* Toggle de captions live */}
+        {isLive && captionsSupported && (
+          <button
+            onClick={() => setCaptionsOn(v => !v)}
+            title={captionsOn ? 'Apagar subtítulos' : 'Encender subtítulos en vivo'}
+            className={`text-[9px] font-bold px-2 py-1 rounded transition-colors ${
+              captionsOn ? 'bg-purple-500/20 text-purple-300' : 'bg-dark-700 text-gray-500 hover:text-white'
+            }`}
+          >
+            CC {captionsOn ? 'ON' : 'OFF'}
+          </button>
+        )}
         <span className="text-[9px] text-gray-700">Destino TV Studio</span>
       </div>
+
+      {/* Animación full-screen para regalos >= 200 coins (host también la ve) */}
+      <BigGiftAnimation gift={bigGiftQueue.current} onComplete={bigGiftQueue.dequeue} />
     </div>
   );
 }

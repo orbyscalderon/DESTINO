@@ -1311,37 +1311,110 @@ export const deleteGalleryItem = async (req, res) => {
   }
 };
 
-// POST /api/creator/subscribers/broadcast — mass message to all active subscribers
+// POST /api/creator/subscribers/broadcast — mass message a suscriptores activos
+// Body: { message, is_paid?, price_coins?, target? }
+//   target: 'subscribers' (default) | 'all_matches' (todos los que pueden hablarte)
+//   is_paid + price_coins: convierte el broadcast en PPV — los receptores deben
+//   pagar para verlo (el mensaje aparece en su chat como bloqueado)
 export const sendBroadcast = async (req, res) => {
   try {
     const creatorId = req.user.id;
-    const { message } = req.body;
+    const { message, is_paid, price_coins, target = 'subscribers' } = req.body;
 
     const { data: profile } = await supabase.from('profiles').select('is_creator, full_name').eq('id', creatorId).single();
     if (!profile?.is_creator) return res.status(403).json({ error: 'No eres creador' });
     if (!message?.trim()) return res.status(400).json({ error: 'Mensaje requerido' });
-    if (message.length > 500) return res.status(400).json({ error: 'Mensaje demasiado largo (máx 500 caracteres)' });
+    if (message.length > 1000) return res.status(400).json({ error: 'Mensaje demasiado largo (máx 1000)' });
 
-    const { data: subs } = await supabase
-      .from('creator_subscriptions')
-      .select('subscriber_id')
-      .eq('creator_id', creatorId)
-      .eq('status', 'active');
+    const ppvPrice = is_paid ? parseInt(price_coins) : 0;
+    if (is_paid && (!ppvPrice || ppvPrice < 1 || ppvPrice > 9999)) {
+      return res.status(400).json({ error: 'Precio PPV inválido (1-9999 coins)' });
+    }
 
-    if (!subs?.length) return res.json({ sent: 0 });
+    // Resolver lista de destinatarios
+    let recipients = [];
+    if (target === 'all_matches') {
+      // Usuarios con quien tengo match (puedes hablarles)
+      const { data: matches } = await supabase
+        .from('matches')
+        .select('user1_id, user2_id')
+        .or(`user1_id.eq.${creatorId},user2_id.eq.${creatorId}`)
+        .eq('is_match', true);
+      recipients = [...new Set((matches || []).map(m =>
+        m.user1_id === creatorId ? m.user2_id : m.user1_id
+      ))];
+    } else {
+      const { data: subs } = await supabase
+        .from('creator_subscriptions')
+        .select('subscriber_id')
+        .eq('creator_id', creatorId)
+        .eq('status', 'active');
+      recipients = (subs || []).map(s => s.subscriber_id);
+    }
 
+    if (!recipients.length) return res.json({ sent: 0 });
+
+    // Generar batch ID para asociar todos los mensajes del blast
+    const batchId = (await import('crypto')).default.randomUUID();
+
+    // Crear mensaje en chat de cada destinatario (si tiene match con el creator).
+    // Si es PPV, marcar como is_paid hasta que paguen.
+    const matchRows = await supabase
+      .from('matches')
+      .select('id, user1_id, user2_id')
+      .or(`user1_id.eq.${creatorId},user2_id.eq.${creatorId}`)
+      .eq('is_match', true);
+    const matchMap = new Map();
+    (matchRows.data || []).forEach(m => {
+      const other = m.user1_id === creatorId ? m.user2_id : m.user1_id;
+      matchMap.set(other, m.id);
+    });
+
+    const rowsToInsert = [];
+    for (const recipientId of recipients) {
+      const matchId = matchMap.get(recipientId);
+      if (!matchId) continue; // sin match no podemos crearle un mensaje
+      rowsToInsert.push({
+        match_id: matchId,
+        sender_id: creatorId,
+        receiver_id: recipientId,
+        content: message.trim(),
+        type: 'text',
+        is_paid: !!is_paid,
+        price: ppvPrice || null,
+        is_broadcast: true,
+        broadcast_batch_id: batchId,
+      });
+    }
+
+    let createdCount = 0;
+    if (rowsToInsert.length) {
+      const { count } = await supabase.from('messages').insert(rowsToInsert, { count: 'exact' });
+      createdCount = count || rowsToInsert.length;
+    }
+
+    // Notificaciones in-app + push (siempre, aunque sea PPV — saben que hay mensaje)
     const { createNotification } = await import('./inAppNotifController.js');
     const { sendPushToUser } = await import('./notificationController.js');
+    const title = is_paid ? `💎 ${profile.full_name} envió contenido premium` : `📢 ${profile.full_name}`;
+    const body = is_paid ? `Desbloquéalo por ${ppvPrice} coins` : message.trim();
 
-    await Promise.allSettled((subs || []).map(sub =>
+    await Promise.allSettled(recipients.map(uid =>
       Promise.all([
-        createNotification(sub.subscriber_id, 'broadcast', `📢 ${profile.full_name}`, message.trim(), { creator_id: creatorId }),
-        sendPushToUser(sub.subscriber_id, { title: `📢 ${profile.full_name}`, body: message.trim() }).catch(() => {}),
+        createNotification(uid, 'broadcast', title, body, { creator_id: creatorId, ppv: !!is_paid }),
+        sendPushToUser(uid, { title, body, url: '/messages' }).catch(() => {}),
       ])
     ));
 
-    res.json({ sent: subs.length });
+    res.json({
+      sent: recipients.length,
+      messages_created: createdCount,
+      is_paid: !!is_paid,
+      price_coins: ppvPrice || null,
+      batch_id: batchId,
+    });
   } catch (err) {
+    console.error('sendBroadcast error:', err.message);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };

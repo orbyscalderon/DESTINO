@@ -9,10 +9,14 @@ import PaymentModal from '../components/ui/PaymentModal.jsx';
 import AgeVerificationModal from '../components/ui/AgeVerificationModal.jsx';
 import VerifiedBadge from '../components/ui/VerifiedBadge.jsx';
 import TipModal from '../components/ui/TipModal.jsx';
+import TipMenuPublic from '../components/ui/TipMenuPublic.jsx';
+import { useAuthStore } from '../store/authStore.js';
 
 export default function UserProfile() {
   const { userId } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuthStore();
+  const currentUserId = user?.id;
   const [profile, setProfile] = useState(null);
   const [photos, setPhotos] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -424,6 +428,11 @@ export default function UserProfile() {
             </span>
           </div>
         </div>
+
+        {/* Tip menu del creador (visible si tiene items) */}
+        {profile.is_creator && profile.id !== currentUserId && (
+          <TipMenuPublic creatorId={profile.id} creatorName={profile.full_name} />
+        )}
 
         {/* ── Sección de creador ──────────────────────────── */}
         {profile.is_creator && (

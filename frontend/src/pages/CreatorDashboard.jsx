@@ -16,6 +16,7 @@ import { SHOW_CATEGORIES } from './LiveShows.jsx';
 import VerifiedBadge from '../components/ui/VerifiedBadge.jsx';
 import VideoPackagesManager from '../components/ui/VideoPackagesManager.jsx';
 import CreatorGiftsManager from '../components/ui/CreatorGiftsManager.jsx';
+import TipMenuManager from '../components/ui/TipMenuManager.jsx';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 
 /* ── Helpers ─────────────────────────────────────────────── */
@@ -153,6 +154,8 @@ export default function CreatorDashboard() {
   // Subscribers
   const [subscribers, setSubscribers]   = useState(null);
   const [broadcastMsg, setBroadcastMsg] = useState('');
+  const [broadcastPpv, setBroadcastPpv] = useState(false);
+  const [broadcastPrice, setBroadcastPrice] = useState(50);
   const [sending, setSending]           = useState(false);
   const [exporting, setExporting]       = useState(false);
 
@@ -252,9 +255,16 @@ export default function CreatorDashboard() {
     if (!broadcastMsg.trim()) return;
     setSending(true);
     try {
-      const { data: res } = await api.post('/api/creator/subscribers/broadcast', { message: broadcastMsg.trim() });
-      toast.success(`Enviado a ${res.sent} suscriptores`);
+      const payload = { message: broadcastMsg.trim() };
+      if (broadcastPpv) {
+        payload.is_paid = true;
+        payload.price_coins = Math.max(1, Math.min(9999, parseInt(broadcastPrice) || 50));
+      }
+      const { data: res } = await api.post('/api/creator/subscribers/broadcast', payload);
+      const earned = broadcastPpv ? ` · Potencial $${(res.sent * (payload.price_coins || 0) * 0.05 * 0.7).toFixed(2)} si todos pagan` : '';
+      toast.success(`Enviado a ${res.sent} suscriptores${earned}`);
       setBroadcastMsg('');
+      setBroadcastPpv(false);
     } catch (err) { toast.error(err.response?.data?.error || 'Error al enviar'); }
     finally { setSending(false); }
   };
@@ -840,21 +850,55 @@ export default function CreatorDashboard() {
                         <textarea
                           className="input-field text-sm resize-none w-full"
                           rows={3}
-                          placeholder="Escribe un mensaje para todos tus suscriptores…"
+                          placeholder={broadcastPpv ? 'Tu mensaje (los subs deben pagar para verlo)…' : 'Escribe un mensaje para todos tus suscriptores…'}
                           value={broadcastMsg}
-                          onChange={e => setBroadcastMsg(e.target.value.slice(0, 500))}
-                          maxLength={500}
+                          onChange={e => setBroadcastMsg(e.target.value.slice(0, 1000))}
+                          maxLength={1000}
                         />
+
+                        {/* Toggle PPV */}
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => setBroadcastPpv(v => !v)}
+                            className={`flex-1 text-xs font-bold py-2 rounded-lg transition-colors flex items-center justify-center gap-1.5 ${
+                              broadcastPpv
+                                ? 'bg-brand-500/20 text-brand-300 border border-brand-500/40'
+                                : 'bg-dark-700 text-gray-400 hover:text-white border border-transparent'
+                            }`}
+                          >
+                            💎 {broadcastPpv ? 'PPV ACTIVO' : 'Hacer PPV (cobrar para ver)'}
+                          </button>
+                          {broadcastPpv && (
+                            <div className="relative w-24 shrink-0">
+                              <input
+                                type="number" min="1" max="9999"
+                                value={broadcastPrice}
+                                onChange={e => setBroadcastPrice(e.target.value)}
+                                className="input-field text-sm py-2 pl-7 w-full"
+                              />
+                              <span className="absolute left-2 top-1/2 -translate-y-1/2 text-yellow-400 text-xs">⚡</span>
+                            </div>
+                          )}
+                        </div>
+
                         <div className="flex items-center justify-between">
-                          <span className="text-xs text-gray-600">{broadcastMsg.length}/500</span>
+                          <span className="text-xs text-gray-600">{broadcastMsg.length}/1000</span>
                           <button onClick={handleBroadcast} disabled={sending||!broadcastMsg.trim()}
                             className="btn-primary text-sm px-4 py-2 disabled:opacity-50"
                           >
-                            {sending ? 'Enviando…' : `Enviar a ${subscribers.count} subs`}
+                            {sending ? 'Enviando…' : broadcastPpv ? `Enviar PPV a ${subscribers.count}` : `Enviar a ${subscribers.count} subs`}
                           </button>
                         </div>
+                        {broadcastPpv && (
+                          <p className="text-[10px] text-gray-500">
+                            💡 Si todos pagan: ~${(subscribers.count * (broadcastPrice || 0) * 0.05 * 0.7).toFixed(2)} para ti (70% de ${(subscribers.count * (broadcastPrice || 0) * 0.05).toFixed(2)})
+                          </p>
+                        )}
                       </div>
                     )}
+
+                    {/* Tip menu / wishlist */}
+                    <TipMenuManager />
 
                     {(subscribers.subscribers||[]).length === 0 ? (
                       <p className="text-center text-gray-600 py-8">Aún no tienes suscriptores</p>

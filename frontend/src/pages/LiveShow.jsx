@@ -12,6 +12,9 @@ import {
 import GiftPanel from '../components/ui/GiftPanel.jsx';
 import AgeVerificationModal from '../components/ui/AgeVerificationModal.jsx';
 import DraggableTipGoal from '../components/ui/DraggableTipGoal.jsx';
+import BigGiftAnimation, { useGiftAnimationQueue } from '../components/ui/BigGiftAnimation.jsx';
+import CaptionOverlay from '../components/ui/CaptionOverlay.jsx';
+import { useCaptionsViewer } from '../lib/useLiveCaptions.js';
 import { useAuthStore } from '../store/authStore.js';
 import { useAds } from '../hooks/useAds.js';
 import { supabase } from '../lib/supabase.js';
@@ -128,6 +131,12 @@ function CoHostTile({ stream }) {
   );
 }
 
+function CaptionLayer({ showId, captionsEnabled }) {
+  const captions = useCaptionsViewer(captionsEnabled ? showId : null);
+  if (!captionsEnabled) return null;
+  return <CaptionOverlay captions={captions} bottom={90} />;
+}
+
 export default function LiveShow() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -143,6 +152,9 @@ export default function LiveShow() {
   // Multi-host: co-host streams indexados por participant identity (userId).
   // Cada entrada: { video?: MediaStreamTrack, audio?: MediaStreamTrack, name?: string }.
   const [coHostStreams, setCoHostStreams] = useState({});
+  const bigGiftQueue = useGiftAnimationQueue();
+  const bigGiftQueueRef = useRef(bigGiftQueue);
+  bigGiftQueueRef.current = bigGiftQueue;
   const [isLive, setIsLive]           = useState(false);
   const [muted, setMuted]             = useState(false);
   const [cameraOff, setCameraOff]     = useState(false);
@@ -454,6 +466,17 @@ export default function LiveShow() {
       .on('broadcast', { event: 'gift' }, ({ payload }) => {
         if (payload.senderId && payload.senderId === user?.id) return;
         addGiftAnimation(payload.emoji, payload.senderName, payload.image_url);
+        // Regalos >= 200 coins → animación full-screen
+        if ((payload.coins || 0) >= 200) {
+          bigGiftQueueRef.current?.enqueue({
+            senderName: payload.senderName,
+            avatar:     payload.avatar,
+            emoji:      payload.emoji,
+            image_url:  payload.image_url,
+            coins:      payload.coins,
+            label:      payload.label || 'Regalo',
+          });
+        }
         if (role === 'host') setTotalCoinsEarned(c => c + Math.round((payload.coins || 0) * 0.7));
       })
       .on('broadcast', { event: 'tip' }, ({ payload }) => {
@@ -1995,6 +2018,9 @@ export default function LiveShow() {
         <div ref={videoContainerRef} className="flex-1 relative bg-dark-900 overflow-hidden">
           <video ref={hostVideoRef} autoPlay playsInline className="w-full h-full object-cover" />
 
+          {/* Subtítulos en vivo */}
+          <CaptionLayer showId={id} captionsEnabled={!!show?.captions_enabled} />
+
           {/* Co-host video tiles (overlay flotante) */}
           {Object.keys(coHostStreams).length > 0 && (
             <div className="absolute top-16 right-3 z-20 flex flex-col gap-2">
@@ -2413,6 +2439,9 @@ export default function LiveShow() {
 
         {/* Panel lateral desktop */}
         {isDesktop && <ViewerSidePanel />}
+
+        {/* Animación full-screen para regalos >= 200 coins */}
+        <BigGiftAnimation gift={bigGiftQueue.current} onComplete={bigGiftQueue.dequeue} />
       </div>
     );
   }

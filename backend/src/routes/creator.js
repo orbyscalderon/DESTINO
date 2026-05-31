@@ -33,12 +33,17 @@ import {
   exportAnalyticsCsv,
   getStoryAnalytics,
 } from '../controllers/creatorController.js';
+import {
+  getCreatorTipMenu, getMyTipMenu, createTipMenuItem,
+  updateTipMenuItem, deleteTipMenuItem, redeemTipMenuItem,
+} from '../controllers/tipMenuController.js';
 
 const router = Router();
 
 // Públicas (sin auth)
 router.get('/:userId/profile', getPublicCreatorProfile);
 router.get('/:userId/galleries', getCreatorGalleries);
+router.get('/:userId/tip-menu', getCreatorTipMenu);
 
 router.use(authMiddleware);
 // /discover requiere auth para aplicar el age gate correctamente
@@ -70,6 +75,13 @@ router.post('/galleries/:id/unlock', unlockGallery);
 // Broadcast & export
 router.post('/subscribers/broadcast', sendBroadcast);
 router.post('/subscribers/blast-email', sendBlastEmail);
+
+// Tip menu / wishlist
+router.get('/tip-menu',          getMyTipMenu);
+router.post('/tip-menu',         createTipMenuItem);
+router.patch('/tip-menu/:id',    updateTipMenuItem);
+router.delete('/tip-menu/:id',   deleteTipMenuItem);
+router.post('/tip-menu/:id/redeem', redeemTipMenuItem);
 router.get('/analytics/export', exportAnalyticsCsv);
 
 // Subscriptions
