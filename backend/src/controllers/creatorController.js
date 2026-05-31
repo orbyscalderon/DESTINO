@@ -308,11 +308,14 @@ export const setSubscriptionPrice = async (req, res) => {
 };
 
 // POST /api/creator/:creatorId/subscribe — suscribirse a un creador
+// Body opcional: { tierId } — si se manda, usa el precio del tier; si no, usa
+// el precio legacy creator_subscription_price.
 export const subscribeToCreator = async (req, res) => {
   if (!stripe) return res.status(503).json({ error: 'Pagos no configurados' });
 
   try {
     const { creatorId } = req.params;
+    const { tierId } = req.body || {};
     const subscriberId = req.user.id;
 
     if (creatorId === subscriberId) return res.status(400).json({ error: 'No puedes suscribirte a ti mismo' });
@@ -324,7 +327,27 @@ export const subscribeToCreator = async (req, res) => {
       .single();
 
     if (!creator?.is_creator) return res.status(404).json({ error: 'Creador no encontrado' });
-    if (!creator?.creator_subscription_price) return res.status(400).json({ error: 'Este creador no tiene suscripción activa' });
+
+    // Resolver precio: si manda tierId, usar tier.price; si no, legacy.
+    let priceUsd = null;
+    let tierName = null;
+    if (tierId) {
+      const { data: tier } = await supabase
+        .from('creator_tiers')
+        .select('id, price, name, creator_id, is_active')
+        .eq('id', tierId)
+        .single();
+      if (!tier || tier.creator_id !== creatorId || !tier.is_active) {
+        return res.status(400).json({ error: 'Tier no válido' });
+      }
+      priceUsd = parseFloat(tier.price);
+      tierName = tier.name;
+    } else {
+      if (!creator?.creator_subscription_price) {
+        return res.status(400).json({ error: 'Este creador no tiene suscripción activa' });
+      }
+      priceUsd = parseFloat(creator.creator_subscription_price);
+    }
 
     // Verificar suscripción existente
     const { data: existing } = await supabase
@@ -350,20 +373,19 @@ export const subscribeToCreator = async (req, res) => {
       await supabase.from('profiles').update({ stripe_customer_id: customerId }).eq('id', subscriberId);
     }
 
-    // Crear Price dinámico o usar fixed — aquí usamos PaymentIntent por simplicidad de implementación
-    const amountCents = Math.round(creator.creator_subscription_price * 100);
+    const amountCents = Math.round(priceUsd * 100);
     const platformFeeCents = Math.round(amountCents * PLATFORM_FEE_RATE);
 
     const piParams = {
       amount: amountCents,
       currency: 'usd',
       customer: customerId,
-      // Permite re-cobrar el mismo método off-session para la renovación mensual
       setup_future_usage: 'off_session',
       metadata: {
         type: 'creator_subscription',
         creator_id: creatorId,
         subscriber_id: subscriberId,
+        tier_id: tierId || '',
       },
     };
 
@@ -377,8 +399,9 @@ export const subscribeToCreator = async (req, res) => {
     res.json({
       clientSecret: paymentIntent.client_secret,
       paymentIntentId: paymentIntent.id,
-      amount: creator.creator_subscription_price,
+      amount: priceUsd,
       creatorName: creator.full_name,
+      tierName,
     });
   } catch (err) {
     console.error('subscribeToCreator error:', err.message);
@@ -410,11 +433,13 @@ export const confirmCreatorSubscription = async (req, res) => {
     const amountPaid = pi.amount / 100;
     const earningsUSD = amountPaid * (1 - PLATFORM_FEE_RATE);
     const periodEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+    const tierIdFromPi = pi.metadata?.tier_id || null;
 
     await supabase.from('creator_subscriptions').upsert({
       subscriber_id: subscriberId,
       creator_id: creatorId,
-      subscription_price: creator?.creator_subscription_price || amountPaid,
+      tier_id: tierIdFromPi || null,
+      subscription_price: amountPaid,
       status: 'active',
       current_period_end: periodEnd,
       stripe_customer_id: pi.customer || null,
@@ -422,6 +447,8 @@ export const confirmCreatorSubscription = async (req, res) => {
       auto_renew: true,
       failed_renewal_count: 0,
       canceled_at: null,
+      is_gift: false,
+      gifted_by: null,
       updated_at: new Date().toISOString(),
     }, { onConflict: 'subscriber_id,creator_id' });
 

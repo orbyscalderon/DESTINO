@@ -316,6 +316,20 @@ export async function sendSupportTicketEmail(email, userName, ticketId, subject)
 }
 
 // Newsletter blast: el creador envía email masivo a sus suscriptores
+// 🎁 Recibiste una suscripción de regalo
+export async function sendSubscriptionGiftEmail(email, recipientName, gifterName, creatorName, tierName, message) {
+  const html = base(`
+    <h2>🎁 ¡Te regalaron una suscripción!</h2>
+    <p>Hola ${recipientName},</p>
+    <p><strong style="color:#e040fb">${gifterName}</strong> te regaló una suscripción
+      <strong>${tierName}</strong> a <strong style="color:#22c55e">${creatorName}</strong> por 1 mes.</p>
+    ${message ? `<div style="background:#1a1a2e;border-left:3px solid #e040fb;padding:12px 16px;margin:16px 0;color:#ccc;font-style:italic">"${message}"</div>` : ''}
+    <p style="color:#aaa">El acceso ya está activo. ¡Disfrútalo!</p>
+    <a href="${APP_URL}/#/u/${creatorName ? encodeURIComponent(creatorName) : ''}" class="btn">Ver perfil del creador</a>
+  `);
+  await send(email, `🎁 ${gifterName} te regaló una suscripción a ${creatorName}`, html);
+}
+
 export async function sendCreatorBlastEmail(email, subscriberName, creatorName, subject, bodyHtml) {
   const html = base(`
     <h2>${subject}</h2>

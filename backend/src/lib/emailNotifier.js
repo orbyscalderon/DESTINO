@@ -33,6 +33,8 @@ const senders = {
   identity:            (e, n, d) => d.approved ? emails.sendIdentityVerifiedEmail(e, n) : emails.sendIdentityRejectedEmail(e, n, d.reason),
   appeal:              (e, n, d) => emails.sendAppealResolvedEmail(e, n, d.status, d.adminMessage),
   dmca:                (e, n, d) => emails.sendDMCAAgainstYouEmail(e, n, d.strikeCount, d.banned),
+  subscription_gift_received: (e, n, d) =>
+    emails.sendSubscriptionGiftEmail(e, n, d.gifterName, d.creatorName, d.tierName, d.message),
 };
 
 export async function notifyUser(userId, category, data = {}) {

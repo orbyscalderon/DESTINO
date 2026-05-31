@@ -37,6 +37,10 @@ import {
   getCreatorTipMenu, getMyTipMenu, createTipMenuItem,
   updateTipMenuItem, deleteTipMenuItem, redeemTipMenuItem,
 } from '../controllers/tipMenuController.js';
+import {
+  getCreatorTiers, getMyTiers, createTier,
+  updateTier, deleteTier, giftSubscription, getMySubscriptionInfo,
+} from '../controllers/tierController.js';
 
 const router = Router();
 
@@ -44,6 +48,7 @@ const router = Router();
 router.get('/:userId/profile', getPublicCreatorProfile);
 router.get('/:userId/galleries', getCreatorGalleries);
 router.get('/:userId/tip-menu', getCreatorTipMenu);
+router.get('/:userId/tiers',    getCreatorTiers);
 
 router.use(authMiddleware);
 // /discover requiere auth para aplicar el age gate correctamente
@@ -84,9 +89,17 @@ router.delete('/tip-menu/:id',   deleteTipMenuItem);
 router.post('/tip-menu/:id/redeem', redeemTipMenuItem);
 router.get('/analytics/export', exportAnalyticsCsv);
 
+// Tiers (creator-side CRUD)
+router.get('/tiers',         getMyTiers);
+router.post('/tiers',        createTier);
+router.patch('/tiers/:id',   updateTier);
+router.delete('/tiers/:id',  deleteTier);
+
 // Subscriptions
 router.post('/:creatorId/subscribe', subscribeToCreator);
 router.post('/:creatorId/subscribe/confirm', confirmCreatorSubscription);
 router.delete('/:creatorId/subscribe', cancelCreatorSubscription);
+router.get('/my-subscription/:creatorId', getMySubscriptionInfo);
+router.post('/:creatorId/gift-sub', giftSubscription);
 
 export default router;

@@ -64,6 +64,10 @@ ALTER TABLE support_tickets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_drafts     ENABLE ROW LEVEL SECURITY;
 ALTER TABLE creator_blasts  ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "tickets own"        ON support_tickets;
+DROP POLICY IF EXISTS "drafts own"         ON user_drafts;
+DROP POLICY IF EXISTS "blasts creator own" ON creator_blasts;
+
 CREATE POLICY "tickets own"        ON support_tickets FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "drafts own"         ON user_drafts FOR ALL USING (auth.uid() = user_id);
 CREATE POLICY "blasts creator own" ON creator_blasts FOR ALL USING (auth.uid() = creator_id);

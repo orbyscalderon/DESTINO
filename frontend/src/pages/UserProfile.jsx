@@ -10,6 +10,9 @@ import AgeVerificationModal from '../components/ui/AgeVerificationModal.jsx';
 import VerifiedBadge from '../components/ui/VerifiedBadge.jsx';
 import TipModal from '../components/ui/TipModal.jsx';
 import TipMenuPublic from '../components/ui/TipMenuPublic.jsx';
+import TierPicker from '../components/ui/TierPicker.jsx';
+import TierBadge from '../components/ui/TierBadge.jsx';
+import GiftSubModal from '../components/ui/GiftSubModal.jsx';
 import { useAuthStore } from '../store/authStore.js';
 
 export default function UserProfile() {
@@ -49,6 +52,10 @@ export default function UserProfile() {
   const [videoMinPrice, setVideoMinPrice]       = useState(50);
   const [videoAccepts, setVideoAccepts]         = useState(true);
   const [packagesLoaded, setPackagesLoaded]     = useState(false);
+  const [showTierModal, setShowTierModal]   = useState(false);
+  const [showGiftModal, setShowGiftModal]   = useState(false);
+  const [mySub, setMySub]                   = useState(null);
+  const [creatorHasTiers, setCreatorHasTiers] = useState(false);
 
   const loadPhotos = async () => {
     const phRes = await api.get(`/api/profiles/${userId}/photos`).catch(() => ({ data: { photos: [], requires_vip: false } }));
@@ -82,6 +89,20 @@ export default function UserProfile() {
       setUserPosts(postsRes.data.posts || []);
       setGalleries(galRes.data.galleries || []);
       setVideos(vidRes.data.videos || []);
+
+      // Si soy fan y este perfil es creador, traer info de mi sub (tier, badge)
+      if (currentUserId && p?.is_creator && currentUserId !== userId) {
+        api.get(`/api/creator/my-subscription/${userId}`)
+          .then(({ data }) => setMySub(data.subscription || null))
+          .catch(() => {});
+      }
+      // Detectar si este creador tiene tiers (para mostrar el botón aunque no
+      // tenga legacy creator_subscription_price)
+      if (p?.is_creator) {
+        api.get(`/api/creator/${userId}/tiers`)
+          .then(({ data }) => setCreatorHasTiers((data.tiers || []).length > 0))
+          .catch(() => {});
+      }
     }).catch((err) => {
       console.error('[UserProfile] load error:', err?.response?.status, JSON.stringify(err?.response?.data));
       toast.error('Perfil no encontrado');
@@ -118,15 +139,17 @@ export default function UserProfile() {
     }
   };
 
-  const handleSubscribe = async () => {
+  const handleSubscribe = async (tierOrLegacy) => {
     setSubscribing(true);
+    setShowTierModal(false);
     try {
-      const { data } = await api.post(`/api/creator/${userId}/subscribe`);
+      const body = tierOrLegacy?.legacy ? {} : { tierId: tierOrLegacy?.id };
+      const { data } = await api.post(`/api/creator/${userId}/subscribe`, body);
       setPaymentModal({
         clientSecret: data.clientSecret,
         type: 'subscribe',
-        amount: `$${parseFloat(profile.creator_subscription_price).toFixed(2)}`,
-        description: `Suscripción a ${profile.full_name}`,
+        amount: `$${parseFloat(data.amount).toFixed(2)}`,
+        description: `${data.tierName ? `Tier ${data.tierName} · ` : 'Suscripción a '}${profile.full_name}`,
       });
     } catch (err) {
       toast.error(err.response?.data?.error || 'Error al suscribirse');
@@ -305,7 +328,8 @@ export default function UserProfile() {
 
   if (!profile) return null;
 
-  const hasSubscriptionOffer = profile.is_creator && profile.creator_subscription_price;
+  const isOwnProfile = currentUserId && currentUserId === userId;
+  const hasSubscriptionOffer = profile.is_creator && !isOwnProfile && (profile.creator_subscription_price || creatorHasTiers);
   // Fotos de pago: is_paid=true AND (is_purchased=true → url visible, is_purchased=false → url null = locked)
   const paidPhotos = photos.filter(p => p.is_paid);
   const freePhotos = photos.filter(p => !p.is_paid);
@@ -481,6 +505,14 @@ export default function UserProfile() {
                     <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-3 text-center">
                       <FiCheck className="text-green-400 mx-auto mb-1" size={18} />
                       <p className="text-xs text-green-400 font-medium">Suscrito</p>
+                      {mySub?.tier && (
+                        <div className="mt-2 flex justify-center">
+                          <TierBadge tier={mySub.tier} size="xs" showName />
+                        </div>
+                      )}
+                      {mySub?.is_gift && (
+                        <p className="text-[10px] text-pink-400 mt-1">🎁 Regalado</p>
+                      )}
                     </div>
                     <button
                       onClick={handleCancelSubscription}
@@ -493,17 +525,29 @@ export default function UserProfile() {
                   </div>
                 ) : (
                   <button
-                    onClick={handleSubscribe}
+                    onClick={() => setShowTierModal(true)}
                     disabled={subscribing}
                     className="flex-1 min-w-[120px] btn-primary py-3 text-sm disabled:opacity-60"
                   >
                     {subscribing ? (
                       <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mx-auto" />
                     ) : (
-                      <>Suscribir · ${parseFloat(profile.creator_subscription_price).toFixed(2)}/mes</>
+                      <>Suscribir</>
                     )}
                   </button>
                 )
+              )}
+
+              {/* Regalar suscripción */}
+              {hasSubscriptionOffer && (
+                <button
+                  onClick={() => setShowGiftModal(true)}
+                  className="flex-1 min-w-[80px] bg-pink-500/10 border border-pink-500/30 rounded-xl p-3 text-center hover:bg-pink-500/20 transition-colors"
+                  title="Regala una suscripción a otro usuario"
+                >
+                  <FiGift className="text-pink-400 mx-auto mb-1" size={18} />
+                  <p className="text-xs text-pink-300">Regalar sub</p>
+                </button>
               )}
             </div>
           </div>
@@ -784,6 +828,42 @@ export default function UserProfile() {
           <AgeVerificationModal
             onVerified={() => { setShowAgeModal(false); loadPhotos(); }}
             onClose={() => setShowAgeModal(false)}
+          />
+        )}
+        {showTierModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/80 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+            onClick={() => setShowTierModal(false)}
+          >
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 28, stiffness: 280 }}
+              className="bg-dark-900 w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl max-h-[90vh] overflow-y-auto"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="sticky top-0 bg-dark-900 px-5 py-4 border-b border-dark-700 flex items-center justify-between">
+                <h3 className="text-white font-bold">Suscribirse a {profile?.full_name}</h3>
+                <button onClick={() => setShowTierModal(false)} className="text-gray-400 hover:text-white">
+                  <FiX size={20} />
+                </button>
+              </div>
+              <div className="p-5 space-y-4">
+                <TierPicker creatorId={userId} onSelect={handleSubscribe} />
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+        {showGiftModal && (
+          <GiftSubModal
+            creatorId={userId}
+            creatorName={profile?.full_name}
+            onClose={() => setShowGiftModal(false)}
+            onSuccess={() => {/* opcional refresh */}}
           />
         )}
       </AnimatePresence>

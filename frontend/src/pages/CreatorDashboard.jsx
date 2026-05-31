@@ -17,6 +17,7 @@ import VerifiedBadge from '../components/ui/VerifiedBadge.jsx';
 import VideoPackagesManager from '../components/ui/VideoPackagesManager.jsx';
 import CreatorGiftsManager from '../components/ui/CreatorGiftsManager.jsx';
 import TipMenuManager from '../components/ui/TipMenuManager.jsx';
+import TierManager from '../components/ui/TierManager.jsx';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 
 /* ── Helpers ─────────────────────────────────────────────── */
@@ -896,6 +897,11 @@ export default function CreatorDashboard() {
                         )}
                       </div>
                     )}
+
+                    {/* Niveles de suscripción (tiers) */}
+                    <div className="card p-4">
+                      <TierManager />
+                    </div>
 
                     {/* Tip menu / wishlist */}
                     <TipMenuManager />
