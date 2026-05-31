@@ -51,6 +51,8 @@ import authRoutes from './src/routes/auth.js';
 import gdprRoutes from './src/routes/gdpr.js';
 import dmcaRoutes from './src/routes/dmca.js';
 import achievementsRoutes from './src/routes/achievements.js';
+import exploreRoutes from './src/routes/explore.js';
+import { embedVideo } from './src/controllers/exploreController.js';
 import { supabase } from './src/lib/supabase.js';
 
 const app = express();
@@ -169,6 +171,15 @@ app.use('/api/auth', authRoutes);
 app.use('/api/gdpr', gdprRoutes);
 app.use('/api/dmca', dmcaRoutes);
 app.use('/api/achievements', achievementsRoutes);
+app.use('/api/explore', exploreRoutes);
+
+// Embed público de video adulto (iframe) — NO requiere auth pero geo-blocked
+app.get('/embed/v/:id', async (req, res, next) => {
+  try {
+    const { geoBlockAdult } = await import('./src/middleware/adult.js');
+    geoBlockAdult(req, res, () => embedVideo(req, res));
+  } catch { next(); }
+});
 
 // ── Open Graph share routes (para WhatsApp / Telegram / Twitter) ──
 function ogHtml({ title, description, image, url, type = 'website' }) {

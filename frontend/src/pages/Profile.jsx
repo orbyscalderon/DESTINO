@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { FiCamera, FiEdit2, FiLogOut, FiStar, FiSettings, FiPlus, FiTrash2, FiSearch, FiShield, FiClock, FiLock, FiDollarSign, FiUsers, FiExternalLink, FiZap, FiBarChart2, FiChevronRight, FiMove, FiEyeOff, FiEye, FiShare2, FiFilm, FiPlay, FiGrid, FiCheckCircle } from 'react-icons/fi';
 import ProfileQRModal from '../components/ui/ProfileQRModal.jsx';
 import SelfieVerifyModal from '../components/ui/SelfieVerifyModal.jsx';
+import Compliance2257Modal from '../components/ui/Compliance2257Modal.jsx';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import VerifiedBadge from '../components/ui/VerifiedBadge.jsx';
 import { useAuthStore } from '../store/authStore.js';
@@ -39,6 +40,7 @@ export default function Profile() {
   const [uploadingVideo, setUploadingVideo] = useState(false);
   const [videoUploadProgress, setVideoUploadProgress] = useState(0);
   const [pricingVideo, setPricingVideo] = useState(null); // { id, is_paid, price, title }
+  const [pending2257VideoId, setPending2257VideoId] = useState(null);
   const [videoTab, setVideoTab] = useState('gallery'); // 'gallery' | 'requests'
   const [playingVideo, setPlayingVideo] = useState(null); // { id, url, title, is_paid, price }
   const [videoRequests, setVideoRequests] = useState([]);
@@ -161,20 +163,28 @@ export default function Profile() {
     e.target.value = '';
     setUploadingVideo(true);
     setVideoUploadProgress(0);
+    const isAdultUpload = !!profile?.is_adult_creator;
     const fd = new FormData();
     fd.append('video', file);
     fd.append('title', '');
     fd.append('is_paid', 'false');
     fd.append('price', '0');
+    if (isAdultUpload) fd.append('is_adult', 'true');
     try {
-      await api.post('/api/profiles/videos', fd, {
+      const { data } = await api.post('/api/profiles/videos', fd, {
         headers: { 'Content-Type': 'multipart/form-data' },
         onUploadProgress: (e) => {
           if (e.total) setVideoUploadProgress(Math.round((e.loaded / e.total) * 100));
         },
       });
       await loadVideos();
-      toast.success('Video subido');
+      // Si es contenido adulto, abrir flujo 2257 obligatorio
+      if (isAdultUpload && data?.video?.id) {
+        setPending2257VideoId(data.video.id);
+        toast('Completa los records 2257 para publicar', { icon: '🛡' });
+      } else {
+        toast.success('Video subido');
+      }
     } catch (err) {
       toast.error(err.response?.data?.error || 'Error al subir el video');
     } finally {
@@ -1402,6 +1412,13 @@ export default function Profile() {
       <AnimatePresence>
         {showQR && profile && <ProfileQRModal profile={profile} onClose={() => setShowQR(false)} />}
         {showSelfie && <SelfieVerifyModal onClose={() => setShowSelfie(false)} onVerified={() => fetchProfile(user.id)} />}
+        {pending2257VideoId && (
+          <Compliance2257Modal
+            videoId={pending2257VideoId}
+            onComplete={() => { setPending2257VideoId(null); loadVideos(); }}
+            onClose={() => setPending2257VideoId(null)}
+          />
+        )}
       </AnimatePresence>
     </div>
   );

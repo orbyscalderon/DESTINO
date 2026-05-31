@@ -111,21 +111,37 @@ export const processDMCA = async (req, res) => {
 
       // Quitar el contenido si se solicita
       if (remove_content && dmca.content_id && dmca.content_type) {
-        const tableMap = {
-          photo: 'profile_photos', video: 'profile_videos',
-          post: 'posts', show: 'live_shows',
-        };
-        const table = tableMap[dmca.content_type];
-        if (table) {
-          await supabase.from(table).delete().eq('id', dmca.content_id).catch(() => {});
+        if (dmca.content_type === 'video') {
+          // Soft-delete: marca como takedown (preserva 2257 records)
+          await supabase.from('profile_videos')
+            .update({ dmca_taken_down: true, is_hidden: true })
+            .eq('id', dmca.content_id).catch(() => {});
+        } else {
+          const tableMap = {
+            photo: 'profile_photos', post: 'posts', show: 'live_shows',
+          };
+          const table = tableMap[dmca.content_type];
+          if (table) {
+            await supabase.from(table).delete().eq('id', dmca.content_id).catch(() => {});
+          }
         }
-        // Notificar al usuario reportado
+
+        // Incrementar strike y posible auto-ban
         if (dmca.reported_user_id) {
+          const { data: strikeResult } = await supabase.rpc('increment_dmca_strike', {
+            p_user_id: dmca.reported_user_id,
+            p_dmca_id: dmca.id,
+          });
+          const banned = strikeResult?.banned === true;
+          const strikes = strikeResult?.strike_count || 0;
+
           await sendBroadcastNotification(
             [dmca.reported_user_id],
             'dmca',
-            'Contenido eliminado por DMCA',
-            'Un contenido tuyo fue eliminado por una notificación DMCA aceptada. Puedes presentar una contra-notificación si crees que es un error.',
+            banned ? '🚫 Cuenta bloqueada (3 strikes DMCA)' : `⚠️ Strike DMCA ${strikes}/3`,
+            banned
+              ? 'Tu cuenta fue bloqueada permanentemente por acumular 3 strikes DMCA.'
+              : `Recibiste un strike por DMCA. Al 3er strike tu cuenta será bloqueada permanentemente.`,
             { url: '/help#dmca' }
           ).catch(() => {});
         }

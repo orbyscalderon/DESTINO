@@ -57,6 +57,9 @@ const DMCA            = lazy(() => import('./pages/DMCA.jsx'));
 const Referrals       = lazy(() => import('./pages/Referrals.jsx'));
 const Achievements    = lazy(() => import('./pages/Achievements.jsx'));
 const CoHostStage     = lazy(() => import('./pages/CoHostStage.jsx'));
+const Explore         = lazy(() => import('./pages/Explore.jsx'));
+const ExploreVideo    = lazy(() => import('./pages/ExploreVideo.jsx'));
+const Playlists       = lazy(() => import('./pages/Playlists.jsx'));
 
 const PageLoader = () => (
   <div className="min-h-screen flex items-center justify-center bg-dark-900">
@@ -247,6 +250,10 @@ export default function App() {
           <Route path="/referrals" element={<Referrals />} />
           <Route path="/achievements" element={<Achievements />} />
           <Route path="/cohost/:showId" element={<CoHostStage />} />
+          <Route path="/explore" element={<Explore />} />
+          <Route path="/explore/v/:id" element={<ExploreVideo />} />
+          <Route path="/explore/playlists" element={<Playlists />} />
+          <Route path="/explore/playlists/:id" element={<Playlists />} />
         </Route>
 
         {/* 404 */}
