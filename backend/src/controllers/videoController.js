@@ -242,15 +242,34 @@ export const endSession = async (req, res) => {
     const { sessionId } = req.body;
 
     if (!sessionId) return res.status(400).json({ error: 'sessionId requerido' });
-    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(sessionId)) {
+    if (!isValidUUID(sessionId)) {
       return res.status(400).json({ error: 'sessionId inválido' });
     }
+
+    // Cargar la sesión para saber a quién notificar
+    const { data: session } = await supabase
+      .from('video_sessions')
+      .select('user1_id, user2_id')
+      .eq('id', sessionId)
+      .single();
 
     await supabase
       .from('video_sessions')
       .update({ status: 'ended', ended_at: new Date().toISOString() })
       .eq('id', sessionId)
       .or(`user1_id.eq.${req.user.id},user2_id.eq.${req.user.id}`);
+
+    // Notificar al partner que la llamada terminó (canal Supabase realtime)
+    if (session) {
+      const partnerId = session.user1_id === req.user.id ? session.user2_id : session.user1_id;
+      if (partnerId) {
+        supabase.channel(`video:${partnerId}`).send({
+          type: 'broadcast',
+          event: 'call_ended',
+          payload: { sessionId },
+        }).catch(() => {});
+      }
+    }
 
     res.json({ message: 'Sesión terminada' });
   } catch (err) {

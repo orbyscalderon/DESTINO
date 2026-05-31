@@ -15,14 +15,40 @@ const LIVE_SHOW_CLEANUP_INTERVAL_MS = 5 * 60 * 1000; // every 5 minutes
 const RENEWAL_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000; // every 6 hours
 
 async function cleanStaleVideoSessions() {
-  const cutoff = new Date(Date.now() - STALE_SESSION_MINUTES * 60 * 1000).toISOString();
-  const { error } = await supabase
+  const now = new Date().toISOString();
+  // Sesiones waiting que llevan > 5 min sin emparejarse
+  // (usamos created_at porque waiting no tiene started_at — fix de bug previo)
+  const waitingCutoff = new Date(Date.now() - STALE_SESSION_MINUTES * 60 * 1000).toISOString();
+  const { error: e1 } = await supabase
     .from('video_sessions')
-    .update({ status: 'ended', ended_at: new Date().toISOString() })
+    .update({ status: 'ended', ended_at: now })
     .eq('status', 'waiting')
-    .lt('started_at', cutoff);
+    .lt('created_at', waitingCutoff);
+  if (e1) console.error('Cleanup waiting sessions error:', e1.message);
 
-  if (error) console.error('Cleanup video sessions error:', error.message);
+  // Sesiones active que llevan > 30 min sin terminar (probable abandono)
+  const activeCutoff = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+  const { data: staleActive } = await supabase
+    .from('video_sessions')
+    .select('id, user1_id, user2_id')
+    .eq('status', 'active')
+    .lt('started_at', activeCutoff);
+  if (staleActive?.length) {
+    const ids = staleActive.map(s => s.id);
+    await supabase
+      .from('video_sessions')
+      .update({ status: 'ended', ended_at: now })
+      .in('id', ids);
+    // Notificar a ambos partners (fire-and-forget)
+    for (const s of staleActive) {
+      [s.user1_id, s.user2_id].filter(Boolean).forEach(uid => {
+        supabase.channel(`video:${uid}`).send({
+          type: 'broadcast', event: 'call_ended',
+          payload: { sessionId: s.id, reason: 'timeout' },
+        }).catch(() => {});
+      });
+    }
+  }
 }
 
 async function notifyUpcomingRenewals() {

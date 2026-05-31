@@ -4,6 +4,7 @@ import { FiMic, FiMicOff, FiVideo, FiVideoOff, FiPhoneOff, FiSkipForward, FiUser
 import toast from 'react-hot-toast';
 import api from '../../lib/api.js';
 import { LiveKitSession } from '../../lib/livekitSession.js';
+import { supabase } from '../../lib/supabase.js';
 import { useAuthStore } from '../../store/authStore.js';
 import { countryByCode, languageByCode } from '../../lib/geodata.js';
 import { showInterstitial } from '../../lib/admob.js';
@@ -40,6 +41,8 @@ export default function VideoRoom({ genderFilter, countryFilter, videoCallsRemai
   const timerRef        = useRef(null);
   const interstitialRef = useRef(false);
   const activeRef       = useRef(true);
+  const remoteAudioRef  = useRef(null); // bug fix: limpiar Audio() elements
+  const connectedRef    = useRef(false); // bug fix: no setear timer/status 2 veces
 
   const onlineCount = useOnlineCount();
 
@@ -52,8 +55,35 @@ export default function VideoRoom({ genderFilter, countryFilter, videoCallsRemai
     };
   }, []);
 
+  // Escuchar cuando el partner termina (o si el backend cierra por timeout)
+  useEffect(() => {
+    if (!profile?.id) return;
+    const ch = supabase.channel(`video:${profile.id}`)
+      .on('broadcast', { event: 'call_ended' }, () => {
+        if (!activeRef.current) return;
+        if (rtcRef.current) {
+          setStatus('ended');
+          clearInterval(timerRef.current);
+        }
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [profile?.id]);
+
   const cleanup = async () => {
     clearInterval(timerRef.current);
+    timerRef.current = null;
+    connectedRef.current = false;
+    if (remoteAudioRef.current) {
+      try {
+        remoteAudioRef.current.pause();
+        remoteAudioRef.current.srcObject = null;
+      } catch {}
+      remoteAudioRef.current = null;
+    }
+    if (remoteVidRef.current) {
+      try { remoteVidRef.current.srcObject = null; } catch {}
+    }
     localStream.current?.getTracks().forEach(t => t.stop());
     localStream.current = null;
     setLocalActive(false);
@@ -83,9 +113,25 @@ export default function VideoRoom({ genderFilter, countryFilter, videoCallsRemai
       if (!activeRef.current) return;
       if (track.kind === 'video' && remoteVidRef.current) {
         remoteVidRef.current.srcObject = new MediaStream([track.mediaStreamTrack]);
+      } else if (track.kind === 'audio') {
+        // Limpiar audio anterior si existe (evita leak en reconexiones)
+        if (remoteAudioRef.current) {
+          try { remoteAudioRef.current.pause(); remoteAudioRef.current.srcObject = null; } catch {}
+        }
+        const el = new Audio();
+        el.srcObject = new MediaStream([track.mediaStreamTrack]);
+        el.play().catch(() => {});
+        remoteAudioRef.current = el;
+      }
+
+      // Marcar conectado UNA sola vez (no por cada track)
+      if (!connectedRef.current) {
+        connectedRef.current = true;
         setStatus('connected');
+        clearInterval(timerRef.current);
         timerRef.current = setInterval(() => setCallDuration(d => d + 1), 1000);
-        // Host: fetch partner info so the add-friend button can work
+
+        // Host fetch partner info — solo una vez
         if (sessionData.role === 'host' && sessionData.sessionId) {
           api.get(`/api/video/session/${sessionData.sessionId}/partner`)
             .then(({ data: pd }) => {
@@ -95,11 +141,6 @@ export default function VideoRoom({ genderFilter, countryFilter, videoCallsRemai
               }
             }).catch(() => {});
         }
-      }
-      if (track.kind === 'audio') {
-        const el = new Audio();
-        el.srcObject = new MediaStream([track.mediaStreamTrack]);
-        el.play().catch(() => {});
       }
     };
 
