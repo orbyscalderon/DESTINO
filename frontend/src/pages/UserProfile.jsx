@@ -13,6 +13,7 @@ import TipMenuPublic from '../components/ui/TipMenuPublic.jsx';
 import TierPicker from '../components/ui/TierPicker.jsx';
 import TierBadge from '../components/ui/TierBadge.jsx';
 import GiftSubModal from '../components/ui/GiftSubModal.jsx';
+import CreatorContentTabs from '../components/ui/CreatorContentTabs.jsx';
 import { useAuthStore } from '../store/authStore.js';
 
 export default function UserProfile() {
@@ -60,6 +61,7 @@ export default function UserProfile() {
   const [creatorLegacyPrice, setCreatorLegacyPrice] = useState(null);
   const [subscribersCount, setSubscribersCount] = useState(0);
   const [postsCount, setPostsCount] = useState(0);
+  const [creatorShows, setCreatorShows] = useState([]);
 
   const loadPhotos = async () => {
     const phRes = await api.get(`/api/profiles/${userId}/photos`).catch(() => ({ data: { photos: [], requires_vip: false } }));
@@ -114,6 +116,7 @@ export default function UserProfile() {
           .then(({ data }) => {
             setSubscribersCount(data?.subscribers_count ?? 0);
             setPostsCount(data?.posts_count ?? 0);
+            setCreatorShows(data?.shows || []);
           })
           .catch(() => {});
       }
@@ -677,209 +680,42 @@ export default function UserProfile() {
           </div>
         )}
 
-        {/* ── Fotos exclusivas (de pago) ───────────────────── */}
-        {!photosBlocked && paidPhotos.length > 0 && (
+        {/* ── Contenido del creador estilo OnlyFans: Feed / Fotos / Videos / Galerías / Shows ── */}
+        {!photosBlocked && profile.is_creator && (
+          <CreatorContentTabs
+            creatorId={userId}
+            creatorName={profile.full_name}
+            isOwnProfile={isOwnProfile}
+            subscribed={subscribed}
+            paidPhotos={paidPhotos}
+            freePhotos={freePhotos}
+            videos={videos}
+            galleries={galleries}
+            userPosts={userPosts}
+            shows={creatorShows}
+            onBuyPhoto={handleBuyPhoto}
+            buyingPhoto={buyingPhoto}
+            onBuyVideo={handleBuyVideo}
+            buyingVideo={buyingVideo}
+            onOpenGallery={handleOpenGallery}
+            loadingGallery={loadingGallery}
+            onSubscribe={() => setShowTierModal(true)}
+          />
+        )}
+
+        {/* Para perfiles NO creators, mostrar grid simple de fotos del usuario */}
+        {!photosBlocked && !profile.is_creator && freePhotos.length > 0 && (
           <div>
             <h3 className="text-sm font-semibold text-gray-400 mb-3 flex items-center gap-2">
-              <FiLock size={13} /> Fotos exclusivas
+              <FiGrid size={13} /> Fotos
             </h3>
             <div className="grid grid-cols-3 gap-2">
-              {paidPhotos.map(photo => {
-                // url existe sólo si ya está comprada (backend la oculta si no)
-                const unlocked = !!photo.url || photo.is_purchased;
-                return (
-                  <div key={photo.id} className="relative aspect-square rounded-xl overflow-hidden bg-dark-700">
-                    {unlocked ? (
-                      <img src={photo.url} alt="" className="w-full h-full object-cover" loading="lazy" />
-                    ) : (
-                      <>
-                        {/* Fondo blur decorativo */}
-                        <div className="absolute inset-0 bg-gradient-to-br from-brand-900/60 to-dark-800" />
-                        <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 p-2">
-                          <FiLock className="text-brand-400" size={22} />
-                          <p className="text-white text-xs font-bold">${photo.price}</p>
-                          <button
-                            onClick={() => handleBuyPhoto(photo)}
-                            disabled={buyingPhoto === photo.id}
-                            className="text-[10px] bg-brand-500 hover:bg-brand-600 text-white px-3 py-1 rounded-lg mt-0.5 transition-colors disabled:opacity-60"
-                          >
-                            {buyingPhoto === photo.id ? '...' : 'Desbloquear'}
-                          </button>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* ── Galerías privadas ───────────────────────────── */}
-        {galleries.length > 0 && (
-          <div>
-            <h3 className="text-sm font-semibold text-gray-400 mb-3 flex items-center gap-2">
-              <FiImage size={13} /> Galerías
-            </h3>
-            <div className="grid grid-cols-2 gap-3">
-              {galleries.map(gallery => (
-                <button
-                  key={gallery.id}
-                  onClick={() => handleOpenGallery(gallery)}
-                  disabled={loadingGallery === gallery.id}
-                  className="relative rounded-2xl overflow-hidden bg-dark-700 aspect-[3/2] text-left hover:opacity-90 transition-opacity disabled:opacity-60"
-                >
-                  {gallery.cover_url ? (
-                    <img src={gallery.cover_url} alt="" className="w-full h-full object-cover" loading="lazy" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-dark-600">
-                      <FiImage className="text-gray-600" size={24} />
-                    </div>
-                  )}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent" />
-                  {!gallery.unlocked && (
-                    <div className="absolute top-2 right-2 bg-black/60 rounded-full p-1">
-                      <FiLock size={11} className="text-white" />
-                    </div>
-                  )}
-                  <div className="absolute bottom-0 left-0 right-0 p-2.5">
-                    <p className="text-white text-xs font-semibold truncate">{gallery.title}</p>
-                    <div className="flex items-center justify-between mt-0.5">
-                      <span className="text-gray-400 text-[10px]">{gallery.items_count} items</span>
-                      {!gallery.unlocked && gallery.price_coins > 0 && (
-                        <span className="text-brand-400 text-[10px] font-bold flex items-center gap-0.5">
-                          <FiZap size={8} /> {gallery.price_coins}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  {loadingGallery === gallery.id && (
-                    <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                      <div className="w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
-                    </div>
-                  )}
-                </button>
+              {freePhotos.map(photo => (
+                <div key={photo.id} className="aspect-square rounded-xl overflow-hidden bg-dark-700">
+                  <img src={photo.url} alt="" className="w-full h-full object-cover" loading="lazy" />
+                </div>
               ))}
             </div>
-          </div>
-        )}
-
-        {/* ── Tab: Fotos / Momentos / Vídeos ──────────────── */}
-        {!photosBlocked && (freePhotos.length > 0 || userPosts.length > 0 || videos.length > 0) && (
-          <div>
-            <div className="flex gap-0 mb-3 bg-dark-700/60 rounded-xl p-1">
-              <button
-                onClick={() => setPostsTab('photos')}
-                className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium transition-all ${
-                  postsTab === 'photos' ? 'bg-dark-600 text-white' : 'text-gray-500 hover:text-gray-300'
-                }`}
-              >
-                <FiGrid size={12} /> Fotos {freePhotos.length > 0 && `(${freePhotos.length})`}
-              </button>
-              <button
-                onClick={() => setPostsTab('posts')}
-                className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium transition-all ${
-                  postsTab === 'posts' ? 'bg-dark-600 text-white' : 'text-gray-500 hover:text-gray-300'
-                }`}
-              >
-                <FiMessageCircle size={12} /> Momentos {userPosts.length > 0 && `(${userPosts.length})`}
-              </button>
-              {videos.length > 0 && (
-                <button
-                  onClick={() => setPostsTab('videos')}
-                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium transition-all ${
-                    postsTab === 'videos' ? 'bg-dark-600 text-white' : 'text-gray-500 hover:text-gray-300'
-                  }`}
-                >
-                  <FiFilm size={12} /> Vídeos ({videos.length})
-                </button>
-              )}
-            </div>
-
-            {postsTab === 'photos' && freePhotos.length > 0 && (
-              <div className="grid grid-cols-3 gap-2">
-                {freePhotos.map(photo => (
-                  <div key={photo.id} className="aspect-square rounded-xl overflow-hidden bg-dark-700">
-                    <img src={photo.url} alt="" className="w-full h-full object-cover" loading="lazy" />
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {postsTab === 'posts' && (
-              userPosts.length === 0 ? (
-                <p className="text-center text-gray-600 text-sm py-6">Sin publicaciones aún</p>
-              ) : (
-                <div className="grid grid-cols-3 gap-2">
-                  {userPosts.map(post => (
-                    <div key={post.id} className="relative aspect-square rounded-xl overflow-hidden bg-dark-700">
-                      {post.locked ? (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <FiLock className="text-gray-600" size={20} />
-                        </div>
-                      ) : post.blurred ? (
-                        <div className="w-full h-full flex items-center justify-center bg-dark-600">
-                          <span className="text-xs text-gray-500">18+</span>
-                        </div>
-                      ) : post.media_url ? (
-                        <img src={post.media_url} alt="" className="w-full h-full object-cover" loading="lazy" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center p-2">
-                          <p className="text-gray-400 text-[10px] text-center line-clamp-4">{post.caption}</p>
-                        </div>
-                      )}
-                      {post.likes_count > 0 && (
-                        <div className="absolute bottom-1 right-1 bg-black/60 rounded-full px-1.5 py-0.5 flex items-center gap-0.5">
-                          <FiHeart size={8} className="text-red-400 fill-current" />
-                          <span className="text-white text-[9px]">{post.likes_count}</span>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )
-            )}
-
-            {postsTab === 'videos' && (
-              <div className="grid grid-cols-2 gap-2">
-                {videos.map(vid => {
-                  const unlocked = !!vid.url;
-                  return (
-                    <div key={vid.id} className="relative aspect-video rounded-xl overflow-hidden bg-dark-700">
-                      {unlocked ? (
-                        <>
-                          <video src={vid.url} className="w-full h-full object-cover" preload="metadata" controls />
-                          {vid.title && (
-                            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 p-2">
-                              <p className="text-white text-[10px] font-medium truncate">{vid.title}</p>
-                            </div>
-                          )}
-                        </>
-                      ) : (
-                        <>
-                          <div className="absolute inset-0 bg-gradient-to-br from-brand-900/60 to-dark-800 flex flex-col items-center justify-center gap-2 p-3">
-                            <FiPlay size={22} className="text-white/60" />
-                            <FiLock size={14} className="text-brand-400" />
-                            {vid.title && <p className="text-white text-[10px] font-medium text-center truncate w-full">{vid.title}</p>}
-                            <div className="flex items-center gap-1 text-yellow-400">
-                              <FiZap size={10} />
-                              <span className="text-xs font-bold">{vid.price} coins</span>
-                            </div>
-                            <button
-                              onClick={() => handleBuyVideo(vid)}
-                              disabled={buyingVideo === vid.id}
-                              className="text-[10px] bg-brand-500 hover:bg-brand-600 text-white px-3 py-1 rounded-lg transition-colors disabled:opacity-60"
-                            >
-                              {buyingVideo === vid.id ? '...' : 'Desbloquear'}
-                            </button>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
           </div>
         )}
       </div>
