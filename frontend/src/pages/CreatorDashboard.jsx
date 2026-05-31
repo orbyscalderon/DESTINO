@@ -164,6 +164,8 @@ export default function CreatorDashboard() {
   const [earnings, setEarnings] = useState(null);
   const [withdrawals, setWithdrawals]     = useState([]);
   const [withdrawForm, setWithdrawForm]   = useState({ amount: '' });
+  const [autoPayout, setAutoPayout]       = useState(null);
+  const [savingAutoPayout, setSavingAutoPayout] = useState(false);
   const [submittingWithdrawal, setSubmittingWithdrawal] = useState(false);
 
   // Galleries
@@ -198,7 +200,7 @@ export default function CreatorDashboard() {
   const loadDashboard = useCallback(async (silent = false) => {
     if (!silent) setLoading(true); else setRefreshing(true);
     try {
-      const [dashRes, analyticsRes, postRes, earningsRes, tipsRes, breakdownRes, feedRes] = await Promise.all([
+      const [dashRes, analyticsRes, postRes, earningsRes, tipsRes, breakdownRes, feedRes, autoPayoutRes] = await Promise.all([
         api.get('/api/creator/dashboard'),
         api.get('/api/creator/analytics'),
         api.get('/api/creator/post-analytics').catch(() => ({ data: null })),
@@ -206,6 +208,7 @@ export default function CreatorDashboard() {
         api.get('/api/tips/received').catch(() => ({ data: { tips: [], total_coins: 0 } })),
         api.get('/api/creator/breakdown?days=30').catch(() => ({ data: null })),
         api.get('/api/creator/income-feed?limit=50').catch(() => ({ data: { items: [] } })),
+        api.get('/api/withdrawals/auto-payout').catch(() => ({ data: null })),
       ]);
       setData(dashRes.data);
       setAnalytics(analyticsRes.data);
@@ -215,6 +218,7 @@ export default function CreatorDashboard() {
       setTipsTotal(tipsRes.data?.total_coins || 0);
       setBreakdown(breakdownRes.data);
       setIncomeFeed(feedRes.data?.items || []);
+      setAutoPayout(autoPayoutRes.data);
       setSubPrice(dashRes.data.profile?.creator_subscription_price ?? '');
       setBio(dashRes.data.profile?.creator_bio ?? '');
     } catch {
@@ -1055,6 +1059,71 @@ export default function CreatorDashboard() {
                       }
                     </button>
                     <p className="text-gray-600 text-xs text-center">Stripe transfiere directo a tu banco · 2-7 días hábiles</p>
+                  </div>
+                )}
+
+                {/* Pagos automáticos (auto-payout) */}
+                {autoPayout?.stripe_connected && (
+                  <div className="rounded-2xl bg-dark-800 border border-white/5 p-5 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="font-semibold text-white text-sm flex items-center gap-2">
+                          <FiZap size={13} className="text-yellow-400" /> Pagos automáticos
+                        </h3>
+                        <p className="text-gray-500 text-xs mt-1">Te transferimos automáticamente cuando tu balance supere el umbral</p>
+                      </div>
+                      <button
+                        onClick={async () => {
+                          setSavingAutoPayout(true);
+                          try {
+                            const { data: r } = await api.patch('/api/withdrawals/auto-payout', {
+                              enabled: !autoPayout.enabled,
+                              min_usd: autoPayout.min_usd,
+                            });
+                            setAutoPayout(a => ({ ...a, enabled: r.auto_payout_enabled }));
+                            toast.success(r.auto_payout_enabled ? 'Pagos automáticos activados' : 'Pagos automáticos desactivados');
+                          } catch (err) {
+                            toast.error(err.response?.data?.error || 'Error');
+                          } finally {
+                            setSavingAutoPayout(false);
+                          }
+                        }}
+                        disabled={savingAutoPayout}
+                        className={`relative w-12 h-7 rounded-full transition-colors shrink-0 ${autoPayout.enabled ? 'bg-brand-500' : 'bg-dark-600'}`}
+                      >
+                        <span className={`absolute top-0.5 w-6 h-6 bg-white rounded-full transition-transform ${autoPayout.enabled ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                      </button>
+                    </div>
+                    {autoPayout.enabled && (
+                      <div className="flex items-center gap-2 pt-2 border-t border-white/5">
+                        <span className="text-xs text-gray-400">Umbral mínimo:</span>
+                        <div className="relative flex-1 max-w-[120px]">
+                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs">$</span>
+                          <input
+                            className="input-field pl-5 py-1.5 text-xs"
+                            type="number" min="10" max="10000" step="10"
+                            defaultValue={autoPayout.min_usd}
+                            onBlur={async (e) => {
+                              const val = parseFloat(e.target.value);
+                              if (val >= 10 && val <= 10000 && val !== autoPayout.min_usd) {
+                                try {
+                                  await api.patch('/api/withdrawals/auto-payout', { enabled: true, min_usd: val });
+                                  setAutoPayout(a => ({ ...a, min_usd: val }));
+                                  toast.success(`Umbral actualizado: $${val}`);
+                                } catch {
+                                  toast.error('Error actualizando umbral');
+                                }
+                              }
+                            }}
+                          />
+                        </div>
+                      </div>
+                    )}
+                    {autoPayout.last_payout_at && (
+                      <p className="text-[10px] text-gray-600">
+                        Último payout automático: {new Date(autoPayout.last_payout_at).toLocaleDateString('es', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      </p>
+                    )}
                   </div>
                 )}
 

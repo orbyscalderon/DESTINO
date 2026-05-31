@@ -358,6 +358,8 @@ export const subscribeToCreator = async (req, res) => {
       amount: amountCents,
       currency: 'usd',
       customer: customerId,
+      // Permite re-cobrar el mismo método off-session para la renovación mensual
+      setup_future_usage: 'off_session',
       metadata: {
         type: 'creator_subscription',
         creator_id: creatorId,
@@ -415,6 +417,11 @@ export const confirmCreatorSubscription = async (req, res) => {
       subscription_price: creator?.creator_subscription_price || amountPaid,
       status: 'active',
       current_period_end: periodEnd,
+      stripe_customer_id: pi.customer || null,
+      stripe_payment_method_id: pi.payment_method || null,
+      auto_renew: true,
+      failed_renewal_count: 0,
+      canceled_at: null,
       updated_at: new Date().toISOString(),
     }, { onConflict: 'subscriber_id,creator_id' });
 
@@ -436,6 +443,7 @@ export const confirmCreatorSubscription = async (req, res) => {
 };
 
 // DELETE /api/creator/:creatorId/subscribe — cancelar suscripción
+// La suscripción queda activa hasta current_period_end pero no se renovará.
 export const cancelCreatorSubscription = async (req, res) => {
   try {
     const { creatorId } = req.params;
@@ -443,11 +451,15 @@ export const cancelCreatorSubscription = async (req, res) => {
 
     await supabase
       .from('creator_subscriptions')
-      .update({ status: 'canceled', updated_at: new Date().toISOString() })
+      .update({
+        auto_renew: false,
+        canceled_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
       .eq('subscriber_id', subscriberId)
       .eq('creator_id', creatorId);
 
-    res.json({ message: 'Suscripción cancelada' });
+    res.json({ message: 'Renovación automática desactivada. Tu acceso continúa hasta el final del período actual.' });
   } catch (err) {
     res.status(500).json({ error: 'Error interno del servidor' });
   }

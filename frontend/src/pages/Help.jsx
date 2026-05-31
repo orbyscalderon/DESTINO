@@ -175,9 +175,10 @@ export default function Help() {
           </a>
         </div>
 
-        <div className="mt-8 pt-6 border-t border-white/5 flex gap-4 text-sm text-gray-500 justify-center">
+        <div className="mt-8 pt-6 border-t border-white/5 flex gap-4 text-sm text-gray-500 justify-center flex-wrap">
           <Link to="/terms" className="hover:text-brand-400 transition-colors">Términos de Servicio</Link>
           <Link to="/privacy" className="hover:text-brand-400 transition-colors">Política de Privacidad</Link>
+          <Link to="/dmca" className="hover:text-brand-400 transition-colors">DMCA / Copyright</Link>
         </div>
       </div>
     </div>

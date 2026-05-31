@@ -19,6 +19,7 @@ const TABS = [
   { key: 'withdrawals',    label: 'Retiros',    icon: FiCreditCard },
   { key: 'verifications',  label: 'ID',         icon: FiShield },
   { key: 'reports',        label: 'Reportes',   icon: FiFlag },
+  { key: 'dmca',           label: 'DMCA',       icon: FiShield },
   { key: 'appeals',        label: 'Apelaciones', icon: FiMessageCircle },
 ];
 
@@ -78,11 +79,41 @@ export default function Admin() {
   const [platformRevenue, setPlatformRevenue] = useState(null);
   const [revenueDays, setRevenueDays] = useState(30);
   const [revenueLoading, setRevenueLoading] = useState(false);
+  const [dmcaList, setDmcaList] = useState([]);
+  const [dmcaStatus, setDmcaStatus] = useState('pending');
+  const [dmcaLoading, setDmcaLoading] = useState(false);
+  const [processingDmca, setProcessingDmca] = useState(null);
 
   useEffect(() => { loadAll(); }, []);
   useEffect(() => {
     if (tab === 'revenue') loadPlatformRevenue(revenueDays);
-  }, [tab, revenueDays]);
+    if (tab === 'dmca')    loadDmca(dmcaStatus);
+  }, [tab, revenueDays, dmcaStatus]);
+
+  const loadDmca = async (status) => {
+    try {
+      setDmcaLoading(true);
+      const { data } = await api.get(`/api/admin/dmca?status=${status}`);
+      setDmcaList(data?.requests || []);
+    } catch {
+      toast.error('Error cargando DMCA');
+    } finally {
+      setDmcaLoading(false);
+    }
+  };
+
+  const handleProcessDmca = async (id, action, remove_content = false) => {
+    setProcessingDmca(id);
+    try {
+      await api.patch(`/api/admin/dmca/${id}`, { action, remove_content });
+      toast.success('DMCA procesado');
+      loadDmca(dmcaStatus);
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Error procesando');
+    } finally {
+      setProcessingDmca(null);
+    }
+  };
 
   const loadPlatformRevenue = async (days) => {
     try {
@@ -1041,6 +1072,93 @@ export default function Admin() {
           ))}
         </div>
       )}
+      {/* ── DMCA ── */}
+      {tab === 'dmca' && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div>
+              <h2 className="text-lg font-bold text-white">Notificaciones DMCA</h2>
+              <p className="text-xs text-gray-500">Solicitudes de takedown bajo 17 U.S.C. § 512(c)(3)</p>
+            </div>
+            <div className="flex gap-1 bg-dark-800 rounded-lg p-1">
+              {['pending', 'accepted', 'rejected', 'counter_notice'].map(s => (
+                <button
+                  key={s}
+                  onClick={() => setDmcaStatus(s)}
+                  className={`px-3 py-1 rounded-md text-xs font-bold transition ${dmcaStatus === s ? 'bg-brand-500 text-white' : 'text-gray-400 hover:text-white'}`}
+                >
+                  {s === 'pending' ? 'Pendientes' : s === 'accepted' ? 'Aceptados' : s === 'rejected' ? 'Rechazados' : 'Contra-notif.'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {dmcaLoading && <div className="card p-8 text-center text-gray-500 text-sm">Cargando…</div>}
+
+          {!dmcaLoading && dmcaList.length === 0 && (
+            <div className="card p-8 text-center text-gray-500 text-sm">Sin solicitudes en esta categoría</div>
+          )}
+
+          {dmcaList.map(d => (
+            <div key={d.id} className="card p-4 space-y-3">
+              <div className="flex items-start justify-between gap-2 flex-wrap">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-bold text-white">{d.copyright_owner}</p>
+                  <p className="text-xs text-gray-500">por {d.claimant_name} · {d.claimant_email}</p>
+                  <p className="text-[10px] text-gray-600 mt-0.5">
+                    {new Date(d.created_at).toLocaleDateString('es', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                </div>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-dark-700 text-gray-400 uppercase font-bold shrink-0">
+                  {d.content_type}
+                </span>
+              </div>
+
+              <div className="bg-dark-800 rounded-lg p-2.5 text-xs space-y-1">
+                <p className="text-gray-500">URL infractora:</p>
+                <p className="text-white break-all text-[11px]">{d.infringing_url}</p>
+                {d.original_work_url && (
+                  <>
+                    <p className="text-gray-500 mt-2">Obra original:</p>
+                    <p className="text-white break-all text-[11px]">{d.original_work_url}</p>
+                  </>
+                )}
+              </div>
+
+              <div className="text-[10px] text-gray-500 italic">
+                Firma: <span className="text-gray-300 not-italic">{d.signature}</span>
+              </div>
+
+              {d.status === 'pending' && (
+                <div className="flex gap-2 pt-2 border-t border-white/5">
+                  <button
+                    onClick={() => handleProcessDmca(d.id, 'accept', true)}
+                    disabled={processingDmca === d.id}
+                    className="flex-1 text-xs font-bold py-2 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 disabled:opacity-40"
+                  >
+                    Aceptar + eliminar contenido
+                  </button>
+                  <button
+                    onClick={() => handleProcessDmca(d.id, 'reject')}
+                    disabled={processingDmca === d.id}
+                    className="flex-1 text-xs font-bold py-2 rounded-lg bg-dark-700 text-gray-300 hover:bg-dark-600 disabled:opacity-40"
+                  >
+                    Rechazar
+                  </button>
+                </div>
+              )}
+
+              {d.status !== 'pending' && d.resolution && (
+                <p className="text-[10px] text-gray-500 pt-2 border-t border-white/5">
+                  Resolución: <span className="text-gray-300">{d.resolution.replace(/_/g, ' ')}</span>
+                  {d.reviewed_at && ` · ${new Date(d.reviewed_at).toLocaleDateString('es')}`}
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* ── REPORTES ── */}
       {tab === 'reports' && (
         <div className="space-y-3">

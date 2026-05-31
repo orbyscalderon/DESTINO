@@ -1,5 +1,11 @@
 import { supabase } from './supabase.js';
+import { stripe } from './stripe.js';
 import { createNotification } from '../controllers/inAppNotifController.js';
+import { upsertCreatorEarnings } from '../controllers/showController.js';
+import { PLATFORM_FEE_RATE } from '../controllers/coinController.js';
+
+const MAX_RENEWAL_RETRIES = 3;
+const AUTO_PAYOUT_INTERVAL_MS = 24 * 60 * 60 * 1000; // 1 vez al día
 
 const STALE_SESSION_MINUTES = 5;
 const MAX_LIVE_SHOW_HOURS = 6;
@@ -50,13 +56,193 @@ async function notifyUpcomingRenewals() {
 async function expireStaleSubscriptions() {
   try {
     const now = new Date().toISOString();
+    // Solo expirar suscripciones sin auto_renew O ya canceladas
     await supabase
       .from('creator_subscriptions')
       .update({ status: 'expired' })
       .eq('status', 'active')
-      .lt('current_period_end', now);
+      .lt('current_period_end', now)
+      .or('auto_renew.eq.false,failed_renewal_count.gte.' + MAX_RENEWAL_RETRIES);
   } catch (err) {
     console.error('Expire subscriptions error:', err.message);
+  }
+}
+
+// Renovar automáticamente suscripciones a creadores que vencen en menos de 24h
+async function renewCreatorSubscriptions() {
+  if (!stripe) return;
+  try {
+    const in24h = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+    const now   = new Date().toISOString();
+
+    const { data: dueSubs } = await supabase
+      .from('creator_subscriptions')
+      .select(`
+        id, subscriber_id, creator_id, subscription_price,
+        stripe_customer_id, stripe_payment_method_id,
+        failed_renewal_count,
+        creator:profiles!creator_id(full_name, stripe_account_id, stripe_account_status)
+      `)
+      .eq('status', 'active')
+      .eq('auto_renew', true)
+      .gte('current_period_end', now)
+      .lt('current_period_end', in24h)
+      .lt('failed_renewal_count', MAX_RENEWAL_RETRIES);
+
+    for (const sub of dueSubs || []) {
+      if (!sub.stripe_customer_id || !sub.stripe_payment_method_id) {
+        // Sin método guardado, no podemos renovar. Marcar para expirar.
+        await supabase.from('creator_subscriptions')
+          .update({ auto_renew: false, last_renewal_attempt: now })
+          .eq('id', sub.id);
+        continue;
+      }
+
+      const amountCents = Math.round(parseFloat(sub.subscription_price) * 100);
+      const platformFeeCents = Math.round(amountCents * PLATFORM_FEE_RATE);
+
+      try {
+        const piParams = {
+          amount: amountCents,
+          currency: 'usd',
+          customer: sub.stripe_customer_id,
+          payment_method: sub.stripe_payment_method_id,
+          off_session: true,
+          confirm: true,
+          metadata: {
+            type: 'creator_subscription_renewal',
+            creator_id: sub.creator_id,
+            subscriber_id: sub.subscriber_id,
+            subscription_id: sub.id,
+          },
+        };
+
+        if (sub.creator?.stripe_account_id && sub.creator?.stripe_account_status === 'active') {
+          piParams.application_fee_amount = platformFeeCents;
+          piParams.transfer_data = { destination: sub.creator.stripe_account_id };
+        }
+
+        await stripe.paymentIntents.create(piParams);
+
+        // Éxito → extender período + acreditar al creador
+        const newPeriodEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+        const earningsUSD = parseFloat(sub.subscription_price) * (1 - PLATFORM_FEE_RATE);
+
+        await supabase.from('creator_subscriptions').update({
+          current_period_end: newPeriodEnd,
+          failed_renewal_count: 0,
+          last_renewal_attempt: now,
+          updated_at: now,
+        }).eq('id', sub.id);
+
+        await upsertCreatorEarnings(sub.creator_id, earningsUSD).catch(() => {});
+
+        createNotification(
+          sub.subscriber_id,
+          'subscription_renewed',
+          'Suscripción renovada',
+          `Renovamos tu suscripción a ${sub.creator?.full_name} por $${parseFloat(sub.subscription_price).toFixed(2)}`,
+          {}
+        ).catch(() => {});
+      } catch (err) {
+        const newCount = (sub.failed_renewal_count || 0) + 1;
+        await supabase.from('creator_subscriptions').update({
+          failed_renewal_count: newCount,
+          last_renewal_attempt: now,
+          updated_at: now,
+        }).eq('id', sub.id);
+
+        createNotification(
+          sub.subscriber_id,
+          'subscription_renewal_failed',
+          'No pudimos renovar tu suscripción',
+          `Falló el cobro a ${sub.creator?.full_name}. Actualiza tu método de pago para no perder el acceso.`,
+          { url: '/premium' }
+        ).catch(() => {});
+
+        console.error(`Renewal failed sub=${sub.id} attempt=${newCount}:`, err.message);
+      }
+    }
+  } catch (err) {
+    console.error('renewCreatorSubscriptions error:', err.message);
+  }
+}
+
+// Procesar payouts automáticos para creadores con auto_payout_enabled
+async function processAutoPayouts() {
+  if (!stripe) return;
+  try {
+    const { data: creators } = await supabase
+      .from('profiles')
+      .select(`
+        id, full_name, auto_payout_min_usd, stripe_account_id, stripe_account_status,
+        creator_earnings:creator_earnings!user_id(pending_balance)
+      `)
+      .eq('auto_payout_enabled', true)
+      .eq('stripe_account_status', 'active');
+
+    for (const creator of creators || []) {
+      const pending = parseFloat(creator.creator_earnings?.[0]?.pending_balance || 0);
+      const minThreshold = parseFloat(creator.auto_payout_min_usd || 50);
+
+      if (pending < minThreshold) continue;
+      if (!creator.stripe_account_id) continue;
+
+      const amountCents = Math.floor(pending * 100);
+
+      // Crear registro pending para idempotencia y auditoría
+      const { data: payoutRow } = await supabase
+        .from('auto_payouts')
+        .insert({ creator_id: creator.id, amount_usd: pending, status: 'pending' })
+        .select('id').single();
+
+      try {
+        const transfer = await stripe.transfers.create({
+          amount: amountCents,
+          currency: 'usd',
+          destination: creator.stripe_account_id,
+          metadata: { type: 'auto_payout', creator_id: creator.id, payout_id: payoutRow?.id },
+        });
+
+        // Restar del balance pendiente y sumar a paid_out
+        await supabase.rpc('apply_auto_payout', {
+          p_creator_id: creator.id,
+          p_amount_usd: pending,
+        }).catch(async () => {
+          // Fallback manual si la RPC no existe aún
+          await supabase.from('creator_earnings').update({
+            pending_balance: 0,
+            total_paid_out: pending,
+          }).eq('user_id', creator.id);
+        });
+
+        await supabase.from('auto_payouts').update({
+          status: 'sent',
+          stripe_transfer_id: transfer.id,
+          completed_at: new Date().toISOString(),
+        }).eq('id', payoutRow?.id);
+
+        await supabase.from('profiles')
+          .update({ last_auto_payout_at: new Date().toISOString() })
+          .eq('id', creator.id);
+
+        createNotification(
+          creator.id,
+          'payout',
+          '💸 Payout automático enviado',
+          `Te transferimos $${pending.toFixed(2)} USD a tu cuenta Stripe.`,
+          {}
+        ).catch(() => {});
+      } catch (err) {
+        await supabase.from('auto_payouts').update({
+          status: 'failed',
+          error_message: err.message,
+        }).eq('id', payoutRow?.id);
+        console.error(`Auto-payout failed creator=${creator.id}:`, err.message);
+      }
+    }
+  } catch (err) {
+    console.error('processAutoPayouts error:', err.message);
   }
 }
 
@@ -175,15 +361,21 @@ export function startCleanupJob() {
   setInterval(cleanStaleLiveShows, LIVE_SHOW_CLEANUP_INTERVAL_MS);
 
   notifyUpcomingRenewals();
+  renewCreatorSubscriptions();
   expireStaleSubscriptions();
   expireBoosts();
   expireStaleMatches();
   setInterval(() => {
     notifyUpcomingRenewals();
+    renewCreatorSubscriptions();
     expireStaleSubscriptions();
     expireBoosts();
     expireStaleMatches();
   }, RENEWAL_CHECK_INTERVAL_MS);
 
-  console.log('🧹 Cleanup job iniciado (sesiones de video cada 30s, shows cada 5min, renovaciones/boosts/matches cada 6h)');
+  // Payouts automáticos una vez al día
+  processAutoPayouts();
+  setInterval(processAutoPayouts, AUTO_PAYOUT_INTERVAL_MS);
+
+  console.log('🧹 Cleanup job iniciado (sesiones video 30s, shows 5min, renovaciones/boosts/matches 6h, payouts 24h)');
 }

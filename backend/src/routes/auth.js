@@ -1,6 +1,8 @@
 import { Router } from 'express';
+import rateLimit from 'express-rate-limit';
 import { authMiddleware } from '../middleware/auth.js';
 import { sendWelcomeEmail } from '../lib/emailService.js';
+import { logLoginAttempt, checkLockout } from '../controllers/loginAttemptController.js';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -42,5 +44,15 @@ router.post('/welcome-email', authMiddleware, async (req, res) => {
   sendWelcomeEmail(email, name).catch(() => {});
   res.json({ ok: true });
 });
+
+// Account lockout: el frontend reporta cada intento de login
+// (no requiere auth porque ocurre antes/durante login)
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  message: { error: 'Demasiados intentos. Espera unos minutos.' },
+});
+router.post('/log-attempt',   loginLimiter, logLoginAttempt);
+router.get ('/check-lockout', loginLimiter, checkLockout);
 
 export default router;

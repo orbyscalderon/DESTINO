@@ -12,6 +12,7 @@ import {
   getReports, processReport,
   getPlatformRevenue,
 } from '../controllers/adminController.js';
+import { listDMCA, processDMCA } from '../controllers/dmcaController.js';
 
 const router = Router();
 router.use(authMiddleware);
@@ -44,5 +45,8 @@ router.patch('/content/:postId',    processContent);
 
 router.get('/reports',              getReports);
 router.patch('/reports/:id',        processReport);
+
+router.get('/dmca',                 listDMCA);
+router.patch('/dmca/:id',           processDMCA);
 
 export default router;

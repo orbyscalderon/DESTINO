@@ -15,6 +15,7 @@ import { supabase } from './lib/supabase.js';
 import OfflineBanner from './components/ui/OfflineBanner.jsx';
 import OnboardingTour from './components/ui/OnboardingTour.jsx';
 import IncomingCallModal from './components/ui/IncomingCallModal.jsx';
+import CookieBanner from './components/CookieBanner.jsx';
 
 const Landing     = lazy(() => import('./pages/Landing.jsx'));
 const Register    = lazy(() => import('./pages/Register.jsx'));
@@ -52,6 +53,7 @@ const VerifyEmail     = lazy(() => import('./pages/VerifyEmail.jsx'));
 const ForgotPassword  = lazy(() => import('./pages/ForgotPassword.jsx'));
 const Error403        = lazy(() => import('./pages/Error403.jsx'));
 const Error500        = lazy(() => import('./pages/Error500.jsx'));
+const DMCA            = lazy(() => import('./pages/DMCA.jsx'));
 
 const PageLoader = () => (
   <div className="min-h-screen flex items-center justify-center bg-dark-900">
@@ -182,6 +184,7 @@ export default function App() {
       <ErrorBoundary>
       <Suspense fallback={<PageLoader />}>
       <OfflineBanner />
+      <CookieBanner />
       {user && <OnboardingTour />}
       {user && <IncomingCallListener />}
       <Toaster
@@ -207,6 +210,7 @@ export default function App() {
         <Route path="/privacy" element={<Privacy />} />
         <Route path="/terms" element={<Terms />} />
         <Route path="/help" element={<Help />} />
+        <Route path="/dmca" element={<DMCA />} />
         <Route path="/403" element={<Error403 />} />
         <Route path="/500" element={<Error500 />} />
 

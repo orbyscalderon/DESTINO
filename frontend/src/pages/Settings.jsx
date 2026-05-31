@@ -283,10 +283,18 @@ export default function Settings() {
   };
 
   const handleDeleteAccount = async () => {
-    if (!confirm('¿Seguro que quieres eliminar tu cuenta? Esta acción es irreversible y borrará todos tus datos.')) return;
+    const phrase = window.prompt(
+      'Esta acción es PERMANENTE e irreversible. Borraremos todos tus datos, fotos, mensajes y suscripciones.\n\n' +
+      'Para confirmar, escribe exactamente:\n\nBORRAR MI CUENTA'
+    );
+    if (phrase !== 'BORRAR MI CUENTA') {
+      if (phrase !== null) toast.error('Confirmación incorrecta. Cuenta NO eliminada.');
+      return;
+    }
     setDeletingAccount(true);
     try {
-      await api.delete('/api/profiles/me');
+      await api.delete('/api/gdpr/account', { data: { confirm: 'BORRAR MI CUENTA' } });
+      toast.success('Cuenta eliminada permanentemente');
       await logout();
     } catch (err) {
       toast.error(err.response?.data?.error || 'Error al eliminar la cuenta. Inténtalo de nuevo.');
@@ -373,14 +381,14 @@ export default function Settings() {
   const handleExportData = async () => {
     setExportingData(true);
     try {
-      const res = await api.get('/api/profiles/export', { responseType: 'blob' });
+      const res = await api.get('/api/gdpr/export', { responseType: 'blob' });
       const url = URL.createObjectURL(res.data);
       const a = document.createElement('a');
       a.href = url;
       a.download = `destino_datos_${new Date().toISOString().slice(0,10)}.json`;
       a.click();
       URL.revokeObjectURL(url);
-      toast.success('Datos descargados');
+      toast.success('Datos descargados (GDPR art. 20)');
     } catch {
       toast.error('Error al exportar datos');
     } finally {

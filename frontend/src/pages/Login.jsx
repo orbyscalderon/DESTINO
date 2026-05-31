@@ -20,6 +20,16 @@ export default function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    // Verificar bloqueo de cuenta antes de intentar
+    try {
+      const { data: lock } = await api.get(`/api/auth/check-lockout?email=${encodeURIComponent(form.email)}`);
+      if (lock?.locked) {
+        const mins = Math.ceil((new Date(lock.locked_until) - new Date()) / 60000);
+        toast.error(`Cuenta bloqueada por ${mins} min por demasiados intentos fallidos.`);
+        return;
+      }
+    } catch { /* no bloquear si falla la verificación */ }
+
     // Verificar Turnstile si está configurado
     if (TURNSTILE_KEY) {
       if (!turnstileToken) {
@@ -43,8 +53,21 @@ export default function Login() {
         password: form.password,
       });
       if (error) throw error;
+      // Reportar éxito (limpia bloqueo si lo había)
+      api.post('/api/auth/log-attempt', { email: form.email, success: true }).catch(() => {});
       navigate('/home');
     } catch (err) {
+      // Reportar fallo y avisar si se acerca al bloqueo
+      api.post('/api/auth/log-attempt', { email: form.email, success: false })
+        .then(({ data }) => {
+          if (data?.locked) {
+            toast.error(data.message || 'Cuenta bloqueada por seguridad.');
+          } else if (data?.warning) {
+            toast.error(data.warning);
+          }
+        })
+        .catch(() => {});
+
       if (err.message?.toLowerCase().includes('email not confirmed')) {
         toast.error('Debes confirmar tu email antes de iniciar sesión. Revisa tu bandeja de entrada.');
       } else if (err.message?.toLowerCase().includes('invalid login credentials')) {

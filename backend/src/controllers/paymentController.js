@@ -180,11 +180,45 @@ export const handleWebhook = async (req, res) => {
         const invoice = event.data.object;
         const userId = getUserIdFromEvent(invoice.subscription_details);
         if (!userId) break;
-        // Asegurar que la suscripción quede activa tras pago exitoso de renovación
+        // Asegurar que la suscripción Premium de la app quede activa tras renovación
         await supabase
           .from('subscriptions')
           .update({ status: 'active', updated_at: new Date().toISOString() })
           .eq('stripe_customer_id', invoice.customer);
+        // Reflejar también en el perfil
+        await supabase
+          .from('profiles')
+          .update({ is_premium: true })
+          .eq('id', userId);
+        break;
+      }
+
+      // PaymentIntent payment failed (off-session renewal de creator subs)
+      case 'payment_intent.payment_failed': {
+        const pi = event.data.object;
+        if (pi.metadata?.type === 'creator_subscription_renewal') {
+          const { subscriber_id, creator_id, subscription_id } = pi.metadata;
+          if (subscription_id) {
+            await supabase.rpc('increment_failed_renewal', { p_sub_id: subscription_id }).catch(async () => {
+              const { data: cur } = await supabase
+                .from('creator_subscriptions')
+                .select('failed_renewal_count')
+                .eq('id', subscription_id).single();
+              await supabase.from('creator_subscriptions').update({
+                failed_renewal_count: (cur?.failed_renewal_count || 0) + 1,
+                last_renewal_attempt: new Date().toISOString(),
+              }).eq('id', subscription_id);
+            });
+          }
+          const { createNotification } = await import('./inAppNotifController.js');
+          createNotification(
+            subscriber_id,
+            'subscription_renewal_failed',
+            'Renovación fallida',
+            'No pudimos cobrar tu suscripción. Actualiza tu método de pago.',
+            { url: '/premium' }
+          ).catch(() => {});
+        }
         break;
       }
 

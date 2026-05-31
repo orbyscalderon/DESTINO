@@ -89,6 +89,62 @@ export const requestWithdrawal = async (req, res) => {
   }
 };
 
+// GET /api/withdrawals/auto-payout — estado del auto-payout del creador
+export const getAutoPayoutSettings = async (req, res) => {
+  try {
+    const { data } = await supabase
+      .from('profiles')
+      .select('auto_payout_enabled, auto_payout_min_usd, stripe_account_id, stripe_account_status, last_auto_payout_at')
+      .eq('id', req.user.id)
+      .single();
+
+    res.json({
+      enabled:           !!data?.auto_payout_enabled,
+      min_usd:           parseFloat(data?.auto_payout_min_usd || 50),
+      stripe_connected:  !!data?.stripe_account_id && data?.stripe_account_status === 'active',
+      last_payout_at:    data?.last_auto_payout_at || null,
+    });
+  } catch {
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
+// PATCH /api/withdrawals/auto-payout
+// Body: { enabled: boolean, min_usd?: number }
+export const updateAutoPayoutSettings = async (req, res) => {
+  try {
+    const { enabled, min_usd } = req.body;
+
+    if (enabled) {
+      // Verificar Stripe Connect activo antes de permitir
+      const { data: prof } = await supabase
+        .from('profiles')
+        .select('stripe_account_id, stripe_account_status')
+        .eq('id', req.user.id)
+        .single();
+
+      if (!prof?.stripe_account_id || prof.stripe_account_status !== 'active') {
+        return res.status(400).json({
+          error: 'Necesitas tener Stripe Connect activo para usar pagos automáticos.',
+          code: 'STRIPE_CONNECT_REQUIRED',
+        });
+      }
+    }
+
+    const minUsd = parseFloat(min_usd);
+    const update = { auto_payout_enabled: !!enabled };
+    if (!isNaN(minUsd) && minUsd >= 10 && minUsd <= 10000) {
+      update.auto_payout_min_usd = minUsd;
+    }
+
+    await supabase.from('profiles').update(update).eq('id', req.user.id);
+    res.json({ success: true, ...update });
+  } catch (err) {
+    console.error('updateAutoPayoutSettings error:', err.message);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
 // GET /api/withdrawals — historial de solicitudes del creador
 export const getMyWithdrawals = async (req, res) => {
   try {
