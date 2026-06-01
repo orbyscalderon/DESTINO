@@ -978,7 +978,12 @@ export default function UserProfile() {
                 </button>
               </div>
               <div className="p-5 space-y-4">
-                <TierPicker creatorId={userId} onSelect={handleSubscribe} />
+                <TierPicker
+                  creatorId={userId}
+                  onSelect={handleSubscribe}
+                  initialTiers={creatorTiers}
+                  initialLegacyPrice={creatorLegacyPrice}
+                />
               </div>
             </motion.div>
           </motion.div>

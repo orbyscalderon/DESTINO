@@ -5,14 +5,24 @@ import api from '../../lib/api';
 // Muestra los tiers disponibles del creador. El usuario hace click en uno
 // y se llama onSelect(tier) — el padre se encarga de abrir el flow de pago.
 //
-// Si el creador no tiene tiers definidos, muestra el precio legacy único
-// como si fuera un tier sin badge.
-export default function TierPicker({ creatorId, onSelect, selectedTierId }) {
-  const [tiers, setTiers] = useState([]);
-  const [legacyPrice, setLegacyPrice] = useState(null);
-  const [loading, setLoading] = useState(true);
+// Si el padre ya tiene los tiers cargados, puede pasarlos como props
+// (initialTiers/initialLegacyPrice) para evitar un refetch + flash de loading.
+export default function TierPicker({
+  creatorId,
+  onSelect,
+  selectedTierId,
+  initialTiers = null,
+  initialLegacyPrice = null,
+}) {
+  const preloaded = Array.isArray(initialTiers);
+  const [tiers, setTiers] = useState(preloaded ? initialTiers : []);
+  const [legacyPrice, setLegacyPrice] = useState(initialLegacyPrice);
+  const [loading, setLoading] = useState(!preloaded);
+  const [fetchError, setFetchError] = useState(null);
 
   useEffect(() => {
+    // Si ya nos pasaron los tiers desde el padre, no refetcheamos.
+    if (preloaded) return;
     let cancel = false;
     (async () => {
       try {
@@ -20,14 +30,24 @@ export default function TierPicker({ creatorId, onSelect, selectedTierId }) {
         if (cancel) return;
         setTiers(data.tiers || []);
         setLegacyPrice(data.legacy_price ?? null);
+      } catch (err) {
+        if (cancel) return;
+        const status = err?.response?.status;
+        setFetchError(status === 429 ? 'Demasiadas peticiones, intenta en un momento.'
+          : status >= 500 ? 'Error del servidor, intenta de nuevo.'
+          : 'No se pudieron cargar las opciones de suscripción.');
       } finally {
         if (!cancel) setLoading(false);
       }
     })();
     return () => { cancel = true; };
-  }, [creatorId]);
+  }, [creatorId, preloaded]);
 
   if (loading) return <div className="text-gray-500 text-sm text-center py-4">Cargando opciones...</div>;
+
+  if (fetchError) {
+    return <p className="text-red-400 text-sm text-center py-4">{fetchError}</p>;
+  }
 
   if (tiers.length === 0 && legacyPrice !== null) {
     return (
