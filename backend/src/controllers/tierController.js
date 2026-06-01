@@ -180,9 +180,8 @@ export const giftSubscription = async (req, res) => {
     const { recipientId, tierId, message } = req.body;
     const gifterId = req.user.id;
 
-    if (!recipientId || !tierId) return res.status(400).json({ error: 'recipientId y tierId requeridos' });
-    if (recipientId === gifterId) return res.status(400).json({ error: 'No puedes regalarte a ti mismo' });
-    if (recipientId === creatorId) return res.status(400).json({ error: 'No puedes regalarle al propio creador' });
+    if (!tierId) return res.status(400).json({ error: 'tierId requerido' });
+    if (!recipientId) return res.status(400).json({ error: 'recipientId requerido (o "random")' });
 
     // Validar tier (pertenece al creator + activo)
     const { data: tier } = await supabase
@@ -193,16 +192,61 @@ export const giftSubscription = async (req, res) => {
       .single();
     if (!tier || tier.creator_id !== creatorId) return res.status(404).json({ error: 'Tier no válido' });
 
+    // Si recipientId === 'random', elegir un follower elegible al azar.
+    // Criterios: sigue al creator, NO está suscrito activamente, NO es el
+    // gifter ni el propio creator.
+    let resolvedRecipientId = recipientId;
+    if (recipientId === 'random') {
+      // 1) IDs de followers del creator
+      const { data: followers } = await supabase
+        .from('follows')
+        .select('follower_id')
+        .eq('following_id', creatorId);
+      const followerIds = (followers || [])
+        .map(f => f.follower_id)
+        .filter(id => id !== gifterId && id !== creatorId);
+
+      if (followerIds.length === 0) {
+        return res.status(400).json({
+          error: 'Este creador aún no tiene seguidores elegibles para recibir un regalo',
+          code: 'NO_ELIGIBLE_FANS',
+        });
+      }
+
+      // 2) Excluir los que ya están suscritos activamente
+      const { data: existingSubs } = await supabase
+        .from('creator_subscriptions')
+        .select('subscriber_id')
+        .eq('creator_id', creatorId)
+        .eq('status', 'active')
+        .in('subscriber_id', followerIds);
+      const subscribedSet = new Set((existingSubs || []).map(s => s.subscriber_id));
+      const eligible = followerIds.filter(id => !subscribedSet.has(id));
+
+      if (eligible.length === 0) {
+        return res.status(400).json({
+          error: 'Todos los seguidores de este creador ya están suscritos',
+          code: 'NO_ELIGIBLE_FANS',
+        });
+      }
+
+      // 3) Elegir al azar
+      resolvedRecipientId = eligible[Math.floor(Math.random() * eligible.length)];
+    } else {
+      if (recipientId === gifterId) return res.status(400).json({ error: 'No puedes regalarte a ti mismo' });
+      if (recipientId === creatorId) return res.status(400).json({ error: 'No puedes regalarle al propio creador' });
+    }
+
     // Validar recipient existe
     const { data: recipient } = await supabase
-      .from('profiles').select('id, full_name, email_prefs').eq('id', recipientId).single();
+      .from('profiles').select('id, full_name, email_prefs').eq('id', resolvedRecipientId).single();
     if (!recipient) return res.status(404).json({ error: 'Destinatario no encontrado' });
 
-    // Suscripción activa existente?
+    // Suscripción activa existente (defensa en profundidad — ya filtramos en random path)
     const { data: existingSub } = await supabase
       .from('creator_subscriptions')
       .select('id, status')
-      .eq('subscriber_id', recipientId)
+      .eq('subscriber_id', resolvedRecipientId)
       .eq('creator_id', creatorId)
       .maybeSingle();
     if (existingSub?.status === 'active') {
@@ -218,7 +262,7 @@ export const giftSubscription = async (req, res) => {
     const { data: rpcResult, error: rpcError } = await supabase.rpc('gift_subscription_atomic', {
       p_gifter_id:     gifterId,
       p_creator_id:    creatorId,
-      p_recipient_id:  recipientId,
+      p_recipient_id:  resolvedRecipientId,
       p_tier_id:       tierId,
       p_coins_cost:    coinsCost,
       p_creator_coins: creatorCoins,
@@ -257,13 +301,13 @@ export const giftSubscription = async (req, res) => {
 
     // Notificar al RECIPIENT (la sorpresa)
     createNotification(
-      recipientId,
+      resolvedRecipientId,
       'subscription_gift',
       `🎁 ${gifter?.full_name || 'Alguien'} te regaló una suscripción`,
       `${tier.badge_emoji} ${tier.name} a ${creator?.full_name} por 1 mes`,
       { creator_id: creatorId, tier_id: tierId, gifter_id: gifterId }
     ).catch(() => {});
-    sendPushToUser(recipientId, {
+    sendPushToUser(resolvedRecipientId, {
       title: `🎁 ¡Regalo de ${gifter?.full_name || 'alguien'}!`,
       body: `Suscripción ${tier.name} a ${creator?.full_name}`,
       url: `/u/${creatorId}`,
@@ -275,12 +319,12 @@ export const giftSubscription = async (req, res) => {
       'subscription',
       `🎁 ${gifter?.full_name || 'Alguien'} le regaló una suscripción a ${recipient.full_name}`,
       `Tier ${tier.name}`,
-      { subscriber_id: recipientId, tier_id: tierId, is_gift: true }
+      { subscriber_id: resolvedRecipientId, tier_id: tierId, is_gift: true }
     ).catch(() => {});
 
     // Emails
     import('../lib/emailNotifier.js').then(({ notifyUser }) => {
-      notifyUser(recipientId, 'subscription_gift_received', {
+      notifyUser(resolvedRecipientId, 'subscription_gift_received', {
         gifterName: gifter?.full_name || 'Un fan',
         creatorName: creator?.full_name || 'el creador',
         tierName: tier.name,
@@ -299,6 +343,8 @@ export const giftSubscription = async (req, res) => {
       coins_spent: coinsCost,
       tier_name: tier.name,
       recipient_name: recipient.full_name,
+      recipient_id: resolvedRecipientId,
+      was_random: recipientId === 'random',
     });
   } catch (err) {
     console.error('giftSubscription error:', err);
