@@ -238,7 +238,8 @@ export default function ChatWindow({ matchId, otherUser }) {
     if (next) {
       setTranslating(true);
       const toTranslate = messages.filter(m => m.sender_id !== user?.id && m.content && !translationCache.current[m.id]);
-      await Promise.all(toTranslate.map(m => translateMessage(m.id, m.content)));
+      // allSettled para que un mensaje fallando no cancele las traducciones del resto
+      await Promise.allSettled(toTranslate.map(m => translateMessage(m.id, m.content)));
       setTranslating(false);
     }
   };

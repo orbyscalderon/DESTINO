@@ -39,7 +39,7 @@ export default function UserProfile() {
   const [followers, setFollowers]           = useState([]);
   const [loadingFollowers, setLoadingFollowers] = useState(false);
   const [userPosts, setUserPosts] = useState([]);
-  const [postsTab, setPostsTab] = useState('photos'); // 'photos' | 'posts' | 'videos'
+  // postsTab removido: el rediseño con CreatorContentTabs ya maneja los tabs
   const [videos, setVideos] = useState([]);
   const [buyingVideo, setBuyingVideo] = useState(null);
   const [showTipModal, setShowTipModal]   = useState(false);
@@ -371,7 +371,7 @@ export default function UserProfile() {
         <div className="relative h-[55vh] lg:h-auto lg:rounded-3xl lg:overflow-hidden lg:aspect-[4/5] lg:sticky lg:top-6 lg:self-start">
           <img
             src={profile.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.full_name || 'U')}&size=600&background=1a1a2e&color=f43f5e`}
-            alt=""
+            alt={`Foto de perfil de ${profile.full_name || 'usuario'}`}
             className="w-full h-full object-cover"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-dark-900 via-dark-900/20 to-transparent lg:from-black/70 lg:via-transparent" />

@@ -314,19 +314,43 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Error interno del servidor' });
 });
 
+// Validar env vars críticas en startup
+const REQUIRED_ENVS = [
+  'SUPABASE_URL',
+  'SUPABASE_SERVICE_ROLE_KEY',
+];
+const missing = REQUIRED_ENVS.filter(k => !process.env[k]);
+if (missing.length > 0) {
+  console.error('❌ Faltan variables de entorno requeridas:', missing.join(', '));
+  process.exit(1);
+}
+
 app.listen(PORT, () => {
+  const isProduction = process.env.NODE_ENV === 'production';
   console.log(`🚀 Destino TV backend corriendo en puerto ${PORT}`);
 
-  if (process.env.NODE_ENV === 'production') {
+  if (isProduction) {
+    const errors = [];
     const frontendUrl = process.env.FRONTEND_URL || '';
     if (!frontendUrl || frontendUrl.includes('localhost')) {
-      console.error('⚠️  ADVERTENCIA: FRONTEND_URL apunta a localhost en producción. Actualiza el .env con el dominio real.');
+      errors.push('FRONTEND_URL apunta a localhost o falta');
+    }
+    if (!process.env.STRIPE_SECRET_KEY) {
+      errors.push('STRIPE_SECRET_KEY no configurada');
+    } else if (process.env.STRIPE_SECRET_KEY.startsWith('sk_test_')) {
+      console.warn('⚠️  STRIPE en modo TEST en producción (sk_test_).');
     }
     if (!process.env.STRIPE_WEBHOOK_SECRET?.startsWith('whsec_')) {
-      console.error('⚠️  ADVERTENCIA: STRIPE_WEBHOOK_SECRET inválido en producción. Configura el webhook real en el dashboard de Stripe.');
+      errors.push('STRIPE_WEBHOOK_SECRET inválido o falta');
     }
-    if (process.env.STRIPE_SECRET_KEY?.startsWith('sk_test_')) {
-      console.error('⚠️  ADVERTENCIA: Usando clave de Stripe en modo TEST en producción. Cambia a sk_live_.');
+    if (errors.length > 0) {
+      console.error('❌ ERRORES DE CONFIG EN PRODUCCIÓN:');
+      errors.forEach(e => console.error('   - ' + e));
+      // En producción NO arrancamos con config inválida que afecte pagos
+      if (errors.some(e => e.includes('STRIPE'))) {
+        console.error('   Stripe roto = doble cobro / pérdida de dinero. Abortando.');
+        process.exit(1);
+      }
     }
   }
 

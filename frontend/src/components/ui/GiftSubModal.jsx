@@ -123,7 +123,7 @@ export default function GiftSubModal({ creatorId, creatorName, onClose, onSucces
                 <div className="flex items-center gap-3 bg-dark-700 rounded-xl p-3">
                   <img
                     src={recipient.avatar_url || '/avatar-placeholder.png'}
-                    alt=""
+                    alt={`Avatar de ${recipient.full_name || 'usuario'}`}
                     className="w-10 h-10 rounded-full object-cover bg-dark-600"
                   />
                   <div className="flex-1">
@@ -156,7 +156,7 @@ export default function GiftSubModal({ creatorId, creatorName, onClose, onSucces
                           onClick={() => { setRecipient(u); setRecipientQuery(''); setRecipientResults([]); }}
                           className="w-full flex items-center gap-3 bg-dark-800 hover:bg-dark-700 rounded-lg p-2"
                         >
-                          <img src={u.avatar_url || '/avatar-placeholder.png'} alt="" className="w-8 h-8 rounded-full object-cover bg-dark-600" />
+                          <img src={u.avatar_url || '/avatar-placeholder.png'} alt={`Avatar de ${u.full_name || 'usuario'}`} className="w-8 h-8 rounded-full object-cover bg-dark-600" />
                           <span className="text-white text-sm">{u.full_name}</span>
                         </button>
                       ))}

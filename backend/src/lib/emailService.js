@@ -1,8 +1,13 @@
 import { Resend } from 'resend';
+import { escapeHtml } from './helpers.js';
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 const FROM = process.env.EMAIL_FROM || 'Destino TV <no-reply@destino.app>';
 const APP_URL = process.env.FRONTEND_URL || 'https://destino-sigma.vercel.app';
+
+// Helper local para usar en templates (más conciso). Aplicar a TODA
+// interpolación de strings provenientes de usuarios (nombres, mensajes).
+const _e = escapeHtml;
 
 async function send(to, subject, html) {
   if (!resend) return; // sin API key: silencioso
@@ -53,7 +58,7 @@ function base(content) {
 // Email de bienvenida al registrarse
 export async function sendWelcomeEmail(email, name) {
   const html = base(`
-    <h2>¡Bienvenido a Destino TV, ${name}! 🎉</h2>
+    <h2>¡Bienvenido a Destino TV, ${_e(name)}! 🎉</h2>
     <p>Nos alegra que estés aquí. Tu cuenta ha sido creada con éxito.</p>
     <p>Completa tu perfil para empezar a conocer personas increíbles cerca de ti.</p>
     <a href="${APP_URL}/#/onboarding" class="btn">Completar mi perfil</a>
@@ -66,11 +71,11 @@ export async function sendWelcomeEmail(email, name) {
 export async function sendMatchEmail(email, userName, matchName) {
   const html = base(`
     <h2>¡Tienes un nuevo match! 💕</h2>
-    <p>Hola ${userName}, <strong style="color:#e040fb">${matchName}</strong> también te gustó.</p>
+    <p>Hola ${_e(userName)}, <strong style="color:#e040fb">${_e(matchName)}</strong> también te gustó.</p>
     <p>Ahora pueden chatear y conocerse mejor. ¡No dejes pasar esta oportunidad!</p>
     <a href="${APP_URL}/#/matches" class="btn">Ver mis matches</a>
   `);
-  await send(email, `¡${matchName} hizo match contigo! 💕`, html);
+  await send(email, `¡${_e(matchName)} hizo match contigo! 💕`, html);
 }
 
 // Estado de retiro (procesado o rechazado)
@@ -94,7 +99,7 @@ export async function sendWithdrawalStatusEmail(email, name, amountUsd, status) 
 export async function sendNewMessageEmail(email, userName, senderName) {
   const html = base(`
     <h2>💬 Tienes un mensaje nuevo</h2>
-    <p>Hola ${userName}, <strong style="color:#e040fb">${senderName}</strong> te escribió.</p>
+    <p>Hola ${_e(userName)}, <strong style="color:#e040fb">${_e(senderName)}</strong> te escribió.</p>
     <a href="${APP_URL}/#/matches" class="btn">Leer mensaje</a>
     <p style="margin-top:16px;font-size:13px;color:#555">Puedes desactivar estas notificaciones desde Configuración.</p>
   `);
@@ -121,69 +126,69 @@ async function emailEnabled(userId, category) {
 export async function sendTipReceivedEmail(email, creatorName, fromName, amountUsd, coinsAmount) {
   const html = base(`
     <h2>💸 ¡Recibiste una propina!</h2>
-    <p>Hola ${creatorName},</p>
-    <p><strong style="color:#e040fb">${fromName}</strong> te envió una propina de
+    <p>Hola ${_e(creatorName)},</p>
+    <p><strong style="color:#e040fb">${_e(fromName)}</strong> te envió una propina de
       <strong style="color:#22c55e">$${amountUsd.toFixed(2)} USD</strong>
       (${coinsAmount.toLocaleString('en-US')} coins).</p>
     <a href="${APP_URL}/#/creator/dashboard" class="btn">Ver mis ingresos</a>
   `);
-  await send(email, `💸 Propina de $${amountUsd.toFixed(2)} de ${fromName}`, html);
+  await send(email, `💸 Propina de $${amountUsd.toFixed(2)} de ${_e(fromName)}`, html);
 }
 
 // Regalo recibido
 export async function sendGiftReceivedEmail(email, creatorName, fromName, giftName, amountUsd) {
   const html = base(`
     <h2>🎁 ¡Te enviaron un regalo!</h2>
-    <p>Hola ${creatorName},</p>
-    <p><strong style="color:#e040fb">${fromName}</strong> te envió ${giftName}
+    <p>Hola ${_e(creatorName)},</p>
+    <p><strong style="color:#e040fb">${_e(fromName)}</strong> te envió ${_e(giftName)}
       (vale <strong style="color:#22c55e">$${amountUsd.toFixed(2)} USD</strong>).</p>
     <a href="${APP_URL}/#/creator/dashboard" class="btn">Ver mis ingresos</a>
   `);
-  await send(email, `🎁 ${fromName} te envió ${giftName}`, html);
+  await send(email, `🎁 ${_e(fromName)} te envió ${_e(giftName)}`, html);
 }
 
 // Nuevo suscriptor
 export async function sendNewSubscriberEmail(email, creatorName, subscriberName, priceUsd) {
   const html = base(`
     <h2>⭐ ¡Nuevo suscriptor!</h2>
-    <p>Hola ${creatorName},</p>
-    <p><strong style="color:#e040fb">${subscriberName}</strong> se acaba de suscribir a tu contenido
+    <p>Hola ${_e(creatorName)},</p>
+    <p><strong style="color:#e040fb">${_e(subscriberName)}</strong> se acaba de suscribir a tu contenido
       por <strong style="color:#22c55e">$${priceUsd.toFixed(2)} USD/mes</strong>.</p>
     <p style="color:#aaa">Te recomendamos enviarle un mensaje de bienvenida para fidelizar el lazo.</p>
     <a href="${APP_URL}/#/messages" class="btn">Enviar bienvenida</a>
   `);
-  await send(email, `⭐ ${subscriberName} se suscribió a tu contenido`, html);
+  await send(email, `⭐ ${_e(subscriberName)} se suscribió a tu contenido`, html);
 }
 
 // Suscripción renovada (cobro automático exitoso)
 export async function sendSubscriptionRenewedEmail(email, subscriberName, creatorName, priceUsd) {
   const html = base(`
     <h2>✅ Suscripción renovada</h2>
-    <p>Hola ${subscriberName},</p>
-    <p>Renovamos tu suscripción a <strong style="color:#e040fb">${creatorName}</strong>
+    <p>Hola ${_e(subscriberName)},</p>
+    <p>Renovamos tu suscripción a <strong style="color:#e040fb">${_e(creatorName)}</strong>
       por <strong>$${priceUsd.toFixed(2)} USD</strong>. Tu acceso continúa por 30 días más.</p>
     <a href="${APP_URL}/#/settings" class="btn">Gestionar suscripciones</a>
   `);
-  await send(email, `Suscripción a ${creatorName} renovada · $${priceUsd.toFixed(2)}`, html);
+  await send(email, `Suscripción a ${_e(creatorName)} renovada · $${priceUsd.toFixed(2)}`, html);
 }
 
 // Suscripción cancelada
 export async function sendSubscriptionCanceledEmail(email, subscriberName, creatorName, accessUntil) {
   const html = base(`
     <h2>👋 Suscripción cancelada</h2>
-    <p>Hola ${subscriberName},</p>
-    <p>Cancelaste la renovación de tu suscripción a <strong style="color:#e040fb">${creatorName}</strong>.</p>
+    <p>Hola ${_e(subscriberName)},</p>
+    <p>Cancelaste la renovación de tu suscripción a <strong style="color:#e040fb">${_e(creatorName)}</strong>.</p>
     <p>Mantendrás acceso hasta el <strong>${new Date(accessUntil).toLocaleDateString('es')}</strong>.</p>
-    <a href="${APP_URL}/#/profile/${creatorName}" class="btn">Reactivar</a>
+    <a href="${APP_URL}/#/settings" class="btn">Reactivar</a>
   `);
-  await send(email, `Cancelaste tu suscripción a ${creatorName}`, html);
+  await send(email, `Cancelaste tu suscripción a ${_e(creatorName)}`, html);
 }
 
 // Payout enviado (cuando se procesa el auto-payout)
 export async function sendPayoutSentEmail(email, creatorName, amountUsd) {
   const html = base(`
     <h2>💸 Payout enviado</h2>
-    <p>Hola ${creatorName},</p>
+    <p>Hola ${_e(creatorName)},</p>
     <p>Transferimos <strong style="color:#22c55e">$${amountUsd.toFixed(2)} USD</strong>
       a tu cuenta de Stripe Connect. Llegará a tu banco en 2-7 días hábiles.</p>
     <a href="${APP_URL}/#/creator/dashboard" class="btn">Ver historial</a>
@@ -320,28 +325,30 @@ export async function sendSupportTicketEmail(email, userName, ticketId, subject)
 export async function sendSubscriptionGiftEmail(email, recipientName, gifterName, creatorName, tierName, message) {
   const html = base(`
     <h2>🎁 ¡Te regalaron una suscripción!</h2>
-    <p>Hola ${recipientName},</p>
-    <p><strong style="color:#e040fb">${gifterName}</strong> te regaló una suscripción
-      <strong>${tierName}</strong> a <strong style="color:#22c55e">${creatorName}</strong> por 1 mes.</p>
-    ${message ? `<div style="background:#1a1a2e;border-left:3px solid #e040fb;padding:12px 16px;margin:16px 0;color:#ccc;font-style:italic">"${message}"</div>` : ''}
+    <p>Hola ${_e(recipientName)},</p>
+    <p><strong style="color:#e040fb">${_e(gifterName)}</strong> te regaló una suscripción
+      <strong>${_e(tierName)}</strong> a <strong style="color:#22c55e">${_e(creatorName)}</strong> por 1 mes.</p>
+    ${message ? `<div style="background:#1a1a2e;border-left:3px solid #e040fb;padding:12px 16px;margin:16px 0;color:#ccc;font-style:italic">"${_e(message)}"</div>` : ''}
     <p style="color:#aaa">El acceso ya está activo. ¡Disfrútalo!</p>
-    <a href="${APP_URL}/#/u/${creatorName ? encodeURIComponent(creatorName) : ''}" class="btn">Ver perfil del creador</a>
+    <a href="${APP_URL}/#/messages" class="btn">Abrir Destino TV</a>
   `);
-  await send(email, `🎁 ${gifterName} te regaló una suscripción a ${creatorName}`, html);
+  await send(email, `🎁 ${_e(gifterName)} te regaló una suscripción a ${_e(creatorName)}`, html);
 }
 
 export async function sendCreatorBlastEmail(email, subscriberName, creatorName, subject, bodyHtml) {
+  // bodyHtml ya fue sanitizado en sendBlastEmail (script/style/onX/javascript:
+  // removidos). El subject y creatorName aún pueden contener HTML del usuario.
   const html = base(`
-    <h2>${subject}</h2>
-    <p style="color:#888;font-size:13px;margin-bottom:16px">De: <strong style="color:#e040fb">${creatorName}</strong></p>
+    <h2>${_e(subject)}</h2>
+    <p style="color:#888;font-size:13px;margin-bottom:16px">De: <strong style="color:#e040fb">${_e(creatorName)}</strong></p>
     <div style="color:#ccc">${bodyHtml}</div>
     <a href="${APP_URL}/#/messages" class="btn">Responder en chat</a>
     <p style="margin-top:24px;font-size:11px;color:#555">
-      Recibes este email porque te suscribiste a ${creatorName}.
+      Recibes este email porque te suscribiste a ${_e(creatorName)}.
       <a href="${APP_URL}/#/settings" style="color:#777">Gestionar suscripciones</a>
     </p>
   `);
-  await send(email, `${creatorName}: ${subject}`, html);
+  await send(email, `${_e(creatorName)}: ${_e(subject)}`, html);
 }
 
 export { emailEnabled };
