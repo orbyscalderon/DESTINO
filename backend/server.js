@@ -101,16 +101,23 @@ const generalLimiter = rateLimit({
   message: { error: 'Demasiadas solicitudes, intenta más tarde' },
   skip: (req) => {
     if (process.env.NODE_ENV !== 'production') return true;
+    const p = req.path;
+    // Endpoints "presence/light" — se llaman muy seguido, consumen casi
+    // nada de DB. Bloquearlos rompe la UI sin proteger nada de valor.
+    if (p === '/profiles/heartbeat')   return true; // cada 2 min
+    if (p.startsWith('/coins/balance')) return true; // navbar polling
+    if (p.startsWith('/notifications')) return true; // navbar badge
     // Skip GETs de READ-ONLY heavy-hit endpoints. Son cacheables y abrir un
     // perfil dispara 6-7 en paralelo — pegaban el limit muy rápido. La
     // protección real para estos endpoints es el load-time, no el rate.
     if (req.method === 'GET') {
-      const p = req.path;
-      if (p.startsWith('/api/profiles/')) return true;
-      if (p.startsWith('/api/follows/'))  return true;
-      if (p.startsWith('/api/posts/'))    return true;
-      if (p.startsWith('/api/creator/'))  return true;
-      if (p.startsWith('/api/shows'))     return true;
+      if (p.startsWith('/profiles/')) return true;
+      if (p.startsWith('/follows/'))  return true;
+      if (p.startsWith('/posts/'))    return true;
+      if (p.startsWith('/creator/'))  return true;
+      if (p.startsWith('/shows'))     return true;
+      if (p.startsWith('/messages/')) return true;
+      if (p.startsWith('/matches'))   return true;
     }
     return false;
   },
