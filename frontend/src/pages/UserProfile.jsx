@@ -64,6 +64,8 @@ export default function UserProfile() {
   const [subscribersCount, setSubscribersCount] = useState(0);
   const [postsCount, setPostsCount] = useState(0);
   const [creatorShows, setCreatorShows] = useState([]);
+  const [loadError, setLoadError] = useState(null); // { status, message }
+  const [reloadKey, setReloadKey] = useState(0);
 
   const loadPhotos = async () => {
     const phRes = await api.get(`/api/profiles/${userId}/photos`).catch(() => ({ data: { photos: [], requires_vip: false } }));
@@ -123,10 +125,25 @@ export default function UserProfile() {
         } catch { /* silencioso */ }
       }
     }).catch((err) => {
-      console.error('[UserProfile] load error:', err?.response?.status, JSON.stringify(err?.response?.data));
-      toast.error('Perfil no encontrado');
+      const status = err?.response?.status;
+      const errData = err?.response?.data;
+      console.error('[UserProfile] load error:', status, errData);
+      // Solo mostrar "Perfil no encontrado" si es 404 real
+      if (status === 404) {
+        setLoadError({ status: 404, message: 'Este perfil no existe o fue eliminado' });
+      } else if (status === 429) {
+        setLoadError({ status: 429, message: 'Demasiadas peticiones. Espera unos segundos.' });
+      } else if (status === 401) {
+        setLoadError({ status: 401, message: 'Tu sesión expiró. Vuelve a iniciar sesión.' });
+      } else if (status >= 500) {
+        setLoadError({ status, message: 'Error del servidor. Intenta de nuevo en un momento.' });
+      } else if (!err?.response) {
+        setLoadError({ status: 0, message: 'Sin conexión. Verifica tu internet.' });
+      } else {
+        setLoadError({ status: status || 0, message: errData?.error || 'No se pudo cargar el perfil' });
+      }
     }).finally(() => setLoading(false));
-  }, [userId]);
+  }, [userId, reloadKey]);
 
   const handleToggleFollow = async () => {
     setTogglingFollow(true);
@@ -350,7 +367,42 @@ export default function UserProfile() {
     </div>
   );
 
-  if (!profile) return null;
+  if (!profile) return (
+    <div className="min-h-screen flex flex-col items-center justify-center px-6 text-center">
+      <div className="text-5xl mb-4" aria-hidden="true">
+        {loadError?.status === 404 ? '🔍' : loadError?.status === 401 ? '🔑' : '⚠️'}
+      </div>
+      <h2 className="text-white font-bold text-lg mb-2">
+        {loadError?.status === 404 ? 'Perfil no encontrado' : 'No se pudo cargar el perfil'}
+      </h2>
+      <p className="text-gray-400 text-sm mb-6 max-w-sm">
+        {loadError?.message || 'Algo salió mal. Intenta de nuevo.'}
+      </p>
+      <div className="flex gap-2">
+        {loadError?.status === 401 ? (
+          <button
+            onClick={() => navigate('/login')}
+            className="bg-brand-500 hover:bg-brand-400 text-white font-semibold text-sm px-5 py-2.5 rounded-xl transition-colors"
+          >
+            Iniciar sesión
+          </button>
+        ) : loadError?.status !== 404 && (
+          <button
+            onClick={() => { setLoadError(null); setLoading(true); setReloadKey(k => k + 1); }}
+            className="bg-brand-500 hover:bg-brand-400 text-white font-semibold text-sm px-5 py-2.5 rounded-xl transition-colors"
+          >
+            Reintentar
+          </button>
+        )}
+        <button
+          onClick={() => navigate(-1)}
+          className="bg-dark-700 hover:bg-dark-600 text-gray-300 font-medium text-sm px-5 py-2.5 rounded-xl transition-colors"
+        >
+          Volver
+        </button>
+      </div>
+    </div>
+  );
 
   const isOwnProfile = currentUserId && currentUserId === userId;
   const hasSubscriptionOffer = profile.is_creator && !isOwnProfile && (profile.creator_subscription_price || creatorHasTiers);
