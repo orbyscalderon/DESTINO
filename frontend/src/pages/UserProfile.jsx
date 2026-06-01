@@ -545,6 +545,79 @@ export default function UserProfile() {
           </button>
         )}
 
+        {/* Preview de tiers para el propio creador (no se puede suscribir a sí mismo) */}
+        {isOwnProfile && profile.is_creator && creatorTiers.length > 0 && (
+          <div className="card p-4 border-brand-500/20 bg-gradient-to-br from-brand-500/5 to-transparent">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <FiHeart className="text-pink-400" size={14} />
+                <h3 className="text-white font-semibold text-sm">Tus niveles de suscripción</h3>
+              </div>
+              <button
+                onClick={() => navigate('/creator/dashboard')}
+                className="text-xs text-brand-400 hover:text-brand-300 font-medium flex items-center gap-1"
+              >
+                Editar <FiArrowRight size={11} />
+              </button>
+            </div>
+            <p className="text-[11px] text-gray-500 mb-3">
+              Así verán los fans tus niveles cuando entren a tu perfil:
+            </p>
+            <div className="space-y-2">
+              {creatorTiers
+                .slice()
+                .sort((a, b) => (a.tier_level || 0) - (b.tier_level || 0))
+                .map(tier => (
+                  <div
+                    key={tier.id}
+                    className="rounded-xl px-3 py-2.5 flex items-center justify-between"
+                    style={{
+                      backgroundColor: `${tier.badge_color}10`,
+                      borderLeft: `3px solid ${tier.badge_color}`,
+                    }}
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-lg">{tier.badge_emoji}</span>
+                      <div className="min-w-0">
+                        <p className="text-white text-sm font-bold truncate">{tier.name}</p>
+                        {tier.description && (
+                          <p className="text-[10px] text-gray-500 truncate">{tier.description}</p>
+                        )}
+                      </div>
+                    </div>
+                    <p className="font-bold text-sm shrink-0" style={{ color: tier.badge_color }}>
+                      ${parseFloat(tier.price).toFixed(2)}
+                      <span className="text-[10px] text-gray-500 font-normal">/mes</span>
+                    </p>
+                  </div>
+                ))}
+            </div>
+          </div>
+        )}
+
+        {/* Mensaje si soy creador pero no tengo tiers configurados */}
+        {isOwnProfile && profile.is_creator && creatorTiers.length === 0 && !creatorLegacyPrice && (
+          <div className="card p-4 border-yellow-500/20 bg-yellow-500/5">
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 bg-yellow-500/15 rounded-lg flex items-center justify-center shrink-0">
+                <FiHeart className="text-yellow-400" size={16} />
+              </div>
+              <div className="flex-1">
+                <p className="text-white font-semibold text-sm mb-1">No tienes niveles de suscripción</p>
+                <p className="text-gray-400 text-xs mb-3">
+                  Configura tus tiers para que los fans puedan suscribirse y recibir contenido exclusivo.
+                </p>
+                <button
+                  onClick={() => navigate('/creator/dashboard')}
+                  className="text-xs bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-300 font-medium px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5"
+                >
+                  Configurar tiers <FiArrowRight size={11} />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {subscribed && mySub && (
           <div className="card p-4 bg-green-500/5 border-green-500/30">
             <div className="flex items-center justify-between gap-3 mb-2">
