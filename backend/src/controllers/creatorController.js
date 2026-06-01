@@ -1708,20 +1708,49 @@ export const exportAnalyticsCsv = async (req, res) => {
 };
 
 // GET /api/creator/:userId/profile — perfil público de un creador
+// Consolida shows, paid_photos, subscriber count, post count, tiers
+// (con legacy_price) y my_subscription (si hay user logueado) en una sola
+// respuesta para evitar 4+ round-trips desde el frontend.
 export const getPublicCreatorProfile = async (req, res) => {
   try {
     const { userId } = req.params;
+    // El header Authorization es opcional aquí: si está, intentamos resolver
+    // viewerId para devolver my_subscription.
+    let viewerId = null;
+    const authHeader = req.headers.authorization;
+    if (authHeader?.startsWith('Bearer ')) {
+      try {
+        const token = authHeader.substring(7);
+        const { data } = await supabase.auth.getUser(token);
+        viewerId = data?.user?.id || null;
+      } catch { /* ignore — endpoint público */ }
+    }
 
     const { data: profile } = await supabase
       .from('profiles')
-      .select('id, full_name, avatar_url, is_verified, creator_bio, is_creator')
+      .select('id, full_name, avatar_url, is_verified, creator_bio, is_creator, creator_subscription_price')
       .eq('id', userId)
       .eq('is_creator', true)
       .single();
 
     if (!profile) return res.status(404).json({ error: 'Creador no encontrado' });
 
-    const [showsRes, photosRes, subsRes, postsRes] = await Promise.all([
+    // Si hay viewer y NO es el propio creador, traer su suscripción al mismo
+    // pull. Cuesta 1 query extra pero ahorra 1 round-trip desde frontend.
+    const mySubPromise = (viewerId && viewerId !== userId)
+      ? supabase
+          .from('creator_subscriptions')
+          .select(`
+            id, status, current_period_end, is_gift, gifted_by, gift_message,
+            subscription_price, created_at, auto_renew,
+            tier:tier_id (id, tier_level, name, badge_emoji, badge_color, perks, description)
+          `)
+          .eq('subscriber_id', viewerId)
+          .eq('creator_id', userId)
+          .maybeSingle()
+      : Promise.resolve({ data: null });
+
+    const [showsRes, photosRes, subsRes, postsRes, tiersRes, mySubRes] = await Promise.all([
       supabase
         .from('live_shows')
         .select('id, title, show_type, ticket_price, status, scheduled_at, cover_url')
@@ -1744,6 +1773,13 @@ export const getPublicCreatorProfile = async (req, res) => {
         .from('posts')
         .select('id', { count: 'exact', head: true })
         .eq('user_id', userId),
+      supabase
+        .from('creator_tiers')
+        .select('id, tier_level, name, price, badge_color, badge_emoji, perks, description')
+        .eq('creator_id', userId)
+        .eq('is_active', true)
+        .order('tier_level', { ascending: true }),
+      mySubPromise,
     ]);
 
     res.json({
@@ -1752,6 +1788,11 @@ export const getPublicCreatorProfile = async (req, res) => {
       paid_photos: photosRes.data || [],
       subscribers_count: subsRes.count || 0,
       posts_count: postsRes.count || 0,
+      tiers: tiersRes.data || [],
+      legacy_price: profile.creator_subscription_price
+        ? parseFloat(profile.creator_subscription_price)
+        : null,
+      my_subscription: mySubRes?.data || null,
     });
   } catch (err) {
     console.error('getPublicCreatorProfile error:', err.message);

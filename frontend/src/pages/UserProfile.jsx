@@ -76,6 +76,8 @@ export default function UserProfile() {
   };
 
   useEffect(() => {
+    // 6 requests en paralelo (antes 9). El endpoint creator/profile consolida
+    // tiers + my_subscription + subscribers_count + posts_count + shows + paid_photos.
     Promise.all([
       api.get(`/api/profiles/${userId}`),
       api.get(`/api/profiles/${userId}/photos`).catch(() => ({ data: { photos: [], requires_age_verification: false } })),
@@ -83,7 +85,7 @@ export default function UserProfile() {
       api.get(`/api/posts/user/${userId}?limit=12`).catch(() => ({ data: { posts: [] } })),
       api.get(`/api/creator/${userId}/galleries`).catch(() => ({ data: { galleries: [] } })),
       api.get(`/api/profiles/${userId}/videos`).catch(() => ({ data: { videos: [] } })),
-    ]).then(([pRes, phRes, followRes, postsRes, galRes, vidRes]) => {
+    ]).then(async ([pRes, phRes, followRes, postsRes, galRes, vidRes]) => {
       const p = pRes.data.profile;
       setProfile(p);
       setSubscribed(!!p.is_subscribed);
@@ -98,29 +100,20 @@ export default function UserProfile() {
       setGalleries(galRes.data.galleries || []);
       setVideos(vidRes.data.videos || []);
 
-      // Si soy fan y este perfil es creador, traer info de mi sub (tier, badge)
-      if (currentUserId && p?.is_creator && currentUserId !== userId) {
-        api.get(`/api/creator/my-subscription/${userId}`)
-          .then(({ data }) => setMySub(data.subscription || null))
-          .catch(() => {});
-      }
-      // Detectar tiers + stats del creador
+      // Solo si es creador: cargar perfil de creador (1 request que devuelve
+      // tiers + my_subscription + counters + shows juntos)
       if (p?.is_creator) {
-        api.get(`/api/creator/${userId}/tiers`)
-          .then(({ data }) => {
-            const tiers = data.tiers || [];
-            setCreatorTiers(tiers);
-            setCreatorHasTiers(tiers.length > 0);
-            setCreatorLegacyPrice(data.legacy_price ?? null);
-          })
-          .catch(() => {});
-        api.get(`/api/creator/${userId}/profile`)
-          .then(({ data }) => {
-            setSubscribersCount(data?.subscribers_count ?? 0);
-            setPostsCount(data?.posts_count ?? 0);
-            setCreatorShows(data?.shows || []);
-          })
-          .catch(() => {});
+        try {
+          const { data } = await api.get(`/api/creator/${userId}/profile`);
+          const tiers = data.tiers || [];
+          setCreatorTiers(tiers);
+          setCreatorHasTiers(tiers.length > 0);
+          setCreatorLegacyPrice(data.legacy_price ?? null);
+          setSubscribersCount(data.subscribers_count ?? 0);
+          setPostsCount(data.posts_count ?? 0);
+          setCreatorShows(data.shows || []);
+          setMySub(data.my_subscription || null);
+        } catch { /* silencioso */ }
       }
     }).catch((err) => {
       console.error('[UserProfile] load error:', err?.response?.status, JSON.stringify(err?.response?.data));

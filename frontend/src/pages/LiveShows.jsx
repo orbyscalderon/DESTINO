@@ -245,8 +245,9 @@ export default function LiveShows() {
 
   useEffect(() => {
     loadShows();
-    // Polling cada 15s (antes 30s)
-    const interval = setInterval(() => loadShows(true), 15_000);
+    // Polling cada 60s (era 15s — demasiado agresivo, mucho costo backend
+    // sin beneficio real de UX). El onVisible refresca cuando vuelves al tab.
+    const interval = setInterval(() => loadShows(true), 60_000);
     const onVisible = () => { if (document.visibilityState === 'visible') loadShows(true); };
     document.addEventListener('visibilitychange', onVisible);
     return () => { clearInterval(interval); document.removeEventListener('visibilitychange', onVisible); };

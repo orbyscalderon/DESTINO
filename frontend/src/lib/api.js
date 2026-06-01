@@ -5,10 +5,46 @@ const api = axios.create({
   baseURL: import.meta.env.DEV ? '' : (import.meta.env.VITE_API_URL ?? ''),
 });
 
-api.interceptors.request.use(async (config) => {
+// Cache del access_token en memoria. Antes cada request llamaba
+// supabase.auth.getSession() — con 9 requests simultáneos al abrir un perfil
+// eran 9 round-trips a Supabase auth solo para leer el token.
+// Ahora lo guardamos en memoria y nos suscribimos a onAuthStateChange para
+// invalidarlo cuando cambia (login, logout, refresh).
+let cachedToken = null;
+let cachedExpiresAt = 0;
+
+async function getToken() {
+  // Si tenemos token cacheado y le quedan > 60s, usarlo.
+  if (cachedToken && Date.now() < cachedExpiresAt - 60_000) {
+    return cachedToken;
+  }
   const { data: { session } } = await supabase.auth.getSession();
   if (session?.access_token) {
-    config.headers.Authorization = `Bearer ${session.access_token}`;
+    cachedToken = session.access_token;
+    // expires_at viene en segundos epoch (puede ser null en algunos flujos)
+    cachedExpiresAt = (session.expires_at || (Date.now() / 1000 + 3600)) * 1000;
+    return cachedToken;
+  }
+  cachedToken = null;
+  cachedExpiresAt = 0;
+  return null;
+}
+
+// Invalidar cache cuando Supabase actualiza sesión
+supabase.auth.onAuthStateChange((event, session) => {
+  if (event === 'SIGNED_OUT' || !session) {
+    cachedToken = null;
+    cachedExpiresAt = 0;
+  } else if (session?.access_token) {
+    cachedToken = session.access_token;
+    cachedExpiresAt = (session.expires_at || (Date.now() / 1000 + 3600)) * 1000;
+  }
+});
+
+api.interceptors.request.use(async (config) => {
+  const token = await getToken();
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
 });
@@ -25,9 +61,14 @@ api.interceptors.response.use(
     // On 401: force session refresh and retry once
     if (status === 401 && !config.__retried401) {
       config.__retried401 = true;
+      // Invalidar cache para forzar refresh
+      cachedToken = null;
+      cachedExpiresAt = 0;
       const { data } = await supabase.auth.refreshSession();
       if (data.session?.access_token) {
-        config.headers.Authorization = `Bearer ${data.session.access_token}`;
+        cachedToken = data.session.access_token;
+        cachedExpiresAt = (data.session.expires_at || (Date.now() / 1000 + 3600)) * 1000;
+        config.headers.Authorization = `Bearer ${cachedToken}`;
         return api(config);
       }
       return Promise.reject(error);
