@@ -14,6 +14,7 @@ import TierPicker from '../components/ui/TierPicker.jsx';
 import TierBadge from '../components/ui/TierBadge.jsx';
 import GiftSubModal from '../components/ui/GiftSubModal.jsx';
 import CreatorContentTabs from '../components/ui/CreatorContentTabs.jsx';
+import { useConfirm } from '../components/ui/ConfirmDialog.jsx';
 import { useAuthStore } from '../store/authStore.js';
 
 export default function UserProfile() {
@@ -21,6 +22,7 @@ export default function UserProfile() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const currentUserId = user?.id;
+  const confirm = useConfirm();
   const [profile, setProfile] = useState(null);
   const [photos, setPhotos] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -255,7 +257,12 @@ export default function UserProfile() {
     } catch (err) {
       if (err.response?.status === 403) {
         // show unlock dialog
-        if (confirm(`Desbloquear galería "${gallery.title}" por ${gallery.price_coins} monedas?`)) {
+        const ok = await confirm({
+          title: `Desbloquear "${gallery.title}"`,
+          message: `Esta galería cuesta ${gallery.price_coins} coins. Una vez desbloqueada tendrás acceso permanente.`,
+          confirmLabel: `Desbloquear · ${gallery.price_coins} 🪙`,
+        });
+        if (ok) {
           try {
             const { data: unlockData } = await api.post(`/api/creator/galleries/${gallery.id}/unlock`);
             toast.success(`Galería desbloqueada. Monedas restantes: ${unlockData.coins_remaining}`);

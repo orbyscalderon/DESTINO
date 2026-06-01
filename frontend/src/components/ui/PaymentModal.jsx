@@ -34,10 +34,25 @@ export default function PaymentModal({ clientSecret, amount, description, onSucc
   const mountRef   = useRef(null);
   const stripeRef  = useRef(null);
   const cardRef    = useRef(null);
+  const dialogRef  = useRef(null);
 
   const [ready,  setReady]  = useState(false);
   const [paying, setPaying] = useState(false);
   const [cardError, setCardError] = useState(null);
+
+  // Esc + autofocus + body scroll lock
+  useEffect(() => {
+    const prevFocus = document.activeElement;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const handleKey = (e) => { if (e.key === 'Escape' && !paying) onClose?.(); };
+    document.addEventListener('keydown', handleKey);
+    return () => {
+      document.removeEventListener('keydown', handleKey);
+      document.body.style.overflow = prevOverflow;
+      try { prevFocus?.focus?.(); } catch {}
+    };
+  }, [onClose, paying]);
 
   useEffect(() => {
     let active = true;
@@ -51,7 +66,11 @@ export default function PaymentModal({ clientSecret, amount, description, onSucc
       cardEl.mount(mountRef.current);
       cardRef.current = cardEl;
 
-      cardEl.on('ready',  ()  => { if (active) setReady(true); });
+      cardEl.on('ready',  ()  => {
+        if (!active) return;
+        setReady(true);
+        cardEl.focus?.();
+      });
       cardEl.on('change', evt => { if (active) setCardError(evt.error?.message || null); });
     });
 
@@ -90,9 +109,13 @@ export default function PaymentModal({ clientSecret, amount, description, onSucc
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       className="fixed inset-0 bg-black/75 z-50 flex items-end sm:items-center justify-center p-4"
-      onClick={e => e.target === e.currentTarget && onClose()}
+      onClick={e => !paying && e.target === e.currentTarget && onClose()}
     >
       <motion.div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="payment-modal-title"
         initial={{ y: 60, opacity: 0 }}
         animate={{ y: 0,  opacity: 1 }}
         exit={{   y: 60, opacity: 0 }}
@@ -101,12 +124,14 @@ export default function PaymentModal({ clientSecret, amount, description, onSucc
         {/* Header */}
         <div className="flex items-start justify-between mb-6">
           <div>
-            <h2 className="text-white font-bold text-base">{description}</h2>
+            <h2 id="payment-modal-title" className="text-white font-bold text-base">{description}</h2>
             <p className="text-3xl font-black gradient-text mt-0.5">{amount}</p>
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center text-gray-500 hover:text-white transition-colors rounded-lg hover:bg-white/5 mt-0.5"
+            disabled={paying}
+            aria-label="Cerrar"
+            className="w-8 h-8 flex items-center justify-center text-gray-500 hover:text-white transition-colors rounded-lg hover:bg-white/5 mt-0.5 disabled:opacity-30 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-brand-500"
           >
             <FiX size={18} />
           </button>

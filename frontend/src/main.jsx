@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import * as Sentry from '@sentry/react';
 import App from './App.jsx';
+import { ConfirmProvider } from './components/ui/ConfirmDialog.jsx';
 import './styles/globals.css';
 
 if (import.meta.env.VITE_SENTRY_DSN) {
@@ -25,6 +26,8 @@ if ('serviceWorker' in navigator) {
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <App />
+    <ConfirmProvider>
+      <App />
+    </ConfirmProvider>
   </React.StrictMode>
 );

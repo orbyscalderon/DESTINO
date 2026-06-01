@@ -17,6 +17,7 @@ import { LiveKitSession } from '../lib/livekitSession.js';
 import { useAuthStore } from '../store/authStore.js';
 import { SHOW_CATEGORIES } from './LiveShows.jsx';
 import DraggableTipGoal from '../components/ui/DraggableTipGoal.jsx';
+import { useConfirm } from '../components/ui/ConfirmDialog.jsx';
 import BigGiftAnimation, { useGiftAnimationQueue } from '../components/ui/BigGiftAnimation.jsx';
 import CaptionOverlay from '../components/ui/CaptionOverlay.jsx';
 import { useCaptionsHost, captionsSupported } from '../lib/useLiveCaptions.js';
@@ -303,6 +304,7 @@ function CoHostsPanel({ showId }) {
 export default function ShowStudio() {
   const navigate = useNavigate();
   const { user, profile: authProfile } = useAuthStore();
+  const confirm = useConfirm();
 
   // ── SETUP STATE ──────────────────────────────────────────────────────────────
   const [profile, setProfile]       = useState(null);
@@ -2073,10 +2075,21 @@ export default function ShowStudio() {
       {/* Title bar */}
       <div className="h-9 bg-[#0d0d0f] border-b border-white/5 flex items-center px-3 gap-2.5 shrink-0">
         <button
-          onClick={() => {
-            if (isLive) { if (window.confirm('¿Terminar el show y salir?')) handleEndShow(); }
-            else { stopPreview(); navigate('/creator/dashboard'); }
+          onClick={async () => {
+            if (isLive) {
+              const ok = await confirm({
+                title: '¿Terminar el show?',
+                message: 'Vas a cerrar la transmisión en vivo. Tu audiencia será desconectada y la grabación se guardará.',
+                confirmLabel: 'Terminar show',
+                destructive: true,
+              });
+              if (ok) handleEndShow();
+            } else {
+              stopPreview();
+              navigate('/creator/dashboard');
+            }
           }}
+          aria-label="Cerrar show"
           className="w-6 h-6 rounded bg-white/5 hover:bg-white/10 flex items-center justify-center transition-colors shrink-0"
         >
           <FiArrowLeft size={12} className="text-gray-400" />

@@ -50,6 +50,7 @@ import { useChatStore } from '../../store/chatStore.js';
 import MessageLimitBanner from './MessageLimitBanner.jsx';
 import PremiumModal from './PremiumModal.jsx';
 import { compressChatImage } from '../../lib/imageCompressor.js';
+import { useConfirm } from './ConfirmDialog.jsx';
 import toast from 'react-hot-toast';
 
 const REACTION_EMOJIS = ['❤️', '😂', '🔥', '👍', '😮'];
@@ -57,6 +58,7 @@ const REACTION_EMOJIS = ['❤️', '😂', '🔥', '👍', '😮'];
 export default function ChatWindow({ matchId, otherUser }) {
   const { user, profile } = useAuthStore();
   const { remaining, limit, setCount, decrementRemaining } = useChatStore();
+  const confirm = useConfirm();
   const isPremiumPlus = profile?.premium_tier === 'premium' || profile?.premium_tier === 'vip';
   const [messages, setMessages]         = useState([]);
   const [text, setText]                 = useState('');
@@ -242,7 +244,13 @@ export default function ChatWindow({ matchId, otherUser }) {
   };
 
   const handleClearConversation = async () => {
-    if (!window.confirm('¿Borrar toda la conversación? Esta acción no se puede deshacer.')) return;
+    const ok = await confirm({
+      title: '¿Borrar toda la conversación?',
+      message: 'Esta acción no se puede deshacer. Se eliminarán todos los mensajes para ambos lados.',
+      confirmLabel: 'Borrar conversación',
+      destructive: true,
+    });
+    if (!ok) return;
     setClearingConv(true);
     try {
       await api.delete(`/api/messages/${matchId}/all`);
@@ -464,7 +472,11 @@ export default function ChatWindow({ matchId, otherUser }) {
     }
   };
 
+  const [unlockingPpv, setUnlockingPpv] = useState(null);
+
   const handleUnlockPPV = async (msg) => {
+    if (unlockingPpv === msg.id) return; // protección contra doble click
+    setUnlockingPpv(msg.id);
     try {
       const { data } = await api.post(`/api/messages/ppv/${msg.id}/unlock`);
       setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, ppv_media_url: data.url } : m));
@@ -475,6 +487,8 @@ export default function ChatWindow({ matchId, otherUser }) {
       } else {
         toast.error(err.response?.data?.error || 'Error al desbloquear');
       }
+    } finally {
+      setUnlockingPpv(null);
     }
   };
 
@@ -762,8 +776,16 @@ export default function ChatWindow({ matchId, otherUser }) {
                             <p className="text-white font-bold">{msg.ppv_price} monedas</p>
                             <p className="text-gray-400 text-xs mt-0.5">Contenido exclusivo</p>
                           </div>
-                          <button onClick={() => handleUnlockPPV(msg)} className="btn-primary text-xs px-5 py-2 relative z-10">
-                            <FiZap size={12} className="inline mr-1" />Desbloquear
+                          <button
+                            onClick={() => handleUnlockPPV(msg)}
+                            disabled={unlockingPpv === msg.id}
+                            className="btn-primary text-xs px-5 py-2 relative z-10 disabled:opacity-60 disabled:cursor-wait"
+                          >
+                            {unlockingPpv === msg.id
+                              ? <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin inline-block mr-1" />
+                              : <FiZap size={12} className="inline mr-1" />
+                            }
+                            {unlockingPpv === msg.id ? 'Procesando…' : 'Desbloquear'}
                           </button>
                           <span className="text-[10px] text-gray-600 relative z-10">{new Date(msg.created_at).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })}</span>
                         </div>

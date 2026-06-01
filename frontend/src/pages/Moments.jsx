@@ -8,6 +8,7 @@ import api from '../lib/api.js';
 import VerifiedBadge from '../components/ui/VerifiedBadge.jsx';
 import StoriesBar from '../components/ui/StoriesBar.jsx';
 import { PostCardSkeleton } from '../components/ui/Skeleton.jsx';
+import { useConfirm } from '../components/ui/ConfirmDialog.jsx';
 import toast from 'react-hot-toast';
 
 function renderCaption(caption, onHashtagClick) {
@@ -261,6 +262,7 @@ function PostCard({ post, onLike, onComment, onDelete, onPurchased, currentUserI
 export default function Moments() {
   const { user, profile } = useAuthStore();
   const navigate = useNavigate();
+  const confirm = useConfirm();
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [hasMore, setHasMore] = useState(false);
@@ -341,7 +343,13 @@ export default function Moments() {
   };
 
   const handleDeletePost = async (postId) => {
-    if (!window.confirm('¿Eliminar esta publicación?')) return;
+    const ok = await confirm({
+      title: '¿Eliminar publicación?',
+      message: 'Esta acción no se puede deshacer.',
+      confirmLabel: 'Eliminar',
+      destructive: true,
+    });
+    if (!ok) return;
     try {
       await api.delete(`/api/posts/${postId}`);
       setPosts(p => p.filter(post => post.id !== postId));
