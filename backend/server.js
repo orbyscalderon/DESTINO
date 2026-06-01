@@ -82,29 +82,68 @@ app.use(cors({
 }));
 
 // ── Rate limiters ─────────────────────────────────────────────
+// Key generator: usa el bearer token (user.id) si está presente, sino la IP.
+// Antes el limiter usaba solo IP — con Cloudflare/NAT muchos users comparten
+// IP y se pegaban entre sí. Ahora cada user logueado tiene su propio quota.
+function authKeyGenerator(req /* , res */) {
+  const auth = req.headers.authorization;
+  if (auth?.startsWith('Bearer ')) {
+    // El JWT de Supabase tiene formato xxx.yyy.zzz — usamos un hash corto
+    // para evitar guardar el token completo en memoria del limiter.
+    return 'tok:' + auth.substring(7, 27);
+  }
+  return req.ip;
+}
+
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: process.env.NODE_ENV === 'production' ? 200 : 2000,
+  max: process.env.NODE_ENV === 'production' ? 1000 : 5000,
   message: { error: 'Demasiadas solicitudes, intenta más tarde' },
-  skip: () => process.env.NODE_ENV !== 'production', // sin límite en desarrollo
+  skip: (req) => {
+    if (process.env.NODE_ENV !== 'production') return true;
+    // Skip GETs de READ-ONLY heavy-hit endpoints. Son cacheables y abrir un
+    // perfil dispara 6-7 en paralelo — pegaban el limit muy rápido. La
+    // protección real para estos endpoints es el load-time, no el rate.
+    if (req.method === 'GET') {
+      const p = req.path;
+      if (p.startsWith('/api/profiles/')) return true;
+      if (p.startsWith('/api/follows/'))  return true;
+      if (p.startsWith('/api/posts/'))    return true;
+      if (p.startsWith('/api/creator/'))  return true;
+      if (p.startsWith('/api/shows'))     return true;
+    }
+    return false;
+  },
+  keyGenerator: authKeyGenerator,
+  standardHeaders: true,
+  legacyHeaders: false,
 });
 
 const paymentLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
   max: 10,
   message: { error: 'Demasiados intentos de pago, intenta más tarde' },
+  keyGenerator: authKeyGenerator,
+  standardHeaders: true, legacyHeaders: false,
 });
 
 const videoLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 20,
   message: { error: 'Demasiadas solicitudes de video, espera un momento' },
+  keyGenerator: authKeyGenerator,
+  standardHeaders: true, legacyHeaders: false,
 });
 
 const uploadLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
-  max: 20,
+  max: 30,
   message: { error: 'Demasiadas subidas de archivos, intenta más tarde' },
+  // Aplicar SOLO en POST/PUT/PATCH/DELETE — los GET en /photos y /videos son
+  // para leer perfiles y no deben contar como uploads.
+  skip: (req) => req.method === 'GET',
+  keyGenerator: authKeyGenerator,
+  standardHeaders: true, legacyHeaders: false,
 });
 
 const likeLimiter = rateLimit({
@@ -112,6 +151,8 @@ const likeLimiter = rateLimit({
   max: 30,
   message: { error: 'Demasiados likes en poco tiempo, espera un momento' },
   skip: () => process.env.NODE_ENV !== 'production',
+  keyGenerator: authKeyGenerator,
+  standardHeaders: true, legacyHeaders: false,
 });
 
 const tipLimiter = rateLimit({
@@ -119,6 +160,8 @@ const tipLimiter = rateLimit({
   max: 10,
   message: { error: 'Demasiadas propinas en poco tiempo, espera un momento' },
   skip: () => process.env.NODE_ENV !== 'production',
+  keyGenerator: authKeyGenerator,
+  standardHeaders: true, legacyHeaders: false,
 });
 
 app.use('/api', (req, res, next) => {
