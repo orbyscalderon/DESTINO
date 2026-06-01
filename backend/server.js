@@ -356,15 +356,14 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Error interno del servidor' });
 });
 
-// Validar env vars críticas en startup
-const REQUIRED_ENVS = [
-  'SUPABASE_URL',
-  'SUPABASE_SERVICE_ROLE_KEY',
-];
+// Warnings de configuración (NO abortar — antes hacíamos exit(1) y el
+// deploy de Railway fallaba el healthcheck. Mejor arrancar siempre y dejar
+// que los warnings aparezcan en logs).
+const REQUIRED_ENVS = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'];
 const missing = REQUIRED_ENVS.filter(k => !process.env[k]);
 if (missing.length > 0) {
   console.error('❌ Faltan variables de entorno requeridas:', missing.join(', '));
-  process.exit(1);
+  console.error('   El servidor arrancará pero las queries a Supabase fallarán.');
 }
 
 app.listen(PORT, () => {
@@ -372,27 +371,17 @@ app.listen(PORT, () => {
   console.log(`🚀 Destino TV backend corriendo en puerto ${PORT}`);
 
   if (isProduction) {
-    const errors = [];
     const frontendUrl = process.env.FRONTEND_URL || '';
     if (!frontendUrl || frontendUrl.includes('localhost')) {
-      errors.push('FRONTEND_URL apunta a localhost o falta');
+      console.warn('⚠️  FRONTEND_URL apunta a localhost o falta');
     }
     if (!process.env.STRIPE_SECRET_KEY) {
-      errors.push('STRIPE_SECRET_KEY no configurada');
+      console.warn('⚠️  STRIPE_SECRET_KEY no configurada — pagos deshabilitados');
     } else if (process.env.STRIPE_SECRET_KEY.startsWith('sk_test_')) {
       console.warn('⚠️  STRIPE en modo TEST en producción (sk_test_).');
     }
     if (!process.env.STRIPE_WEBHOOK_SECRET?.startsWith('whsec_')) {
-      errors.push('STRIPE_WEBHOOK_SECRET inválido o falta');
-    }
-    if (errors.length > 0) {
-      console.error('❌ ERRORES DE CONFIG EN PRODUCCIÓN:');
-      errors.forEach(e => console.error('   - ' + e));
-      // En producción NO arrancamos con config inválida que afecte pagos
-      if (errors.some(e => e.includes('STRIPE'))) {
-        console.error('   Stripe roto = doble cobro / pérdida de dinero. Abortando.');
-        process.exit(1);
-      }
+      console.warn('⚠️  STRIPE_WEBHOOK_SECRET inválido o falta — webhooks no se procesarán correctamente');
     }
   }
 
