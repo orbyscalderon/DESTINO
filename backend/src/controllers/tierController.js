@@ -169,7 +169,11 @@ export const deleteTier = async (req, res) => {
 
 // POST /api/creator/:creatorId/gift-sub
 // Body: { recipientId, tierId, message? }
-// El "gifter" paga en COINS, el creator recibe USD earnings, el recipient recibe sub real
+// El "gifter" paga en COINS, el creator recibe USD earnings, el recipient recibe sub real.
+// CRÍTICO: usa RPC `gift_subscription_atomic` (definida en migration v34) que
+// envuelve TODO en una transacción. Si falla cualquier paso, los coins del
+// gifter NO se gastan. Antes había un flujo no atómico con riesgo de que el
+// gifter perdiera coins sin recibir la suscripción (issue auditoría #2).
 export const giftSubscription = async (req, res) => {
   try {
     const { creatorId } = req.params;
@@ -180,7 +184,7 @@ export const giftSubscription = async (req, res) => {
     if (recipientId === gifterId) return res.status(400).json({ error: 'No puedes regalarte a ti mismo' });
     if (recipientId === creatorId) return res.status(400).json({ error: 'No puedes regalarle al propio creador' });
 
-    // Validar tier
+    // Validar tier (pertenece al creator + activo)
     const { data: tier } = await supabase
       .from('creator_tiers')
       .select('id, creator_id, price, name, tier_level, badge_emoji')
@@ -189,59 +193,60 @@ export const giftSubscription = async (req, res) => {
       .single();
     if (!tier || tier.creator_id !== creatorId) return res.status(404).json({ error: 'Tier no válido' });
 
-    // Validar recipient existe y no está ya suscrito activamente al mismo creator
+    // Validar recipient existe
     const { data: recipient } = await supabase
       .from('profiles').select('id, full_name, email_prefs').eq('id', recipientId).single();
     if (!recipient) return res.status(404).json({ error: 'Destinatario no encontrado' });
 
+    // Suscripción activa existente?
     const { data: existingSub } = await supabase
       .from('creator_subscriptions')
-      .select('id, status, current_period_end')
+      .select('id, status')
       .eq('subscriber_id', recipientId)
       .eq('creator_id', creatorId)
-      .single();
-
+      .maybeSingle();
     if (existingSub?.status === 'active') {
       return res.status(400).json({ error: 'El destinatario ya está suscrito a este creador' });
     }
 
-    // Convertir precio USD → coins. 1 coin = $0.05 USD → coins = price * 20
-    const { spendCoins, addCoins, CREATOR_CUT, coinsToUSD, PLATFORM_FEE_RATE } = await import('./coinController.js');
-    const coinsCost = Math.ceil(parseFloat(tier.price) * 20);
+    const { CREATOR_CUT, COIN_VALUE_USD } = await import('../lib/constants.js');
+    const coinsCost   = Math.ceil(parseFloat(tier.price) / COIN_VALUE_USD); // USD → coins
+    const creatorCoins = Math.round(coinsCost * CREATOR_CUT);
+    const cleanMessage = message?.trim()?.substring(0, 200) || null;
 
-    try {
-      await spendCoins(gifterId, coinsCost, 'gift_subscription', creatorId);
-    } catch (e) {
-      if (e?.code === 'INSUFFICIENT_COINS') {
+    // RPC atómico: spend + add + create subscription en una sola TX
+    const { data: rpcResult, error: rpcError } = await supabase.rpc('gift_subscription_atomic', {
+      p_gifter_id:     gifterId,
+      p_creator_id:    creatorId,
+      p_recipient_id:  recipientId,
+      p_tier_id:       tierId,
+      p_coins_cost:    coinsCost,
+      p_creator_coins: creatorCoins,
+      p_tier_price:    parseFloat(tier.price),
+      p_gift_message:  cleanMessage,
+    });
+
+    if (rpcError) {
+      console.error('[giftSubscription] RPC error:', rpcError.message);
+      return res.status(500).json({ error: 'Error procesando regalo' });
+    }
+    const result = Array.isArray(rpcResult) ? rpcResult[0] : rpcResult;
+    if (!result?.success) {
+      if (result?.error_code === 'INSUFFICIENT_COINS') {
         return res.status(400).json({ error: 'Coins insuficientes', code: 'INSUFFICIENT_COINS', required: coinsCost });
       }
-      throw e;
+      console.error('[giftSubscription] failed:', result?.error_code);
+      return res.status(500).json({ error: 'No se pudo procesar el regalo' });
     }
 
-    // Acreditar al creator (en coins también, para que aparezca en su balance unificado)
-    const creatorCoins = Math.round(coinsCost * CREATOR_CUT);
-    await addCoins(creatorId, creatorCoins, 'subscription_gift_received', recipientId);
-
-    // Acreditar USD earnings (para analytics y payout)
+    // Acreditar USD earnings al creator (para analytics y payout)
+    // Esto es fuera del RPC porque toca otra tabla con su propia lógica.
+    // Si falla, NO afecta el regalo (solo analytics).
     const earningsUSD = parseFloat(tier.price) * CREATOR_CUT;
     const { upsertCreatorEarnings } = await import('./showController.js');
-    await upsertCreatorEarnings(creatorId, earningsUSD).catch(() => {});
-
-    // Crear la suscripción para el recipient
-    const periodEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
-    await supabase.from('creator_subscriptions').upsert({
-      subscriber_id: recipientId,
-      creator_id: creatorId,
-      tier_id: tierId,
-      subscription_price: tier.price,
-      status: 'active',
-      current_period_end: periodEnd,
-      is_gift: true,
-      gifted_by: gifterId,
-      gift_message: message?.trim()?.substring(0, 200) || null,
-      auto_renew: false,  // los regalos no se renuevan automáticamente
-      updated_at: new Date().toISOString(),
-    }, { onConflict: 'subscriber_id,creator_id' });
+    await upsertCreatorEarnings(creatorId, earningsUSD).catch(err =>
+      console.warn('[giftSubscription] earnings update failed:', err.message)
+    );
 
     // Notificaciones
     const { data: gifter } = await supabase.from('profiles').select('full_name').eq('id', gifterId).single();
@@ -279,11 +284,11 @@ export const giftSubscription = async (req, res) => {
         gifterName: gifter?.full_name || 'Un fan',
         creatorName: creator?.full_name || 'el creador',
         tierName: tier.name,
-        message: message?.trim() || null,
+        message: cleanMessage,
       }).catch(() => {});
       notifyUser(creatorId, 'new_subscriber', {
         subscriberName: recipient.full_name || 'Un fan',
-        priceUsd: tier.price,
+        priceUsd: parseFloat(tier.price),
         isGift: true,
         gifterName: gifter?.full_name || 'Un fan',
       }).catch(() => {});
@@ -296,8 +301,9 @@ export const giftSubscription = async (req, res) => {
       recipient_name: recipient.full_name,
     });
   } catch (err) {
-    console.error('giftSubscription error:', err.message);
-    res.status(500).json({ error: 'Error interno del servidor' });
+    console.error('giftSubscription error:', err);
+    const { safeErrorMessage } = await import('../lib/helpers.js');
+    res.status(500).json({ error: safeErrorMessage(err) });
   }
 };
 

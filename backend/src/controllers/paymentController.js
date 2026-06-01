@@ -89,15 +89,27 @@ export const handleWebhook = async (req, res) => {
 
   const getUserIdFromEvent = (obj) => obj?.metadata?.supabase_user_id;
 
-  // Idempotency: skip already-processed events
+  // Idempotency: skip already-processed events.
+  // CRÍTICO: si esto falla por cualquier razón, NO procesar el evento.
+  // Antes había un `catch { continue }` que permitía doble-cobrar si la
+  // tabla no existía o Supabase fallaba.
   try {
     const { error: insertErr } = await supabase
       .from('processed_stripe_events')
       .insert({ event_id: event.id });
     if (insertErr?.code === '23505') {
-      return res.json({ received: true, skipped: true });
+      // Ya procesado — Stripe reenvía webhooks como retry, esto es normal
+      return res.json({ received: true, skipped: true, reason: 'already_processed' });
     }
-  } catch { /* table might not exist yet — continue */ }
+    if (insertErr) {
+      // Cualquier otro error de DB es bloqueante. Stripe reintenta automáticamente.
+      console.error('[webhook] critical: failed to mark event as processed', event.id, insertErr.message);
+      return res.status(500).json({ error: 'Idempotency check failed' });
+    }
+  } catch (err) {
+    console.error('[webhook] critical: idempotency table unreachable', event.id, err.message);
+    return res.status(500).json({ error: 'Idempotency check failed' });
+  }
 
   try {
     switch (event.type) {
@@ -549,12 +561,22 @@ export const purchasePhoto = async (req, res) => {
       .eq('id', photo.user_id)
       .single();
 
+    // BLOQUEAR si el seller no tiene Stripe activo (issue auditoría #8)
+    if (!seller?.stripe_account_id || seller?.stripe_account_status !== 'active') {
+      return res.status(400).json({
+        error: 'Este creador aún no tiene configurada su cuenta de pagos',
+        code: 'CREATOR_PAYMENTS_NOT_READY',
+      });
+    }
+
     const amountCents = Math.round(photo.price * 100);
     const platformFeeCents = Math.round(amountCents * PLATFORM_FEE_RATE);
 
     const piParams = {
       amount: amountCents,
       currency: 'usd',
+      application_fee_amount: platformFeeCents,
+      transfer_data: { destination: seller.stripe_account_id },
       metadata: {
         type: 'photo_purchase',
         photo_id: photoId,
@@ -562,11 +584,6 @@ export const purchasePhoto = async (req, res) => {
         seller_id: photo.user_id,
       },
     };
-
-    if (seller?.stripe_account_id && seller?.stripe_account_status === 'active') {
-      piParams.application_fee_amount = platformFeeCents;
-      piParams.transfer_data = { destination: seller.stripe_account_id };
-    }
 
     const paymentIntent = await stripe.paymentIntents.create(piParams);
 

@@ -1,11 +1,10 @@
 import { stripe } from '../lib/stripe.js';
 import { supabase } from '../lib/supabase.js';
 import { cached, cacheDel } from '../lib/cache.js';
-
-// 1 coin = $0.05 USD (20 coins por dólar)
-export const COIN_VALUE_USD = 0.05;
-export const PLATFORM_FEE_RATE = 0.30;
-export const CREATOR_CUT = 1 - PLATFORM_FEE_RATE; // 0.70
+// Constantes ahora viven en lib/constants.js — re-exportamos para no romper
+// imports existentes en otros controllers.
+import { COIN_VALUE_USD, PLATFORM_FEE_RATE, CREATOR_CUT } from '../lib/constants.js';
+export { COIN_VALUE_USD, PLATFORM_FEE_RATE, CREATOR_CUT };
 
 export const COIN_PACKAGES = [
   { id: 'coins_100',  coins: 100,  bonus_coins: 0,   price_usd: 5.00,   label: '100 Coins' },

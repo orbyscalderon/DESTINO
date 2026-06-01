@@ -3,7 +3,8 @@ import { supabase } from '../lib/supabase.js';
 import { uploadFile } from '../lib/storageProvider.js';
 import multer from 'multer';
 import { upsertCreatorEarnings } from './showController.js';
-import { COIN_VALUE_USD, CREATOR_CUT, PLATFORM_FEE_RATE } from './coinController.js';
+import { COIN_VALUE_USD, CREATOR_CUT, PLATFORM_FEE_RATE, MIN_PAYOUT_USD } from '../lib/constants.js';
+import { safeErrorMessage, processBatched } from '../lib/helpers.js';
 import { createNotification } from './inAppNotifController.js';
 import { sendPushToUser } from './notificationController.js';
 const GALLERY_ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp', 'video/mp4', 'video/quicktime'];
@@ -22,7 +23,7 @@ export const galleryMediaMiddleware = (req, res, next) => {
   });
 };
 
-const MIN_PAYOUT = 10; // mínimo $10 para retirar
+const MIN_PAYOUT = MIN_PAYOUT_USD;
 
 const stripeNotConfigured = (res) =>
   res.status(503).json({ error: 'Pagos no configurados aún', code: 'STRIPE_NOT_CONFIGURED' });
@@ -133,8 +134,8 @@ export const becomeCreator = async (req, res) => {
       stripeAccountCreated: !!update.stripe_account_id && !profile.stripe_account_id,
     });
   } catch (err) {
-    console.error('[becomeCreator] catch:', err.message);
-    res.status(500).json({ error: err.message || 'Error interno del servidor' });
+    console.error('[becomeCreator] catch:', err);
+    res.status(500).json({ error: safeErrorMessage(err) });
   }
 };
 
@@ -482,6 +483,16 @@ export const subscribeToCreator = async (req, res) => {
       await supabase.from('profiles').update({ stripe_customer_id: customerId }).eq('id', subscriberId);
     }
 
+    // BLOQUEAR la compra si el creador NO tiene cuenta Stripe activa.
+    // Antes se cobraba al fan pero el dinero quedaba en la plataforma sin
+    // transfer al creator → discrepancia silenciosa en earnings.
+    if (!creator?.stripe_account_id || creator?.stripe_account_status !== 'active') {
+      return res.status(400).json({
+        error: 'Este creador aún no tiene configurada su cuenta de pagos',
+        code: 'CREATOR_PAYMENTS_NOT_READY',
+      });
+    }
+
     const amountCents = Math.round(priceUsd * 100);
     const platformFeeCents = Math.round(amountCents * PLATFORM_FEE_RATE);
 
@@ -490,6 +501,8 @@ export const subscribeToCreator = async (req, res) => {
       currency: 'usd',
       customer: customerId,
       setup_future_usage: 'off_session',
+      application_fee_amount: platformFeeCents,
+      transfer_data: { destination: creator.stripe_account_id },
       metadata: {
         type: 'creator_subscription',
         creator_id: creatorId,
@@ -497,11 +510,6 @@ export const subscribeToCreator = async (req, res) => {
         tier_id: tierId || '',
       },
     };
-
-    if (creator?.stripe_account_id && creator?.stripe_account_status === 'active') {
-      piParams.application_fee_amount = platformFeeCents;
-      piParams.transfer_data = { destination: creator.stripe_account_id };
-    }
 
     const paymentIntent = await stripe.paymentIntents.create(piParams);
 
@@ -1535,12 +1543,13 @@ export const sendBroadcast = async (req, res) => {
     const title = is_paid ? `💎 ${profile.full_name} envió contenido premium` : `📢 ${profile.full_name}`;
     const body = is_paid ? `Desbloquéalo por ${ppvPrice} coins` : message.trim();
 
-    await Promise.allSettled(recipients.map(uid =>
-      Promise.all([
+    // Batch en 100 recipients con 100ms delay para no tumbar Resend/FCM
+    await processBatched(recipients, 100, async (uid) => {
+      await Promise.allSettled([
         createNotification(uid, 'broadcast', title, body, { creator_id: creatorId, ppv: !!is_paid }),
         sendPushToUser(uid, { title, body, url: '/messages' }).catch(() => {}),
-      ])
-    ));
+      ]);
+    }, 100);
 
     res.json({
       sent: recipients.length,
@@ -1599,26 +1608,26 @@ export const sendBlastEmail = async (req, res) => {
       .replace(/on\w+="[^"]*"/gi, '')
       .replace(/javascript:/gi, '');
 
-    // Enviar emails (fire-and-forget, throttled)
+    // Enviar emails en batches de 20 con 200ms delay (Resend rate limit-aware)
     const { sendCreatorBlastEmail } = await import('../lib/emailService.js');
     let sent = 0;
-    for (const sub of subs) {
+    await processBatched(subs, 20, async (sub) => {
       const prefs = sub.subscriber?.email_prefs || {};
-      if (prefs.creator_blast === false) continue;
-
+      if (prefs.creator_blast === false) return;
       const { data: authUser } = await supabase.auth.admin.getUserById(sub.subscriber_id).catch(() => ({ data: null }));
       const email = authUser?.user?.email;
-      if (!email) continue;
-
-      sendCreatorBlastEmail(
-        email,
-        sub.subscriber?.full_name || 'Suscriptor',
-        profile.full_name,
-        subject.trim(),
-        safeHtml
-      ).catch(() => {});
-      sent++;
-    }
+      if (!email) return;
+      try {
+        await sendCreatorBlastEmail(
+          email,
+          sub.subscriber?.full_name || 'Suscriptor',
+          profile.full_name,
+          subject.trim(),
+          safeHtml
+        );
+        sent++;
+      } catch { /* skip individual failures */ }
+    }, 200);
 
     await supabase.from('creator_blasts').update({
       sent_count: sent, completed_at: new Date().toISOString(),

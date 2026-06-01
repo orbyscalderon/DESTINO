@@ -1,5 +1,6 @@
 import webpush from 'web-push';
 import { supabase } from '../lib/supabase.js';
+import { safeErrorMessage } from '../lib/helpers.js';
 
 const VAPID_PUBLIC = process.env.VAPID_PUBLIC_KEY;
 const VAPID_PRIVATE = process.env.VAPID_PRIVATE_KEY;
@@ -31,7 +32,7 @@ export const subscribe = async (req, res) => {
 
     res.json({ ok: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: safeErrorMessage(err) });
   }
 };
 
@@ -41,7 +42,7 @@ export const unsubscribe = async (req, res) => {
     await supabase.from('push_subscriptions').delete().eq('user_id', req.user.id);
     res.json({ ok: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: safeErrorMessage(err) });
   }
 };
 
@@ -55,7 +56,7 @@ export const getNotifPrefs = async (req, res) => {
       .single();
     res.json({ prefs: profile?.notification_prefs || {} });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: safeErrorMessage(err) });
   }
 };
 
@@ -73,7 +74,7 @@ export const updateNotifPrefs = async (req, res) => {
       .eq('id', req.user.id);
     res.json({ prefs });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: safeErrorMessage(err) });
   }
 };
 

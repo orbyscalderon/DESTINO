@@ -580,12 +580,22 @@ export const purchaseShowTicket = async (req, res) => {
 
     if (existing) return res.status(400).json({ error: 'Ya tienes un ticket para este show' });
 
+    // BLOQUEAR la compra si el host NO tiene Stripe activo (issue auditoría #8)
+    if (!show.host?.stripe_account_id || show.host?.stripe_account_status !== 'active') {
+      return res.status(400).json({
+        error: 'Este creador aún no tiene configurada su cuenta de pagos',
+        code: 'CREATOR_PAYMENTS_NOT_READY',
+      });
+    }
+
     const amountCents = Math.round(show.ticket_price * 100);
     const platformFeeCents = Math.round(amountCents * PLATFORM_FEE_RATE);
 
     const paymentIntentParams = {
       amount: amountCents,
       currency: 'usd',
+      application_fee_amount: platformFeeCents,
+      transfer_data: { destination: show.host.stripe_account_id },
       metadata: {
         type: 'show_ticket',
         show_id: id,
@@ -593,12 +603,6 @@ export const purchaseShowTicket = async (req, res) => {
         seller_id: show.host_id,
       },
     };
-
-    // Si el creador tiene Stripe Connect activo, usar destination charges
-    if (show.host?.stripe_account_id && show.host?.stripe_account_status === 'active') {
-      paymentIntentParams.application_fee_amount = platformFeeCents;
-      paymentIntentParams.transfer_data = { destination: show.host.stripe_account_id };
-    }
 
     const paymentIntent = await stripe.paymentIntents.create(paymentIntentParams);
 

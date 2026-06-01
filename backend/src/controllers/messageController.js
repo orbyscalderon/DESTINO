@@ -2,6 +2,7 @@ import { supabase } from '../lib/supabase.js';
 import { uploadFile } from '../lib/storageProvider.js';
 import { sendPushToUser } from './notificationController.js';
 import { spendCoins, addCoins, coinsToUSD, creatorCutUSD, CREATOR_CUT } from './coinController.js';
+import { detectImageType, detectVideoType, safeErrorMessage } from '../lib/helpers.js';
 import { createNotification } from './inAppNotifController.js';
 import { upsertCreatorEarnings } from './showController.js';
 import multer from 'multer';
@@ -87,8 +88,16 @@ export const sendImageMessage = async (req, res) => {
       return res.status(403).json({ error: 'No tienes acceso a este chat' });
     }
 
-    const storagePath = `chat-images/${matchId}/${userId}-${Date.now()}`;
-    const imageUrl = await uploadFile(storagePath, req.file.buffer, req.file.mimetype);
+    // Validar magic bytes (no solo MIME del header — fácil de falsificar)
+    const realType = detectImageType(req.file.buffer);
+    if (!realType) {
+      return res.status(400).json({ error: 'Archivo no es una imagen válida' });
+    }
+    // Sanitizar matchId/userId en path (defensa en profundidad — vienen de JWT)
+    const safeMatchId = matchId.replace(/[^a-f0-9\-]/gi, '');
+    const safeUserId  = userId.replace(/[^a-f0-9\-]/gi, '');
+    const storagePath = `chat-images/${safeMatchId}/${safeUserId}-${Date.now()}`;
+    const imageUrl = await uploadFile(storagePath, req.file.buffer, realType);
 
     const { data: message, error } = await supabase
       .from('messages')
@@ -488,9 +497,16 @@ export const sendVideoMessage = async (req, res) => {
       return res.status(403).json({ error: 'No tienes acceso a este chat' });
     }
 
-    const ext = req.file.mimetype.includes('webm') ? 'webm' : 'mp4';
-    const storagePath = `chat-video/${matchId}/${userId}-${Date.now()}.${ext}`;
-    const videoUrl = await uploadFile(storagePath, req.file.buffer, req.file.mimetype);
+    // Validar magic bytes
+    const realType = detectVideoType(req.file.buffer);
+    if (!realType) {
+      return res.status(400).json({ error: 'Archivo no es un video válido' });
+    }
+    const ext = realType === 'video/webm' ? 'webm' : 'mp4';
+    const safeMatchId = matchId.replace(/[^a-f0-9\-]/gi, '');
+    const safeUserId  = userId.replace(/[^a-f0-9\-]/gi, '');
+    const storagePath = `chat-video/${safeMatchId}/${safeUserId}-${Date.now()}.${ext}`;
+    const videoUrl = await uploadFile(storagePath, req.file.buffer, realType);
 
     const { data: message, error } = await supabase
       .from('messages')

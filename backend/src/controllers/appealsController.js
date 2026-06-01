@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase.js';
+import { safeErrorMessage } from '../lib/helpers.js';
 
 // POST /api/appeals — usuario envía apelación
 export const submitAppeal = async (req, res) => {
@@ -36,7 +37,7 @@ export const submitAppeal = async (req, res) => {
     if (error) throw error;
     res.status(201).json({ appeal });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: safeErrorMessage(err) });
   }
 };
 
@@ -52,7 +53,7 @@ export const getUserAppeals = async (req, res) => {
 
     res.json({ appeals: appeals || [] });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: safeErrorMessage(err) });
   }
 };
 
@@ -72,7 +73,7 @@ export const adminListAppeals = async (req, res) => {
 
     res.json({ appeals: appeals || [] });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: safeErrorMessage(err) });
   }
 };
 
@@ -105,6 +106,6 @@ export const adminReviewAppeal = async (req, res) => {
 
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: safeErrorMessage(err) });
   }
 };
