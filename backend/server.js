@@ -359,8 +359,10 @@ app.use((err, req, res, next) => {
 // Warnings de configuración (NO abortar — antes hacíamos exit(1) y el
 // deploy de Railway fallaba el healthcheck. Mejor arrancar siempre y dejar
 // que los warnings aparezcan en logs).
-const REQUIRED_ENVS = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'];
-const missing = REQUIRED_ENVS.filter(k => !process.env[k]);
+const hasSupabaseKey = !!(process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY);
+const missing = [];
+if (!process.env.SUPABASE_URL) missing.push('SUPABASE_URL');
+if (!hasSupabaseKey) missing.push('SUPABASE_SERVICE_KEY (o SUPABASE_SERVICE_ROLE_KEY)');
 if (missing.length > 0) {
   console.error('❌ Faltan variables de entorno requeridas:', missing.join(', '));
   console.error('   El servidor arrancará pero las queries a Supabase fallarán.');
