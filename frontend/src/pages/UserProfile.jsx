@@ -6,7 +6,7 @@ import api from '../lib/api.js';
 import toast from 'react-hot-toast';
 import BlockReportModal from '../components/ui/BlockReportModal.jsx';
 import PaymentModal from '../components/ui/PaymentModal.jsx';
-import AgeVerificationModal from '../components/ui/AgeVerificationModal.jsx';
+import AgeVerificationModal, { isAgeDeclinedRecently } from '../components/ui/AgeVerificationModal.jsx';
 import VerifiedBadge from '../components/ui/VerifiedBadge.jsx';
 import TipModal from '../components/ui/TipModal.jsx';
 import TipMenuPublic from '../components/ui/TipMenuPublic.jsx';
@@ -67,7 +67,10 @@ export default function UserProfile() {
 
   const loadPhotos = async () => {
     const phRes = await api.get(`/api/profiles/${userId}/photos`).catch(() => ({ data: { photos: [], requires_vip: false } }));
-    if (phRes.data.requires_vip || phRes.data.requires_age_verification) {
+    if (phRes.data.requires_age_verification && !isAgeDeclinedRecently()) {
+      setShowAgeModal(true);
+      setPhotosBlocked(true);
+    } else if (phRes.data.requires_vip || phRes.data.requires_age_verification) {
       setPhotosBlocked(true);
     } else {
       setPhotos(phRes.data.photos || []);
@@ -89,7 +92,11 @@ export default function UserProfile() {
       const p = pRes.data.profile;
       setProfile(p);
       setSubscribed(!!p.is_subscribed);
-      if (phRes.data.requires_vip || phRes.data.requires_age_verification) {
+      if (phRes.data.requires_age_verification && !isAgeDeclinedRecently()) {
+        // Pedir verificación de edad — modal se cierra y vuelve a cargar fotos
+        setShowAgeModal(true);
+        setPhotosBlocked(true);
+      } else if (phRes.data.requires_vip || phRes.data.requires_age_verification) {
         setPhotosBlocked(true);
       } else {
         setPhotos(phRes.data.photos || []);
@@ -738,10 +745,35 @@ export default function UserProfile() {
           <TipMenuPublic creatorId={profile.id} creatorName={profile.full_name} />
         )}
 
-        {/* ── Gate VIP para contenido adulto ───────────────── */}
-        {photosBlocked && (
+        {/* ── Gate: contenido adulto requiere verificación de edad ───── */}
+        {photosBlocked && profile.is_adult_creator && (
+          <div className="card p-6 text-center border-pink-500/20 bg-pink-500/5">
+            <div className="text-4xl mb-3" aria-hidden="true">🔞</div>
+            <p className="text-white font-semibold mb-1">Contenido para mayores de 18</p>
+            <p className="text-gray-500 text-sm mb-4">
+              Este creador publica contenido +18. Verifica tu edad para acceder.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-2 justify-center">
+              <button
+                onClick={() => { sessionStorage.removeItem('age_declined_at'); setShowAgeModal(true); }}
+                className="bg-pink-500 hover:bg-pink-400 text-white font-bold text-sm px-6 py-2.5 rounded-xl transition-colors"
+              >
+                Verificar mi edad
+              </button>
+              <button
+                onClick={() => navigate('/premium')}
+                className="bg-dark-700 hover:bg-dark-600 text-gray-300 font-medium text-sm px-6 py-2.5 rounded-xl transition-colors"
+              >
+                O hazte VIP 👑
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── Gate VIP genérico (no adult creator) ──────────────── */}
+        {photosBlocked && !profile.is_adult_creator && (
           <div className="card p-6 text-center border-yellow-500/20 bg-yellow-500/5">
-            <div className="text-4xl mb-3">👑</div>
+            <div className="text-4xl mb-3" aria-hidden="true">👑</div>
             <p className="text-white font-semibold mb-1">Contenido exclusivo VIP</p>
             <p className="text-gray-500 text-sm mb-4">Este creador publica contenido solo para miembros VIP.</p>
             <button

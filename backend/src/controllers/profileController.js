@@ -672,16 +672,25 @@ export const getPhotosForViewer = async (req, res) => {
       return res.json({ photos: photos || [] });
     }
 
-    // Si el creador es adulto, verificar que el viewer tiene tier VIP o también es creador adulto
+    // Si el creador es adulto, verificar permisos del viewer.
+    // 3 formas válidas de ver contenido adulto:
+    //   1. El viewer es también creador adulto
+    //   2. El viewer ha verificado su edad (age_verified_at)
+    //   3. El viewer tiene tier VIP
+    // Antes solo se aceptaban 1 y 3 → users normales se quedaban bloqueados
+    // sin saber que solo tenían que verificar su edad.
     if (ownerProfile?.is_adult_creator) {
+      if (!viewerId) {
+        return res.json({ photos: [], requires_age_verification: true });
+      }
       const { data: vp } = await supabase
         .from('profiles')
-        .select('is_adult_creator, premium_tier')
+        .select('is_adult_creator, age_verified_at, premium_tier')
         .eq('id', viewerId)
         .single();
-      const canSeeAdult = vp?.is_adult_creator || vp?.premium_tier === 'vip';
+      const canSeeAdult = vp?.is_adult_creator || vp?.age_verified_at || vp?.premium_tier === 'vip';
       if (!canSeeAdult) {
-        return res.json({ photos: [], requires_vip: true });
+        return res.json({ photos: [], requires_age_verification: true });
       }
     }
 
