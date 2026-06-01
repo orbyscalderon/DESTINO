@@ -74,15 +74,17 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    if (config.__retryCount >= 3) return Promise.reject(error);
+    if (config.__retryCount >= 2) return Promise.reject(error);
 
-    const shouldRetry = !error.response || status >= 500 || status === 429;
+    // NO reintentar 429 — antes lo hacíamos pero solo escalaba el problema:
+    // cada request en 429 disparaba 3 retries más, cuadruplicando el load.
+    // Espiral de muerte. El cliente debe esperar a que el limit window se
+    // resetee (15 min) sin bombardear al backend.
+    const shouldRetry = !error.response || status >= 500;
     if (!shouldRetry) return Promise.reject(error);
 
     config.__retryCount = (config.__retryCount || 0) + 1;
-    const retryAfter = status === 429
-      ? parseInt(error.response.headers['retry-after'] || '5') * 1000
-      : Math.min(1000 * 2 ** (config.__retryCount - 1), 8000);
+    const retryAfter = Math.min(1000 * 2 ** (config.__retryCount - 1), 4000);
 
     await new Promise(r => setTimeout(r, retryAfter));
     return api(config);
