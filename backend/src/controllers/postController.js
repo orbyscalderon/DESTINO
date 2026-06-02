@@ -272,28 +272,56 @@ export const createPost = async (req, res) => {
 
     const extractedHashtags = (caption || '').match(/#[\wÀ-ž]+/g)?.map(t => t.slice(1).toLowerCase()) || [];
 
-    const { data: post, error } = await supabase
-      .from('posts')
-      .insert({
-        user_id: userId,
-        caption: caption?.trim() || null,
-        media_url: mediaUrl,
-        media_type: mediaType,
-        is_adult: finalIsAdult,
-        is_subscribers_only: subOnly,
-        is_paid: isPaid,
-        price: coinPrice,
-        status,
-        hashtags: extractedHashtags,
-      })
-      .select()
-      .single();
+    // Base row (siempre presente). Las columnas opcionales se intentan abajo
+    // y se retiran si el schema no las tiene aún (defensa ante migración
+    // pendiente).
+    const baseRow = {
+      user_id: userId,
+      caption: caption?.trim() || null,
+      media_url: mediaUrl,
+      media_type: mediaType,
+      is_adult: finalIsAdult,
+      is_subscribers_only: subOnly,
+      status,
+      hashtags: extractedHashtags,
+      is_paid: isPaid,
+      price: coinPrice,
+    };
+
+    let post;
+    let { data, error } = await supabase
+      .from('posts').insert(baseRow).select().single();
+
+    // Si fallan por columna inexistente (42703 / "column ... does not exist"),
+    // reintentar sin esa columna. Esto cubre instalaciones que aún no han
+    // corrido la migración v40 (is_paid/price) o v22 (hashtags).
+    if (error && (error.code === '42703' || /column .* does not exist/i.test(error.message))) {
+      console.warn('[createPost] schema missing column, retrying without:', error.message);
+      const fallback = { ...baseRow };
+      // Retirar columnas que pudieran faltar
+      const msg = error.message.toLowerCase();
+      if (msg.includes('is_paid'))   delete fallback.is_paid;
+      if (msg.includes('price'))     delete fallback.price;
+      if (msg.includes('hashtags'))  delete fallback.hashtags;
+      if (msg.includes('status'))    delete fallback.status;
+      const retry = await supabase.from('posts').insert(fallback).select().single();
+      data = retry.data;
+      error = retry.error;
+    }
 
     if (error) throw error;
+    post = data;
     res.status(201).json({ post });
   } catch (err) {
-    console.error('createPost error:', err.message);
-    res.status(500).json({ error: 'Error interno del servidor' });
+    // Log full error para diagnosticar problemas de schema en producción
+    console.error('[createPost] error:',
+      err?.message,
+      'code:', err?.code,
+      'details:', err?.details,
+      'hint:', err?.hint
+    );
+    const { safeErrorMessage } = await import('../lib/helpers.js');
+    res.status(500).json({ error: safeErrorMessage(err) });
   }
 };
 
