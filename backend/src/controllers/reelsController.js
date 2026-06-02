@@ -1,9 +1,15 @@
-import { supabase } from '../lib/supabase.js';
+import { supabase, broadcastToChannel } from '../lib/supabase.js';
 import { uploadFile } from '../lib/storageProvider.js';
 import { detectImageType, detectVideoType, safeErrorMessage, safeString } from '../lib/helpers.js';
 import { createNotification } from './inAppNotifController.js';
 import { sendPushToUser } from './notificationController.js';
 import multer from 'multer';
+
+// Broadcast helper: emite evento a todos los viewers del reel (vía Supabase Realtime).
+// Fire-and-forget para no bloquear la respuesta.
+function broadcastReelEvent(reelId, event, payload) {
+  broadcastToChannel(`reel:${reelId}`, event, payload).catch(() => {});
+}
 
 const MAX_REEL_DURATION_SECONDS = 90;
 const MAX_REEL_SIZE_BYTES = 100 * 1024 * 1024; // 100 MB
@@ -242,6 +248,7 @@ export const toggleLikeReel = async (req, res) => {
       const { data: newCount } = await supabase.rpc('increment_reel_likes', {
         p_reel_id: reelId, p_delta: -1,
       });
+      broadcastReelEvent(reelId, 'like_changed', { likes_count: newCount ?? 0, delta: -1 });
       return res.json({ liked: false, likes_count: newCount ?? 0 });
     }
 
@@ -249,6 +256,7 @@ export const toggleLikeReel = async (req, res) => {
     const { data: newCount } = await supabase.rpc('increment_reel_likes', {
       p_reel_id: reelId, p_delta: 1,
     });
+    broadcastReelEvent(reelId, 'like_changed', { likes_count: newCount ?? 1, delta: 1 });
 
     // Notificar al dueño del reel (no si se likea a sí mismo)
     const { data: reel } = await supabase
@@ -353,8 +361,11 @@ export const deleteReel = async (req, res) => {
 // ═══════════════════════════════════════════════════════════════════════════
 
 // GET /api/reels/:id/comments?cursor=<created_at>&limit=20
+// Devuelve solo comments raíz (parent_comment_id IS NULL).
+// Cada comment incluye reply_count y viewer_liked.
 export const getReelComments = async (req, res) => {
   try {
+    const viewerId = req.user.id;
     const reelId = req.params.id;
     const limit = Math.min(parseInt(req.query.limit) || 20, 50);
     const cursor = req.query.cursor;
@@ -362,10 +373,11 @@ export const getReelComments = async (req, res) => {
     let query = supabase
       .from('reel_comments')
       .select(`
-        id, content, likes_count, created_at,
+        id, content, likes_count, reply_count, parent_comment_id, created_at,
         user:profiles!user_id (id, full_name, avatar_url, is_verified)
       `)
       .eq('reel_id', reelId)
+      .is('parent_comment_id', null)
       .order('created_at', { ascending: false })
       .limit(limit);
 
@@ -374,50 +386,148 @@ export const getReelComments = async (req, res) => {
     const { data: comments, error } = await query;
     if (error) throw error;
 
-    const nextCursor = comments?.length === limit
-      ? comments[comments.length - 1].created_at
-      : null;
+    // Marcar cuáles likeó el viewer
+    const list = comments || [];
+    if (list.length > 0) {
+      const ids = list.map(c => c.id);
+      const { data: likes } = await supabase
+        .from('reel_comment_likes')
+        .select('comment_id')
+        .eq('user_id', viewerId)
+        .in('comment_id', ids);
+      const liked = new Set((likes || []).map(l => l.comment_id));
+      list.forEach(c => { c.viewer_liked = liked.has(c.id); });
+    }
 
-    res.json({ comments: comments || [], next_cursor: nextCursor });
+    const nextCursor = list.length === limit ? list[list.length - 1].created_at : null;
+    res.json({ comments: list, next_cursor: nextCursor });
   } catch (err) {
     console.error('[getReelComments] error:', err.message);
     res.status(500).json({ error: safeErrorMessage(err) });
   }
 };
 
+// GET /api/reels/:id/comments/:commentId/replies?cursor=<created_at>&limit=20
+export const getReelCommentReplies = async (req, res) => {
+  try {
+    const viewerId = req.user.id;
+    const { id: reelId, commentId } = req.params;
+    const limit = Math.min(parseInt(req.query.limit) || 20, 50);
+    const cursor = req.query.cursor;
+
+    let query = supabase
+      .from('reel_comments')
+      .select(`
+        id, content, likes_count, reply_count, parent_comment_id, created_at,
+        user:profiles!user_id (id, full_name, avatar_url, is_verified)
+      `)
+      .eq('reel_id', reelId)
+      .eq('parent_comment_id', commentId)
+      .order('created_at', { ascending: true })  // replies en orden cronológico
+      .limit(limit);
+
+    if (cursor) query = query.gt('created_at', cursor);
+
+    const { data: replies, error } = await query;
+    if (error) throw error;
+
+    const list = replies || [];
+    if (list.length > 0) {
+      const ids = list.map(c => c.id);
+      const { data: likes } = await supabase
+        .from('reel_comment_likes')
+        .select('comment_id')
+        .eq('user_id', viewerId)
+        .in('comment_id', ids);
+      const liked = new Set((likes || []).map(l => l.comment_id));
+      list.forEach(c => { c.viewer_liked = liked.has(c.id); });
+    }
+
+    const nextCursor = list.length === limit ? list[list.length - 1].created_at : null;
+    res.json({ replies: list, next_cursor: nextCursor });
+  } catch (err) {
+    console.error('[getReelCommentReplies] error:', err.message);
+    res.status(500).json({ error: safeErrorMessage(err) });
+  }
+};
+
 // POST /api/reels/:id/comments
-// Body: { content }
+// Body: { content, parent_comment_id? }
 export const addReelComment = async (req, res) => {
   try {
     const userId = req.user.id;
     const reelId = req.params.id;
     const content = safeString(req.body.content, 500);
+    const parentId = req.body.parent_comment_id || null;
 
     if (!content) return res.status(400).json({ error: 'Comentario vacío' });
 
     // Verificar que el reel existe
     const { data: reel } = await supabase
-      .from('reels').select('user_id, caption').eq('id', reelId).single();
+      .from('reels').select('user_id').eq('id', reelId).single();
     if (!reel) return res.status(404).json({ error: 'Reel no encontrado' });
+
+    // Si es reply, validar que el parent existe y es del mismo reel
+    let parentComment = null;
+    if (parentId) {
+      const { data: parent } = await supabase
+        .from('reel_comments').select('id, reel_id, user_id, parent_comment_id')
+        .eq('id', parentId).single();
+      if (!parent || parent.reel_id !== reelId) {
+        return res.status(400).json({ error: 'Comentario padre inválido' });
+      }
+      // No permitir replies a replies (solo 1 nivel) — replyear al raíz directamente
+      if (parent.parent_comment_id) {
+        return res.status(400).json({ error: 'Solo se permite un nivel de respuestas' });
+      }
+      parentComment = parent;
+    }
 
     const { data: comment, error } = await supabase
       .from('reel_comments')
-      .insert({ reel_id: reelId, user_id: userId, content })
+      .insert({ reel_id: reelId, user_id: userId, content, parent_comment_id: parentId })
       .select(`
-        id, content, likes_count, created_at,
+        id, content, likes_count, reply_count, parent_comment_id, created_at,
         user:profiles!user_id (id, full_name, avatar_url, is_verified)
       `)
       .single();
 
     if (error) throw error;
+    comment.viewer_liked = false;
 
-    // Atomic counter
-    await supabase.rpc('increment_reel_comments', { p_reel_id: reelId, p_delta: 1 });
+    // Counters atómicos
+    if (parentId) {
+      await supabase.rpc('increment_reel_reply_count', { p_comment_id: parentId, p_delta: 1 });
+      await supabase.rpc('increment_reel_comments', { p_reel_id: reelId, p_delta: 1 });
+    } else {
+      await supabase.rpc('increment_reel_comments', { p_reel_id: reelId, p_delta: 1 });
+    }
 
-    // Notificar al dueño (no si comenta en su propio reel)
-    if (reel.user_id !== userId) {
-      const { data: commenter } = await supabase.from('profiles')
-        .select('full_name').eq('id', userId).single();
+    broadcastReelEvent(reelId, 'comment_added', {
+      comment_id: comment.id,
+      parent_id: parentId,
+      delta: 1,
+    });
+
+    // Notificar
+    const { data: commenter } = await supabase.from('profiles')
+      .select('full_name').eq('id', userId).single();
+
+    if (parentComment && parentComment.user_id !== userId) {
+      // Reply → notificar al autor del comment padre
+      createNotification(
+        parentComment.user_id, 'reel_reply',
+        `💬 ${commenter?.full_name || 'Alguien'} te respondió`,
+        content.substring(0, 100),
+        { reel_id: reelId, comment_id: comment.id, parent_id: parentId, user_id: userId }
+      ).catch(() => {});
+      sendPushToUser(parentComment.user_id, {
+        title: `💬 ${commenter?.full_name || 'Alguien'} te respondió`,
+        body: content.substring(0, 80),
+        url: `/reels?id=${reelId}`,
+      }).catch(() => {});
+    } else if (!parentId && reel.user_id !== userId) {
+      // Comment raíz → notificar al dueño del reel
       createNotification(
         reel.user_id, 'reel_comment',
         `💬 ${commenter?.full_name || 'Alguien'} comentó tu reel`,
@@ -427,13 +537,46 @@ export const addReelComment = async (req, res) => {
       sendPushToUser(reel.user_id, {
         title: `💬 ${commenter?.full_name || 'Alguien'} comentó tu reel`,
         body: content.substring(0, 80),
-        url: `/reels/${reelId}`,
+        url: `/reels?id=${reelId}`,
       }).catch(() => {});
     }
 
     res.status(201).json({ comment });
   } catch (err) {
     console.error('[addReelComment] error:', err.message);
+    res.status(500).json({ error: safeErrorMessage(err) });
+  }
+};
+
+// POST /api/reels/comments/:commentId/like — toggle like a un comment
+export const toggleLikeComment = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { commentId } = req.params;
+
+    const { data: existing } = await supabase
+      .from('reel_comment_likes')
+      .select('comment_id')
+      .eq('comment_id', commentId)
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (existing) {
+      await supabase.from('reel_comment_likes')
+        .delete().eq('comment_id', commentId).eq('user_id', userId);
+      const { data: newCount } = await supabase.rpc('increment_reel_comment_likes', {
+        p_comment_id: commentId, p_delta: -1,
+      });
+      return res.json({ liked: false, likes_count: newCount ?? 0 });
+    }
+
+    await supabase.from('reel_comment_likes').insert({ comment_id: commentId, user_id: userId });
+    const { data: newCount } = await supabase.rpc('increment_reel_comment_likes', {
+      p_comment_id: commentId, p_delta: 1,
+    });
+    res.json({ liked: true, likes_count: newCount ?? 1 });
+  } catch (err) {
+    console.error('[toggleLikeComment] error:', err.message);
     res.status(500).json({ error: safeErrorMessage(err) });
   }
 };
@@ -446,23 +589,38 @@ export const deleteReelComment = async (req, res) => {
 
     const { data: comment } = await supabase
       .from('reel_comments')
-      .select('user_id, reel_id')
+      .select('user_id, reel_id, parent_comment_id, reply_count')
       .eq('id', commentId)
       .single();
 
     if (!comment) return res.status(404).json({ error: 'Comentario no encontrado' });
     if (comment.reel_id !== reelId) return res.status(400).json({ error: 'Comentario no pertenece a este reel' });
 
-    // Permitir borrar al autor del comment O al dueño del reel
     const { data: reel } = await supabase.from('reels').select('user_id').eq('id', reelId).single();
     const isCommentAuthor = comment.user_id === userId;
     const isReelOwner = reel?.user_id === userId;
     if (!isCommentAuthor && !isReelOwner) return res.status(403).json({ error: 'No autorizado' });
 
     await supabase.from('reel_comments').delete().eq('id', commentId);
-    await supabase.rpc('increment_reel_comments', { p_reel_id: reelId, p_delta: -1 });
 
-    res.json({ success: true });
+    // Decrementar comments_count del reel: -1 por el comment + N por sus replies
+    // (CASCADE ya borró las replies hijas).
+    const decrementBy = 1 + (comment.reply_count || 0);
+    await supabase.rpc('increment_reel_comments', { p_reel_id: reelId, p_delta: -decrementBy });
+
+    // Si era reply, decrementar reply_count del padre
+    if (comment.parent_comment_id) {
+      await supabase.rpc('increment_reel_reply_count', {
+        p_comment_id: comment.parent_comment_id, p_delta: -1,
+      });
+    }
+
+    broadcastReelEvent(reelId, 'comment_deleted', {
+      comment_id: commentId,
+      delta: -decrementBy,
+    });
+
+    res.json({ success: true, removed_count: decrementBy });
   } catch (err) {
     console.error('[deleteReelComment] error:', err.message);
     res.status(500).json({ error: safeErrorMessage(err) });

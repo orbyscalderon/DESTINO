@@ -5,6 +5,7 @@ import {
   getReelsFeed, getUserReels, getReel,
   toggleLikeReel, trackReelView, deleteReel,
   getReelComments, addReelComment, deleteReelComment,
+  getReelCommentReplies, toggleLikeComment,
 } from '../controllers/reelsController.js';
 
 const router = Router();
@@ -20,9 +21,13 @@ router.get('/user/:userId', getUserReels);
 // Upload
 router.post('/', reelUploadMiddleware, uploadReel);
 
-// Comments (montar antes de /:id para evitar conflictos)
+// Like a un comment (path no anidado al reelId para simplicidad)
+router.post('/comments/:commentId/like', toggleLikeComment);
+
+// Comments del reel (montar antes de /:id para evitar conflictos)
 router.get('/:id/comments', getReelComments);
 router.post('/:id/comments', addReelComment);
+router.get('/:id/comments/:commentId/replies', getReelCommentReplies);
 router.delete('/:reelId/comments/:commentId', deleteReelComment);
 
 // Acciones

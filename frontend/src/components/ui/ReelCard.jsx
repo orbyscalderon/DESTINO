@@ -7,6 +7,7 @@ import {
 } from 'react-icons/fi';
 import VerifiedBadge from './VerifiedBadge.jsx';
 import api from '../../lib/api.js';
+import { supabase } from '../../lib/supabase.js';
 import toast from 'react-hot-toast';
 
 // Una tarjeta de reel — ocupa toda la altura del viewport (estilo TikTok).
@@ -30,10 +31,37 @@ export default function ReelCard({
   const [playing, setPlaying] = useState(false);
   const [liked, setLiked] = useState(!!reel.viewer_liked);
   const [likes, setLikes] = useState(reel.likes_count || 0);
+  const [comments, setComments] = useState(reel.comments_count || 0);
   const [showHeart, setShowHeart] = useState(0); // key para re-trigger
   const [progress, setProgress] = useState(0); // 0..1
   const watchedRef = useRef(0);
   const trackSentRef = useRef(false);
+
+  // Sync counts cuando cambia el prop reel (paginación, reorder)
+  useEffect(() => {
+    setLiked(!!reel.viewer_liked);
+    setLikes(reel.likes_count || 0);
+    setComments(reel.comments_count || 0);
+  }, [reel.id, reel.viewer_liked, reel.likes_count, reel.comments_count]);
+
+  // Realtime: suscribirse al channel del reel cuando está activo.
+  // Otros viewers que likeen/comenten harán que el contador suba en vivo.
+  useEffect(() => {
+    if (!active || !reel.id) return;
+    const channel = supabase.channel(`reel:${reel.id}`);
+    channel
+      .on('broadcast', { event: 'like_changed' }, ({ payload }) => {
+        if (typeof payload?.likes_count === 'number') setLikes(payload.likes_count);
+      })
+      .on('broadcast', { event: 'comment_added' }, ({ payload }) => {
+        setComments(c => Math.max(0, c + (payload?.delta || 1)));
+      })
+      .on('broadcast', { event: 'comment_deleted' }, ({ payload }) => {
+        setComments(c => Math.max(0, c + (payload?.delta || -1)));
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [active, reel.id]);
 
   // Autoplay control
   useEffect(() => {
@@ -228,7 +256,7 @@ export default function ReelCard({
           aria-label="Comentarios"
         >
           <FiMessageCircle className="text-white" size={32} />
-          <span className="text-white text-xs font-semibold">{formatCount(reel.comments_count || 0)}</span>
+          <span className="text-white text-xs font-semibold">{formatCount(comments)}</span>
         </button>
 
         {/* Share */}
