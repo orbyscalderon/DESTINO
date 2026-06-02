@@ -14,6 +14,7 @@ import TierPicker from '../components/ui/TierPicker.jsx';
 import TierBadge from '../components/ui/TierBadge.jsx';
 import GiftSubModal from '../components/ui/GiftSubModal.jsx';
 import CreatorContentTabs from '../components/ui/CreatorContentTabs.jsx';
+import WatermarkLayer from '../components/ui/WatermarkLayer.jsx';
 import { useConfirm } from '../components/ui/ConfirmDialog.jsx';
 import { useAuthStore } from '../store/authStore.js';
 
@@ -1019,11 +1020,29 @@ export default function UserProfile() {
             <div className="flex-1 overflow-y-auto p-3">
               <div className="grid grid-cols-2 gap-2">
                 {(openGallery.items || []).map(item => (
-                  <div key={item.id} className="aspect-square rounded-xl overflow-hidden bg-dark-800">
+                  <div
+                    key={item.id}
+                    className="relative aspect-square rounded-xl overflow-hidden bg-dark-800"
+                    onContextMenu={(e) => profile?.is_adult_creator && e.preventDefault()}
+                  >
                     {item.media_type === 'video'
-                      ? <video src={item.media_url} controls className="w-full h-full object-cover" />
-                      : <img src={item.media_url} alt="" className="w-full h-full object-cover" loading="lazy" />
+                      ? <video
+                          src={item.media_url}
+                          controls
+                          controlsList="nodownload"
+                          disablePictureInPicture
+                          className="w-full h-full object-cover"
+                        />
+                      : <img
+                          src={item.media_url}
+                          alt=""
+                          className="w-full h-full object-cover select-none"
+                          draggable={false}
+                          loading="lazy"
+                        />
                     }
+                    {/* Watermark si el creador es adulto */}
+                    {profile?.is_adult_creator && <WatermarkLayer variant="visible" />}
                   </div>
                 ))}
               </div>

@@ -22,6 +22,16 @@ const SORT_OPTIONS = [
   { id: 'popular', label: 'Populares' },
 ];
 
+const GROUP_LABELS = {
+  style:     'Estilo',
+  body:      'Tipo de cuerpo',
+  ethnicity: 'Etnia',
+  age:       'Edad',
+  kink:      'Kink / Nicho',
+};
+
+const GROUP_ORDER = ['style', 'body', 'ethnicity', 'age', 'kink'];
+
 function isOnline(lastActive) {
   if (!lastActive) return false;
   return Date.now() - new Date(lastActive).getTime() < 5 * 60 * 1000;
@@ -183,16 +193,29 @@ export default function AdultCreators() {
   const [page, setPage]           = useState(0);
   const [hasMore, setHasMore]     = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+  const [categoryGroups, setCategoryGroups] = useState({});  // { group: [{slug, name, emoji}] }
+  const [selectedCategories, setSelectedCategories] = useState(new Set()); // set de slugs
   const debounceRef = useRef(null);
+
+  // Cargar catálogo de categorías una vez
+  useEffect(() => {
+    if (!verified) return;
+    api.get('/api/adult-categories')
+      .then(({ data }) => setCategoryGroups(data.groups || {}))
+      .catch(() => {});
+  }, [verified]);
 
   const load = useCallback(async (opts = {}, append = false) => {
     setLoading(true);
-    const { q = query, g = gender, c = country, s = sort, o = onlineOnly, p = 0 } = opts;
+    const { q = query, g = gender, c = country, s = sort, o = onlineOnly, p = 0, cats = selectedCategories } = opts;
     try {
       const params = new URLSearchParams({ q, page: p, sort: s });
       if (g)  params.set('gender', g);
       if (c)  params.set('country', c);
       if (o)  params.set('online', 'true');
+      if (cats && cats.size > 0) {
+        params.set('categories', Array.from(cats).join(','));
+      }
       const { data } = await api.get(`/api/creator/discover?${params}`);
       setCreators(prev => append ? [...prev, ...(data.creators || [])] : (data.creators || []));
       setHasMore(data.hasMore || false);
@@ -201,15 +224,30 @@ export default function AdultCreators() {
     } finally {
       setLoading(false);
     }
-  }, [query, gender, country, sort, onlineOnly]);
+  }, [query, gender, country, sort, onlineOnly, selectedCategories]);
 
   useEffect(() => {
     if (!verified) return;
-    load({ q: '', g: gender, c: country, s: sort, o: onlineOnly, p: 0 });
+    load({ q: '', g: gender, c: country, s: sort, o: onlineOnly, p: 0, cats: selectedCategories });
     api.get('/api/shows?category=adult&status=live')
       .then(({ data }) => setLiveShows(data.shows || []))
       .catch(() => {});
-  }, [verified, gender, sort, onlineOnly, country]);
+  }, [verified, gender, sort, onlineOnly, country, selectedCategories]);
+
+  const toggleCategory = (slug) => {
+    setSelectedCategories(prev => {
+      const next = new Set(prev);
+      if (next.has(slug)) next.delete(slug);
+      else next.add(slug);
+      return next;
+    });
+    setPage(0);
+  };
+
+  const clearAllCategories = () => {
+    setSelectedCategories(new Set());
+    setPage(0);
+  };
 
   const handleSearch = (val) => {
     setQuery(val);
@@ -373,10 +411,71 @@ export default function AdultCreators() {
                     </button>
                   )}
                 </div>
+
+                {/* Categorías agrupadas */}
+                {Object.keys(categoryGroups).length > 0 && (
+                  <div className="space-y-3 pt-2 border-t border-white/5 mt-2">
+                    {GROUP_ORDER.filter(g => categoryGroups[g]?.length).map(group => (
+                      <div key={group}>
+                        <p className="text-[10px] uppercase tracking-wider text-gray-500 font-bold mb-1.5">
+                          {GROUP_LABELS[group] || group}
+                        </p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {categoryGroups[group].map(cat => {
+                            const active = selectedCategories.has(cat.slug);
+                            return (
+                              <button
+                                key={cat.slug}
+                                onClick={() => toggleCategory(cat.slug)}
+                                className={`text-[11px] px-2.5 py-1 rounded-full flex items-center gap-1 transition-colors ${
+                                  active
+                                    ? 'bg-brand-500 text-white shadow-md shadow-brand-500/30'
+                                    : 'bg-dark-700 text-gray-300 hover:bg-dark-600'
+                                }`}
+                              >
+                                {cat.emoji && <span>{cat.emoji}</span>}
+                                {cat.name}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* Chips de filtros activos (visibles aunque el panel esté cerrado) */}
+        {selectedCategories.size > 0 && (
+          <div className="px-4 py-2 border-t border-white/5 flex items-center gap-1.5 overflow-x-auto scrollbar-none">
+            <button
+              onClick={clearAllCategories}
+              className="text-[10px] text-gray-400 hover:text-white shrink-0 px-1.5"
+              aria-label="Limpiar filtros"
+            >
+              <FiX size={12} />
+            </button>
+            {Array.from(selectedCategories).map(slug => {
+              // Encontrar el cat object para el emoji + name
+              const cat = Object.values(categoryGroups).flat().find(c => c.slug === slug);
+              if (!cat) return null;
+              return (
+                <button
+                  key={slug}
+                  onClick={() => toggleCategory(slug)}
+                  className="bg-brand-500 text-white text-[11px] font-semibold px-2.5 py-1 rounded-full flex items-center gap-1 shrink-0"
+                >
+                  {cat.emoji && <span>{cat.emoji}</span>}
+                  {cat.name}
+                  <FiX size={11} className="ml-0.5" />
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* ── Content ────────────────────────────────── */}

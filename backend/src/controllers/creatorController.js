@@ -1148,6 +1148,9 @@ export const discoverAdultCreators = async (req, res) => {
     const sort       = req.query.sort || 'new'; // 'new' | 'popular'
     const page       = Math.max(0, parseInt(req.query.page) || 0);
     const limit      = 24;
+    // Categorías: viene como "slug1,slug2,slug3" — todas deben matchear (AND)
+    const categorySlugs = (req.query.categories || '')
+      .split(',').map(s => s.trim()).filter(Boolean);
 
     // Fetch live shows first so we can surface live creators at top
     const { data: liveShows } = await supabase
@@ -1156,6 +1159,36 @@ export const discoverAdultCreators = async (req, res) => {
       .eq('status', 'live');
     const liveMap = {};
     (liveShows || []).forEach(s => { liveMap[s.host_id] = s; });
+
+    // Si vienen categorías, pre-filtrar IDs que las tengan TODAS (AND)
+    let categoryFilteredIds = null;
+    if (categorySlugs.length > 0) {
+      const { data: cats } = await supabase
+        .from('adult_categories')
+        .select('id, slug')
+        .in('slug', categorySlugs)
+        .eq('is_active', true);
+      const catIds = (cats || []).map(c => c.id);
+      if (catIds.length === 0) {
+        return res.json({ creators: [], hasMore: false });
+      }
+      // Para AND: contamos cuántas categorías tiene cada creator de las pedidas.
+      // Solo los que tengan todas pasan.
+      const { data: relations } = await supabase
+        .from('creator_adult_categories')
+        .select('creator_id, category_id')
+        .in('category_id', catIds);
+      const countByCreator = {};
+      (relations || []).forEach(r => {
+        countByCreator[r.creator_id] = (countByCreator[r.creator_id] || 0) + 1;
+      });
+      categoryFilteredIds = Object.entries(countByCreator)
+        .filter(([, n]) => n === catIds.length)
+        .map(([id]) => id);
+      if (categoryFilteredIds.length === 0) {
+        return res.json({ creators: [], hasMore: false });
+      }
+    }
 
     let query = supabase
       .from('profiles')
@@ -1167,6 +1200,7 @@ export const discoverAdultCreators = async (req, res) => {
 
     query = query.order('created_at', { ascending: false });
 
+    if (categoryFilteredIds) query = query.in('id', categoryFilteredIds);
     if (q)          query = query.ilike('full_name', `%${q}%`);
     if (gender)     query = query.eq('gender', gender);
     if (country)    query = query.eq('country', country);

@@ -5,6 +5,7 @@ import {
   FiMessageCircle, FiVideo, FiCalendar, FiUnlock, FiTrendingUp,
 } from 'react-icons/fi';
 import api from '../../lib/api.js';
+import WatermarkLayer from './WatermarkLayer.jsx';
 
 // Vista tipo OnlyFans del contenido del creador con tabs prominentes.
 // Cualquier item de pago se ve como tarjeta visual con CTA "Desbloquear $X"
@@ -238,9 +239,21 @@ function PaidPhotoCard({ photo, onBuy, buying }) {
   const unlocked = !!photo.url || photo.is_purchased;
   return (
     <div className="card overflow-hidden p-0">
-      <div className="relative aspect-[4/5] bg-dark-700">
+      <div
+        className="relative aspect-[4/5] bg-dark-700"
+        onContextMenu={(e) => unlocked && e.preventDefault()}
+      >
         {unlocked && photo.url ? (
-          <img src={photo.url} alt="" className="w-full h-full object-cover" loading="lazy" />
+          <>
+            <img
+              src={photo.url}
+              alt=""
+              className="w-full h-full object-cover select-none"
+              draggable={false}
+              loading="lazy"
+            />
+            <WatermarkLayer variant="visible" />
+          </>
         ) : (
           <>
             <div className="absolute inset-0 bg-gradient-to-br from-brand-900/30 to-dark-800" />
@@ -272,9 +285,22 @@ function VideoCard({ video, onBuy, buying }) {
   const unlocked = !!video.url;
   return (
     <div className="card overflow-hidden p-0">
-      <div className="relative aspect-video bg-black">
+      <div
+        className="relative aspect-video bg-black"
+        onContextMenu={(e) => unlocked && e.preventDefault()}
+      >
         {unlocked ? (
-          <video src={video.url} className="w-full h-full object-cover" controls preload="metadata" />
+          <>
+            <video
+              src={video.url}
+              className="w-full h-full object-cover"
+              controls
+              controlsList="nodownload"
+              disablePictureInPicture
+              preload="metadata"
+            />
+            <WatermarkLayer variant="visible" />
+          </>
         ) : (
           <>
             {video.thumbnail_url && (

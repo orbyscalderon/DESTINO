@@ -6,6 +6,7 @@ import {
   FiPlay, FiVolume2, FiVolumeX, FiCheck, FiBookmark, FiMusic,
 } from 'react-icons/fi';
 import VerifiedBadge from './VerifiedBadge.jsx';
+import WatermarkLayer from './WatermarkLayer.jsx';
 import api from '../../lib/api.js';
 import { supabase } from '../../lib/supabase.js';
 import toast from 'react-hot-toast';
@@ -189,8 +190,14 @@ export default function ReelCard({
         muted={muted}
         playsInline
         onClick={handleTap}
+        onContextMenu={(e) => reel.is_adult && e.preventDefault()}
+        controlsList="nodownload"
+        disablePictureInPicture
         className="absolute inset-0 w-full h-full object-cover cursor-pointer"
       />
+
+      {/* Watermark anti-piracy: solo en reels adultos para no afectar UX general */}
+      {reel.is_adult && <WatermarkLayer variant="subtle" />}
 
       {/* Gradiente para legibilidad del texto */}
       <div className="absolute inset-x-0 bottom-0 h-2/5 bg-gradient-to-t from-black/80 via-black/30 to-transparent pointer-events-none" />
