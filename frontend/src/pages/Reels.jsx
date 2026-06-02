@@ -14,6 +14,14 @@ export default function Reels() {
   const [searchParams, setSearchParams] = useSearchParams();
   const initialReelId = searchParams.get('id'); // deep link a un reel específico
   const hashtagFilter = (searchParams.get('tag') || '').toLowerCase().trim() || null;
+  const tab = searchParams.get('tab') === 'following' ? 'following' : 'foryou';
+
+  const setTab = (newTab) => {
+    const next = new URLSearchParams(searchParams);
+    if (newTab === 'foryou') next.delete('tab');
+    else next.set('tab', newTab);
+    setSearchParams(next);
+  };
 
   const containerRef = useRef(null);
   const [reels, setReels] = useState([]);
@@ -36,6 +44,7 @@ export default function Reels() {
 
     const params = new URLSearchParams({ limit: '10' });
     if (hashtagFilter) params.set('tag', hashtagFilter);
+    if (tab !== 'foryou') params.set('tab', tab);
 
     api.get(`/api/reels/feed?${params}`)
       .then(({ data }) => {
@@ -63,7 +72,7 @@ export default function Reels() {
       })
       .finally(() => { if (!cancel) setLoading(false); });
     return () => { cancel = true; };
-  }, [initialReelId, hashtagFilter]);
+  }, [initialReelId, hashtagFilter, tab]);
 
   const clearHashtag = () => {
     const next = new URLSearchParams(searchParams);
@@ -92,6 +101,7 @@ export default function Reels() {
       const params = new URLSearchParams({ limit: '10' });
       if (cursorRef.current != null) params.set('cursor', String(cursorRef.current));
       if (hashtagFilter) params.set('tag', hashtagFilter);
+      if (tab !== 'foryou') params.set('tab', tab);
       const { data } = await api.get(`/api/reels/feed?${params}`);
       const newReels = data.reels || [];
       setReels(prev => {
@@ -105,7 +115,7 @@ export default function Reels() {
     } finally {
       setLoadingMore(false);
     }
-  }, [hasMore, loadingMore, hashtagFilter]);
+  }, [hasMore, loadingMore, hashtagFilter, tab]);
 
   // Flush tracking al desmontar / cambio de página
   const handleViewTracked = useCallback((reelId, watchedSeconds) => {
@@ -131,20 +141,36 @@ export default function Reels() {
   }
 
   if (reels.length === 0) {
+    const isFollowing = tab === 'following';
     return (
       <div className="h-screen w-full bg-black flex flex-col items-center justify-center px-6 text-center text-white">
         <FiInbox size={48} className="text-gray-600 mb-3" />
-        <h2 className="text-xl font-bold mb-1">Sin reels aún</h2>
+        <h2 className="text-xl font-bold mb-1">
+          {isFollowing ? 'Sin reels de tus seguidos' : hashtagFilter ? 'Sin reels con ese tag' : 'Sin reels aún'}
+        </h2>
         <p className="text-gray-400 text-sm mb-6 max-w-xs">
-          Sé el primero en publicar. Sube un video corto vertical y atrae fans.
+          {isFollowing
+            ? 'Sigue creadores para ver sus reels aquí.'
+            : hashtagFilter
+              ? `Nadie ha publicado con #${hashtagFilter} aún. Sé el primero.`
+              : 'Sé el primero en publicar. Sube un video corto vertical y atrae fans.'}
         </p>
         <div className="flex gap-2">
-          <button
-            onClick={() => navigate('/reels/new')}
-            className="bg-gradient-to-r from-brand-500 to-pink-500 text-white font-bold px-5 py-2.5 rounded-xl flex items-center gap-2"
-          >
-            <FiPlus size={16} /> Subir reel
-          </button>
+          {isFollowing ? (
+            <button
+              onClick={() => setTab('foryou')}
+              className="bg-gradient-to-r from-brand-500 to-pink-500 text-white font-bold px-5 py-2.5 rounded-xl"
+            >
+              Ver Para ti
+            </button>
+          ) : (
+            <button
+              onClick={() => navigate('/reels/new')}
+              className="bg-gradient-to-r from-brand-500 to-pink-500 text-white font-bold px-5 py-2.5 rounded-xl flex items-center gap-2"
+            >
+              <FiPlus size={16} /> Subir reel
+            </button>
+          )}
           <button
             onClick={() => navigate(-1)}
             className="bg-dark-700 text-gray-300 font-medium px-5 py-2.5 rounded-xl"
@@ -178,7 +204,28 @@ export default function Reels() {
             <FiX size={14} className="ml-0.5" />
           </button>
         ) : (
-          <div className="text-white font-bold tracking-tight">Reels</div>
+          // Tabs Para ti / Siguiendo estilo IG
+          <div className="flex items-center gap-4 text-white">
+            <button
+              onClick={() => setTab('following')}
+              className={`relative font-bold text-sm transition-opacity ${tab === 'following' ? 'opacity-100' : 'opacity-60'}`}
+            >
+              Siguiendo
+              {tab === 'following' && (
+                <span className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-1 h-1 bg-white rounded-full" />
+              )}
+            </button>
+            <span className="w-px h-3 bg-white/20" />
+            <button
+              onClick={() => setTab('foryou')}
+              className={`relative font-bold text-sm transition-opacity ${tab === 'foryou' ? 'opacity-100' : 'opacity-60'}`}
+            >
+              Para ti
+              {tab === 'foryou' && (
+                <span className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-1 h-1 bg-white rounded-full" />
+              )}
+            </button>
+          </div>
         )}
         <button
           onClick={() => navigate('/reels/new')}

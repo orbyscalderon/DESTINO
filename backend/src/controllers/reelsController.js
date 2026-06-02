@@ -62,6 +62,7 @@ export const uploadReel = async (req, res) => {
     const caption = safeString(req.body.caption, 2000);
     const durationSec = parseFloat(req.body.duration_seconds);
     const isAdult = req.body.is_adult === 'true' || req.body.is_adult === true;
+    const audioLabel = safeString(req.body.audio_label, 120);
 
     if (!Number.isFinite(durationSec) || durationSec <= 0 || durationSec > MAX_REEL_DURATION_SECONDS) {
       return res.status(400).json({
@@ -116,9 +117,10 @@ export const uploadReel = async (req, res) => {
         duration_seconds: durationSec,
         hashtags,
         is_adult: isAdult,
+        audio_label: audioLabel || `Audio original · ${userId.substring(0, 6)}`,
         status: 'published',
       })
-      .select('id, video_url, thumbnail_url, caption, duration_seconds, hashtags, is_adult, created_at')
+      .select('id, video_url, thumbnail_url, caption, duration_seconds, hashtags, is_adult, audio_label, created_at')
       .single();
 
     if (error) throw error;
@@ -129,21 +131,17 @@ export const uploadReel = async (req, res) => {
   }
 };
 
-// GET /api/reels/feed?cursor=<offset>&limit=10&tag=<hashtag>
-// Algoritmo "For You 2.0" usando RPC rank_reels_for_user:
-//   - +50 si sigues al creator
-//   - +20 si comparte hashtags con reels que likeaste
-//   - +log(likes/views) por engagement
-//   - +decay temporal (recencia)
-//   - Excluye reels ya completados (>=80% watched)
-//   - Filtra adult según permisos
-//   - Filtra por hashtag específico si viene query.tag
+// GET /api/reels/feed?cursor=<offset>&limit=10&tag=<hashtag>&tab=foryou|following
+// Dos modos:
+//   - 'foryou' (default): RPC rank_reels_for_user con algoritmo de afinidad
+//   - 'following': RPC reels_following_feed (solo creators que sigues)
 export const getReelsFeed = async (req, res) => {
   try {
     const viewerId = req.user.id;
     const limit = Math.min(parseInt(req.query.limit) || 10, 20);
     const offset = Math.max(parseInt(req.query.cursor) || 0, 0);
     const tag = (req.query.tag || '').toLowerCase().trim() || null;
+    const tab = req.query.tab === 'following' ? 'following' : 'foryou';
 
     // Permisos adult
     const { data: viewer } = await supabase
@@ -155,49 +153,73 @@ export const getReelsFeed = async (req, res) => {
                      || !!viewer?.age_verified_at
                      || viewer?.premium_tier === 'vip';
 
-    // RPC: ranking inteligente
-    const { data: ranked, error: rpcErr } = await supabase.rpc('rank_reels_for_user', {
-      p_viewer_id: viewerId,
-      p_limit: limit + offset,           // pedir suficiente para paginar
-      p_max_age_days: 30,
-      p_include_adult: canSeeAdult,
-      p_filter_hashtag: tag,
-    });
-    if (rpcErr) throw rpcErr;
+    let rankedIds = [];
+    let totalRanked = 0;
 
-    const slice = (ranked || []).slice(offset, offset + limit);
-    if (slice.length === 0) {
+    if (tab === 'following') {
+      // Si filtro por tag está activo, ignoramos el tab=following — para tags
+      // queremos el rank normal. Para "following" no hay filtro de tag útil.
+      const { data: rows, error } = await supabase.rpc('reels_following_feed', {
+        p_viewer_id: viewerId,
+        p_limit: limit + offset + 1,  // +1 para detectar "hay más"
+        p_offset: 0,
+        p_include_adult: canSeeAdult,
+      });
+      if (error) throw error;
+      const all = rows || [];
+      rankedIds = all.slice(offset, offset + limit).map(r => r.reel_id);
+      totalRanked = all.length;
+    } else {
+      // For You con algoritmo
+      const { data: rows, error } = await supabase.rpc('rank_reels_for_user', {
+        p_viewer_id: viewerId,
+        p_limit: limit + offset,
+        p_max_age_days: 30,
+        p_include_adult: canSeeAdult,
+        p_filter_hashtag: tag,
+      });
+      if (error) throw error;
+      const all = rows || [];
+      rankedIds = all.slice(offset, offset + limit).map(r => r.reel_id);
+      totalRanked = all.length;
+    }
+
+    if (rankedIds.length === 0) {
       return res.json({ reels: [], next_cursor: null });
     }
 
-    const ids = slice.map(r => r.reel_id);
-
-    // Hydrate reels con sus columnas + creator
+    // Hydrate reels
     const { data: reels } = await supabase
       .from('reels')
       .select(`
         id, video_url, thumbnail_url, caption, duration_seconds, hashtags,
+        audio_label, audio_url,
         is_adult, likes_count, comments_count, views_count, shares_count, created_at,
         user:profiles!user_id (id, full_name, avatar_url, is_verified, is_creator, is_adult_creator)
       `)
-      .in('id', ids);
+      .in('id', rankedIds);
 
-    // Likes del viewer
-    const { data: likes } = await supabase
-      .from('reel_likes')
-      .select('reel_id')
-      .eq('user_id', viewerId)
-      .in('reel_id', ids);
+    // Likes + saves del viewer en paralelo
+    const [{ data: likes }, { data: saves }] = await Promise.all([
+      supabase.from('reel_likes')
+        .select('reel_id').eq('user_id', viewerId).in('reel_id', rankedIds),
+      supabase.from('reel_saves')
+        .select('reel_id').eq('user_id', viewerId).in('reel_id', rankedIds),
+    ]);
     const likedSet = new Set((likes || []).map(l => l.reel_id));
+    const savedSet = new Set((saves || []).map(s => s.reel_id));
 
-    // Mantener el orden del ranking
     const idToReel = new Map((reels || []).map(r => [r.id, r]));
-    const ordered = slice
-      .map(s => idToReel.get(s.reel_id))
+    const ordered = rankedIds
+      .map(id => idToReel.get(id))
       .filter(Boolean)
-      .map(r => ({ ...r, viewer_liked: likedSet.has(r.id) }));
+      .map(r => ({
+        ...r,
+        viewer_liked: likedSet.has(r.id),
+        viewer_saved: savedSet.has(r.id),
+      }));
 
-    const nextCursor = (ranked || []).length > offset + limit ? offset + limit : null;
+    const nextCursor = totalRanked > offset + limit ? offset + limit : null;
     res.json({ reels: ordered, next_cursor: nextCursor });
   } catch (err) {
     console.error('[getReelsFeed] error:', err.message);
@@ -213,7 +235,7 @@ export const getUserReels = async (req, res) => {
 
     const { data: reels } = await supabase
       .from('reels')
-      .select('id, video_url, thumbnail_url, caption, duration_seconds, hashtags, is_adult, likes_count, comments_count, views_count, created_at')
+      .select('id, video_url, thumbnail_url, caption, duration_seconds, hashtags, audio_label, is_adult, likes_count, comments_count, views_count, created_at')
       .eq('user_id', userId)
       .eq('status', 'published')
       .order('created_at', { ascending: false })
@@ -222,6 +244,63 @@ export const getUserReels = async (req, res) => {
     res.json({ reels: reels || [] });
   } catch (err) {
     console.error('[getUserReels] error:', err.message);
+    res.status(500).json({ error: safeErrorMessage(err) });
+  }
+};
+
+// POST /api/reels/:id/save — toggle save (bookmark)
+export const toggleSaveReel = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const reelId = req.params.id;
+
+    const { data: existing } = await supabase
+      .from('reel_saves')
+      .select('reel_id')
+      .eq('reel_id', reelId)
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (existing) {
+      await supabase.from('reel_saves')
+        .delete().eq('reel_id', reelId).eq('user_id', userId);
+      return res.json({ saved: false });
+    }
+
+    await supabase.from('reel_saves').insert({ reel_id: reelId, user_id: userId });
+    res.json({ saved: true });
+  } catch (err) {
+    console.error('[toggleSaveReel] error:', err.message);
+    res.status(500).json({ error: safeErrorMessage(err) });
+  }
+};
+
+// GET /api/reels/saved — mis reels guardados
+export const getMySavedReels = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const limit = Math.min(parseInt(req.query.limit) || 30, 50);
+
+    const { data: saves } = await supabase
+      .from('reel_saves')
+      .select(`
+        reel_id, created_at,
+        reel:reels!reel_id (
+          id, video_url, thumbnail_url, caption, duration_seconds,
+          likes_count, views_count, status,
+          user:profiles!user_id (id, full_name, avatar_url, is_verified)
+        )
+      `)
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    const reels = (saves || [])
+      .map(s => s.reel)
+      .filter(r => r && r.status === 'published');
+
+    res.json({ reels });
+  } catch (err) {
     res.status(500).json({ error: safeErrorMessage(err) });
   }
 };
@@ -637,7 +716,7 @@ export const getReel = async (req, res) => {
       .from('reels')
       .select(`
         id, video_url, thumbnail_url, caption, duration_seconds, hashtags,
-        is_adult, likes_count, comments_count, views_count, created_at,
+        audio_label, is_adult, likes_count, comments_count, views_count, created_at,
         user:profiles!user_id (id, full_name, avatar_url, is_verified, is_creator)
       `)
       .eq('id', reelId)
@@ -647,10 +726,14 @@ export const getReel = async (req, res) => {
     if (!reel) return res.status(404).json({ error: 'Reel no encontrado' });
 
     if (viewerId) {
-      const { data: like } = await supabase
-        .from('reel_likes').select('reel_id')
-        .eq('reel_id', reelId).eq('user_id', viewerId).maybeSingle();
+      const [{ data: like }, { data: save }] = await Promise.all([
+        supabase.from('reel_likes').select('reel_id')
+          .eq('reel_id', reelId).eq('user_id', viewerId).maybeSingle(),
+        supabase.from('reel_saves').select('reel_id')
+          .eq('reel_id', reelId).eq('user_id', viewerId).maybeSingle(),
+      ]);
       reel.viewer_liked = !!like;
+      reel.viewer_saved = !!save;
     }
 
     res.json({ reel });

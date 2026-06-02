@@ -4,18 +4,20 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   FiHome, FiHeart, FiVideo, FiUser, FiZap, FiSearch, FiFilm,
   FiBell, FiShield, FiSettings, FiBarChart2, FiCompass,
-  FiMessageCircle, FiTrendingUp, FiImage, FiGrid, FiX,
+  FiMessageCircle, FiTrendingUp, FiImage, FiGrid, FiX, FiPlus,
 } from 'react-icons/fi';
 import { useAuthStore } from '../../store/authStore.js';
 import { useChatStore } from '../../store/chatStore.js';
 import { supabase } from '../../lib/supabase.js';
 import api from '../../lib/api.js';
+import CreateMenuSheet from '../ui/CreateMenuSheet.jsx';
 
-// Los 5 items fijos del nav móvil (Reels en el centro como CTA visual)
+// Items fijos del nav móvil. El 'create' es un botón especial central tipo IG
+// que abre un sheet con opciones (Reel, Post, Story, Show).
 const MOBILE_MAIN = [
   { to: '/home',     icon: FiHome,          label: 'Inicio'   },
-  { to: '/discover', icon: FiCompass,       label: 'Descubrir'},
-  { to: '/reels',    icon: FiFilm,          label: 'Reels',   highlight: true },
+  { to: '/reels',    icon: FiFilm,          label: 'Reels'    },
+  { kind: 'create',  icon: FiPlus,          label: 'Crear'    },
   { to: '/matches',  icon: FiHeart,         label: 'Matches'  },
   { to: '/messages', icon: FiMessageCircle, label: 'Mensajes', badge: 'chat' },
 ];
@@ -44,6 +46,7 @@ export default function Navbar() {
   const [unreadNotifs, setUnreadNotifs] = useState(0);
   const [coinsBalance, setCoinsBalance] = useState(null);
   const [showMore, setShowMore] = useState(false);
+  const [showCreateMenu, setShowCreateMenu] = useState(false);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -239,8 +242,27 @@ export default function Navbar() {
       <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-dark-800/95 backdrop-blur-md border-t border-white/5">
         <div className="flex items-center justify-around px-1 py-2 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))]">
 
-          {/* 4 items fijos */}
-          {MOBILE_MAIN.map(({ to, icon: Icon, label, badge }) => {
+          {/* Items fijos (5 con el "+" en el centro) */}
+          {MOBILE_MAIN.map((item) => {
+            const { to, icon: Icon, label, badge, kind } = item;
+
+            // Botón especial de creación tipo Instagram
+            if (kind === 'create') {
+              return (
+                <button
+                  key="create"
+                  onClick={() => setShowCreateMenu(true)}
+                  aria-label="Crear"
+                  className="flex flex-col items-center gap-1 px-3 py-1 -mt-3 transition-transform active:scale-95"
+                >
+                  <span className="w-11 h-11 rounded-2xl bg-gradient-to-br from-brand-500 to-pink-500 flex items-center justify-center shadow-lg shadow-brand-500/40">
+                    <FiPlus className="text-white" size={22} />
+                  </span>
+                  <span className="text-[10px] font-medium text-gray-400">{label}</span>
+                </button>
+              );
+            }
+
             const count = badge === 'chat' ? unreadTotal : 0;
             return (
               <NavLink key={to} to={to} className={mobileLink}>
@@ -277,6 +299,9 @@ export default function Navbar() {
           </button>
         </div>
       </nav>
+
+      {/* ── CREATE MENU SHEET (botón "+" central) ───────────── */}
+      <CreateMenuSheet open={showCreateMenu} onClose={() => setShowCreateMenu(false)} />
 
       {/* ── MORE BOTTOM SHEET ─────────────────────────────────── */}
       <AnimatePresence>

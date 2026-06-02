@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   FiHeart, FiMessageCircle, FiShare2, FiMoreVertical,
-  FiPlay, FiVolume2, FiVolumeX, FiCheck,
+  FiPlay, FiVolume2, FiVolumeX, FiCheck, FiBookmark, FiMusic,
 } from 'react-icons/fi';
 import VerifiedBadge from './VerifiedBadge.jsx';
 import api from '../../lib/api.js';
@@ -30,6 +30,7 @@ export default function ReelCard({
   const heartAnimRef = useRef(0); // contador para forzar animaciones nuevas
   const [playing, setPlaying] = useState(false);
   const [liked, setLiked] = useState(!!reel.viewer_liked);
+  const [saved, setSaved] = useState(!!reel.viewer_saved);
   const [likes, setLikes] = useState(reel.likes_count || 0);
   const [comments, setComments] = useState(reel.comments_count || 0);
   const [showHeart, setShowHeart] = useState(0); // key para re-trigger
@@ -40,9 +41,10 @@ export default function ReelCard({
   // Sync counts cuando cambia el prop reel (paginación, reorder)
   useEffect(() => {
     setLiked(!!reel.viewer_liked);
+    setSaved(!!reel.viewer_saved);
     setLikes(reel.likes_count || 0);
     setComments(reel.comments_count || 0);
-  }, [reel.id, reel.viewer_liked, reel.likes_count, reel.comments_count]);
+  }, [reel.id, reel.viewer_liked, reel.viewer_saved, reel.likes_count, reel.comments_count]);
 
   // Realtime: suscribirse al channel del reel cuando está activo.
   // Otros viewers que likeen/comenten harán que el contador suba en vivo.
@@ -129,6 +131,19 @@ export default function ReelCard({
       setLiked(wasLiked);
       setLikes(c => wasLiked ? c + 1 : Math.max(0, c - 1));
       toast.error('No se pudo likear');
+    }
+  };
+
+  const doSave = async () => {
+    const wasSaved = saved;
+    setSaved(!wasSaved);
+    try {
+      const { data } = await api.post(`/api/reels/${reel.id}/save`);
+      setSaved(!!data.saved);
+      toast.success(data.saved ? 'Guardado' : 'Eliminado de guardados', { duration: 1200 });
+    } catch {
+      setSaved(wasSaved);
+      toast.error('No se pudo guardar');
     }
   };
 
@@ -259,10 +274,18 @@ export default function ReelCard({
           <span className="text-white text-xs font-semibold">{formatCount(comments)}</span>
         </button>
 
+        {/* Save (bookmark) */}
+        <button onClick={doSave} className="flex flex-col items-center gap-1" aria-label={saved ? 'Quitar de guardados' : 'Guardar'}>
+          <FiBookmark
+            className={saved ? 'text-yellow-400 fill-current' : 'text-white'}
+            size={30}
+          />
+          <span className="text-white text-xs font-semibold">{saved ? 'Guardado' : 'Guardar'}</span>
+        </button>
+
         {/* Share */}
         <button onClick={handleShare} className="flex flex-col items-center gap-1" aria-label="Compartir">
-          <FiShare2 className="text-white" size={32} />
-          <span className="text-white text-xs font-semibold">Compartir</span>
+          <FiShare2 className="text-white" size={30} />
         </button>
 
         {/* Más */}
@@ -271,7 +294,7 @@ export default function ReelCard({
         </button>
       </div>
 
-      {/* Info inferior (caption + creador) */}
+      {/* Info inferior (creador + caption + audio + stats) */}
       <div className="absolute bottom-6 left-4 right-20 z-10 space-y-2">
         <Link to={`/profile/${reel.user?.id}`} className="flex items-center gap-2">
           <span className="text-white font-bold text-base">@{reel.user?.full_name || 'usuario'}</span>
@@ -281,6 +304,13 @@ export default function ReelCard({
           <p className="text-white text-sm leading-snug max-h-24 overflow-hidden">
             {captionWithLinks(reel.caption)}
           </p>
+        )}
+        {/* Audio label estilo IG (con ícono musical animado) */}
+        {reel.audio_label && (
+          <div className="flex items-center gap-1.5 overflow-hidden">
+            <FiMusic className="text-white shrink-0 animate-spin-slow" size={11} style={{ animation: 'spin 4s linear infinite' }} />
+            <span className="text-white/90 text-[11px] font-medium truncate">{reel.audio_label}</span>
+          </div>
         )}
         {reel.views_count > 0 && (
           <p className="text-gray-300 text-[10px]">👁 {formatCount(reel.views_count)} vistas</p>

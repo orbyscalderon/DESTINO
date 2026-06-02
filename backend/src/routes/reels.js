@@ -6,14 +6,18 @@ import {
   toggleLikeReel, trackReelView, deleteReel,
   getReelComments, addReelComment, deleteReelComment,
   getReelCommentReplies, toggleLikeComment,
+  toggleSaveReel, getMySavedReels,
 } from '../controllers/reelsController.js';
 
 const router = Router();
 
 router.use(authMiddleware);
 
-// Feed personalizado "For You"
+// Feed personalizado "For You" / "Siguiendo"
 router.get('/feed', getReelsFeed);
+
+// Reels guardados (bookmarks) del usuario actual
+router.get('/saved', getMySavedReels);
 
 // Reels de un usuario específico
 router.get('/user/:userId', getUserReels);
@@ -32,6 +36,7 @@ router.delete('/:reelId/comments/:commentId', deleteReelComment);
 
 // Acciones
 router.post('/:id/like', toggleLikeReel);
+router.post('/:id/save', toggleSaveReel);
 router.post('/:id/view', trackReelView);
 
 // Reel individual (wildcard al final)
