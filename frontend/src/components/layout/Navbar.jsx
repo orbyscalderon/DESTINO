@@ -11,10 +11,11 @@ import { useChatStore } from '../../store/chatStore.js';
 import { supabase } from '../../lib/supabase.js';
 import api from '../../lib/api.js';
 
-// Los 4 items fijos del nav móvil
+// Los 5 items fijos del nav móvil (Reels en el centro como CTA visual)
 const MOBILE_MAIN = [
   { to: '/home',     icon: FiHome,          label: 'Inicio'   },
   { to: '/discover', icon: FiCompass,       label: 'Descubrir'},
+  { to: '/reels',    icon: FiFilm,          label: 'Reels',   highlight: true },
   { to: '/matches',  icon: FiHeart,         label: 'Matches'  },
   { to: '/messages', icon: FiMessageCircle, label: 'Mensajes', badge: 'chat' },
 ];
@@ -22,6 +23,7 @@ const MOBILE_MAIN = [
 // Desktop sidebar
 const sidebarNavItems = [
   { to: '/home',        icon: FiHome,          label: 'Inicio'       },
+  { to: '/reels',       icon: FiFilm,          label: 'Reels'        },
   { to: '/discover',    icon: FiCompass,       label: 'Descubrir'    },
   { to: '/matches',     icon: FiHeart,         label: 'Matches'      },
   { to: '/messages',    icon: FiMessageCircle, label: 'Mensajes'     },

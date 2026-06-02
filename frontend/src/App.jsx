@@ -62,6 +62,8 @@ const Explore         = lazy(() => import('./pages/Explore.jsx'));
 const ExploreVideo    = lazy(() => import('./pages/ExploreVideo.jsx'));
 const Playlists       = lazy(() => import('./pages/Playlists.jsx'));
 const Support         = lazy(() => import('./pages/Support.jsx'));
+const Reels           = lazy(() => import('./pages/Reels.jsx'));
+const UploadReel      = lazy(() => import('./pages/UploadReel.jsx'));
 
 const PageLoader = () => (
   <div className="min-h-screen flex items-center justify-center bg-dark-900">
@@ -264,6 +266,9 @@ export default function App() {
           <Route path="/explore/v/:id" element={<ExploreVideo />} />
           <Route path="/explore/playlists" element={<Playlists />} />
           <Route path="/explore/playlists/:id" element={<Playlists />} />
+          <Route path="/reels" element={<Reels />} />
+          <Route path="/reels/new" element={<UploadReel />} />
+          <Route path="/reels/:id" element={<Reels />} />
         </Route>
 
         {/* 404 */}
