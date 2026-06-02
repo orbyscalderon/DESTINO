@@ -22,6 +22,8 @@ export default function UploadReel() {
   const [duration, setDuration] = useState(0);
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [thumbnailBlob, setThumbnailBlob] = useState(null);
+  const [thumbnailPreview, setThumbnailPreview] = useState(null);
 
   const canPublishAdult = !!profile?.is_adult_creator && !!profile?.age_verified_at;
 
@@ -48,6 +50,40 @@ export default function UploadReel() {
     if (d > MAX_DURATION) {
       toast.error(`El video debe durar máximo ${MAX_DURATION} segundos`);
     }
+    // Capturar primer frame (después de un seek breve para asegurar que
+    // el frame esté disponible)
+    captureThumbnail();
+  };
+
+  const captureThumbnail = async () => {
+    const v = videoRef.current;
+    if (!v) return;
+    try {
+      // Saltar al segundo 0.1 para evitar frame negro del inicio
+      v.currentTime = Math.min(0.1, (v.duration || 0) * 0.05);
+      await new Promise(resolve => {
+        const onSeek = () => { v.removeEventListener('seeked', onSeek); resolve(); };
+        v.addEventListener('seeked', onSeek);
+        setTimeout(resolve, 800); // safety timeout
+      });
+      const canvas = document.createElement('canvas');
+      // Limit width para que el thumbnail sea ligero
+      const targetW = Math.min(v.videoWidth || 720, 720);
+      const scale = targetW / (v.videoWidth || targetW);
+      canvas.width = targetW;
+      canvas.height = (v.videoHeight || 1280) * scale;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob((blob) => {
+        if (blob) {
+          setThumbnailBlob(blob);
+          if (thumbnailPreview) URL.revokeObjectURL(thumbnailPreview);
+          setThumbnailPreview(URL.createObjectURL(blob));
+        }
+      }, 'image/jpeg', 0.82);
+    } catch (e) {
+      console.warn('No se pudo generar thumbnail:', e.message);
+    }
   };
 
   const handleUpload = async () => {
@@ -62,6 +98,7 @@ export default function UploadReel() {
     try {
       const formData = new FormData();
       formData.append('video', file);
+      if (thumbnailBlob) formData.append('thumbnail', thumbnailBlob, 'thumb.jpg');
       formData.append('caption', caption);
       formData.append('duration_seconds', String(Math.min(duration, MAX_DURATION)));
       formData.append('is_adult', String(isAdult));
@@ -130,9 +167,12 @@ export default function UploadReel() {
             <button
               onClick={() => {
                 URL.revokeObjectURL(previewUrl);
+                if (thumbnailPreview) URL.revokeObjectURL(thumbnailPreview);
                 setFile(null);
                 setPreviewUrl(null);
                 setDuration(0);
+                setThumbnailBlob(null);
+                setThumbnailPreview(null);
               }}
               aria-label="Quitar video"
               className="absolute top-3 right-3 w-9 h-9 bg-black/60 backdrop-blur-md rounded-full flex items-center justify-center"
@@ -144,6 +184,21 @@ export default function UploadReel() {
                 {duration.toFixed(1)}s {duration > MAX_DURATION && <span className="text-red-400">· EXCEDE</span>}
               </div>
             )}
+          </div>
+        )}
+
+        {/* Thumbnail preview (read-only por ahora) */}
+        {thumbnailPreview && (
+          <div className="flex items-center gap-3 bg-dark-800 rounded-xl p-2.5">
+            <img
+              src={thumbnailPreview}
+              alt="Thumbnail capturado"
+              className="w-12 h-16 object-cover rounded-lg bg-black"
+            />
+            <div className="text-xs">
+              <p className="text-white font-medium">Portada</p>
+              <p className="text-gray-500">Generada automáticamente del primer frame</p>
+            </div>
           </div>
         )}
 

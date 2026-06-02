@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   FiLock, FiPlay, FiZap, FiGrid, FiImage, FiFilm, FiHeart,
-  FiMessageCircle, FiVideo, FiCalendar, FiUnlock,
+  FiMessageCircle, FiVideo, FiCalendar, FiUnlock, FiTrendingUp,
 } from 'react-icons/fi';
+import api from '../../lib/api.js';
 
 // Vista tipo OnlyFans del contenido del creador con tabs prominentes.
 // Cualquier item de pago se ve como tarjeta visual con CTA "Desbloquear $X"
@@ -30,9 +31,30 @@ export default function CreatorContentTabs({
   const lockedPosts = userPosts.filter(p => p.locked || p.blurred);
   const showLiveOrUpcoming = shows.filter(s => s.status === 'live' || s.status === 'scheduled');
 
+  // Reels del creador — carga perezosa cuando se abre el tab
+  const [reels, setReels] = useState([]);
+  const [reelsLoaded, setReelsLoaded] = useState(false);
+  const [reelsCount, setReelsCount] = useState(null);
+
+  // Lookup inicial del count para decidir si mostrar el tab
+  useEffect(() => {
+    let cancel = false;
+    api.get(`/api/reels/user/${creatorId}?limit=30`)
+      .then(({ data }) => {
+        if (cancel) return;
+        const list = data.reels || [];
+        setReels(list);
+        setReelsCount(list.length);
+        setReelsLoaded(true);
+      })
+      .catch(() => { if (!cancel) setReelsCount(0); });
+    return () => { cancel = true; };
+  }, [creatorId]);
+
   // Tabs disponibles dinámicamente: si no hay contenido en una categoría, se oculta
   const tabs = [
     { id: 'feed',      label: 'Feed',     icon: FiGrid,           count: feedItems.length },
+    { id: 'reels',     label: 'Reels',    icon: FiTrendingUp,     count: reelsCount ?? 0 },
     { id: 'photos',    label: 'Fotos',    icon: FiImage,          count: allPhotos.length },
     { id: 'videos',    label: 'Videos',   icon: FiFilm,           count: videos.length },
     { id: 'galleries', label: 'Galerías', icon: FiUnlock,         count: galleries.length },
@@ -112,6 +134,9 @@ export default function CreatorContentTabs({
       )}
       {active === 'shows' && (
         <ShowsList shows={showLiveOrUpcoming} />
+      )}
+      {active === 'reels' && (
+        <ReelsGrid reels={reels} loaded={reelsLoaded} />
       )}
     </div>
   );
@@ -442,6 +467,67 @@ function ShowsList({ shows }) {
       })}
     </div>
   );
+}
+
+// ─── REELS GRID ───────────────────────────────────────────────────────
+
+function ReelsGrid({ reels, loaded }) {
+  if (!loaded) {
+    return (
+      <div className="flex justify-center py-8">
+        <div className="w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+  if (reels.length === 0) return <EmptyMsg icon={FiTrendingUp} text="Sin reels publicados" />;
+  return (
+    <div className="grid grid-cols-3 gap-1.5">
+      {reels.map(reel => (
+        <Link
+          key={reel.id}
+          to={`/reels?id=${reel.id}`}
+          className="relative aspect-[9/16] rounded-xl overflow-hidden bg-dark-700 group"
+        >
+          {reel.thumbnail_url ? (
+            <img
+              src={reel.thumbnail_url}
+              alt={reel.caption?.substring(0, 80) || 'Reel'}
+              className="w-full h-full object-cover"
+              loading="lazy"
+            />
+          ) : (
+            <video
+              src={reel.video_url}
+              className="w-full h-full object-cover"
+              muted
+              playsInline
+              preload="metadata"
+            />
+          )}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent" />
+          <div className="absolute top-1.5 right-1.5 bg-black/60 backdrop-blur-md text-white text-[10px] px-1.5 py-0.5 rounded-full flex items-center gap-1">
+            <FiPlay size={8} /> {formatCount(reel.views_count || 0)}
+          </div>
+          <div className="absolute bottom-1.5 left-1.5 right-1.5 flex items-center gap-2 text-white text-[10px] font-semibold">
+            <span className="flex items-center gap-0.5">
+              <FiHeart size={10} className="fill-current" /> {formatCount(reel.likes_count || 0)}
+            </span>
+            {reel.duration_seconds > 0 && (
+              <span className="ml-auto bg-black/60 backdrop-blur-md px-1.5 py-0.5 rounded">
+                {Math.round(reel.duration_seconds)}s
+              </span>
+            )}
+          </div>
+        </Link>
+      ))}
+    </div>
+  );
+}
+
+function formatCount(n) {
+  if (n < 1000) return String(n);
+  if (n < 1_000_000) return (n / 1000).toFixed(n < 10_000 ? 1 : 0).replace(/\.0$/, '') + 'K';
+  return (n / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'M';
 }
 
 function EmptyMsg({ icon: Icon, text }) {

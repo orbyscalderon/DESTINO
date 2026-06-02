@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabase.js';
 import { uploadFile } from '../lib/storageProvider.js';
-import { detectVideoType, safeErrorMessage, safeString } from '../lib/helpers.js';
+import { detectImageType, detectVideoType, safeErrorMessage, safeString } from '../lib/helpers.js';
 import { createNotification } from './inAppNotifController.js';
 import { sendPushToUser } from './notificationController.js';
 import multer from 'multer';
@@ -12,16 +12,22 @@ const reelUpload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: MAX_REEL_SIZE_BYTES },
   fileFilter: (req, file, cb) => {
-    // Validamos magic bytes después (más confiable que el header)
-    if (file.mimetype?.startsWith('video/')) cb(null, true);
+    // Aceptamos video Y un thumbnail opcional (imagen)
+    const ok = file.mimetype?.startsWith('video/')
+            || file.mimetype?.startsWith('image/');
+    if (ok) cb(null, true);
     else cb(new Error('Formato no soportado'), false);
   },
 });
 
+// Multipart con 2 campos: 'video' (requerido) + 'thumbnail' (opcional)
 export const reelUploadMiddleware = (req, res, next) => {
-  reelUpload.single('video')(req, res, (err) => {
+  reelUpload.fields([
+    { name: 'video', maxCount: 1 },
+    { name: 'thumbnail', maxCount: 1 },
+  ])(req, res, (err) => {
     if (err?.code === 'LIMIT_FILE_SIZE') {
-      return res.status(400).json({ error: 'El video no puede superar 100 MB' });
+      return res.status(400).json({ error: 'El archivo no puede superar 100 MB' });
     }
     if (err) return res.status(400).json({ error: err.message });
     next();
@@ -36,17 +42,20 @@ function extractHashtags(caption) {
 }
 
 // POST /api/reels — subir un reel
-// FormData: video (file), caption (string), duration_seconds (number),
-//           is_adult (boolean), thumbnail_url (optional)
+// multipart/form-data:
+//   video (file, requerido)
+//   thumbnail (file, opcional — primer frame generado por el cliente)
+//   caption, duration_seconds, is_adult
 export const uploadReel = async (req, res) => {
   try {
-    if (!req.file) return res.status(400).json({ error: 'Video requerido' });
+    const videoFile = req.files?.video?.[0];
+    const thumbFile = req.files?.thumbnail?.[0];
+    if (!videoFile) return res.status(400).json({ error: 'Video requerido' });
 
     const userId = req.user.id;
     const caption = safeString(req.body.caption, 2000);
     const durationSec = parseFloat(req.body.duration_seconds);
     const isAdult = req.body.is_adult === 'true' || req.body.is_adult === true;
-    const thumbnailUrl = safeString(req.body.thumbnail_url, 500);
 
     if (!Number.isFinite(durationSec) || durationSec <= 0 || durationSec > MAX_REEL_DURATION_SECONDS) {
       return res.status(400).json({
@@ -54,13 +63,13 @@ export const uploadReel = async (req, res) => {
       });
     }
 
-    // Validar magic bytes
-    const realType = detectVideoType(req.file.buffer);
-    if (!realType) {
+    // Validar magic bytes del video
+    const realVideoType = detectVideoType(videoFile.buffer);
+    if (!realVideoType) {
       return res.status(400).json({ error: 'Archivo no es un video válido' });
     }
 
-    // Si marca adult, verificar que es creator adulto
+    // Si marca adult, verificar que es creator adulto verificado
     if (isAdult) {
       const { data: profile } = await supabase
         .from('profiles').select('is_adult_creator, age_verified_at').eq('id', userId).single();
@@ -72,11 +81,22 @@ export const uploadReel = async (req, res) => {
       }
     }
 
-    // Subir a storage
-    const ext = realType === 'video/webm' ? 'webm' : 'mp4';
     const safeUserId = userId.replace(/[^a-f0-9\-]/gi, '');
-    const storagePath = `reels/${safeUserId}/${Date.now()}.${ext}`;
-    const videoUrl = await uploadFile(storagePath, req.file.buffer, realType);
+    const base = `reels/${safeUserId}/${Date.now()}`;
+
+    // Subir video
+    const ext = realVideoType === 'video/webm' ? 'webm' : 'mp4';
+    const videoUrl = await uploadFile(`${base}.${ext}`, videoFile.buffer, realVideoType);
+
+    // Subir thumbnail si vino + es válido
+    let thumbnailUrl = null;
+    if (thumbFile) {
+      const thumbType = detectImageType(thumbFile.buffer);
+      if (thumbType) {
+        const thumbExt = thumbType.split('/')[1] || 'jpg';
+        thumbnailUrl = await uploadFile(`${base}_thumb.${thumbExt}`, thumbFile.buffer, thumbType);
+      }
+    }
 
     const hashtags = extractHashtags(caption);
 
@@ -92,7 +112,7 @@ export const uploadReel = async (req, res) => {
         is_adult: isAdult,
         status: 'published',
       })
-      .select('id, video_url, caption, duration_seconds, hashtags, is_adult, created_at')
+      .select('id, video_url, thumbnail_url, caption, duration_seconds, hashtags, is_adult, created_at')
       .single();
 
     if (error) throw error;
@@ -103,17 +123,21 @@ export const uploadReel = async (req, res) => {
   }
 };
 
-// GET /api/reels/feed?cursor=<created_at>&limit=10
-// Algoritmo "For You" MVP: mezcla
-//   - Reels recientes de cualquiera (mayoría)
-//   - Reels de creadores que sigues (boost)
-//   - Excluye reels que ya viste completos
+// GET /api/reels/feed?cursor=<offset>&limit=10&tag=<hashtag>
+// Algoritmo "For You 2.0" usando RPC rank_reels_for_user:
+//   - +50 si sigues al creator
+//   - +20 si comparte hashtags con reels que likeaste
+//   - +log(likes/views) por engagement
+//   - +decay temporal (recencia)
+//   - Excluye reels ya completados (>=80% watched)
 //   - Filtra adult según permisos
+//   - Filtra por hashtag específico si viene query.tag
 export const getReelsFeed = async (req, res) => {
   try {
     const viewerId = req.user.id;
     const limit = Math.min(parseInt(req.query.limit) || 10, 20);
-    const cursor = req.query.cursor; // ISO timestamp
+    const offset = Math.max(parseInt(req.query.cursor) || 0, 0);
+    const tag = (req.query.tag || '').toLowerCase().trim() || null;
 
     // Permisos adult
     const { data: viewer } = await supabase
@@ -125,53 +149,50 @@ export const getReelsFeed = async (req, res) => {
                      || !!viewer?.age_verified_at
                      || viewer?.premium_tier === 'vip';
 
-    // Reels completados (>= 80%) para excluir
-    const { data: completedViews } = await supabase
-      .from('reel_views')
-      .select('reel_id')
-      .eq('viewer_id', viewerId)
-      .eq('completed', true)
-      .limit(500); // viewer reciente
-    const completedSet = new Set((completedViews || []).map(v => v.reel_id));
+    // RPC: ranking inteligente
+    const { data: ranked, error: rpcErr } = await supabase.rpc('rank_reels_for_user', {
+      p_viewer_id: viewerId,
+      p_limit: limit + offset,           // pedir suficiente para paginar
+      p_max_age_days: 30,
+      p_include_adult: canSeeAdult,
+      p_filter_hashtag: tag,
+    });
+    if (rpcErr) throw rpcErr;
 
-    // Query principal
-    let query = supabase
+    const slice = (ranked || []).slice(offset, offset + limit);
+    if (slice.length === 0) {
+      return res.json({ reels: [], next_cursor: null });
+    }
+
+    const ids = slice.map(r => r.reel_id);
+
+    // Hydrate reels con sus columnas + creator
+    const { data: reels } = await supabase
       .from('reels')
       .select(`
         id, video_url, thumbnail_url, caption, duration_seconds, hashtags,
         is_adult, likes_count, comments_count, views_count, shares_count, created_at,
         user:profiles!user_id (id, full_name, avatar_url, is_verified, is_creator, is_adult_creator)
       `)
-      .eq('status', 'published')
-      .order('created_at', { ascending: false })
-      .limit(limit * 2); // pedimos extra para filtrar
+      .in('id', ids);
 
-    if (!canSeeAdult) query = query.eq('is_adult', false);
-    if (cursor)        query = query.lt('created_at', cursor);
+    // Likes del viewer
+    const { data: likes } = await supabase
+      .from('reel_likes')
+      .select('reel_id')
+      .eq('user_id', viewerId)
+      .in('reel_id', ids);
+    const likedSet = new Set((likes || []).map(l => l.reel_id));
 
-    const { data: reels, error } = await query;
-    if (error) throw error;
+    // Mantener el orden del ranking
+    const idToReel = new Map((reels || []).map(r => [r.id, r]));
+    const ordered = slice
+      .map(s => idToReel.get(s.reel_id))
+      .filter(Boolean)
+      .map(r => ({ ...r, viewer_liked: likedSet.has(r.id) }));
 
-    // Filtrar los ya completados
-    const filtered = (reels || []).filter(r => !completedSet.has(r.id)).slice(0, limit);
-
-    // Marcar cuáles likeó el viewer
-    if (filtered.length > 0) {
-      const ids = filtered.map(r => r.id);
-      const { data: likes } = await supabase
-        .from('reel_likes')
-        .select('reel_id')
-        .eq('user_id', viewerId)
-        .in('reel_id', ids);
-      const likedSet = new Set((likes || []).map(l => l.reel_id));
-      filtered.forEach(r => { r.viewer_liked = likedSet.has(r.id); });
-    }
-
-    const nextCursor = filtered.length > 0
-      ? filtered[filtered.length - 1].created_at
-      : null;
-
-    res.json({ reels: filtered, next_cursor: nextCursor });
+    const nextCursor = (ranked || []).length > offset + limit ? offset + limit : null;
+    res.json({ reels: ordered, next_cursor: nextCursor });
   } catch (err) {
     console.error('[getReelsFeed] error:', err.message);
     res.status(500).json({ error: safeErrorMessage(err) });
@@ -323,6 +344,127 @@ export const deleteReel = async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error('[deleteReel] error:', err.message);
+    res.status(500).json({ error: safeErrorMessage(err) });
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
+// COMMENTS
+// ═══════════════════════════════════════════════════════════════════════════
+
+// GET /api/reels/:id/comments?cursor=<created_at>&limit=20
+export const getReelComments = async (req, res) => {
+  try {
+    const reelId = req.params.id;
+    const limit = Math.min(parseInt(req.query.limit) || 20, 50);
+    const cursor = req.query.cursor;
+
+    let query = supabase
+      .from('reel_comments')
+      .select(`
+        id, content, likes_count, created_at,
+        user:profiles!user_id (id, full_name, avatar_url, is_verified)
+      `)
+      .eq('reel_id', reelId)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    if (cursor) query = query.lt('created_at', cursor);
+
+    const { data: comments, error } = await query;
+    if (error) throw error;
+
+    const nextCursor = comments?.length === limit
+      ? comments[comments.length - 1].created_at
+      : null;
+
+    res.json({ comments: comments || [], next_cursor: nextCursor });
+  } catch (err) {
+    console.error('[getReelComments] error:', err.message);
+    res.status(500).json({ error: safeErrorMessage(err) });
+  }
+};
+
+// POST /api/reels/:id/comments
+// Body: { content }
+export const addReelComment = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const reelId = req.params.id;
+    const content = safeString(req.body.content, 500);
+
+    if (!content) return res.status(400).json({ error: 'Comentario vacío' });
+
+    // Verificar que el reel existe
+    const { data: reel } = await supabase
+      .from('reels').select('user_id, caption').eq('id', reelId).single();
+    if (!reel) return res.status(404).json({ error: 'Reel no encontrado' });
+
+    const { data: comment, error } = await supabase
+      .from('reel_comments')
+      .insert({ reel_id: reelId, user_id: userId, content })
+      .select(`
+        id, content, likes_count, created_at,
+        user:profiles!user_id (id, full_name, avatar_url, is_verified)
+      `)
+      .single();
+
+    if (error) throw error;
+
+    // Atomic counter
+    await supabase.rpc('increment_reel_comments', { p_reel_id: reelId, p_delta: 1 });
+
+    // Notificar al dueño (no si comenta en su propio reel)
+    if (reel.user_id !== userId) {
+      const { data: commenter } = await supabase.from('profiles')
+        .select('full_name').eq('id', userId).single();
+      createNotification(
+        reel.user_id, 'reel_comment',
+        `💬 ${commenter?.full_name || 'Alguien'} comentó tu reel`,
+        content.substring(0, 100),
+        { reel_id: reelId, comment_id: comment.id, user_id: userId }
+      ).catch(() => {});
+      sendPushToUser(reel.user_id, {
+        title: `💬 ${commenter?.full_name || 'Alguien'} comentó tu reel`,
+        body: content.substring(0, 80),
+        url: `/reels/${reelId}`,
+      }).catch(() => {});
+    }
+
+    res.status(201).json({ comment });
+  } catch (err) {
+    console.error('[addReelComment] error:', err.message);
+    res.status(500).json({ error: safeErrorMessage(err) });
+  }
+};
+
+// DELETE /api/reels/:reelId/comments/:commentId
+export const deleteReelComment = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { reelId, commentId } = req.params;
+
+    const { data: comment } = await supabase
+      .from('reel_comments')
+      .select('user_id, reel_id')
+      .eq('id', commentId)
+      .single();
+
+    if (!comment) return res.status(404).json({ error: 'Comentario no encontrado' });
+    if (comment.reel_id !== reelId) return res.status(400).json({ error: 'Comentario no pertenece a este reel' });
+
+    // Permitir borrar al autor del comment O al dueño del reel
+    const { data: reel } = await supabase.from('reels').select('user_id').eq('id', reelId).single();
+    const isCommentAuthor = comment.user_id === userId;
+    const isReelOwner = reel?.user_id === userId;
+    if (!isCommentAuthor && !isReelOwner) return res.status(403).json({ error: 'No autorizado' });
+
+    await supabase.from('reel_comments').delete().eq('id', commentId);
+    await supabase.rpc('increment_reel_comments', { p_reel_id: reelId, p_delta: -1 });
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[deleteReelComment] error:', err.message);
     res.status(500).json({ error: safeErrorMessage(err) });
   }
 };

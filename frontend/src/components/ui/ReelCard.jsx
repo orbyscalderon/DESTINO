@@ -22,7 +22,7 @@ import toast from 'react-hot-toast';
 //   onViewTracked: (reel_id, watched_seconds) => void
 //   onOpenComments?: (reel_id) => void
 export default function ReelCard({
-  reel, active, muted, onToggleMute, onViewTracked, onOpenComments,
+  reel, active, muted, onToggleMute, onViewTracked, onOpenComments, onCommentDelta,
 }) {
   const videoRef = useRef(null);
   const lastTapRef = useRef(0);

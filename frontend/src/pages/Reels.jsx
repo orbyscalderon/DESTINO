@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { FiArrowLeft, FiPlus, FiInbox } from 'react-icons/fi';
+import { FiArrowLeft, FiPlus, FiInbox, FiHash, FiX } from 'react-icons/fi';
 import ReelCard from '../components/ui/ReelCard.jsx';
+import ReelComments from '../components/ui/ReelComments.jsx';
 import api from '../lib/api.js';
 import toast from 'react-hot-toast';
 
@@ -10,8 +11,9 @@ import toast from 'react-hot-toast';
 // Carga infinita cuando se acerca al final.
 export default function Reels() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const initialReelId = searchParams.get('id'); // deep link a un reel específico
+  const hashtagFilter = (searchParams.get('tag') || '').toLowerCase().trim() || null;
 
   const containerRef = useRef(null);
   const [reels, setReels] = useState([]);
@@ -20,6 +22,7 @@ export default function Reels() {
   const [loading, setLoading] = useState(true);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [commentsReelId, setCommentsReelId] = useState(null);
   const cursorRef = useRef(null);
   const viewTrackQueueRef = useRef(new Map()); // reelId → watched_seconds
 
@@ -27,12 +30,19 @@ export default function Reels() {
   useEffect(() => {
     let cancel = false;
     setLoading(true);
-    api.get('/api/reels/feed?limit=10')
+    setReels([]);
+    setActiveIndex(0);
+    cursorRef.current = null;
+
+    const params = new URLSearchParams({ limit: '10' });
+    if (hashtagFilter) params.set('tag', hashtagFilter);
+
+    api.get(`/api/reels/feed?${params}`)
       .then(({ data }) => {
         if (cancel) return;
         let initial = data.reels || [];
         // Si vienen con deep link, asegurar que ese reel sea el primero
-        if (initialReelId) {
+        if (initialReelId && !hashtagFilter) {
           const idx = initial.findIndex(r => r.id === initialReelId);
           if (idx > 0) {
             const target = initial.splice(idx, 1)[0];
@@ -41,7 +51,9 @@ export default function Reels() {
         }
         setReels(initial);
         cursorRef.current = data.next_cursor;
-        setHasMore(!!data.next_cursor && initial.length > 0);
+        setHasMore(data.next_cursor !== null);
+        // Scroll al top cuando cambia el filtro
+        if (containerRef.current) containerRef.current.scrollTop = 0;
       })
       .catch(err => {
         if (cancel) return;
@@ -51,7 +63,13 @@ export default function Reels() {
       })
       .finally(() => { if (!cancel) setLoading(false); });
     return () => { cancel = true; };
-  }, [initialReelId]);
+  }, [initialReelId, hashtagFilter]);
+
+  const clearHashtag = () => {
+    const next = new URLSearchParams(searchParams);
+    next.delete('tag');
+    setSearchParams(next);
+  };
 
   // Detectar el reel activo según scroll position
   useEffect(() => {
@@ -72,22 +90,22 @@ export default function Reels() {
     setLoadingMore(true);
     try {
       const params = new URLSearchParams({ limit: '10' });
-      if (cursorRef.current) params.set('cursor', cursorRef.current);
+      if (cursorRef.current != null) params.set('cursor', String(cursorRef.current));
+      if (hashtagFilter) params.set('tag', hashtagFilter);
       const { data } = await api.get(`/api/reels/feed?${params}`);
       const newReels = data.reels || [];
       setReels(prev => {
-        // Evitar duplicados
         const seen = new Set(prev.map(r => r.id));
         return [...prev, ...newReels.filter(r => !seen.has(r.id))];
       });
       cursorRef.current = data.next_cursor;
-      if (!data.next_cursor || newReels.length === 0) setHasMore(false);
+      if (data.next_cursor === null || newReels.length === 0) setHasMore(false);
     } catch {
       // silencio — el user puede seguir mirando lo que ya cargó
     } finally {
       setLoadingMore(false);
     }
-  }, [hasMore, loadingMore]);
+  }, [hasMore, loadingMore, hashtagFilter]);
 
   // Flush tracking al desmontar / cambio de página
   const handleViewTracked = useCallback((reelId, watchedSeconds) => {
@@ -149,7 +167,19 @@ export default function Reels() {
         >
           <FiArrowLeft size={18} />
         </button>
-        <div className="text-white font-bold tracking-tight">Reels</div>
+        {hashtagFilter ? (
+          <button
+            onClick={clearHashtag}
+            className="flex items-center gap-1.5 bg-brand-500/90 backdrop-blur-md text-white text-sm font-bold px-3 py-1.5 rounded-full hover:bg-brand-500 transition-colors"
+            aria-label={`Quitar filtro #${hashtagFilter}`}
+          >
+            <FiHash size={14} />
+            {hashtagFilter}
+            <FiX size={14} className="ml-0.5" />
+          </button>
+        ) : (
+          <div className="text-white font-bold tracking-tight">Reels</div>
+        )}
         <button
           onClick={() => navigate('/reels/new')}
           aria-label="Subir reel"
@@ -173,7 +203,12 @@ export default function Reels() {
             muted={muted}
             onToggleMute={() => setMuted(m => !m)}
             onViewTracked={handleViewTracked}
-            onOpenComments={() => toast('Comentarios próximamente')}
+            onOpenComments={(reelId) => setCommentsReelId(reelId)}
+            onCommentDelta={(delta) => {
+              setReels(prev => prev.map(r =>
+                r.id === reel.id ? { ...r, comments_count: Math.max(0, (r.comments_count || 0) + delta) } : r
+              ));
+            }}
           />
         ))}
         {loadingMore && (
@@ -182,6 +217,20 @@ export default function Reels() {
           </div>
         )}
       </div>
+
+      {/* Comments drawer */}
+      <ReelComments
+        reelId={commentsReelId}
+        reelOwnerId={reels.find(r => r.id === commentsReelId)?.user?.id}
+        onClose={() => setCommentsReelId(null)}
+        onCommentAdded={(delta) => {
+          setReels(prev => prev.map(r =>
+            r.id === commentsReelId
+              ? { ...r, comments_count: Math.max(0, (r.comments_count || 0) + delta) }
+              : r
+          ));
+        }}
+      />
     </div>
   );
 }
