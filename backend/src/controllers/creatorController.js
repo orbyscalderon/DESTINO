@@ -432,11 +432,21 @@ export const subscribeToCreator = async (req, res) => {
 
     const { data: creator } = await supabase
       .from('profiles')
-      .select('creator_subscription_price, is_creator, full_name, stripe_account_id, stripe_account_status')
+      .select('creator_subscription_price, is_creator, is_adult_creator, full_name, stripe_account_id, stripe_account_status')
       .eq('id', creatorId)
       .single();
 
     if (!creator?.is_creator) return res.status(404).json({ error: 'Creador no encontrado' });
+
+    // CRÍTICO: los adult creators NO pueden cobrar por Stripe (Stripe cierra
+    // cuentas que detectan NSFW). Tienen que usar CCBill — el cliente debe
+    // llamar /api/payments/ccbill/subscribe-link en su lugar.
+    if (creator.is_adult_creator) {
+      return res.status(400).json({
+        error: 'Este creador usa CCBill para procesar pagos. Usa el endpoint de CCBill.',
+        code: 'ADULT_CREATOR_USE_CCBILL',
+      });
+    }
 
     // Resolver precio: si manda tierId, usar tier.price; si no, legacy.
     let priceUsd = null;

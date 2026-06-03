@@ -454,8 +454,28 @@ export default function CreatorDashboard() {
         {/* ── CONTENIDO PRINCIPAL ──────────────────────────── */}
         <div className="flex-1 min-w-0 px-4 py-5 lg:px-6 lg:py-6">
 
-          {/* ── Stripe warning ── */}
-          {!isStripeActive && (
+          {/* ── Pagos warning (contextual por tipo de creator) ── */}
+          {profile?.is_adult_creator ? (
+            // Adult creators usan CCBill (Stripe rechaza NSFW). El status real
+            // viene del componente CCBillSetup en la tab Suscriptores.
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+              className="mb-5 p-4 rounded-2xl bg-pink-500/5 border border-pink-500/20 flex items-center gap-3"
+            >
+              <FiAlertCircle className="text-pink-400 shrink-0" size={18} />
+              <div className="flex-1 min-w-0">
+                <p className="text-pink-300 font-semibold text-sm">Procesador: CCBill 🔞</p>
+                <p className="text-gray-400 text-xs mt-0.5">
+                  Como creador adulto cobras con CCBill (no Stripe). Configúralo en la pestaña Suscriptores.
+                </p>
+              </div>
+              <button
+                onClick={() => setTab('subscribers')}
+                className="shrink-0 flex items-center gap-1 bg-pink-500/20 hover:bg-pink-500/30 text-pink-300 text-xs font-semibold px-3 py-1.5 rounded-xl transition-colors"
+              >
+                Configurar <FiChevronRight size={12} />
+              </button>
+            </motion.div>
+          ) : !isStripeActive ? (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
               className="mb-5 p-4 rounded-2xl bg-yellow-500/5 border border-yellow-500/20 flex items-center gap-3"
             >
@@ -470,7 +490,7 @@ export default function CreatorDashboard() {
                 Conectar <FiChevronRight size={12} />
               </Link>
             </motion.div>
-          )}
+          ) : null}
 
           <AnimatePresence mode="wait">
 

@@ -557,9 +557,17 @@ export const purchasePhoto = async (req, res) => {
     // Obtener info del creador para Stripe Connect
     const { data: seller } = await supabase
       .from('profiles')
-      .select('stripe_account_id, stripe_account_status')
+      .select('stripe_account_id, stripe_account_status, is_adult_creator')
       .eq('id', photo.user_id)
       .single();
+
+    // CRÍTICO: Adult creators usan CCBill, no Stripe.
+    if (seller?.is_adult_creator) {
+      return res.status(400).json({
+        error: 'Esta foto es de un creador que usa CCBill. La compra vía Stripe está deshabilitada.',
+        code: 'ADULT_CREATOR_USE_CCBILL',
+      });
+    }
 
     // BLOQUEAR si el seller no tiene Stripe activo (issue auditoría #8)
     if (!seller?.stripe_account_id || seller?.stripe_account_status !== 'active') {

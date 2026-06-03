@@ -180,33 +180,36 @@ export default function UserProfile() {
     setSubscribing(true);
     setShowTierModal(false);
     try {
-      // Si el creator es adulto, intentar primero CCBill (preferido por
-      // procesador para adult content). Si no está configurado o no es
-      // creator adulto, caer a Stripe.
-      const tryCCBill = !!profile.is_adult_creator
-                     && !tierOrLegacy?.legacy
-                     && !!tierOrLegacy?.id;
-      if (tryCCBill) {
+      // SEPARACIÓN ESTRICTA de procesadores:
+      //   - Creator NORMAL → Stripe
+      //   - Creator ADULTO → CCBill (NO se cae a Stripe — Stripe cierra
+      //     cuentas que detectan NSFW)
+      if (profile.is_adult_creator) {
+        if (tierOrLegacy?.legacy || !tierOrLegacy?.id) {
+          toast.error('Este creador usa CCBill. Necesitas elegir un nivel (no funciona precio legacy).');
+          return;
+        }
         try {
           const { data } = await api.post('/api/payments/ccbill/subscribe-link', {
             creatorId: userId,
             tierId: tierOrLegacy.id,
           });
-          // Redirigir al hosted form de CCBill (PCI burden está en ellos)
           window.location.href = data.url;
           return;
         } catch (ccbillErr) {
           const code = ccbillErr.response?.data?.code;
-          // Si CCBill no está configurado (global o creator) → fallback a Stripe
-          if (code !== 'CCBILL_NOT_CONFIGURED' && code !== 'CCBILL_CREATOR_NOT_READY') {
-            // Otro error real
+          if (code === 'CCBILL_NOT_CONFIGURED') {
+            toast.error('La plataforma aún no tiene CCBill activado. Pronto.');
+          } else if (code === 'CCBILL_CREATOR_NOT_READY') {
+            toast.error('Este creador aún no completó su configuración de CCBill.');
+          } else {
             toast.error(ccbillErr.response?.data?.error || 'Error al iniciar pago');
-            return;
           }
-          // si no, sigue al flow Stripe abajo
+          return;
         }
       }
 
+      // Creator normal → Stripe
       const body = tierOrLegacy?.legacy ? {} : { tierId: tierOrLegacy?.id };
       const { data } = await api.post(`/api/creator/${userId}/subscribe`, body);
       setPaymentModal({

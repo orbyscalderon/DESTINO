@@ -548,8 +548,8 @@ export const purchaseShowTicket = async (req, res) => {
     const { data: show } = await supabase
       .from('live_shows')
       .select(`
-        id, title, ticket_price, status, show_type, host_id,
-        host:profiles!host_id(stripe_account_id, stripe_account_status, full_name)
+        id, title, ticket_price, status, show_type, host_id, category,
+        host:profiles!host_id(stripe_account_id, stripe_account_status, full_name, is_adult_creator)
       `)
       .eq('id', id)
       .single();
@@ -580,7 +580,16 @@ export const purchaseShowTicket = async (req, res) => {
 
     if (existing) return res.status(400).json({ error: 'Ya tienes un ticket para este show' });
 
-    // BLOQUEAR la compra si el host NO tiene Stripe activo (issue auditoría #8)
+    // CRÍTICO: Los adult creators usan CCBill, NO Stripe. Bloqueamos para
+    // evitar que el dinero llegue por Stripe y se cierre la cuenta.
+    if (show.host?.is_adult_creator) {
+      return res.status(400).json({
+        error: 'Este creador usa CCBill. La compra de ticket vía Stripe está deshabilitada.',
+        code: 'ADULT_CREATOR_USE_CCBILL',
+      });
+    }
+
+    // BLOQUEAR si el host NO tiene Stripe activo (issue auditoría #8)
     if (!show.host?.stripe_account_id || show.host?.stripe_account_status !== 'active') {
       return res.status(400).json({
         error: 'Este creador aún no tiene configurada su cuenta de pagos',
