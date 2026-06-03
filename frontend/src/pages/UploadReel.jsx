@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { FiArrowLeft, FiUpload, FiX, FiCheck } from 'react-icons/fi';
 import api from '../lib/api.js';
 import { useAuthStore } from '../store/authStore.js';
+import { useSwipeNavigation } from '../lib/useSwipeNavigation.js';
 import toast from 'react-hot-toast';
 
 const MAX_DURATION = 90;
@@ -14,6 +15,10 @@ export default function UploadReel() {
   const { profile } = useAuthStore();
   const fileInputRef = useRef(null);
   const videoRef = useRef(null);
+
+  // Swipe nav: derecha → Home (a la derecha de Cámara)
+  // No hay nada más a la izquierda (Cámara es el extremo izquierdo).
+  useSwipeNavigation({ right: '/home' });
 
   const [file, setFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);

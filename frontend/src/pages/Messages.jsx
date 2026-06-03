@@ -8,6 +8,7 @@ import { useAuthStore } from '../store/authStore.js';
 import { supabase } from '../lib/supabase.js';
 import { useChatStore } from '../store/chatStore.js';
 import VerifiedBadge from '../components/ui/VerifiedBadge.jsx';
+import { useSwipeNavigation } from '../lib/useSwipeNavigation.js';
 
 function formatTime(dateStr) {
   if (!dateStr) return '';
@@ -38,6 +39,10 @@ export default function Messages() {
   const { profile, user } = useAuthStore();
   const { clearUnread } = useChatStore();
   const { trackAction } = useAds();
+
+  // Swipe nav: izquierda → Reels (a la izquierda de Mensajes)
+  // No hay nada más a la derecha (Mensajes es el extremo).
+  useSwipeNavigation({ left: '/reels' });
 
   const openChat = useCallback(async (matchId) => {
     await trackAction();

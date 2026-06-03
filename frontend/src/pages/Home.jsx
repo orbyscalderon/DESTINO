@@ -9,6 +9,7 @@ import VerifiedBadge from '../components/ui/VerifiedBadge.jsx';
 import StoriesBar from '../components/ui/StoriesBar.jsx';
 import { PostCardSkeleton } from '../components/ui/Skeleton.jsx';
 import { useConfirm } from '../components/ui/ConfirmDialog.jsx';
+import { useSwipeNavigation } from '../lib/useSwipeNavigation.js';
 import toast from 'react-hot-toast';
 
 function PostCard({ post, onLike, onComment, onDelete, currentUserId }) {
@@ -207,6 +208,10 @@ function PostCard({ post, onLike, onComment, onDelete, currentUserId }) {
 export default function Home() {
   const { user, profile } = useAuthStore();
   const confirm = useConfirm();
+
+  // Swipe nav: izquierda → Cámara (Upload Reel) · derecha → Reels feed
+  useSwipeNavigation({ left: '/reels/new', right: '/reels' });
+
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [hasMore, setHasMore] = useState(false);

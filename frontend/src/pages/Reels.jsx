@@ -23,6 +23,10 @@ export default function Reels() {
     setSearchParams(next);
   };
 
+  // No usamos swipe horizontal en Reels: el feed es full-screen con scroll
+  // vertical (snap-y), igual que TikTok/IG. El gesto horizontal entraría en
+  // conflicto. El user vuelve a Home con el bottom nav o el botón ← arriba.
+
   const containerRef = useRef(null);
   const [reels, setReels] = useState([]);
   const [activeIndex, setActiveIndex] = useState(0);
