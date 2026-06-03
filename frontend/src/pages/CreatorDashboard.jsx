@@ -19,6 +19,7 @@ import CreatorGiftsManager from '../components/ui/CreatorGiftsManager.jsx';
 import TipMenuManager from '../components/ui/TipMenuManager.jsx';
 import TierManager from '../components/ui/TierManager.jsx';
 import CCBillSetup from '../components/ui/CCBillSetup.jsx';
+import AdultCategoriesManager from '../components/ui/AdultCategoriesManager.jsx';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 
 /* ── Helpers ─────────────────────────────────────────────── */
@@ -1505,6 +1506,9 @@ export default function CreatorDashboard() {
                     </div>
                   </div>
                 </div>
+
+                {/* Categorías para creadores adultos — aparecen en filtros de /adult-creators */}
+                {profile?.is_adult_creator && <AdultCategoriesManager />}
 
                 {/* Stripe status */}
                 <div className={`rounded-2xl border p-5 ${isStripeActive?'border-green-500/20 bg-green-500/5':'border-yellow-500/20 bg-yellow-500/5'}`}>

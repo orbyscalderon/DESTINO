@@ -138,7 +138,7 @@ export default function Reels() {
   // ── Empty / loading ──
   if (loading) {
     return (
-      <div className="h-screen w-full bg-black flex items-center justify-center">
+      <div className="h-screen [@supports(height:100dvh)]:h-[100dvh] w-full bg-black flex items-center justify-center">
         <div className="w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
       </div>
     );
@@ -147,7 +147,7 @@ export default function Reels() {
   if (reels.length === 0) {
     const isFollowing = tab === 'following';
     return (
-      <div className="h-screen w-full bg-black flex flex-col items-center justify-center px-6 text-center text-white">
+      <div className="h-screen [@supports(height:100dvh)]:h-[100dvh] w-full bg-black flex flex-col items-center justify-center px-6 text-center text-white">
         <FiInbox size={48} className="text-gray-600 mb-3" />
         <h2 className="text-xl font-bold mb-1">
           {isFollowing ? 'Sin reels de tus seguidos' : hashtagFilter ? 'Sin reels con ese tag' : 'Sin reels aún'}
@@ -187,7 +187,7 @@ export default function Reels() {
   }
 
   return (
-    <div className="relative h-screen w-full bg-black overflow-hidden">
+    <div className="relative h-screen [@supports(height:100dvh)]:h-[100dvh] w-full bg-black overflow-hidden">
       {/* Topbar */}
       <div className="absolute top-0 left-0 right-0 z-20 px-4 py-3 flex items-center justify-between bg-gradient-to-b from-black/60 to-transparent">
         <button
@@ -240,11 +240,12 @@ export default function Reels() {
         </button>
       </div>
 
-      {/* Feed scrolleable con snap */}
+      {/* Feed scrolleable con snap.
+          touch-action: pan-y evita conflictos con swipe horizontal del navbar. */}
       <div
         ref={containerRef}
         className="h-full w-full overflow-y-scroll snap-y snap-mandatory scrollbar-none"
-        style={{ scrollSnapType: 'y mandatory' }}
+        style={{ scrollSnapType: 'y mandatory', touchAction: 'pan-y' }}
       >
         {reels.map((reel, i) => (
           <ReelCard

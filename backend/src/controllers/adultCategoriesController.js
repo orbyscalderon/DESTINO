@@ -43,6 +43,21 @@ export const getCreatorCategories = async (req, res) => {
   }
 };
 
+// GET /api/adult-categories/mine — mis categorías (atajo para creators)
+export const getMyCategories = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { data } = await supabase
+      .from('creator_adult_categories')
+      .select(`category:adult_categories!category_id (id, slug, name, group_name, emoji)`)
+      .eq('creator_id', userId);
+    const categories = (data || []).map(r => r.category).filter(Boolean);
+    res.json({ categories });
+  } catch (err) {
+    res.status(500).json({ error: safeErrorMessage(err) });
+  }
+};
+
 // PUT /api/adult-categories/mine — replace mis categorías
 // Body: { slugs: ['fitness', 'milf', 'cosplay'] }
 export const updateMyCategories = async (req, res) => {

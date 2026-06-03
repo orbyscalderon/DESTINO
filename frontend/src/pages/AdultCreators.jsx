@@ -356,7 +356,7 @@ export default function AdultCreators() {
               exit={{ height: 0, opacity: 0 }}
               className="overflow-hidden border-t border-white/5"
             >
-              <div className="px-4 py-3 space-y-3">
+              <div className="px-4 py-3 space-y-3 max-h-[70vh] overflow-y-auto">
                 <div className="flex gap-2 flex-wrap">
                   {/* Live only */}
                   <button
@@ -483,7 +483,7 @@ export default function AdultCreators() {
 
         {/* Loading skeleton */}
         {loading && creators.length === 0 ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2">
             {[...Array(12)].map((_, i) => (
               <div key={i} className="aspect-[3/4] rounded-xl bg-dark-700 animate-pulse" />
             ))}
@@ -507,7 +507,7 @@ export default function AdultCreators() {
           /* ── Filtered view: single flat grid ── */
           <>
             <SectionHeader title="Resultados" count={allCreators.length} color="text-gray-400" />
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 mb-6">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-2 mb-6">
               {allCreators.map(c => (
                 <CreatorCard key={c.id} c={c} onClick={() => navigate(`/profile/${c.id}`)} />
               ))}
@@ -526,7 +526,7 @@ export default function AdultCreators() {
                   color="text-red-400"
                   dot="bg-red-500"
                 />
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2">
                   {liveShows.map(s => <ShowCard key={s.id} show={s} />)}
                 </div>
               </section>
@@ -542,7 +542,7 @@ export default function AdultCreators() {
                   dot="bg-red-500"
                   onSeeAll={liveCreators.length > 6 ? () => setLiveOnly(true) : null}
                 />
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2">
                   {liveCreators.slice(0, 8).map(c => (
                     <CreatorCard key={c.id} c={c} onClick={() => navigate(`/profile/${c.id}`)} large />
                   ))}
@@ -560,7 +560,7 @@ export default function AdultCreators() {
                   dot="bg-green-400"
                   onSeeAll={onlineCreators.length > 6 ? () => setOnlineOnly(true) : null}
                 />
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-2">
                   {onlineCreators.slice(0, 10).map(c => (
                     <CreatorCard key={c.id} c={c} onClick={() => navigate(`/profile/${c.id}`)} />
                   ))}
@@ -575,7 +575,7 @@ export default function AdultCreators() {
                 count={creators.length}
                 color="text-gray-500"
               />
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-2">
                 {creators.map(c => (
                   <CreatorCard key={c.id} c={c} onClick={() => navigate(`/profile/${c.id}`)} />
                 ))}

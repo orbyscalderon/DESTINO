@@ -36,6 +36,7 @@ export default function ReelCard({
   const [comments, setComments] = useState(reel.comments_count || 0);
   const [showHeart, setShowHeart] = useState(0); // key para re-trigger
   const [progress, setProgress] = useState(0); // 0..1
+  const [captionExpanded, setCaptionExpanded] = useState(false);
   const watchedRef = useRef(0);
   const trackSentRef = useRef(false);
 
@@ -178,8 +179,9 @@ export default function ReelCard({
 
   return (
     <div
-      className="relative h-screen w-full bg-black snap-start snap-always overflow-hidden flex items-center justify-center"
+      className="relative w-full mx-auto bg-black snap-start snap-always overflow-hidden flex items-center justify-center h-screen [@supports(height:100dvh)]:h-[100dvh] lg:max-w-[460px] lg:rounded-2xl lg:my-2"
       style={{ scrollSnapAlign: 'start', scrollSnapStop: 'always' }}
+      onContextMenu={(e) => e.preventDefault()}
     >
       {/* Video */}
       <video
@@ -190,10 +192,10 @@ export default function ReelCard({
         muted={muted}
         playsInline
         onClick={handleTap}
-        onContextMenu={(e) => reel.is_adult && e.preventDefault()}
-        controlsList="nodownload"
+        onContextMenu={(e) => e.preventDefault()}
+        controlsList="nodownload noremoteplayback"
         disablePictureInPicture
-        className="absolute inset-0 w-full h-full object-cover cursor-pointer"
+        className="absolute inset-0 w-full h-full object-cover cursor-pointer select-none"
       />
 
       {/* Watermark anti-piracy: solo en reels adultos para no afectar UX general */}
@@ -231,11 +233,12 @@ export default function ReelCard({
         )}
       </AnimatePresence>
 
-      {/* Mute toggle (top right) */}
+      {/* Mute toggle (top right) — safe-area-inset-top para evitar notch iPhone */}
       <button
         onClick={onToggleMute}
         aria-label={muted ? 'Activar sonido' : 'Silenciar'}
-        className="absolute top-16 right-4 w-10 h-10 bg-black/40 backdrop-blur-md rounded-full flex items-center justify-center text-white z-10"
+        className="absolute right-4 w-10 h-10 bg-black/40 backdrop-blur-md rounded-full flex items-center justify-center text-white z-10"
+        style={{ top: 'calc(env(safe-area-inset-top, 0px) + 4rem)' }}
       >
         {muted ? <FiVolumeX size={18} /> : <FiVolume2 size={18} />}
       </button>
@@ -248,69 +251,91 @@ export default function ReelCard({
         />
       </div>
 
-      {/* Sidebar de acciones (derecha) */}
-      <div className="absolute right-3 bottom-24 flex flex-col items-center gap-5 z-10">
+      {/* Sidebar de acciones (derecha) — anchos reducidos para 360px,
+          safe-area-inset-bottom para iPhone notch */}
+      <div
+        className="absolute right-2 sm:right-3 flex flex-col items-center gap-4 sm:gap-5 z-10"
+        style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 5.5rem)' }}
+      >
         {/* Avatar creador */}
         <Link to={`/profile/${reel.user?.id}`} className="relative">
           <img
             src={reel.user?.avatar_url || '/avatar-placeholder.png'}
             alt={`Avatar de ${reel.user?.full_name || 'usuario'}`}
-            className="w-12 h-12 rounded-full object-cover border-2 border-white"
+            className="w-11 h-11 sm:w-12 sm:h-12 rounded-full object-cover border-2 border-white"
           />
-          <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-6 h-6 bg-brand-500 rounded-full flex items-center justify-center">
-            <FiCheck className="text-white" size={12} />
+          <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-5 h-5 sm:w-6 sm:h-6 bg-brand-500 rounded-full flex items-center justify-center">
+            <FiCheck className="text-white" size={11} />
           </div>
         </Link>
 
         {/* Like */}
-        <button onClick={doLike} className="flex flex-col items-center gap-1" aria-label="Me gusta">
+        <button onClick={doLike} className="flex flex-col items-center gap-1 min-w-[44px]" aria-label="Me gusta">
           <FiHeart
             className={liked ? 'text-pink-500 fill-current' : 'text-white'}
-            size={32}
+            size={28}
           />
-          <span className="text-white text-xs font-semibold">{formatCount(likes)}</span>
+          <span className="text-white text-[11px] font-semibold tabular-nums">{formatCount(likes)}</span>
         </button>
 
         {/* Comments (placeholder — abre TODO) */}
         <button
           onClick={() => onOpenComments?.(reel.id)}
-          className="flex flex-col items-center gap-1"
+          className="flex flex-col items-center gap-1 min-w-[44px]"
           aria-label="Comentarios"
         >
-          <FiMessageCircle className="text-white" size={32} />
-          <span className="text-white text-xs font-semibold">{formatCount(comments)}</span>
+          <FiMessageCircle className="text-white" size={28} />
+          <span className="text-white text-[11px] font-semibold tabular-nums">{formatCount(comments)}</span>
         </button>
 
         {/* Save (bookmark) */}
-        <button onClick={doSave} className="flex flex-col items-center gap-1" aria-label={saved ? 'Quitar de guardados' : 'Guardar'}>
+        <button onClick={doSave} className="flex flex-col items-center gap-1 min-w-[44px]" aria-label={saved ? 'Quitar de guardados' : 'Guardar'}>
           <FiBookmark
             className={saved ? 'text-yellow-400 fill-current' : 'text-white'}
-            size={30}
+            size={26}
           />
-          <span className="text-white text-xs font-semibold">{saved ? 'Guardado' : 'Guardar'}</span>
+          <span className="text-white text-[11px] font-semibold">{saved ? 'Guardado' : 'Guardar'}</span>
         </button>
 
         {/* Share */}
-        <button onClick={handleShare} className="flex flex-col items-center gap-1" aria-label="Compartir">
-          <FiShare2 className="text-white" size={30} />
+        <button onClick={handleShare} className="flex flex-col items-center gap-1 min-w-[44px]" aria-label="Compartir">
+          <FiShare2 className="text-white" size={26} />
         </button>
 
         {/* Más */}
         <button className="text-white" aria-label="Más opciones">
-          <FiMoreVertical size={24} />
+          <FiMoreVertical size={22} />
         </button>
       </div>
 
       {/* Info inferior (creador + caption + audio + stats) */}
-      <div className="absolute bottom-6 left-4 right-20 z-10 space-y-2">
+      <div
+        className="absolute left-3 right-16 sm:right-20 z-10 space-y-2"
+        style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 1.5rem)' }}
+      >
         <Link to={`/profile/${reel.user?.id}`} className="flex items-center gap-2">
           <span className="text-white font-bold text-base">@{reel.user?.full_name || 'usuario'}</span>
           {reel.user?.is_verified && <VerifiedBadge size={14} />}
         </Link>
         {reel.caption && (
-          <p className="text-white text-sm leading-snug max-h-24 overflow-hidden">
-            {captionWithLinks(reel.caption)}
-          </p>
+          <button
+            onClick={() => setCaptionExpanded(v => !v)}
+            className="text-left w-full"
+            aria-label={captionExpanded ? 'Colapsar descripción' : 'Expandir descripción'}
+          >
+            <p
+              className={`text-white text-sm leading-snug ${
+                captionExpanded ? '' : 'line-clamp-2 sm:line-clamp-3'
+              }`}
+            >
+              {captionWithLinks(reel.caption)}
+            </p>
+            {reel.caption.length > 90 && (
+              <span className="text-white/60 text-[11px] font-semibold mt-0.5">
+                {captionExpanded ? 'menos' : '…más'}
+              </span>
+            )}
+          </button>
         )}
         {/* Audio label estilo IG (con ícono musical animado) */}
         {reel.audio_label && (

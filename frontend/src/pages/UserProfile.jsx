@@ -449,7 +449,7 @@ export default function UserProfile() {
 
   return (
     <div className="min-h-screen bg-dark-900">
-      <div className="lg:max-w-6xl lg:mx-auto lg:grid lg:grid-cols-[minmax(0,400px)_minmax(0,1fr)] lg:gap-8 lg:px-8 lg:pt-6">
+      <div className="lg:max-w-6xl xl:max-w-7xl lg:mx-auto lg:grid lg:grid-cols-[minmax(0,400px)_minmax(0,1fr)] lg:gap-8 lg:px-8 lg:pt-6">
         {/* ═══════════════════ FOTO PRINCIPAL ═══════════════════ */}
         <div className="relative h-[55vh] lg:h-auto lg:rounded-3xl lg:overflow-hidden lg:aspect-[4/5] lg:sticky lg:top-6 lg:self-start">
           <img
