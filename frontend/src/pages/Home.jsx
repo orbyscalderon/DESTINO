@@ -209,8 +209,9 @@ export default function Home() {
   const { user, profile } = useAuthStore();
   const confirm = useConfirm();
 
-  // Swipe nav: izquierda → Cámara (Upload Reel) · derecha → Reels feed
-  useSwipeNavigation({ left: '/reels/new', right: '/reels' });
+  // Carrusel mobile: Inicio (este) ←→ Reels ←→ Mensajes ←→ Cámara.
+  // Inicio es el extremo izquierdo — solo permite swipe-izq → Reels.
+  useSwipeNavigation({ left: '/reels' });
 
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);

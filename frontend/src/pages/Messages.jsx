@@ -40,9 +40,9 @@ export default function Messages() {
   const { clearUnread } = useChatStore();
   const { trackAction } = useAds();
 
-  // Swipe nav: izquierda → Reels (a la izquierda de Mensajes)
-  // No hay nada más a la derecha (Mensajes es el extremo).
-  useSwipeNavigation({ left: '/reels' });
+  // Carrusel mobile: Inicio ←→ Reels ←→ Mensajes (este) ←→ Cámara.
+  // Swipe-der → Reels · swipe-izq → Cámara nueva.
+  useSwipeNavigation({ left: '/reels/new', right: '/reels' });
 
   const openChat = useCallback(async (matchId) => {
     await trackAction();

@@ -16,9 +16,9 @@ export default function UploadReel() {
   const fileInputRef = useRef(null);
   const videoRef = useRef(null);
 
-  // Swipe nav: derecha → Home (a la derecha de Cámara)
-  // No hay nada más a la izquierda (Cámara es el extremo izquierdo).
-  useSwipeNavigation({ right: '/home' });
+  // Carrusel mobile: Inicio ←→ Reels ←→ Mensajes ←→ Cámara (este).
+  // Cámara es el extremo derecho — solo permite swipe-der → Mensajes.
+  useSwipeNavigation({ right: '/messages' });
 
   const [file, setFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
