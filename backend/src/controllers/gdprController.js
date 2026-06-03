@@ -29,7 +29,7 @@ export const exportMyData = async (req, res) => {
       supabase.from('creator_subscriptions').select('*').or(`subscriber_id.eq.${userId},creator_id.eq.${userId}`),
       supabase.from('video_requests').select('*').or(`requester_id.eq.${userId},creator_id.eq.${userId}`),
       supabase.from('live_shows').select('*').eq('host_id', userId),
-      supabase.from('follows').select('*').or(`follower_id.eq.${userId},following_id.eq.${userId}`),
+      supabase.from('user_follows').select('*').or(`follower_id.eq.${userId},following_id.eq.${userId}`),
       supabase.from('notifications').select('*').eq('user_id', userId),
       supabase.from('login_attempts').select('*').eq('email', req.user.email).limit(100),
     ]);

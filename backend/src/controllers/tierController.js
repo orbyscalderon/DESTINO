@@ -199,7 +199,7 @@ export const giftSubscription = async (req, res) => {
     if (recipientId === 'random') {
       // 1) IDs de followers del creator
       const { data: followers } = await supabase
-        .from('follows')
+        .from('user_follows')
         .select('follower_id')
         .eq('following_id', creatorId);
       const followerIds = (followers || [])
