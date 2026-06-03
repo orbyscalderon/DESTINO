@@ -15,6 +15,7 @@ import DraggableTipGoal from '../components/ui/DraggableTipGoal.jsx';
 import BigGiftAnimation, { useGiftAnimationQueue } from '../components/ui/BigGiftAnimation.jsx';
 import CaptionOverlay from '../components/ui/CaptionOverlay.jsx';
 import { useCaptionsViewer } from '../lib/useLiveCaptions.js';
+import BattleOverlay from '../components/ui/BattleOverlay.jsx';
 import { useAuthStore } from '../store/authStore.js';
 import { useAds } from '../hooks/useAds.js';
 import { supabase } from '../lib/supabase.js';
@@ -159,6 +160,9 @@ export default function LiveShow() {
   const [muted, setMuted]             = useState(false);
   const [cameraOff, setCameraOff]     = useState(false);
   const [viewerCount, setViewerCount] = useState(0);
+
+  // Battles (viewer ve overlay cuando host está en battle)
+  const [activeBattleId, setActiveBattleId] = useState(null);
 
   // Payment
   const [paymentModal, setPaymentModal] = useState(null);
@@ -378,6 +382,13 @@ export default function LiveShow() {
         // Llamamos handleJoinAsViewer directamente con el show cargado
         autoJoinRef.current = true;
       }
+
+      // Si el show tiene un battle activo, lo cargamos para mostrar el overlay
+      if (s.status === 'live') {
+        api.get(`/api/battles/active?show_id=${id}`)
+          .then(({ data }) => { if (data?.battle?.id) setActiveBattleId(data.battle.id); })
+          .catch(() => {});
+      }
     } catch (err) {
       if (err.response?.data?.code === 'AGE_VERIFICATION_REQUIRED') {
         setShowAgeModal(true);
@@ -490,6 +501,12 @@ export default function LiveShow() {
           toast('El show terminó', { icon: '📺' });
           navigate('/shows');
         }
+      })
+      .on('broadcast', { event: 'battle_started' }, ({ payload }) => {
+        if (payload?.battleId) setActiveBattleId(payload.battleId);
+      })
+      .on('broadcast', { event: 'battle_ended' }, () => {
+        setActiveBattleId(null);
       })
       .on('broadcast', { event: 'private_request' }, ({ payload }) => {
         if (role === 'host') setPrivateRequest(payload);
@@ -2020,6 +2037,15 @@ export default function LiveShow() {
 
           {/* Subtítulos en vivo */}
           <CaptionLayer showId={id} captionsEnabled={!!show?.captions_enabled} />
+
+          {/* Battle overlay (cuando el host está en battle) */}
+          {activeBattleId && (
+            <BattleOverlay
+              battleId={activeBattleId}
+              viewerSide="viewer"
+              onEnded={() => setActiveBattleId(null)}
+            />
+          )}
 
           {/* Co-host video tiles (overlay flotante) */}
           {Object.keys(coHostStreams).length > 0 && (

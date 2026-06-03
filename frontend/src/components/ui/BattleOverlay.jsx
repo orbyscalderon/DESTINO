@@ -112,35 +112,35 @@ export default function BattleOverlay({ battleId, viewerSide = 'viewer', onEnded
             className="absolute inset-y-0 right-0 bg-gradient-to-l from-blue-500 to-cyan-400 transition-all duration-500"
             style={{ width: `${pct2}%` }}
           />
-          {/* Hosts info encima */}
-          <div className="relative w-full flex items-center px-2 py-1">
-            <div className="flex items-center gap-1.5 z-10">
+          {/* Hosts info encima. min-w-0 evita overflow horizontal en 360px. */}
+          <div className="relative w-full flex items-center px-2 py-1 gap-1">
+            <div className="flex items-center gap-1.5 z-10 min-w-0 flex-1 max-w-[40%]">
               <img
                 src={battle.host1?.avatar_url || '/avatar-placeholder.png'}
                 alt={`Host 1: ${battle.host1?.full_name || ''}`}
-                className="w-7 h-7 rounded-full border-2 border-white object-cover"
+                className="w-7 h-7 rounded-full border-2 border-white object-cover shrink-0"
               />
-              <div>
-                <p className="text-white text-[10px] font-bold leading-none">{battle.host1?.full_name?.split(' ')[0]}</p>
-                <p className="text-white text-xs font-black leading-none mt-0.5">{score1}</p>
+              <div className="min-w-0">
+                <p className="text-white text-[10px] font-bold leading-none truncate">{battle.host1?.full_name?.split(' ')[0]}</p>
+                <p className="text-white text-xs font-black leading-none mt-0.5 tabular-nums">{score1}</p>
               </div>
             </div>
             {/* Timer center */}
-            <div className="mx-auto bg-black/60 backdrop-blur-md px-2.5 py-0.5 rounded-full flex items-center gap-1 z-10">
+            <div className="bg-black/60 backdrop-blur-md px-2.5 py-0.5 rounded-full flex items-center gap-1 z-10 shrink-0">
               <FiClock size={11} className="text-white" />
               <span className="text-white font-bold text-xs tabular-nums">
                 {String(mins).padStart(2, '0')}:{String(secs).padStart(2, '0')}
               </span>
             </div>
-            <div className="flex items-center gap-1.5 z-10">
-              <div className="text-right">
-                <p className="text-white text-[10px] font-bold leading-none">{battle.host2?.full_name?.split(' ')[0]}</p>
-                <p className="text-white text-xs font-black leading-none mt-0.5">{score2}</p>
+            <div className="flex items-center gap-1.5 z-10 min-w-0 flex-1 max-w-[40%] justify-end">
+              <div className="text-right min-w-0">
+                <p className="text-white text-[10px] font-bold leading-none truncate">{battle.host2?.full_name?.split(' ')[0]}</p>
+                <p className="text-white text-xs font-black leading-none mt-0.5 tabular-nums">{score2}</p>
               </div>
               <img
                 src={battle.host2?.avatar_url || '/avatar-placeholder.png'}
                 alt={`Host 2: ${battle.host2?.full_name || ''}`}
-                className="w-7 h-7 rounded-full border-2 border-white object-cover"
+                className="w-7 h-7 rounded-full border-2 border-white object-cover shrink-0"
               />
             </div>
           </div>
@@ -164,20 +164,26 @@ export default function BattleOverlay({ battleId, viewerSide = 'viewer', onEnded
         </AnimatePresence>
       </div>
 
-      {/* Tip buttons para viewers (bottom area, encima del chat) */}
+      {/* Tip buttons para viewers (bottom area, encima del chat).
+          Respeta safe area inset bottom (iPhone notch) + offset para navbar mobile. */}
       {viewerSide === 'viewer' && !showWinner && (
-        <div className="absolute bottom-24 left-2 right-2 z-30 flex gap-2 pointer-events-auto">
+        <div
+          className="absolute left-2 right-2 z-30 flex gap-2 pointer-events-auto max-w-[calc(100vw-1rem)]"
+          style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 6rem)' }}
+        >
           <button
             onClick={() => handleTip(1, 10)}
-            className="flex-1 bg-pink-500/90 hover:bg-pink-500 backdrop-blur-md text-white font-bold py-2 rounded-xl text-sm flex items-center justify-center gap-1.5 shadow-lg"
+            className="flex-1 min-w-0 bg-pink-500/90 hover:bg-pink-500 backdrop-blur-md text-white font-bold py-2 rounded-xl text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-lg truncate"
           >
-            <FiZap size={13} /> Apoyar a {battle.host1?.full_name?.split(' ')[0] || 'Host 1'} · 10🪙
+            <FiZap size={13} className="shrink-0" />
+            <span className="truncate">Apoyar a {battle.host1?.full_name?.split(' ')[0] || 'Host 1'} · 10🪙</span>
           </button>
           <button
             onClick={() => handleTip(2, 10)}
-            className="flex-1 bg-blue-500/90 hover:bg-blue-500 backdrop-blur-md text-white font-bold py-2 rounded-xl text-sm flex items-center justify-center gap-1.5 shadow-lg"
+            className="flex-1 min-w-0 bg-blue-500/90 hover:bg-blue-500 backdrop-blur-md text-white font-bold py-2 rounded-xl text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-lg truncate"
           >
-            <FiZap size={13} /> Apoyar a {battle.host2?.full_name?.split(' ')[0] || 'Host 2'} · 10🪙
+            <FiZap size={13} className="shrink-0" />
+            <span className="truncate">Apoyar a {battle.host2?.full_name?.split(' ')[0] || 'Host 2'} · 10🪙</span>
           </button>
         </div>
       )}

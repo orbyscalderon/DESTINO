@@ -21,6 +21,8 @@ import { useConfirm } from '../components/ui/ConfirmDialog.jsx';
 import BigGiftAnimation, { useGiftAnimationQueue } from '../components/ui/BigGiftAnimation.jsx';
 import CaptionOverlay from '../components/ui/CaptionOverlay.jsx';
 import { useCaptionsHost, captionsSupported } from '../lib/useLiveCaptions.js';
+import BattleOverlay from '../components/ui/BattleOverlay.jsx';
+import BattleInviteModal from '../components/ui/BattleInviteModal.jsx';
 
 const REACTIONS = ['❤️', '🔥', '⭐', '😍'];
 
@@ -357,6 +359,13 @@ export default function ShowStudio() {
   const [bannedUsers, setBannedUsers]               = useState(new Map());
   const [activeReconnect, setActiveReconnect]       = useState(null);
   const [slowMode, setSlowMode]                     = useState(false);
+
+  // ── BATTLES ──────────────────────────────────────────────────────────────────
+  const [activeBattle, setActiveBattle]             = useState(null);
+  const [battleSearch, setBattleSearch]             = useState('');
+  const [battleResults, setBattleResults]           = useState([]);
+  const [battleInviting, setBattleInviting]         = useState(null);
+  const [showBattleSearch, setShowBattleSearch]     = useState(false);
 
   // ── Grabación ────────────────────────────────────────────────────────────────
   const [recording, setRecording]       = useState(false);
@@ -817,6 +826,63 @@ export default function ShowStudio() {
       setActiveReconnect({ id, title, started_at, tip_goal });
     }
   };
+
+  // ── BATTLES handlers ─────────────────────────────────────────────────────────
+  const searchBattleOpponents = async (q) => {
+    setBattleSearch(q);
+    if (!q || q.length < 2) { setBattleResults([]); return; }
+    try {
+      const { data } = await api.get(`/api/profiles/search?q=${encodeURIComponent(q)}&is_creator=true`);
+      setBattleResults((data?.profiles || data?.results || []).filter(p => p.id !== user.id).slice(0, 5));
+    } catch { setBattleResults([]); }
+  };
+
+  const inviteBattleOpponent = async (opponentId) => {
+    if (!showId || !isLive) { toast.error('Inicia el show primero'); return; }
+    setBattleInviting(opponentId);
+    try {
+      const { data } = await api.post('/api/battles/invite', {
+        host2_id: opponentId, show1_id: showId, duration_minutes: 5,
+      });
+      toast.success('Invitación enviada — espera que acepte');
+      setBattleSearch(''); setBattleResults([]); setShowBattleSearch(false);
+      // Quedamos a la escucha: cuando el oponente acepte se broadcastea al canal
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'No se pudo invitar');
+    } finally { setBattleInviting(null); }
+  };
+
+  const handleBattleAccepted = useCallback((battle) => {
+    setActiveBattle(battle);
+    // Broadcast al show channel para que viewers vean el overlay
+    chatChannelRef.current?.send({
+      type: 'broadcast', event: 'battle_started',
+      payload: { battleId: battle.id },
+    }).catch(() => {});
+  }, []);
+
+  const handleBattleEnded = useCallback(() => {
+    setActiveBattle(null);
+    chatChannelRef.current?.send({
+      type: 'broadcast', event: 'battle_ended', payload: {},
+    }).catch(() => {});
+  }, []);
+
+  // Poll activo: si estoy live y alguien aceptó mi invite, lo detecto aquí
+  useEffect(() => {
+    if (!isLive || !showId) return;
+    const checkActive = async () => {
+      try {
+        const { data } = await api.get(`/api/battles/active?show_id=${showId}`);
+        if (data.battle && !activeBattle) {
+          setActiveBattle(data.battle);
+        }
+      } catch {}
+    };
+    checkActive();
+    const t = setInterval(checkActive, 10_000);
+    return () => clearInterval(t);
+  }, [isLive, showId, activeBattle]);
 
   const handleEndShow = async () => {
     if (!showId) return;
@@ -2065,6 +2131,18 @@ export default function ShowStudio() {
           </AnimatePresence>
         </div>
       )}
+      {/* Battle overlay: host es host1 si el battle se invitó desde su show1 */}
+      {isLive && activeBattle && (
+        <BattleOverlay
+          battleId={activeBattle.id}
+          viewerSide={
+            activeBattle.host1_id === user?.id ? 'host1'
+            : activeBattle.host2_id === user?.id ? 'host2'
+            : 'viewer'
+          }
+          onEnded={handleBattleEnded}
+        />
+      )}
     </div>
   );
 
@@ -2114,6 +2192,16 @@ export default function ShowStudio() {
             <div className="flex-1" />
             <span className="flex items-center gap-1 text-xs text-gray-300 shrink-0"><FiUsers size={11} />{viewerCount}</span>
             <span className="flex items-center gap-1 text-xs text-yellow-400 font-bold shrink-0"><FiZap size={11} />{totalCoinsEarned}</span>
+            {!activeBattle && (
+              <button
+                onClick={() => setShowBattleSearch(s => !s)}
+                className="px-2 h-6 rounded bg-pink-500/15 hover:bg-pink-500/25 text-pink-300 text-[10px] font-bold flex items-center gap-1 shrink-0 transition-colors"
+                title="Lanzar battle 1v1"
+                aria-label="Lanzar battle"
+              >
+                ⚔️ Battle
+              </button>
+            )}
             <button onClick={handleCopyLink} className="w-6 h-6 rounded bg-white/5 hover:bg-white/10 flex items-center justify-center transition-colors shrink-0" title="Copiar link">
               <FiCopy size={11} className="text-gray-400" />
             </button>
@@ -2237,6 +2325,67 @@ export default function ShowStudio() {
 
       {/* Animación full-screen para regalos >= 200 coins (host también la ve) */}
       <BigGiftAnimation gift={bigGiftQueue.current} onComplete={bigGiftQueue.dequeue} />
+
+      {/* Modal para invitar a otro creator a un battle */}
+      <AnimatePresence>
+        {showBattleSearch && isLive && !activeBattle && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/70 z-[70] flex items-center justify-center p-4"
+            onClick={() => setShowBattleSearch(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }}
+              role="dialog" aria-modal="true" aria-labelledby="battle-search-title"
+              onClick={e => e.stopPropagation()}
+              className="w-full max-w-md bg-[#1a1a1e] border border-white/10 rounded-2xl p-5 shadow-2xl"
+            >
+              <div className="flex items-center justify-between mb-3">
+                <h3 id="battle-search-title" className="text-white font-black text-lg flex items-center gap-2">
+                  <span aria-hidden="true">⚔️</span> Lanzar battle 1v1
+                </h3>
+                <button onClick={() => setShowBattleSearch(false)} aria-label="Cerrar" className="text-gray-400 hover:text-white">
+                  <FiX size={18} />
+                </button>
+              </div>
+              <p className="text-gray-400 text-xs mb-3">Busca a otro creador en vivo. Battle de 5 minutos · gana quien reciba más coins.</p>
+              <input
+                autoFocus
+                className="w-full bg-[#111115] border border-white/10 text-white text-sm rounded-lg px-3 py-2 outline-none focus:border-pink-500/50"
+                placeholder="Buscar por nombre o @username"
+                value={battleSearch}
+                onChange={e => searchBattleOpponents(e.target.value)}
+              />
+              <div className="mt-3 space-y-1.5 max-h-60 overflow-y-auto">
+                {battleResults.map(p => (
+                  <button
+                    key={p.id}
+                    onClick={() => inviteBattleOpponent(p.id)}
+                    disabled={battleInviting === p.id}
+                    className="w-full flex items-center gap-2.5 p-2 rounded-lg bg-dark-800 hover:bg-dark-700 transition-colors disabled:opacity-50"
+                  >
+                    <img
+                      src={p.avatar_url || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(p.full_name || 'U')}
+                      alt=""
+                      className="w-8 h-8 rounded-full object-cover"
+                    />
+                    <span className="flex-1 text-left text-white text-sm font-semibold truncate">{p.full_name}</span>
+                    <span className="text-[10px] text-pink-300 font-bold">
+                      {battleInviting === p.id ? '…' : 'Invitar'}
+                    </span>
+                  </button>
+                ))}
+                {battleSearch.length >= 2 && battleResults.length === 0 && (
+                  <p className="text-center text-gray-500 text-xs py-4">Sin resultados</p>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal de invitación entrante a battle (cuando otro host me invita) */}
+      {isLive && <BattleInviteModal onAccepted={handleBattleAccepted} />}
     </div>
   );
 }
