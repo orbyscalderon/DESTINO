@@ -249,26 +249,32 @@ export const getUserReels = async (req, res) => {
 };
 
 // POST /api/reels/:id/save — toggle save (bookmark)
+// Resuelve race condition con doble-click: intentamos insert con ON CONFLICT;
+// si ya existe (conflict 23505), borramos. Operación atómica vía constraint.
 export const toggleSaveReel = async (req, res) => {
   try {
     const userId = req.user.id;
     const reelId = req.params.id;
 
-    const { data: existing } = await supabase
+    // Intentar insert primero (sin conflicto = saved fresh)
+    const { error: insertErr } = await supabase
       .from('reel_saves')
-      .select('reel_id')
-      .eq('reel_id', reelId)
-      .eq('user_id', userId)
-      .maybeSingle();
+      .insert({ reel_id: reelId, user_id: userId });
 
-    if (existing) {
-      await supabase.from('reel_saves')
-        .delete().eq('reel_id', reelId).eq('user_id', userId);
+    if (!insertErr) return res.json({ saved: true });
+
+    // Si dio conflicto único (23505) — ya estaba guardado → borrar (unsave)
+    if (insertErr.code === '23505') {
+      const { error: delErr } = await supabase
+        .from('reel_saves')
+        .delete()
+        .eq('reel_id', reelId)
+        .eq('user_id', userId);
+      if (delErr) throw delErr;
       return res.json({ saved: false });
     }
 
-    await supabase.from('reel_saves').insert({ reel_id: reelId, user_id: userId });
-    res.json({ saved: true });
+    throw insertErr;
   } catch (err) {
     console.error('[toggleSaveReel] error:', err.message);
     res.status(500).json({ error: safeErrorMessage(err) });
@@ -724,6 +730,31 @@ export const getReel = async (req, res) => {
       .single();
 
     if (!reel) return res.status(404).json({ error: 'Reel no encontrado' });
+
+    // B1: Bloquear acceso a reels adultos sin viewer autenticado y verificado.
+    // Antes un viewer sin auth podía abrir el deep link y ver +18.
+    if (reel.is_adult) {
+      if (!viewerId) {
+        return res.status(401).json({
+          error: 'Inicia sesión y verifica tu edad para ver este reel',
+          code: 'AUTH_REQUIRED',
+        });
+      }
+      const { data: viewer } = await supabase
+        .from('profiles')
+        .select('is_adult_creator, age_verified_at, premium_tier')
+        .eq('id', viewerId)
+        .single();
+      const canSeeAdult = !!viewer?.is_adult_creator
+                       || !!viewer?.age_verified_at
+                       || viewer?.premium_tier === 'vip';
+      if (!canSeeAdult) {
+        return res.status(403).json({
+          error: 'Verifica tu edad para ver este reel',
+          code: 'AGE_VERIFICATION_REQUIRED',
+        });
+      }
+    }
 
     if (viewerId) {
       const [{ data: like }, { data: save }] = await Promise.all([

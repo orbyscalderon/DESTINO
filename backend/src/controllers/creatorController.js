@@ -160,6 +160,15 @@ export const getOnboardingLink = async (req, res) => {
       return res.status(400).json({ error: 'Primero debes activar tu cuenta de creador' });
     }
 
+    // CRÍTICO: adult creators NO van por Stripe — Stripe TOS bannea NSFW.
+    // Deben configurarse en CCBill (sub-account aprobada manualmente).
+    if (profile.is_adult_creator) {
+      return res.status(400).json({
+        error: 'Como creador adulto usas CCBill para pagos. Solicita configuración a soporte.',
+        code: 'ADULT_CREATOR_USE_CCBILL',
+      });
+    }
+
     let accountId = profile.stripe_account_id;
     if (!accountId) {
       try {
@@ -183,8 +192,9 @@ export const getOnboardingLink = async (req, res) => {
           .update({ stripe_account_id: accountId, stripe_account_status: 'pending' })
           .eq('id', userId);
       } catch (err) {
-        console.error('getOnboardingLink stripe.accounts.create:', err.message);
-        return res.status(500).json({ error: 'No se pudo crear la cuenta de Stripe: ' + err.message });
+        // No filtrar err.message — puede contener info de infraestructura
+        console.error('getOnboardingLink stripe.accounts.create:', err.message, err.code);
+        return res.status(500).json({ error: 'No se pudo crear la cuenta de pagos' });
       }
     }
 
@@ -304,11 +314,20 @@ export const requestPayout = async (req, res) => {
 
     const { data: profile } = await supabase
       .from('profiles')
-      .select('is_creator, stripe_account_id, stripe_account_status')
+      .select('is_creator, is_adult_creator, stripe_account_id, stripe_account_status')
       .eq('id', creatorId)
       .single();
 
     if (!profile?.is_creator) return res.status(403).json({ error: 'No eres creador' });
+
+    // Adult creators NO retiran por Stripe — pagos van por CCBill DataLink
+    // (procesado separadamente; este endpoint es solo Stripe Connect).
+    if (profile.is_adult_creator) {
+      return res.status(400).json({
+        error: 'Los retiros de creadores adultos se procesan por CCBill. Usa /api/payments/ccbill/payout',
+        code: 'ADULT_CREATOR_USE_CCBILL_PAYOUT',
+      });
+    }
     if (profile?.stripe_account_status !== 'active') {
       return res.status(400).json({ error: 'Completa la configuración de pagos antes de retirar', code: 'STRIPE_SETUP_REQUIRED' });
     }

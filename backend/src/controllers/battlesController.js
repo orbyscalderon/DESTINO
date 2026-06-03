@@ -233,46 +233,44 @@ export const tipBattle = async (req, res) => {
       return res.status(400).json({ error: 'Coins inválidos' });
     }
 
-    // Validar battle live antes de gastar coins
-    const { data: battle } = await supabase
-      .from('stream_battles')
-      .select('id, status, host1_id, host2_id, duration_minutes, started_at')
-      .eq('id', battleId)
-      .single();
-    if (!battle) return res.status(404).json({ error: 'Battle no encontrado' });
-    if (battle.status !== 'live') return res.status(400).json({ error: 'El battle no está en vivo' });
-
-    const hostId = team === 1 ? battle.host1_id : battle.host2_id;
-    if (tipperId === hostId) return res.status(400).json({ error: 'No puedes tipear a ti mismo' });
-
-    // Gastar coins (atómico)
-    const { spendCoins, addCoins, CREATOR_CUT } = await import('./coinController.js');
-    try {
-      await spendCoins(tipperId, coins, 'battle_tip', battleId);
-    } catch (e) {
-      if (e?.code === 'INSUFFICIENT_COINS') {
-        return res.status(400).json({ error: 'Coins insuficientes', code: 'INSUFFICIENT_COINS' });
-      }
-      throw e;
-    }
-
-    // Acreditar al host (70%)
+    // B3: Usar RPC atómica tip_battle_atomic (v44) que hace TODO en una TX:
+    //   - lock del battle + validaciones
+    //   - spend coins del tipper
+    //   - add coins al host (70%)
+    //   - registrar tip + actualizar score
+    // Si CUALQUIER paso falla, la TX se revierte → no más coins perdidos en
+    // race conditions (antes eran 3 ops separadas con refund best-effort).
+    const { CREATOR_CUT } = await import('../lib/constants.js');
     const creatorCoins = Math.round(coins * CREATOR_CUT);
-    await addCoins(hostId, creatorCoins, 'tip_received', battleId);
 
-    // Insertar tip + actualizar score atómicamente
-    const { data: rpcResult, error: rpcErr } = await supabase.rpc('battle_add_tip', {
-      p_battle_id: battleId,
-      p_tipper_id: tipperId,
-      p_team: team,
-      p_coins: coins,
+    const { data: rpcResult, error: rpcErr } = await supabase.rpc('tip_battle_atomic', {
+      p_battle_id:     battleId,
+      p_tipper_id:     tipperId,
+      p_team:          team,
+      p_coins:         coins,
+      p_creator_coins: creatorCoins,
     });
-    if (rpcErr) throw rpcErr;
+
+    if (rpcErr) {
+      console.error('[tipBattle] RPC error:', rpcErr.message);
+      return res.status(500).json({ error: 'Error procesando tip' });
+    }
     const result = Array.isArray(rpcResult) ? rpcResult[0] : rpcResult;
     if (!result?.success) {
-      // Refund — best effort
-      await addCoins(tipperId, coins, 'refund', battleId).catch(() => {});
-      return res.status(400).json({ error: result?.error_code || 'No se pudo procesar el tip' });
+      const code = result?.error_code;
+      if (code === 'INSUFFICIENT_COINS') {
+        return res.status(400).json({ error: 'Coins insuficientes', code });
+      }
+      if (code === 'BATTLE_NOT_LIVE') {
+        return res.status(400).json({ error: 'El battle no está en vivo', code });
+      }
+      if (code === 'BATTLE_NOT_FOUND') {
+        return res.status(404).json({ error: 'Battle no encontrado', code });
+      }
+      if (code === 'CANNOT_TIP_SELF') {
+        return res.status(400).json({ error: 'No puedes tipear a ti mismo', code });
+      }
+      return res.status(400).json({ error: code || 'No se pudo procesar el tip' });
     }
 
     // Broadcast score actualizado
@@ -303,13 +301,27 @@ export const endBattle = async (req, res) => {
 
     const { data: battle } = await supabase
       .from('stream_battles')
-      .select('host1_id, host2_id, status')
+      .select('host1_id, host2_id, status, started_at, duration_minutes')
       .eq('id', battleId)
       .single();
     if (!battle) return res.status(404).json({ error: 'Battle no encontrado' });
     if (battle.status !== 'live') return res.status(400).json({ error: 'Battle no está live' });
     if (battle.host1_id !== userId && battle.host2_id !== userId) {
       return res.status(403).json({ error: 'Solo los hosts pueden terminar' });
+    }
+
+    // B2: validar que el tiempo del battle realmente terminó (con 5s de gracia).
+    // Antes cualquier host podía terminar el battle prematuramente, robando
+    // tiempo a los viewers que ya habían apostado en el otro lado.
+    const elapsedMs = Date.now() - new Date(battle.started_at).getTime();
+    const totalMs   = (battle.duration_minutes || 5) * 60 * 1000;
+    if (elapsedMs < totalMs - 5000) {
+      const remainingSec = Math.ceil((totalMs - elapsedMs) / 1000);
+      return res.status(400).json({
+        error: `El battle aún no termina (faltan ${remainingSec}s)`,
+        code: 'BATTLE_STILL_LIVE',
+        remaining_seconds: remainingSec,
+      });
     }
 
     const { data: rpcResult, error } = await supabase.rpc('battle_end', { p_battle_id: battleId });
@@ -365,6 +377,31 @@ export const getBattle = async (req, res) => {
       .single();
     if (!battle) return res.status(404).json({ error: 'Battle no encontrado' });
     res.json({ battle });
+  } catch (err) {
+    res.status(500).json({ error: safeErrorMessage(err) });
+  }
+};
+
+// GET /api/battles/active?show_id=:id — battle live asociado a un show
+// (para que viewers que entran tarde vean el battle).
+export const getActiveBattleForShow = async (req, res) => {
+  try {
+    const showId = req.query.show_id;
+    if (!showId) return res.status(400).json({ error: 'show_id requerido' });
+
+    const { data: battle } = await supabase
+      .from('stream_battles')
+      .select(`
+        id, status, duration_minutes, score1_coins, score2_coins,
+        invited_at, accepted_at, started_at, ended_at, winner_id,
+        host1_id, host2_id, show1_id, show2_id,
+        host1:profiles!host1_id (id, full_name, avatar_url, is_verified),
+        host2:profiles!host2_id (id, full_name, avatar_url, is_verified)
+      `)
+      .eq('status', 'live')
+      .or(`show1_id.eq.${showId},show2_id.eq.${showId}`)
+      .maybeSingle();
+    res.json({ battle: battle || null });
   } catch (err) {
     res.status(500).json({ error: safeErrorMessage(err) });
   }
