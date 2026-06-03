@@ -18,6 +18,7 @@ import VideoPackagesManager from '../components/ui/VideoPackagesManager.jsx';
 import CreatorGiftsManager from '../components/ui/CreatorGiftsManager.jsx';
 import TipMenuManager from '../components/ui/TipMenuManager.jsx';
 import TierManager from '../components/ui/TierManager.jsx';
+import CCBillSetup from '../components/ui/CCBillSetup.jsx';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 
 /* ── Helpers ─────────────────────────────────────────────── */
@@ -902,6 +903,9 @@ export default function CreatorDashboard() {
                     <div className="card p-4">
                       <TierManager />
                     </div>
+
+                    {/* CCBill (solo creators adultos) */}
+                    {profile?.is_adult_creator && <CCBillSetup />}
 
                     {/* Tip menu / wishlist */}
                     <TipMenuManager />

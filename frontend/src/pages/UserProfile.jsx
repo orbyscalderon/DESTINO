@@ -180,6 +180,33 @@ export default function UserProfile() {
     setSubscribing(true);
     setShowTierModal(false);
     try {
+      // Si el creator es adulto, intentar primero CCBill (preferido por
+      // procesador para adult content). Si no está configurado o no es
+      // creator adulto, caer a Stripe.
+      const tryCCBill = !!profile.is_adult_creator
+                     && !tierOrLegacy?.legacy
+                     && !!tierOrLegacy?.id;
+      if (tryCCBill) {
+        try {
+          const { data } = await api.post('/api/payments/ccbill/subscribe-link', {
+            creatorId: userId,
+            tierId: tierOrLegacy.id,
+          });
+          // Redirigir al hosted form de CCBill (PCI burden está en ellos)
+          window.location.href = data.url;
+          return;
+        } catch (ccbillErr) {
+          const code = ccbillErr.response?.data?.code;
+          // Si CCBill no está configurado (global o creator) → fallback a Stripe
+          if (code !== 'CCBILL_NOT_CONFIGURED' && code !== 'CCBILL_CREATOR_NOT_READY') {
+            // Otro error real
+            toast.error(ccbillErr.response?.data?.error || 'Error al iniciar pago');
+            return;
+          }
+          // si no, sigue al flow Stripe abajo
+        }
+      }
+
       const body = tierOrLegacy?.legacy ? {} : { tierId: tierOrLegacy?.id };
       const { data } = await api.post(`/api/creator/${userId}/subscribe`, body);
       setPaymentModal({
