@@ -1118,9 +1118,23 @@ export default function ShowStudio() {
         toast(`${payload.viewerName} quiere un show privado (${payload.rate}/min)`, { icon: '🔒', duration: 6000 });
       })
       .on('broadcast', { event: 'private_end' }, ({ payload }) => {
-        // Si el viewer terminó la sesión, limpiar UI del host
         if (privateRequest?.viewerId === payload.viewerId) setPrivateRequest(null);
-        if (payload.endedBy === 'viewer') toast(`Show privado finalizado por el viewer (${payload.reason || 'manual'})`, { icon: '📴' });
+
+        // Si yo (host) estoy en sesión privada con este viewer y él la terminó,
+        // entrar en modo pausa: limpiar el tile del viewer, cortar su audio,
+        // marcar state='ended'. El host decide cuándo volver a broadcast.
+        setPrivateSessionHost(prev => {
+          if (!prev) return prev;
+          if (prev.viewerId !== payload.viewerId) return prev;
+          return { ...prev, state: 'ended' };
+        });
+        setPrivateViewerStream(null);
+        cleanupPrivateAudioElements();
+
+        if (payload.endedBy === 'viewer') {
+          toast(`El viewer terminó el show privado · pulsa "Volver a broadcast" cuando estés listo`,
+            { icon: '⏸️', duration: 6000 });
+        }
       })
       .on('broadcast', { event: 'dm' }, ({ payload }) => {
         setPrivateMessages(prev => [...prev.slice(-99), payload]);
