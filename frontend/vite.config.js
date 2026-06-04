@@ -51,8 +51,15 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
-          // LiveKit es enorme (~600 KB) — sólo se usa en ShowStudio y LiveShow
+          // LiveKit es enorme (~600 KB) — sólo se usa en ShowStudio/LiveShow
           if (id.includes('livekit-client')) return 'livekit';
+
+          // Recharts: solo se usa en CreatorDashboard analytics — chunk aparte
+          if (id.includes('recharts') || id.includes('d3-')
+              || id.includes('victory-vendor')) return 'recharts';
+
+          // i18next + react-i18next — pequeños pero podemos aislarlos
+          if (id.includes('i18next')) return 'i18n';
 
           // Supabase
           if (id.includes('@supabase')) return 'supabase';
@@ -60,7 +67,7 @@ export default defineConfig({
           // Framer Motion
           if (id.includes('framer-motion')) return 'framer';
 
-          // Sentry — sólo para monitoreo, no bloquea UI
+          // Sentry (cargado dinámicamente desde main.jsx)
           if (id.includes('@sentry')) return 'sentry';
 
           // Stripe — sólo se carga en páginas de pago
@@ -69,7 +76,13 @@ export default defineConfig({
           // Íconos
           if (id.includes('react-icons')) return 'icons';
 
-          // Resto de node_modules como vendor general (incluye react, react-dom, react-router)
+          // PostHog — solo si hay analytics — pesado
+          if (id.includes('posthog')) return 'posthog';
+
+          // MediaPipe (face detection) — solo se necesita en VideoCall/Verify
+          if (id.includes('@mediapipe')) return 'mediapipe';
+
+          // Resto de node_modules como vendor general
           if (id.includes('node_modules')) return 'vendor';
         },
       },

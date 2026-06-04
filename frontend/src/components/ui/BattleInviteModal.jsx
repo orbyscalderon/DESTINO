@@ -32,7 +32,10 @@ export default function BattleInviteModal({ onAccepted, showId }) {
       } catch {}
     };
     fetchPending();
-    const t = setInterval(fetchPending, 10_000);
+    // Polling cada 60s como FALLBACK del broadcast realtime. Si llega un
+    // battle_invite_received antes, refrescamos de inmediato. Antes era 10s
+    // pero ya no tiene sentido — el realtime cubre el caso común.
+    const t = setInterval(fetchPending, 60_000);
 
     // Subscribe al canal de mi show si lo conozco. Cuando alguien me invita
     // y emite `battle_invite_received`, refrescamos pendings al instante en

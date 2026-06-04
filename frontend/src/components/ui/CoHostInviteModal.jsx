@@ -32,7 +32,9 @@ export default function CoHostInviteModal() {
       } catch {}
     };
     fetchPending();
-    const t = setInterval(fetchPending, 10_000);
+    // Polling cada 60s como FALLBACK del broadcast realtime
+    // `cohost_invite_received`. El realtime cubre el caso común.
+    const t = setInterval(fetchPending, 60_000);
 
     // Si estoy live (tengo un show propio en estado 'live'), suscribirme al
     // canal de mi show para reaccionar instantáneo al broadcast
