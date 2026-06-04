@@ -532,12 +532,45 @@ export default function LiveShow() {
         if (role === 'host') setPrivateRequest(payload);
       })
       .on('broadcast', { event: 'private_accept' }, ({ payload }) => {
-        if (role === 'viewer' && payload.viewerId === user?.id) {
+        // Si soy el viewer aceptado → reconectar al room privado.
+        // Si soy otro viewer → quedarme en el público (el host saldrá del
+        // room público y vendrá un private_kick por separado).
+        if (role !== 'viewer') return;
+        if (payload.viewerId === user?.id && payload.privateRoomId) {
           setPrivateSession({ type: payload.type, rate: payload.rate, startTime: Date.now() });
           setPrivateBalance(coinBalance);
           setPrivateMinutes(0);
           startPrivateTick(payload.type, payload.rate);
-          toast.success(`¡Show privado iniciado! ${payload.rate} coins/min`);
+          toast.success(
+            payload.type === 'exclusive'
+              ? `🔒 CAM2CAM iniciado — tu cámara va a publicar`
+              : `🔒 Show privado iniciado — ${payload.rate} coins/min`
+          );
+          // Reconnect a privateRoomId con canPublish=true si exclusive
+          (async () => {
+            try {
+              await rtcRef.current?.leave().catch(() => {});
+              const rtc = new LiveKitSession(payload.privateRoomId);
+              rtc.onRemoteTrack = (track, participant) => {
+                if (track.kind === 'video') {
+                  setPendingViewerTracks(prev => ({ ...(prev || {}), video: track.mediaStreamTrack }));
+                } else if (track.kind === 'audio') {
+                  setPendingViewerTracks(prev => ({ ...(prev || {}), audio: track.mediaStreamTrack }));
+                }
+              };
+              rtcRef.current = rtc;
+              // canPublish=true; el backend decide si realmente puede según el type
+              await rtc.join(payload.type === 'exclusive');
+            } catch (e) {
+              console.error('[viewer] reconnect privado falló', e);
+              toast.error('No se pudo conectar al room privado');
+            }
+          })();
+        } else if (payload.viewerId !== user?.id) {
+          // Otros viewers: el host estará pronto en otro room, no veremos su
+          // cámara. Mostrar aviso y mandar al directorio de shows.
+          toast(`El host inició un show privado con otro viewer`, { icon: '🔒', duration: 4000 });
+          setTimeout(() => navigate('/shows'), 1800);
         }
       })
       .on('broadcast', { event: 'private_decline' }, ({ payload }) => {
@@ -546,13 +579,34 @@ export default function LiveShow() {
         }
       })
       .on('broadcast', { event: 'private_end' }, ({ payload }) => {
-        // Viewer: termina la sesión si su ID coincide y la finaliza otro lado
+        // Viewer aceptado: vuelve al room público
         if (role === 'viewer' && privateSession && (!payload.viewerId || payload.viewerId === user?.id)) {
-          if (payload.endedBy === 'host') {
-            clearInterval(privateTickRef.current);
-            setPrivateSession(null);
-            setPrivateMinutes(0);
-            toast('Show privado terminado por el host', { icon: '📴' });
+          clearInterval(privateTickRef.current);
+          setPrivateSession(null);
+          setPrivateMinutes(0);
+          toast(
+            payload.endedBy === 'host'
+              ? 'Show privado terminado por el host'
+              : 'Show privado terminado',
+            { icon: '📴' }
+          );
+          // Reconectar al room público
+          if (payload.publicRoomId) {
+            (async () => {
+              try {
+                await rtcRef.current?.leave().catch(() => {});
+                const rtc = new LiveKitSession(payload.publicRoomId);
+                rtc.onRemoteTrack = (track, participant) => {
+                  if (track.kind === 'video') {
+                    setPendingViewerTracks(prev => ({ ...(prev || {}), video: track.mediaStreamTrack }));
+                  } else if (track.kind === 'audio') {
+                    setPendingViewerTracks(prev => ({ ...(prev || {}), audio: track.mediaStreamTrack }));
+                  }
+                };
+                rtcRef.current = rtc;
+                await rtc.join(false); // viewer normal — no publica
+              } catch (e) { console.warn('[viewer] reconnect público falló', e); }
+            })();
           }
         }
         // Host: limpiar cualquier solicitud pendiente del mismo viewer

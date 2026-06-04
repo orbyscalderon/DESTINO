@@ -388,6 +388,13 @@ export default function ShowStudio() {
   const [battleInviting, setBattleInviting]         = useState(null);
   const [showBattleSearch, setShowBattleSearch]     = useState(false);
 
+  // ── PRIVATE SHOW (host side) ─────────────────────────────────────────────────
+  // Cuando aceptamos un request privado, reconectamos a un room nuevo y
+  // mostramos el track del viewer si es cam2cam exclusive.
+  const [privateSession, setPrivateSessionHost]     = useState(null); // {viewerId, viewerName, type, rate, roomId}
+  const [privateViewerStream, setPrivateViewerStream] = useState(null); // MediaStream del viewer (solo exclusive)
+  const privateViewerVideoRef = useRef(null);
+
   // ── Grabación ────────────────────────────────────────────────────────────────
   const [recording, setRecording]       = useState(false);
   const [uploadingRec, setUploadingRec] = useState(false);
@@ -1135,15 +1142,76 @@ export default function ShowStudio() {
   const handleAcceptPrivate = async () => {
     if (!privateRequest) return;
     try {
-      await api.post(`/api/shows/${showId}/private/accept`, {
+      const { data } = await api.post(`/api/shows/${showId}/private/accept`, {
         viewerId: privateRequest.viewerId,
         type: privateRequest.type,
       });
+      const { privateRoomId, type } = data;
       setPrivateRequest(null);
-      toast.success(`Show privado iniciado con ${privateRequest.viewerName}`);
-    } catch {
-      toast.error('Error al aceptar');
+
+      // Reconectar al room privado manteniendo cámara/mic
+      await reconnectToRoom(privateRoomId);
+
+      setPrivateSessionHost({
+        viewerId: privateRequest.viewerId,
+        viewerName: privateRequest.viewerName,
+        type, rate: data.rate,
+        roomId: privateRoomId,
+      });
+      toast.success(
+        type === 'exclusive'
+          ? `🔒 CAM2CAM con ${privateRequest.viewerName} — verás su cámara`
+          : `🔒 Show privado iniciado con ${privateRequest.viewerName}`
+      );
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Error al aceptar');
     }
+  };
+
+  // Reconecta el LiveKit del host a un room distinto sin perder cámara/mic.
+  // Re-usa el localStreamRef.current. Lo llama tanto handleAcceptPrivate
+  // (para entrar al privado) como handleEndPrivateShow (para volver al público).
+  const reconnectToRoom = async (newRoomId) => {
+    if (!rtcRef.current || !localStreamRef.current) return;
+    try {
+      await rtcRef.current.leave().catch(() => {});
+    } catch {}
+    const rtc = new LiveKitSession(newRoomId);
+    rtcRef.current = rtc;
+    // listeners para tracks remotos (viewer cam2cam)
+    rtc.onRemoteTrack = (track, participant) => {
+      const pid = participant?.identity;
+      if (track.kind === 'video') {
+        const stream = new MediaStream([track.mediaStreamTrack]);
+        setPrivateViewerStream(stream);
+        if (privateViewerVideoRef.current) {
+          privateViewerVideoRef.current.srcObject = stream;
+        }
+      } else if (track.kind === 'audio') {
+        const a = document.createElement('audio');
+        a.autoplay = true;
+        a.srcObject = new MediaStream([track.mediaStreamTrack]);
+        document.body.appendChild(a);
+      }
+    };
+    await rtc.join(true, { skipAutoMedia: true });
+    await rtc.publishStream(localStreamRef.current);
+  };
+
+  const handleEndPrivateShow = async () => {
+    if (!privateSession) return;
+    try {
+      await api.post(`/api/shows/${showId}/private/end`, {
+        viewerId: privateSession.viewerId,
+        reason: 'host_ended',
+      });
+    } catch {}
+    setPrivateSessionHost(null);
+    setPrivateViewerStream(null);
+    // Volver al room público
+    const publicRoomId = `show_${showId.replace(/-/g, '')}`;
+    await reconnectToRoom(publicRoomId);
+    toast('Show privado terminado — vuelves al show público', { icon: '📺' });
   };
 
   const handleDeclinePrivate = async () => {
@@ -2230,6 +2298,48 @@ export default function ShowStudio() {
             ))}
           </AnimatePresence>
         </div>
+      )}
+      {/* Banner MODO PRIVADO + tile del viewer (cam2cam exclusive) */}
+      {isLive && privateSession && (
+        <>
+          <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 bg-purple-600/90 backdrop-blur-md rounded-full px-3 py-1.5 flex items-center gap-2 shadow-lg shadow-purple-500/40">
+            <span className="text-white text-[10px] font-black tracking-wider">
+              🔒 {privateSession.type === 'exclusive' ? 'CAM2CAM' : 'PRIVADO'}
+            </span>
+            <span className="text-purple-100 text-[10px]">·</span>
+            <span className="text-white text-[10px] font-bold truncate max-w-[120px]">
+              {privateSession.viewerName}
+            </span>
+            <span className="text-purple-100 text-[10px]">·</span>
+            <span className="text-yellow-300 text-[10px] font-black">{privateSession.rate}/min</span>
+            <button
+              onClick={handleEndPrivateShow}
+              className="ml-1 bg-white/15 hover:bg-white/25 rounded-full px-2 py-0.5 text-white text-[9px] font-bold"
+              aria-label="Terminar show privado"
+            >Terminar</button>
+          </div>
+          {/* Tile cámara del viewer (solo cam2cam exclusive) */}
+          {privateSession.type === 'exclusive' && (
+            <div className="absolute bottom-20 left-3 z-20 w-32 sm:w-40 aspect-[3/4] rounded-xl overflow-hidden border-2 border-purple-500 shadow-2xl shadow-purple-500/40 bg-black">
+              {privateViewerStream ? (
+                <video
+                  ref={privateViewerVideoRef}
+                  autoPlay playsInline
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full flex flex-col items-center justify-center text-center px-2">
+                  <div className="w-6 h-6 border-2 border-purple-400 border-t-transparent rounded-full animate-spin mb-2" />
+                  <p className="text-purple-300 text-[10px] font-bold">Esperando cámara de</p>
+                  <p className="text-white text-xs font-bold truncate">{privateSession.viewerName}</p>
+                </div>
+              )}
+              <div className="absolute top-1 left-1 bg-purple-600 text-white text-[8px] font-black px-1.5 py-0.5 rounded">
+                {privateSession.viewerName?.split(' ')[0] || 'Viewer'}
+              </div>
+            </div>
+          )}
+        </>
       )}
       {/* Battle overlay: host es host1 si el battle se invitó desde su show1 */}
       {isLive && activeBattle && (
