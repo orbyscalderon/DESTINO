@@ -186,7 +186,7 @@ export default function Reels() {
   }
 
   return (
-    <div className="relative h-screen [@supports(height:100dvh)]:h-[100dvh] w-full bg-black overflow-hidden">
+    <div className="relative h-screen [@supports(height:100dvh)]:h-[100dvh] w-full bg-black overflow-hidden lg:flex">
       {/* Topbar */}
       <div className="absolute top-0 left-0 right-0 z-20 px-4 py-3 flex items-center justify-between bg-gradient-to-b from-black/60 to-transparent">
         <button
@@ -240,48 +240,72 @@ export default function Reels() {
       </div>
 
       {/* Feed scrolleable con snap.
-          touch-action: pan-y evita conflictos con swipe horizontal del navbar. */}
+          touch-action: pan-y evita conflictos con swipe horizontal del navbar.
+          En desktop el container es flex y deja espacio al panel lateral. */}
       <div
         ref={containerRef}
-        className="h-full w-full overflow-y-scroll snap-y snap-mandatory scrollbar-none"
+        className="h-full flex-1 lg:flex-none w-full lg:w-auto lg:flex-1 overflow-y-scroll snap-y snap-mandatory scrollbar-none lg:flex lg:justify-center"
         style={{ scrollSnapType: 'y mandatory', touchAction: 'pan-y' }}
       >
-        {reels.map((reel, i) => (
-          <ReelCard
-            key={reel.id}
-            reel={reel}
-            active={i === activeIndex}
-            muted={muted}
-            onToggleMute={() => setMuted(m => !m)}
-            onViewTracked={handleViewTracked}
-            onOpenComments={(reelId) => setCommentsReelId(reelId)}
-            onCommentDelta={(delta) => {
-              setReels(prev => prev.map(r =>
-                r.id === reel.id ? { ...r, comments_count: Math.max(0, (r.comments_count || 0) + delta) } : r
-              ));
-            }}
-          />
-        ))}
-        {loadingMore && (
-          <div className="h-20 flex items-center justify-center bg-black">
-            <div className="w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
-          </div>
-        )}
+        <div className="lg:w-full lg:max-w-[480px]">
+          {reels.map((reel, i) => (
+            <ReelCard
+              key={reel.id}
+              reel={reel}
+              active={i === activeIndex}
+              muted={muted}
+              onToggleMute={() => setMuted(m => !m)}
+              onViewTracked={handleViewTracked}
+              onOpenComments={(reelId) => setCommentsReelId(reelId)}
+              onCommentDelta={(delta) => {
+                setReels(prev => prev.map(r =>
+                  r.id === reel.id ? { ...r, comments_count: Math.max(0, (r.comments_count || 0) + delta) } : r
+                ));
+              }}
+            />
+          ))}
+          {loadingMore && (
+            <div className="h-20 flex items-center justify-center bg-black">
+              <div className="w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Comments drawer */}
-      <ReelComments
-        reelId={commentsReelId}
-        reelOwnerId={reels.find(r => r.id === commentsReelId)?.user?.id}
-        onClose={() => setCommentsReelId(null)}
-        onCommentAdded={(delta) => {
-          setReels(prev => prev.map(r =>
-            r.id === commentsReelId
-              ? { ...r, comments_count: Math.max(0, (r.comments_count || 0) + delta) }
-              : r
-          ));
-        }}
-      />
+      {/* Comments — drawer en mobile, panel lateral fijo en lg+ desktop.
+          Solo se muestra cuando hay un commentsReelId activo. */}
+      {commentsReelId && (
+        <div className="hidden lg:block lg:w-[380px] xl:w-[420px] shrink-0 bg-dark-900 border-l border-white/10 h-full overflow-hidden">
+          <ReelComments
+            reelId={commentsReelId}
+            reelOwnerId={reels.find(r => r.id === commentsReelId)?.user?.id}
+            onClose={() => setCommentsReelId(null)}
+            onCommentAdded={(delta) => {
+              setReels(prev => prev.map(r =>
+                r.id === commentsReelId
+                  ? { ...r, comments_count: Math.max(0, (r.comments_count || 0) + delta) }
+                  : r
+              ));
+            }}
+            inline
+          />
+        </div>
+      )}
+      {/* Mobile: drawer modal sobre el feed */}
+      <div className="lg:hidden">
+        <ReelComments
+          reelId={commentsReelId}
+          reelOwnerId={reels.find(r => r.id === commentsReelId)?.user?.id}
+          onClose={() => setCommentsReelId(null)}
+          onCommentAdded={(delta) => {
+            setReels(prev => prev.map(r =>
+              r.id === commentsReelId
+                ? { ...r, comments_count: Math.max(0, (r.comments_count || 0) + delta) }
+                : r
+            ));
+          }}
+        />
+      </div>
     </div>
   );
 }

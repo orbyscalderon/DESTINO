@@ -11,7 +11,7 @@ import toast from 'react-hot-toast';
 // Drawer de comments con replies (1 nivel) + likes a comments.
 // Props:
 //   reelId, reelOwnerId, onClose, onCommentAdded
-export default function ReelComments({ reelId, reelOwnerId, onClose, onCommentAdded }) {
+export default function ReelComments({ reelId, reelOwnerId, onClose, onCommentAdded, inline = false }) {
   const { user } = useAuthStore();
   const confirm = useConfirm();
   const [comments, setComments] = useState([]);  // raíz
@@ -230,21 +230,10 @@ export default function ReelComments({ reelId, reelOwnerId, onClose, onCommentAd
     setTimeout(() => inputRef.current?.focus(), 50);
   };
 
-  return (
-    <AnimatePresence>
-      {open && (
-        <motion.div
-          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black/70 z-[60] flex items-end justify-center sm:items-center"
-          onClick={onClose}
-          role="dialog" aria-modal="true" aria-label="Comentarios del reel"
-        >
-          <motion.div
-            initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
-            transition={{ type: 'spring', damping: 28, stiffness: 280 }}
-            onClick={e => e.stopPropagation()}
-            className="bg-dark-900 w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl h-[85vh] sm:h-[70vh] flex flex-col"
-          >
+  // Render del cuerpo (header + lista + input). Se reusa entre modo inline
+  // (desktop split-view) y modo drawer (mobile).
+  const body = (
+    <>
             {/* Header */}
             <div className="px-4 py-3 border-b border-white/5 flex items-center justify-between shrink-0">
               <h3 className="text-white font-bold">Comentarios</h3>
@@ -343,6 +332,34 @@ export default function ReelComments({ reelId, reelOwnerId, onClose, onCommentAd
                 </button>
               </form>
             </div>
+    </>
+  );
+
+  if (inline) {
+    if (!reelId) return null;
+    return (
+      <div className="bg-dark-900 w-full h-full flex flex-col" role="region" aria-label="Comentarios del reel">
+        {body}
+      </div>
+    );
+  }
+
+  return (
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-black/70 z-[60] flex items-end justify-center sm:items-center"
+          onClick={onClose}
+          role="dialog" aria-modal="true" aria-label="Comentarios del reel"
+        >
+          <motion.div
+            initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
+            transition={{ type: 'spring', damping: 28, stiffness: 280 }}
+            onClick={e => e.stopPropagation()}
+            className="bg-dark-900 w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl h-[85vh] sm:h-[70vh] flex flex-col"
+          >
+            {body}
           </motion.div>
         </motion.div>
       )}
