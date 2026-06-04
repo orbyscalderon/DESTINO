@@ -204,28 +204,21 @@ export default function CreatorDashboard() {
     loadDashboard();
   }, [profile?.is_creator]);
 
+  // Initial load: solo lo del tab Resumen. Las requests específicas de
+  // otros tabs (post-analytics, withdrawals, tips, income-feed) se difieren
+  // hasta que el user abra el tab correspondiente. Esto baja de 8 requests
+  // a 3 en la carga inicial.
   const loadDashboard = useCallback(async (silent = false) => {
     if (!silent) setLoading(true); else setRefreshing(true);
     try {
-      const [dashRes, analyticsRes, postRes, earningsRes, tipsRes, breakdownRes, feedRes, autoPayoutRes] = await Promise.all([
+      const [dashRes, analyticsRes, breakdownRes] = await Promise.all([
         api.get('/api/creator/dashboard'),
         api.get('/api/creator/analytics'),
-        api.get('/api/creator/post-analytics').catch(() => ({ data: null })),
-        api.get('/api/withdrawals/earnings').catch(() => ({ data: null })),
-        api.get('/api/tips/received').catch(() => ({ data: { tips: [], total_coins: 0 } })),
         api.get('/api/creator/breakdown?days=30').catch(() => ({ data: null })),
-        api.get('/api/creator/income-feed?limit=50').catch(() => ({ data: { items: [] } })),
-        api.get('/api/withdrawals/auto-payout').catch(() => ({ data: null })),
       ]);
       setData(dashRes.data);
       setAnalytics(analyticsRes.data);
-      setPostAnalytics(postRes.data);
-      setEarnings(earningsRes.data);
-      setTips(tipsRes.data?.tips || []);
-      setTipsTotal(tipsRes.data?.total_coins || 0);
       setBreakdown(breakdownRes.data);
-      setIncomeFeed(feedRes.data?.items || []);
-      setAutoPayout(autoPayoutRes.data);
       setSubPrice(dashRes.data.profile?.creator_subscription_price ?? '');
       setBio(dashRes.data.profile?.creator_bio ?? '');
     } catch {
@@ -235,6 +228,42 @@ export default function CreatorDashboard() {
       setRefreshing(false);
     }
   }, []);
+
+  // Lazy load por tab. Solo dispara la request si aún no tenemos data Y
+  // el user está mirando ese tab.
+  useEffect(() => {
+    if (tab === 'content' && postAnalytics === null) {
+      api.get('/api/creator/post-analytics')
+        .then(r => setPostAnalytics(r.data))
+        .catch(() => setPostAnalytics({}));
+    }
+    if (tab === 'earnings') {
+      if (earnings === null) {
+        api.get('/api/withdrawals/earnings')
+          .then(r => setEarnings(r.data))
+          .catch(() => setEarnings({}));
+      }
+      if (tips.length === 0 && tipsTotal === 0) {
+        api.get('/api/tips/received')
+          .then(r => {
+            setTips(r.data?.tips || []);
+            setTipsTotal(r.data?.total_coins || 0);
+          })
+          .catch(() => {});
+      }
+      if (incomeFeed.length === 0) {
+        api.get('/api/creator/income-feed?limit=50')
+          .then(r => setIncomeFeed(r.data?.items || []))
+          .catch(() => {});
+      }
+      if (autoPayout === null) {
+        api.get('/api/withdrawals/auto-payout')
+          .then(r => setAutoPayout(r.data))
+          .catch(() => setAutoPayout({}));
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab]);
 
   /* ── handlers ── */
   const handleDeleteShow = async (showId) => {

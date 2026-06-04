@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, memo } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -23,7 +23,7 @@ import toast from 'react-hot-toast';
 //   onToggleMute: () => void
 //   onViewTracked: (reel_id, watched_seconds) => void
 //   onOpenComments?: (reel_id) => void
-export default function ReelCard({
+function ReelCard({
   reel, active, muted, onToggleMute, onViewTracked, onOpenComments, onCommentDelta,
 }) {
   const videoRef = useRef(null);
@@ -357,3 +357,16 @@ function formatCount(n) {
   if (n < 1_000_000) return (n / 1000).toFixed(n < 10_000 ? 1 : 0).replace(/\.0$/, '') + 'K';
   return (n / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'M';
 }
+
+// memo evita re-renderear los 9 cards inactivos cuando uno cambia (like, save,
+// comment). Comparamos solo lo que importa para el render: identidad del reel,
+// si está activo, y mute global.
+export default memo(ReelCard, (prev, next) => {
+  return prev.reel.id === next.reel.id
+    && prev.active === next.active
+    && prev.muted === next.muted
+    && prev.reel.likes_count === next.reel.likes_count
+    && prev.reel.comments_count === next.reel.comments_count
+    && prev.reel.viewer_liked === next.reel.viewer_liked
+    && prev.reel.viewer_saved === next.reel.viewer_saved;
+});
