@@ -27,7 +27,7 @@ export const inviteBattle = async (req, res) => {
       .select('id, status')
       .eq('host_id', hostId)
       .eq('status', 'live')
-      .order('actual_start_time', { ascending: false })
+      .order('started_at', { ascending: false })
       .limit(1)
       .maybeSingle();
 
@@ -49,7 +49,7 @@ export const inviteBattle = async (req, res) => {
       .select('id')
       .eq('host_id', opponentId)
       .eq('status', 'live')
-      .order('actual_start_time', { ascending: false })
+      .order('started_at', { ascending: false })
       .limit(1)
       .maybeSingle();
 
@@ -125,7 +125,7 @@ export const acceptBattle = async (req, res) => {
       .select('id')
       .eq('host_id', userId)
       .eq('status', 'live')
-      .order('actual_start_time', { ascending: false })
+      .order('started_at', { ascending: false })
       .limit(1)
       .maybeSingle();
 

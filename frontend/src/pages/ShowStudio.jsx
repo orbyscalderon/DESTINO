@@ -222,10 +222,8 @@ function CoHostsPanel({ showId }) {
   useEffect(() => { doSearch(''); /* eslint-disable-next-line */ }, []);
 
   const invite = async (userId) => {
-    if (!showId) {
-      toast.error('Guarda el show primero (Config)');
-      return;
-    }
+    if (!userId) { toast.error('Selecciona un creador'); return; }
+    if (!showId) { toast.error('Guarda el show primero (Config)'); return; }
     setInviting(userId);
     try {
       await api.post(`/api/shows/${showId}/co-hosts/invite`, { user_id: userId });
@@ -233,7 +231,10 @@ function CoHostsPanel({ showId }) {
       setSearch(''); setResults([]);
       load();
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Error');
+      const status = err.response?.status;
+      const serverMsg = err.response?.data?.error;
+      console.error('[inviteCoHost] failed', { status, serverMsg, userId, showId });
+      toast.error(serverMsg || `No se pudo invitar (HTTP ${status || '?'})`);
     } finally {
       setInviting(null);
     }
@@ -865,17 +866,20 @@ export default function ShowStudio() {
   }, [showBattleSearch]);
 
   const inviteBattleOpponent = async (opponentId) => {
+    if (!opponentId) { toast.error('Selecciona un creador'); return; }
     if (!showId || !isLive) { toast.error('Inicia el show primero'); return; }
     setBattleInviting(opponentId);
     try {
-      const { data } = await api.post('/api/battles/invite', {
+      await api.post('/api/battles/invite', {
         opponent_id: opponentId, duration_minutes: 5,
       });
       toast.success('Invitación enviada — espera que acepte');
       setBattleSearch(''); setBattleResults([]); setShowBattleSearch(false);
-      // Quedamos a la escucha: cuando el oponente acepte se broadcastea al canal
     } catch (err) {
-      toast.error(err.response?.data?.error || 'No se pudo invitar');
+      const status = err.response?.status;
+      const serverMsg = err.response?.data?.error;
+      console.error('[inviteBattle] failed', { status, serverMsg, opponentId });
+      toast.error(serverMsg || `No se pudo invitar (HTTP ${status || '?'})`);
     } finally { setBattleInviting(null); }
   };
 
