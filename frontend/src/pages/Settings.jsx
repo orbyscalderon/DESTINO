@@ -429,6 +429,9 @@ export default function Settings() {
         )}
 
         <div className="space-y-3">
+          {/* Idioma */}
+          <LanguageSelector />
+
           {/* Apariencia */}
           <div className="card p-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -851,6 +854,41 @@ export default function Settings() {
         </div>
         <p className="text-center text-gray-700 text-xs mt-2">Destino TV v1.0.0</p>
       </div>
+    </div>
+  );
+}
+
+// ── Selector de idioma ──────────────────────────────────────────────
+import { useTranslation } from 'react-i18next';
+import { FiGlobe } from 'react-icons/fi';
+
+const LANGUAGES = [
+  { code: 'es', label: 'Español', flag: '🇪🇸' },
+  { code: 'en', label: 'English', flag: '🇺🇸' },
+  { code: 'pt', label: 'Português', flag: '🇧🇷' },
+];
+
+function LanguageSelector() {
+  const { i18n, t } = useTranslation();
+  const current = i18n.resolvedLanguage || 'es';
+  return (
+    <div className="card p-4 flex items-center justify-between gap-3">
+      <div className="flex items-center gap-3 min-w-0">
+        <FiGlobe className="text-blue-400 shrink-0" size={18} />
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-white">{t('settings.language', 'Idioma')}</p>
+          <p className="text-xs text-gray-500 truncate">{t('settings.language_hint', 'Elige el idioma de la app')}</p>
+        </div>
+      </div>
+      <select
+        value={current}
+        onChange={(e) => i18n.changeLanguage(e.target.value)}
+        className="bg-dark-700 border border-white/10 text-white text-sm rounded-lg px-3 py-2 outline-none focus:border-brand-500/50 shrink-0"
+      >
+        {LANGUAGES.map(l => (
+          <option key={l.code} value={l.code}>{l.flag} {l.label}</option>
+        ))}
+      </select>
     </div>
   );
 }

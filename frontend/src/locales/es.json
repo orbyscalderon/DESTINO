@@ -1,0 +1,60 @@
+{
+  "auth": {
+    "welcome": "Bienvenido",
+    "destino_awaits": "Tu Destino TV te espera",
+    "email": "Email",
+    "password": "Contraseña",
+    "forgot_password": "¿Olvidaste tu contraseña?",
+    "login": "Iniciar sesión",
+    "continue_with_google": "Continuar con Google",
+    "no_account": "¿No tienes cuenta?",
+    "register_free": "Regístrate gratis",
+    "create_account": "Crea tu cuenta",
+    "free_forever": "Gratis para siempre",
+    "full_name": "Nombre completo",
+    "create": "Crear cuenta",
+    "already_have_account": "¿Ya tienes cuenta?",
+    "login_action": "Inicia sesión",
+    "or": "o"
+  },
+  "nav": {
+    "home": "Inicio",
+    "reels": "Reels",
+    "create": "Crear",
+    "matches": "Matches",
+    "messages": "Mensajes",
+    "more": "Más",
+    "discover": "Descubrir",
+    "search": "Buscar",
+    "shows": "Shows en vivo",
+    "leaderboard": "Leaderboard",
+    "videos_18": "Videos 18+",
+    "creators_18": "Creadoras 18+",
+    "video_calls": "Videollamadas",
+    "profile": "Perfil",
+    "notifications": "Notificaciones",
+    "coins": "Coins",
+    "settings": "Configuración",
+    "become_creator": "Ser Creador",
+    "premium": "Hazte Premium",
+    "admin": "Admin Panel",
+    "my_profile": "Mi Perfil",
+    "my_dashboard": "Mi Dashboard"
+  },
+  "viewer": {
+    "follow": "+ Seguir",
+    "following": "Siguiendo",
+    "subscribe_vip": "⭐ VIP",
+    "subscribe_to": "Suscríbete a {{name}}",
+    "vip_benefits": "Beneficios exclusivos · contenido VIP · sin anuncios",
+    "tip": "Propina",
+    "gifts": "Regalos",
+    "leave": "Salir",
+    "private_show": "Privado",
+    "leaderboard": "Top Propinas"
+  },
+  "settings": {
+    "language": "Idioma",
+    "language_hint": "Elige el idioma de la app"
+  }
+}

@@ -1,0 +1,60 @@
+{
+  "auth": {
+    "welcome": "Welcome",
+    "destino_awaits": "Your Destino TV is waiting",
+    "email": "Email",
+    "password": "Password",
+    "forgot_password": "Forgot your password?",
+    "login": "Sign in",
+    "continue_with_google": "Continue with Google",
+    "no_account": "Don't have an account?",
+    "register_free": "Sign up for free",
+    "create_account": "Create your account",
+    "free_forever": "Free forever",
+    "full_name": "Full name",
+    "create": "Create account",
+    "already_have_account": "Already have an account?",
+    "login_action": "Sign in",
+    "or": "or"
+  },
+  "nav": {
+    "home": "Home",
+    "reels": "Reels",
+    "create": "Create",
+    "matches": "Matches",
+    "messages": "Messages",
+    "more": "More",
+    "discover": "Discover",
+    "search": "Search",
+    "shows": "Live Shows",
+    "leaderboard": "Leaderboard",
+    "videos_18": "18+ Videos",
+    "creators_18": "18+ Creators",
+    "video_calls": "Video Calls",
+    "profile": "Profile",
+    "notifications": "Notifications",
+    "coins": "Coins",
+    "settings": "Settings",
+    "become_creator": "Become a Creator",
+    "premium": "Go Premium",
+    "admin": "Admin Panel",
+    "my_profile": "My Profile",
+    "my_dashboard": "My Dashboard"
+  },
+  "viewer": {
+    "follow": "+ Follow",
+    "following": "Following",
+    "subscribe_vip": "⭐ VIP",
+    "subscribe_to": "Subscribe to {{name}}",
+    "vip_benefits": "Exclusive benefits · VIP content · ad-free",
+    "tip": "Tip",
+    "gifts": "Gifts",
+    "leave": "Leave",
+    "private_show": "Private",
+    "leaderboard": "Top Tippers"
+  },
+  "settings": {
+    "language": "Language",
+    "language_hint": "Choose the app language"
+  }
+}

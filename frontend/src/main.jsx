@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import * as Sentry from '@sentry/react';
 import App from './App.jsx';
 import { ConfirmProvider } from './components/ui/ConfirmDialog.jsx';
+import './lib/i18n.js'; // bootstrap i18next (lee idioma de localStorage)
 import './styles/globals.css';
 
 if (import.meta.env.VITE_SENTRY_DSN) {

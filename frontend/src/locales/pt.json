@@ -1,0 +1,60 @@
+{
+  "auth": {
+    "welcome": "Bem-vindo",
+    "destino_awaits": "Seu Destino TV te espera",
+    "email": "Email",
+    "password": "Senha",
+    "forgot_password": "Esqueceu sua senha?",
+    "login": "Entrar",
+    "continue_with_google": "Continuar com Google",
+    "no_account": "Não tem conta?",
+    "register_free": "Cadastre-se grátis",
+    "create_account": "Crie sua conta",
+    "free_forever": "Grátis para sempre",
+    "full_name": "Nome completo",
+    "create": "Criar conta",
+    "already_have_account": "Já tem conta?",
+    "login_action": "Entrar",
+    "or": "ou"
+  },
+  "nav": {
+    "home": "Início",
+    "reels": "Reels",
+    "create": "Criar",
+    "matches": "Matches",
+    "messages": "Mensagens",
+    "more": "Mais",
+    "discover": "Descobrir",
+    "search": "Buscar",
+    "shows": "Shows ao vivo",
+    "leaderboard": "Ranking",
+    "videos_18": "Vídeos 18+",
+    "creators_18": "Criadoras 18+",
+    "video_calls": "Videochamadas",
+    "profile": "Perfil",
+    "notifications": "Notificações",
+    "coins": "Coins",
+    "settings": "Configurações",
+    "become_creator": "Ser Criador",
+    "premium": "Seja Premium",
+    "admin": "Painel Admin",
+    "my_profile": "Meu Perfil",
+    "my_dashboard": "Meu Dashboard"
+  },
+  "viewer": {
+    "follow": "+ Seguir",
+    "following": "Seguindo",
+    "subscribe_vip": "⭐ VIP",
+    "subscribe_to": "Inscreva-se em {{name}}",
+    "vip_benefits": "Benefícios exclusivos · conteúdo VIP · sem anúncios",
+    "tip": "Gorjeta",
+    "gifts": "Presentes",
+    "leave": "Sair",
+    "private_show": "Privado",
+    "leaderboard": "Top Gorjetas"
+  },
+  "settings": {
+    "language": "Idioma",
+    "language_hint": "Escolha o idioma do app"
+  }
+}
