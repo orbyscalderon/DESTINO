@@ -1426,24 +1426,60 @@ export const acceptPrivateShow = async (req, res) => {
     const showId = req.params.id;
     const { viewerId, type = 'private' } = req.body;
 
+    if (!viewerId) return res.status(400).json({ error: 'viewerId requerido' });
+    if (!['private', 'exclusive'].includes(type)) {
+      return res.status(400).json({ error: 'type inválido' });
+    }
+
     const { data: show } = await supabase
       .from('live_shows')
-      .select('host_id, status, private_rate, exclusive_rate')
+      .select('host_id, status, private_rate, exclusive_rate, private_session')
       .eq('id', showId).single();
 
     if (!show) return res.status(404).json({ error: 'Show no encontrado' });
     if (show.host_id !== hostId) return res.status(403).json({ error: 'No autorizado' });
     if (show.status !== 'live')  return res.status(400).json({ error: 'Show no activo' });
+    if (show.private_session) {
+      return res.status(409).json({ error: 'Ya hay una sesión privada activa' });
+    }
 
     const rate = type === 'exclusive' ? (show.exclusive_rate ?? 35) : (show.private_rate ?? 20);
     const { data: host } = await supabase.from('profiles').select('full_name').eq('id', hostId).single();
 
+    // Room privado: el sufijo del viewer lo hace único por sesión.
+    const cleanShowId = showId.replace(/-/g, '');
+    const cleanViewerId = viewerId.replace(/-/g, '');
+    const privateRoomId = `show_${cleanShowId}_priv_${cleanViewerId}`;
+
+    const session = {
+      viewer_id: viewerId,
+      type,
+      room_id: privateRoomId,
+      rate,
+      started_at: new Date().toISOString(),
+    };
+
+    const { error: upErr } = await supabase
+      .from('live_shows')
+      .update({ private_session: session })
+      .eq('id', showId)
+      .is('private_session', null); // condición carrera: solo si nadie nos ganó
+    if (upErr) {
+      console.warn('[acceptPrivateShow] update private_session falló (columna falta?):',
+        upErr.message);
+      // No abortamos — broadcasteamos igual para que el flujo legacy siga
+    }
+
+    // Broadcast — los clientes filtran por viewerId
     broadcastToChannel(`show:${showId}`, 'private_accept', {
-      viewerId, type, rate, hostName: host?.full_name || 'El host',
+      viewerId, type, rate,
+      hostName: host?.full_name || 'El host',
+      privateRoomId,
     }).catch(() => {});
 
-    res.json({ ok: true, rate });
-  } catch {
+    res.json({ ok: true, rate, privateRoomId, type });
+  } catch (err) {
+    console.error('[acceptPrivateShow] error:', err.message);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
@@ -1475,7 +1511,7 @@ export const endPrivateShow = async (req, res) => {
     const { viewerId, reason = 'manual' } = req.body;
 
     const { data: show } = await supabase
-      .from('live_shows').select('host_id').eq('id', showId).single();
+      .from('live_shows').select('host_id, private_session').eq('id', showId).single();
     if (!show) return res.status(404).json({ error: 'Show no encontrado' });
 
     // Solo el host o el propio viewer pueden terminar
@@ -1483,14 +1519,23 @@ export const endPrivateShow = async (req, res) => {
       return res.status(403).json({ error: 'No autorizado' });
     }
 
+    // Limpiar la session activa para que el show vuelva a aceptar nuevas privadas
+    await supabase
+      .from('live_shows')
+      .update({ private_session: null })
+      .eq('id', showId)
+      .catch(() => {});
+
     broadcastToChannel(`show:${showId}`, 'private_end', {
       viewerId: viewerId || userId,
       endedBy: show.host_id === userId ? 'host' : 'viewer',
       reason,
+      publicRoomId: `show_${showId.replace(/-/g, '')}`,
     }).catch(() => {});
 
     res.json({ ok: true });
-  } catch {
+  } catch (err) {
+    console.error('[endPrivateShow] error:', err.message);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };

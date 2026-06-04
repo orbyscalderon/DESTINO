@@ -3,10 +3,48 @@ import { supabase } from '../lib/supabase.js';
 
 // Patrón de sala de show: show_ + 32 hex chars (UUID sin guiones)
 const SHOW_ROOM_REGEX = /^show_([0-9a-f]{32})$/i;
+// Patrón de sala privada/exclusive de show: show_<id>_priv_<viewerId>
+const SHOW_PRIVATE_ROOM_REGEX = /^show_([0-9a-f]{32})_priv_([0-9a-f]{32})$/i;
 // Patrón de sala de videollamada aleatoria: Destino TV_<16 hex>
 const VIDEO_ROOM_REGEX = /^Destino TV_[a-f0-9]{1,64}$/i;
 
-async function assertRoomAccess(userId, roomName) {
+function hexToUuid(hex) {
+  return `${hex.slice(0,8)}-${hex.slice(8,12)}-${hex.slice(12,16)}-${hex.slice(16,20)}-${hex.slice(20)}`;
+}
+
+async function assertRoomAccess(userId, roomName, requestedCanPublish) {
+  // Sala privada de show: solo el host del show o el viewer aceptado de la
+  // private_session pueden entrar. canPublish del viewer depende del type:
+  // 'exclusive' (cam2cam) → publica · 'private' → solo subscribe.
+  const privMatch = roomName.match(SHOW_PRIVATE_ROOM_REGEX);
+  if (privMatch) {
+    const showId = hexToUuid(privMatch[1]);
+    const sessionViewerId = hexToUuid(privMatch[2]);
+
+    const { data: show } = await supabase
+      .from('live_shows')
+      .select('host_id, status, private_session')
+      .eq('id', showId).single();
+    if (!show) throw { status: 404, message: 'Show no encontrado' };
+    if (show.status !== 'live') throw { status: 400, message: 'Show no está en vivo' };
+
+    const sess = show.private_session;
+    if (!sess || sess.viewer_id !== sessionViewerId) {
+      throw { status: 403, message: 'No hay sesión privada activa para este room', code: 'PRIVATE_NOT_ACTIVE' };
+    }
+
+    if (userId === show.host_id) {
+      // Host: siempre puede publicar
+      return { allowedCanPublish: true };
+    }
+    if (userId === sessionViewerId) {
+      // Viewer aceptado: publica solo si es cam2cam exclusive
+      const allowedCanPublish = sess.type === 'exclusive';
+      return { allowedCanPublish };
+    }
+    throw { status: 403, message: 'Sala privada — acceso denegado', code: 'PRIVATE_FORBIDDEN' };
+  }
+
   // Sala de show — verificar ticket o ser host
   const showMatch = roomName.match(SHOW_ROOM_REGEX);
   if (showMatch) {
@@ -83,13 +121,24 @@ export const getToken = async (req, res) => {
     const { roomName, canPublish = true } = req.body;
     if (!roomName) return res.status(400).json({ error: 'roomName requerido' });
 
-    await assertRoomAccess(req.user.id, roomName);
+    const guard = await assertRoomAccess(req.user.id, roomName, canPublish);
+
+    // Si la sala impone un canPublish (caso de sala privada), gana ese valor —
+    // así un viewer no puede pedir token con canPublish=true para subir a
+    // publisher en un room donde no lo permite.
+    const effectiveCanPublish = guard && 'allowedCanPublish' in guard
+      ? guard.allowedCanPublish
+      : !!canPublish;
 
     const country = req.user?.country || null;
-    const { token, wsUrl } = await createToken(req.user.id, roomName, { canPublish, country });
-    res.json({ token, wsUrl });
+    const { token, wsUrl } = await createToken(req.user.id, roomName, {
+      canPublish: effectiveCanPublish,
+      country,
+    });
+    res.json({ token, wsUrl, canPublish: effectiveCanPublish });
   } catch (err) {
     if (err.status) return res.status(err.status).json({ error: err.message, code: err.code });
+    console.error('[livekit getToken] error:', err.message);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
