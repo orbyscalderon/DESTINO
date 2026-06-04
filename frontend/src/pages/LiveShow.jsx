@@ -301,6 +301,9 @@ export default function LiveShow() {
   const previewStreamRef = useRef(null);
   const hostVideoRef    = useRef(null);
   const videoContainerRef = useRef(null);
+  // Refs para CAM2CAM (cuando el viewer publica su propia cámara)
+  const localStreamRefViewer = useRef(null);
+  const myLocalVideoRef = useRef(null);
   const localVideoRef   = useRef(null);
   const previewVideoRef = useRef(null);
   const autoJoinRef     = useRef(false);
@@ -535,6 +538,14 @@ export default function LiveShow() {
         setLatestTip({ coins: payload.coins, message: payload.message });
         setTimeout(() => setLatestTip(null), 4000);
       })
+      .on('broadcast', { event: 'private_resumed' }, ({ payload }) => {
+        // El host volvió al show público — si yo estaba "esperando" desde el
+        // privado, podría re-entrar; en esta iteración el show queda visible
+        // en /shows para que el user re-entre manualmente.
+        if (role === 'viewer') {
+          toast(`📺 El show volvió a transmitir`, { icon: '🔴' });
+        }
+      })
       .on('broadcast', { event: 'show_ended' }, () => {
         if (role !== 'host') {
           toast('El show terminó', { icon: '📺' });
@@ -608,7 +619,34 @@ export default function LiveShow() {
                   }
                 };
                 rtcRef.current = rtc;
-                await rtc.join(payload.type === 'exclusive');
+
+                if (payload.type === 'exclusive') {
+                  // CAM2CAM: pedir permisos de cámara/mic EXPLÍCITAMENTE antes
+                  // de hacer join, para evitar el caso donde join(true) intenta
+                  // setCameraEnabled y falla silenciosamente porque el viewer
+                  // nunca dio permisos previamente.
+                  let camStream = null;
+                  try {
+                    camStream = await navigator.mediaDevices.getUserMedia({
+                      audio: true,
+                      video: { width: 1280, height: 720 },
+                    });
+                  } catch (mediaErr) {
+                    toast.error('Necesitas permitir cámara y micrófono para CAM2CAM');
+                    // Fallback: join como viewer sin publicar
+                    await rtc.join(false, { skipAutoMedia: true });
+                    return;
+                  }
+                  // Guardar el stream local para mostrar el preview del viewer
+                  localStreamRefViewer.current = camStream;
+                  await rtc.join(true, { skipAutoMedia: true });
+                  await rtc.publishStream(camStream);
+                  // Mostrar mi propio video en un tile (PIP)
+                  if (myLocalVideoRef.current) myLocalVideoRef.current.srcObject = camStream;
+                } else {
+                  // Privado normal: solo subscribe (no publica cámara)
+                  await rtc.join(false, { skipAutoMedia: true });
+                }
               } catch (e) {
                 console.error('[viewer] reconnect privado falló', e);
                 toast.error('No se pudo conectar al room privado');
@@ -631,6 +669,12 @@ export default function LiveShow() {
           clearInterval(privateTickRef.current);
           setPrivateSession(null);
           setPrivateMinutes(0);
+          // Apagar mi cámara si estaba en cam2cam
+          if (localStreamRefViewer.current) {
+            localStreamRefViewer.current.getTracks().forEach(t => { try { t.stop(); } catch {} });
+            localStreamRefViewer.current = null;
+            if (myLocalVideoRef.current) myLocalVideoRef.current.srcObject = null;
+          }
           toast(
             payload.endedBy === 'host'
               ? 'Show privado terminado por el host'
@@ -651,7 +695,7 @@ export default function LiveShow() {
                   }
                 };
                 rtcRef.current = rtc;
-                await rtc.join(false); // viewer normal — no publica
+                await rtc.join(false, { skipAutoMedia: true }); // viewer normal — no publica
               } catch (e) { console.warn('[viewer] reconnect público falló', e); }
             })();
           }
@@ -2202,6 +2246,20 @@ export default function LiveShow() {
             <PrivateCountdownOverlay
               countdown={privateCountdown}
             />
+          )}
+
+          {/* PIP de mi propia cámara cuando estoy en CAM2CAM exclusivo */}
+          {privateSession?.type === 'exclusive' && (
+            <div className="absolute bottom-24 right-3 z-20 w-28 sm:w-32 aspect-[3/4] rounded-xl overflow-hidden border-2 border-purple-500 shadow-2xl bg-black">
+              <video
+                ref={myLocalVideoRef}
+                autoPlay playsInline muted
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute top-1 left-1 bg-purple-600 text-white text-[8px] font-black px-1.5 py-0.5 rounded">
+                Tú · CAM2CAM
+              </div>
+            </div>
           )}
 
           {/* Co-host video tiles (overlay flotante) */}

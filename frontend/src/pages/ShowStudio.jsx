@@ -324,6 +324,27 @@ function CoHostsPanel({ showId }) {
   );
 }
 
+// Timer del tiempo mínimo pagado por el viewer. Si todavía no se cumple,
+// se muestra "🔒 N:NN" en el banner — el host no puede dar Terminar.
+function PrivateMinTimer({ minEndsAt }) {
+  const [secs, setSecs] = useState(() => Math.max(0, Math.ceil((new Date(minEndsAt).getTime() - Date.now()) / 1000)));
+  useEffect(() => {
+    if (!minEndsAt) return;
+    const t = setInterval(() => {
+      setSecs(Math.max(0, Math.ceil((new Date(minEndsAt).getTime() - Date.now()) / 1000)));
+    }, 1000);
+    return () => clearInterval(t);
+  }, [minEndsAt]);
+  if (secs <= 0) return null;
+  const m = Math.floor(secs / 60);
+  const s = secs % 60;
+  return (
+    <span className="text-amber-300 text-[10px] font-bold tabular-nums" title="Tiempo mínimo pagado por el viewer">
+      🔒 {String(m).padStart(2, '0')}:{String(s).padStart(2, '0')}
+    </span>
+  );
+}
+
 // Banner countdown que ve el HOST durante los 10s previos al reconnect.
 function PrivateCountdownBannerHost({ endsAt, type, viewerName }) {
   const [secs, setSecs] = useState(() => Math.max(0, Math.ceil((endsAt - Date.now()) / 1000)));
@@ -1176,7 +1197,7 @@ export default function ShowStudio() {
         viewerName: privateRequest.viewerName,
         type: privateRequest.type,
       });
-      const { privateRoomId, type, countdownSec = 10 } = data;
+      const { privateRoomId, type, countdownSec = 10, minEndsAt } = data;
       const reqSnapshot = privateRequest;
       setPrivateRequest(null);
 
@@ -1188,6 +1209,7 @@ export default function ShowStudio() {
         roomId: privateRoomId,
         state: 'countdown',
         countdownEndsAt: Date.now() + countdownSec * 1000,
+        minEndsAt,
       });
 
       // Tras el countdown: reconnect al room privado y promover a 'active'
@@ -1230,33 +1252,85 @@ export default function ShowStudio() {
   };
 
   // Reconecta el LiveKit del host a un room distinto sin perder cámara/mic.
-  // Re-usa el localStreamRef.current. Lo llama tanto handleAcceptPrivate
-  // (para entrar al privado) como handleEndPrivateShow (para volver al público).
+  // El localStreamRef puede tener tracks "ended" tras el leave() del room
+  // anterior. Si pasa, re-capturamos con getUserMedia para conseguir tracks
+  // frescos. También refrescamos localVideoRef.srcObject para que el host
+  // siga viéndose en su preview.
   const reconnectToRoom = async (newRoomId) => {
-    if (!rtcRef.current || !localStreamRef.current) return;
+    if (!rtcRef.current) return;
     try {
       await rtcRef.current.leave().catch(() => {});
     } catch {}
+
+    // Re-capturar media si los tracks quedaron en estado "ended"
+    let stream = localStreamRef.current;
+    const needsFresh = !stream
+      || stream.getTracks().some(t => t.readyState === 'ended')
+      || stream.getTracks().length === 0;
+    if (needsFresh) {
+      try {
+        const qOpt = QUALITY_OPTIONS.find(q => q.key === videoQuality) || QUALITY_OPTIONS[1];
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: selectedMicId ? { deviceId: { exact: selectedMicId } } : true,
+          video: selectedCameraId
+            ? { deviceId: { exact: selectedCameraId }, width: qOpt.w, height: qOpt.h, frameRate: qOpt.fps }
+            : { width: qOpt.w, height: qOpt.h, frameRate: qOpt.fps },
+        });
+        // Cerrar tracks viejos del stream anterior
+        localStreamRef.current?.getTracks().forEach(t => { try { t.stop(); } catch {} });
+        localStreamRef.current = stream;
+      } catch (e) {
+        console.error('[reconnectToRoom] getUserMedia falló:', e);
+        toast.error('No se pudo reactivar cámara/micrófono');
+        return;
+      }
+    }
+
     const rtc = new LiveKitSession(newRoomId);
     rtcRef.current = rtc;
-    // listeners para tracks remotos (viewer cam2cam)
+    rtc.onLocalVideo = (track) => {
+      // Actualizar el preview local del host
+      if (localVideoRef.current && stream) {
+        localVideoRef.current.srcObject = stream;
+      }
+    };
     rtc.onRemoteTrack = (track, participant) => {
-      const pid = participant?.identity;
       if (track.kind === 'video') {
-        const stream = new MediaStream([track.mediaStreamTrack]);
-        setPrivateViewerStream(stream);
+        const remoteStream = new MediaStream([track.mediaStreamTrack]);
+        setPrivateViewerStream(remoteStream);
         if (privateViewerVideoRef.current) {
-          privateViewerVideoRef.current.srcObject = stream;
+          privateViewerVideoRef.current.srcObject = remoteStream;
         }
       } else if (track.kind === 'audio') {
+        // El elemento <audio> debe seguir vivo para que se oiga al viewer
         const a = document.createElement('audio');
         a.autoplay = true;
         a.srcObject = new MediaStream([track.mediaStreamTrack]);
+        a.dataset.privateViewerAudio = 'true';
         document.body.appendChild(a);
       }
     };
-    await rtc.join(true, { skipAutoMedia: true });
-    await rtc.publishStream(localStreamRef.current);
+
+    try {
+      await rtc.join(true, { skipAutoMedia: true });
+      await rtc.publishStream(stream);
+    } catch (e) {
+      console.error('[reconnectToRoom] join/publish falló:', e);
+      toast.error('Error reconectando');
+      return;
+    }
+
+    // Asegurar que el video preview muestra el stream actualizado
+    if (localVideoRef.current) {
+      localVideoRef.current.srcObject = stream;
+    }
+  };
+
+  // Limpiar elementos <audio> de viewers privados al salir del modo privado
+  const cleanupPrivateAudioElements = () => {
+    document.querySelectorAll('audio[data-private-viewer-audio]').forEach(a => {
+      try { a.srcObject = null; a.remove(); } catch {}
+    });
   };
 
   const handleEndPrivateShow = async () => {
@@ -1266,13 +1340,36 @@ export default function ShowStudio() {
         viewerId: privateSession.viewerId,
         reason: 'host_ended',
       });
-    } catch {}
-    setPrivateSessionHost(null);
-    setPrivateViewerStream(null);
-    // Volver al room público
-    const publicRoomId = `show_${showId.replace(/-/g, '')}`;
-    await reconnectToRoom(publicRoomId);
-    toast('Show privado terminado — vuelves al show público', { icon: '📺' });
+      // Marca como 'ended' en local — el host queda en modo pausa hasta que
+      // explícitamente pulse "Volver a transmitir".
+      setPrivateSessionHost(prev => prev ? { ...prev, state: 'ended' } : null);
+      setPrivateViewerStream(null);
+      cleanupPrivateAudioElements();
+      toast('Show privado terminado · pulsa "Volver a broadcast" cuando estés listo', { icon: '⏸️', duration: 5000 });
+    } catch (err) {
+      const status = err.response?.status;
+      const code = err.response?.data?.code;
+      const remaining = err.response?.data?.remaining_seconds;
+      if (code === 'MIN_DURATION_NOT_MET') {
+        const min = Math.ceil((remaining || 0) / 60);
+        toast.error(`No puedes terminar todavía. Faltan ~${min} min de lo que pagó el viewer.`, { duration: 5000 });
+      } else {
+        toast.error(err.response?.data?.error || 'Error al terminar');
+      }
+    }
+  };
+
+  // Tras terminar privado, vuelve al room público SOLO cuando el host quiere.
+  const handleResumePublicShow = async () => {
+    try {
+      await api.post(`/api/shows/${showId}/private/resume`);
+      const publicRoomId = `show_${showId.replace(/-/g, '')}`;
+      await reconnectToRoom(publicRoomId);
+      setPrivateSessionHost(null);
+      toast.success('🔴 De vuelta al show público');
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'No se pudo volver a broadcast');
+    }
   };
 
   const handleDeclinePrivate = async () => {
@@ -2369,6 +2466,15 @@ export default function ShowStudio() {
               type={privateSession.type}
               viewerName={privateSession.viewerName}
             />
+          ) : privateSession.state === 'ended' ? (
+            <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 bg-amber-600/95 backdrop-blur-md rounded-2xl px-3 py-2 flex items-center gap-2 shadow-2xl shadow-amber-500/40">
+              <span className="text-white text-[10px] font-black tracking-wider">⏸️ EN PAUSA</span>
+              <span className="text-amber-100 text-[10px]">· Show no transmite</span>
+              <button
+                onClick={handleResumePublicShow}
+                className="bg-white text-amber-700 hover:brightness-110 rounded-full px-2.5 py-0.5 text-[10px] font-black"
+              >Volver a broadcast</button>
+            </div>
           ) : (
             <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 bg-purple-600/90 backdrop-blur-md rounded-full px-3 py-1.5 flex items-center gap-2 shadow-lg shadow-purple-500/40">
               <span className="text-white text-[10px] font-black tracking-wider">
@@ -2380,6 +2486,7 @@ export default function ShowStudio() {
               </span>
               <span className="text-purple-100 text-[10px]">·</span>
               <span className="text-yellow-300 text-[10px] font-black">{privateSession.rate}/min</span>
+              <PrivateMinTimer minEndsAt={privateSession.minEndsAt} />
               <button
                 onClick={handleEndPrivateShow}
                 className="ml-1 bg-white/15 hover:bg-white/25 rounded-full px-2 py-0.5 text-white text-[9px] font-bold"

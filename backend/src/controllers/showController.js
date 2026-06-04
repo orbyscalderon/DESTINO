@@ -1471,14 +1471,24 @@ export const acceptPrivateShow = async (req, res) => {
       console.warn('[acceptPrivateShow] limpiando session stale del show', showId);
     }
 
-    const { data: host } = await supabase.from('profiles').select('full_name').eq('id', hostId).single();
+    const { data: host } = await supabase.from('profiles').select('full_name, ').eq('id', hostId).single();
+
+    // Tiempo mínimo pagado: el host NO puede terminar antes de esto. El viewer
+    // sí puede cancelar (asume cobro hasta el momento). Default 3 min.
+    const { data: showFull } = await supabase
+      .from('live_shows').select('min_private_minutes').eq('id', showId).single();
+    const minMinutes = showFull?.min_private_minutes ?? 3;
+    const startedAt = new Date();
+    const minEndsAt = new Date(startedAt.getTime() + minMinutes * 60_000);
 
     const session = {
       viewer_id: viewerId,
       type,
       room_id: privateRoomId,
       rate,
-      started_at: new Date().toISOString(),
+      started_at: startedAt.toISOString(),
+      min_ends_at: minEndsAt.toISOString(),
+      state: 'countdown',
     };
 
     const { error: upErr } = await supabase
@@ -1504,11 +1514,19 @@ export const acceptPrivateShow = async (req, res) => {
       hostName: host?.full_name || 'El host',
       privateRoomId,
       countdownSec: COUNTDOWN_SEC,
-      kickOthers: true, // por ahora ambos types kickean a los no-aceptados
-      ticketPriceCoins: type === 'exclusive' ? null : (rate * 3), // sugerido (TODO: implementar compra)
+      kickOthers: true,
+      minEndsAt: session.min_ends_at,
+      ticketPriceCoins: type === 'exclusive' ? null : (rate * 3),
     }).catch(() => {});
 
-    res.json({ ok: true, rate, privateRoomId, type, countdownSec: COUNTDOWN_SEC });
+    res.json({
+      ok: true,
+      rate,
+      privateRoomId,
+      type,
+      countdownSec: COUNTDOWN_SEC,
+      minEndsAt: session.min_ends_at,
+    });
   } catch (err) {
     console.error('[acceptPrivateShow] error:', err.message);
     res.status(500).json({ error: 'Error interno del servidor' });
@@ -1572,6 +1590,13 @@ export const resetPrivateShow = async (req, res) => {
 };
 
 // POST /api/shows/:id/private/end — termina la sesión privada (viewer o host)
+//
+// Reglas:
+//  · El viewer puede terminar EN CUALQUIER MOMENTO (asume cobro hasta el momento).
+//  · El host NO puede terminar antes de min_ends_at (el viewer pagó ese mínimo).
+//  · Tras terminar: la session pasa a estado 'ended' (modo pausa). El show
+//    queda esperando hasta que el host explícitamente vuelva a broadcast vía
+//    POST /api/shows/:id/private/resume.
 export const endPrivateShow = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -1582,28 +1607,83 @@ export const endPrivateShow = async (req, res) => {
       .from('live_shows').select('host_id, private_session').eq('id', showId).single();
     if (!show) return res.status(404).json({ error: 'Show no encontrado' });
 
-    // Solo el host o el propio viewer pueden terminar
     if (show.host_id !== userId && viewerId !== userId) {
       return res.status(403).json({ error: 'No autorizado' });
     }
 
-    // Limpiar la session activa para que el show vuelva a aceptar nuevas privadas
+    const sess = show.private_session;
+    const isHostEnding = show.host_id === userId;
+
+    // El host no puede terminar antes del tiempo mínimo pagado
+    if (isHostEnding && sess?.min_ends_at) {
+      const minEndsMs = new Date(sess.min_ends_at).getTime();
+      if (Date.now() < minEndsMs) {
+        const remainingSec = Math.ceil((minEndsMs - Date.now()) / 1000);
+        return res.status(400).json({
+          error: `No puedes terminar todavía. El viewer pagó por ${Math.ceil(remainingSec/60)} min mínimo.`,
+          code: 'MIN_DURATION_NOT_MET',
+          remaining_seconds: remainingSec,
+        });
+      }
+    }
+
+    // Marcar como 'ended' (modo pausa) en lugar de borrar — el host decide
+    // cuándo volver a broadcast con /private/resume.
+    const endedSession = sess
+      ? { ...sess, state: 'ended', ended_at: new Date().toISOString(), ended_by: isHostEnding ? 'host' : 'viewer' }
+      : null;
     await supabase
       .from('live_shows')
-      .update({ private_session: null })
+      .update({ private_session: endedSession })
       .eq('id', showId)
       .catch(() => {});
 
     broadcastToChannel(`show:${showId}`, 'private_end', {
       viewerId: viewerId || userId,
-      endedBy: show.host_id === userId ? 'host' : 'viewer',
+      endedBy: isHostEnding ? 'host' : 'viewer',
       reason,
+      publicRoomId: `show_${showId.replace(/-/g, '')}`,
+    }).catch(() => {});
+
+    res.json({ ok: true, state: 'ended' });
+  } catch (err) {
+    console.error('[endPrivateShow] error:', err.message);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
+// POST /api/shows/:id/private/resume — el host vuelve a broadcast público
+// tras terminar un privado. Solo el host puede; limpia private_session.
+export const resumePublicShow = async (req, res) => {
+  try {
+    const hostId = req.user.id;
+    const showId = req.params.id;
+
+    const { data: show } = await supabase
+      .from('live_shows').select('host_id, private_session').eq('id', showId).single();
+    if (!show) return res.status(404).json({ error: 'Show no encontrado' });
+    if (show.host_id !== hostId) return res.status(403).json({ error: 'No autorizado' });
+
+    // Solo permitir resume si la session está en 'ended' (o nada)
+    if (show.private_session && show.private_session.state !== 'ended') {
+      return res.status(400).json({
+        error: 'La sesión privada aún está activa. Termínala primero.',
+        code: 'PRIVATE_STILL_ACTIVE',
+      });
+    }
+
+    await supabase
+      .from('live_shows')
+      .update({ private_session: null })
+      .eq('id', showId);
+
+    broadcastToChannel(`show:${showId}`, 'private_resumed', {
       publicRoomId: `show_${showId.replace(/-/g, '')}`,
     }).catch(() => {});
 
     res.json({ ok: true });
   } catch (err) {
-    console.error('[endPrivateShow] error:', err.message);
+    console.error('[resumePublicShow] error:', err.message);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
