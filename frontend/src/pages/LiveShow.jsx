@@ -226,6 +226,12 @@ export default function LiveShow() {
 
   // Battles (viewer ve overlay cuando host está en battle)
   const [activeBattleId, setActiveBattleId] = useState(null);
+  // Detalles del battle (incluye show1_id/show2_id/host1_id/host2_id) +
+  // stream del oponente. Como viewer me suscribo al room del show oponente
+  // para ver al otro host en un tile junto al BattleOverlay.
+  const [battleData, setBattleData] = useState(null);
+  const [battleOpponentStream, setBattleOpponentStream] = useState(null);
+  const battleOpponentRtcRef = useRef(null);
 
   // Payment
   const [paymentModal, setPaymentModal] = useState(null);
@@ -2282,6 +2288,74 @@ export default function LiveShow() {
     </div>
   );
 
+  // ── BATTLE: fetch detalles cuando aparece un activeBattleId ─────────────────
+  useEffect(() => {
+    if (!activeBattleId) {
+      setBattleData(null);
+      return;
+    }
+    let cancel = false;
+    api.get(`/api/battles/${activeBattleId}`)
+      .then(({ data }) => { if (!cancel && data?.battle) setBattleData(data.battle); })
+      .catch(() => {});
+    return () => { cancel = true; };
+  }, [activeBattleId]);
+
+  // ── BATTLE: subscribe-only al room del oponente para mostrar su cámara ─────
+  useEffect(() => {
+    if (!battleData || !id) {
+      if (battleOpponentRtcRef.current) {
+        battleOpponentRtcRef.current.leave().catch(() => {});
+        battleOpponentRtcRef.current = null;
+      }
+      setBattleOpponentStream(null);
+      return;
+    }
+    // Determinar cuál es el "otro" show desde el punto de vista del viewer
+    const isShow1 = battleData.show1_id === id;
+    const opponentShowId = isShow1 ? battleData.show2_id : battleData.show1_id;
+    const opponentHostId = isShow1 ? battleData.host2_id : battleData.host1_id;
+    if (!opponentShowId || !opponentHostId) return;
+
+    const opponentRoomId = `show_${opponentShowId.replace(/-/g, '')}`;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const rtc = new LiveKitSession(opponentRoomId);
+        rtc.onRemoteTrack = (track, participant) => {
+          if (participant?.identity !== opponentHostId) return;
+          if (track.kind === 'video') {
+            setBattleOpponentStream(new MediaStream([track.mediaStreamTrack]));
+          } else if (track.kind === 'audio') {
+            const a = document.createElement('audio');
+            a.autoplay = true;
+            a.srcObject = new MediaStream([track.mediaStreamTrack]);
+            a.dataset.battleOpponentAudio = 'true';
+            document.body.appendChild(a);
+          }
+        };
+        battleOpponentRtcRef.current = rtc;
+        await rtc.join(false, { skipAutoMedia: true });
+        if (cancelled) await rtc.leave().catch(() => {});
+      } catch (e) {
+        console.warn('[viewer-battle] no se pudo suscribir al oponente:', e?.message);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      if (battleOpponentRtcRef.current) {
+        battleOpponentRtcRef.current.leave().catch(() => {});
+        battleOpponentRtcRef.current = null;
+      }
+      setBattleOpponentStream(null);
+      document.querySelectorAll('audio[data-battle-opponent-audio]').forEach(a => {
+        try { a.srcObject = null; a.remove(); } catch {}
+      });
+    };
+  }, [battleData, id]);
+
   // ── EN SHOW (VIEWER) ──────────────────────────────────────────────────────────
   if (inShow) {
     return (
@@ -2302,6 +2376,31 @@ export default function LiveShow() {
               viewerSide="viewer"
               onEnded={() => setActiveBattleId(null)}
             />
+          )}
+
+          {/* Tile del oponente del battle — el viewer ve a ambos hosts */}
+          {activeBattleId && (
+            <div className="absolute top-20 right-3 z-20 w-28 sm:w-36 aspect-[3/4] rounded-xl overflow-hidden border-2 border-pink-500 shadow-2xl shadow-pink-500/40 bg-black">
+              {battleOpponentStream ? (
+                <video
+                  ref={(el) => {
+                    if (el && battleOpponentStream && el.srcObject !== battleOpponentStream) {
+                      el.srcObject = battleOpponentStream;
+                    }
+                  }}
+                  autoPlay playsInline
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full flex flex-col items-center justify-center text-center px-2">
+                  <div className="w-5 h-5 border-2 border-pink-400 border-t-transparent rounded-full animate-spin mb-2" />
+                  <p className="text-pink-300 text-[9px] font-bold">Esperando oponente</p>
+                </div>
+              )}
+              <div className="absolute top-1 left-1 bg-pink-600 text-white text-[8px] font-black px-1.5 py-0.5 rounded">
+                ⚔️ Oponente
+              </div>
+            </div>
           )}
 
           {/* Countdown overlay cuando el host inicia privado/exclusive */}
