@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { FiMail, FiLock, FiEye, FiEyeOff } from 'react-icons/fi';
 import { Turnstile } from '@marsidev/react-turnstile';
 import { supabase } from '../lib/supabase.js';
+import { signInWithGoogle } from '../lib/oauth.js';
 import api from '../lib/api.js';
 import toast from 'react-hot-toast';
 
@@ -86,11 +87,11 @@ export default function Login() {
 
   const handleGoogle = async () => {
     setGoogleLoading(true);
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo: `${window.location.origin}/#/auth/callback` },
-    });
-    if (error) {
+    try {
+      await signInWithGoogle();
+      // En web Supabase ya redirigió. En nativo, el listener appUrlOpen
+      // de App.jsx procesa el callback y navega a /home.
+    } catch {
       toast.error('No se pudo conectar con Google. Intenta de nuevo.');
       setGoogleLoading(false);
     }

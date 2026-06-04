@@ -156,6 +156,32 @@ export default function App() {
     initialize();
     initAdMob();
     initTheme();
+
+    // OAuth deep link en Capacitor nativo: cuando Supabase nos devuelve a
+    // com.destino.app://auth/callback#access_token=..., procesamos el URL
+    // y restauramos la sesión. Solo aplica en Android/iOS — en web Supabase
+    // lo maneja vía URL hash en el mismo origin.
+    let removeListener = null;
+    (async () => {
+      const { isCapacitorNative, handleAuthDeepLink } = await import('./lib/oauth.js');
+      if (!isCapacitorNative()) return;
+      try {
+        const { App: CapApp } = await import('@capacitor/app');
+        const sub = await CapApp.addListener('appUrlOpen', async ({ url }) => {
+          const res = await handleAuthDeepLink(url);
+          if (res?.ok) {
+            try {
+              const { Browser } = await import('@capacitor/browser');
+              await Browser.close();
+            } catch {}
+          }
+        });
+        removeListener = () => sub.remove();
+      } catch (err) {
+        console.warn('[oauth] no se pudo registrar listener appUrlOpen:', err?.message);
+      }
+    })();
+    return () => { try { removeListener?.(); } catch {} };
   }, []);
 
   // Heartbeat para "en línea" real + push notifications cuando el usuario está autenticado
