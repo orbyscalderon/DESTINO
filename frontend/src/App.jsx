@@ -72,29 +72,70 @@ const PageLoader = () => (
   </div>
 );
 
+// Detecta errores de carga de chunks lazy. Sucede cuando hay un deploy
+// nuevo: el index.html viejo apunta a /assets/Reels-abc123.js pero ese hash
+// ya no existe → "Failed to fetch dynamically imported module" o el browser
+// devuelve text/html (404 → SPA fallback) → "Expected a module script".
+function isChunkLoadError(err) {
+  const msg = String(err?.message || err || '');
+  return /Failed to fetch dynamically imported module/i.test(msg)
+      || /error loading dynamically imported module/i.test(msg)
+      || /Loading chunk \d+ failed/i.test(msg)
+      || /(Expected a JavaScript|JavaScript-or-Wasm) module script/i.test(msg)
+      || /MIME type of "text\/html"/i.test(msg);
+}
+
+const RELOAD_FLAG = 'destino-chunk-reload';
+
 class ErrorBoundary extends Component {
   constructor(props) {
     super(props);
-    this.state = { hasError: false };
+    this.state = { hasError: false, isChunkError: false };
   }
-  static getDerivedStateFromError() {
-    return { hasError: true };
+  static getDerivedStateFromError(error) {
+    return { hasError: true, isChunkError: isChunkLoadError(error) };
   }
   componentDidCatch(error, info) {
+    // Si es chunk error y no recargamos aún en esta sesión, recargar una vez.
+    // El flag evita loop infinito si el problema fuera persistente (ej.
+    // CDN caído).
+    if (isChunkLoadError(error)) {
+      try {
+        if (!sessionStorage.getItem(RELOAD_FLAG)) {
+          sessionStorage.setItem(RELOAD_FLAG, String(Date.now()));
+          window.location.reload();
+          return;
+        }
+      } catch {}
+    }
     Sentry.captureException(error, { extra: info });
   }
   render() {
     if (this.state.hasError) {
+      const isChunk = this.state.isChunkError;
       return (
         <div className="min-h-screen bg-dark-900 flex flex-col items-center justify-center gap-4 px-6 text-center">
-          <div className="text-5xl">😕</div>
-          <p className="text-white font-semibold text-lg">Algo salió mal</p>
-          <p className="text-gray-400 text-sm">Esta sección no pudo cargarse.</p>
+          <div className="text-5xl">{isChunk ? '🔄' : '😕'}</div>
+          <p className="text-white font-semibold text-lg">
+            {isChunk ? 'Nueva versión disponible' : 'Algo salió mal'}
+          </p>
+          <p className="text-gray-400 text-sm">
+            {isChunk
+              ? 'Recarga para obtener la última versión de Destino TV.'
+              : 'Esta sección no pudo cargarse.'}
+          </p>
           <button
-            onClick={() => this.setState({ hasError: false })}
+            onClick={() => {
+              if (isChunk) {
+                try { sessionStorage.removeItem(RELOAD_FLAG); } catch {}
+                window.location.reload();
+              } else {
+                this.setState({ hasError: false, isChunkError: false });
+              }
+            }}
             className="btn-primary mt-2"
           >
-            Reintentar
+            {isChunk ? 'Recargar' : 'Reintentar'}
           </button>
         </div>
       );
@@ -157,6 +198,33 @@ export default function App() {
     initAdMob();
     initTheme();
 
+    // Si llegamos hasta aquí sin error, limpiamos el flag de reload tras 5s
+    // para que un futuro deploy también pueda autorrecargar una vez.
+    const flagCleanup = setTimeout(() => {
+      try { sessionStorage.removeItem('destino-chunk-reload'); } catch {}
+    }, 5_000);
+
+    // Listener global: a veces los chunk errors ocurren fuera del árbol React
+    // (durante la carga inicial de un import dinámico) y no llegan al boundary.
+    // Aquí capturamos esos casos también.
+    const onUnhandled = (event) => {
+      const err = event.reason || event.error || event;
+      const msg = String(err?.message || err || '');
+      const isChunkErr = /Failed to fetch dynamically imported module/i.test(msg)
+                      || /Loading chunk \d+ failed/i.test(msg)
+                      || /(Expected a JavaScript|JavaScript-or-Wasm) module script/i.test(msg)
+                      || /MIME type of "text\/html"/i.test(msg);
+      if (!isChunkErr) return;
+      try {
+        if (!sessionStorage.getItem('destino-chunk-reload')) {
+          sessionStorage.setItem('destino-chunk-reload', String(Date.now()));
+          window.location.reload();
+        }
+      } catch {}
+    };
+    window.addEventListener('error', onUnhandled);
+    window.addEventListener('unhandledrejection', onUnhandled);
+
     // OAuth deep link en Capacitor nativo: cuando Supabase nos devuelve a
     // com.destino.app://auth/callback#access_token=..., procesamos el URL
     // y restauramos la sesión. Solo aplica en Android/iOS — en web Supabase
@@ -181,7 +249,12 @@ export default function App() {
         console.warn('[oauth] no se pudo registrar listener appUrlOpen:', err?.message);
       }
     })();
-    return () => { try { removeListener?.(); } catch {} };
+    return () => {
+      clearTimeout(flagCleanup);
+      window.removeEventListener('error', onUnhandled);
+      window.removeEventListener('unhandledrejection', onUnhandled);
+      try { removeListener?.(); } catch {}
+    };
   }, []);
 
   // Heartbeat para "en línea" real + push notifications cuando el usuario está autenticado
