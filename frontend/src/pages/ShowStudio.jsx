@@ -869,7 +869,7 @@ export default function ShowStudio() {
     setBattleInviting(opponentId);
     try {
       const { data } = await api.post('/api/battles/invite', {
-        host2_id: opponentId, show1_id: showId, duration_minutes: 5,
+        opponent_id: opponentId, duration_minutes: 5,
       });
       toast.success('Invitación enviada — espera que acepte');
       setBattleSearch(''); setBattleResults([]); setShowBattleSearch(false);

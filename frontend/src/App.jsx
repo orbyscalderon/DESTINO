@@ -16,6 +16,7 @@ import { supabase } from './lib/supabase.js';
 import OfflineBanner from './components/ui/OfflineBanner.jsx';
 import OnboardingTour from './components/ui/OnboardingTour.jsx';
 import IncomingCallModal from './components/ui/IncomingCallModal.jsx';
+import CoHostInviteModal from './components/ui/CoHostInviteModal.jsx';
 import CookieBanner from './components/CookieBanner.jsx';
 
 const Landing     = lazy(() => import('./pages/Landing.jsx'));
@@ -304,6 +305,7 @@ export default function App() {
       <CookieBanner />
       {user && <OnboardingTour />}
       {user && <IncomingCallListener />}
+      {user && <CoHostInviteModal />}
       <Toaster
         position="top-center"
         toastOptions={{

@@ -97,6 +97,42 @@ export const inviteCoHost = async (req, res) => {
   }
 };
 
+// GET /api/cohost/pending — invitaciones co-host pendientes para mí
+// Usado por el modal del invitado. Polling cada 10s (mismo patrón que battles).
+export const getMyPendingCoHostInvites = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { data } = await supabase
+      .from('show_co_hosts')
+      .select(`
+        show_id, invited_at, status,
+        show:live_shows!show_id(id, title, category, status, host_id,
+          host:profiles!host_id(id, full_name, avatar_url, is_verified)
+        )
+      `)
+      .eq('user_id', userId)
+      .eq('status', 'invited')
+      .order('invited_at', { ascending: false })
+      .limit(5);
+
+    const invites = (data || [])
+      .filter(r => r.show && r.show.status !== 'ended')
+      .map(r => ({
+        show_id: r.show_id,
+        invited_at: r.invited_at,
+        show_title: r.show.title,
+        show_category: r.show.category,
+        show_status: r.show.status,
+        host: r.show.host,
+      }));
+
+    res.json({ invites });
+  } catch (err) {
+    console.error('[getMyPendingCoHostInvites] error:', err.message);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
 // POST /api/shows/:id/co-hosts/accept — el invitado acepta
 export const acceptCoHostInvite = async (req, res) => {
   try {

@@ -43,7 +43,7 @@ import {
 } from '../controllers/showController.js';
 import {
   inviteCoHost, acceptCoHostInvite, declineCoHostInvite,
-  removeCoHost, listCoHosts,
+  removeCoHost, listCoHosts, getMyPendingCoHostInvites,
 } from '../controllers/coHostController.js';
 
 const router = Router();
@@ -52,6 +52,7 @@ router.use(authMiddleware);
 router.get('/', listShows);
 router.get('/leaderboard', getLeaderboard);
 router.get('/live-creators', getLiveCreators);
+router.get('/co-hosts/pending', getMyPendingCoHostInvites);
 router.get('/my', getMyShows);
 
 // Creator gifts (custom catalog) — antes de :id para evitar conflictos
