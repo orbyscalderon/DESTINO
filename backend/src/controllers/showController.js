@@ -124,6 +124,67 @@ export const listShows = async (req, res) => {
   }
 };
 
+// GET /api/shows/live-creators?q=...
+// Lista creadores con un show ACTUALMENTE LIVE. Usado por los modales de
+// "Lanzar Battle 1v1" y "Invitar co-host" en ShowStudio para mostrar candidatos
+// de forma proactiva (antes de teclear) + permitir filtrar tecleando.
+// Si el caller es adult creator, también devuelve hosts adultos.
+export const getLiveCreators = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const q = (req.query.q || '').trim().toLowerCase().replace(/[%_().,'";\\@]/g, '');
+
+    // ¿El caller puede ver creators adultos? Adult creators sí, los demás no.
+    const { data: viewer } = await supabase
+      .from('profiles')
+      .select('is_adult_creator, premium_tier, age_verified_at')
+      .eq('id', userId).single();
+    const canSeeAdult = !!viewer?.is_adult_creator
+                     || !!viewer?.age_verified_at
+                     || viewer?.premium_tier === 'vip';
+
+    let showQuery = supabase
+      .from('live_shows')
+      .select(`
+        id, title, category, host_id, started_at,
+        host:profiles!host_id(id, full_name, username, avatar_url, is_verified, is_adult_creator)
+      `)
+      .eq('status', 'live')
+      .neq('host_id', userId)
+      .order('started_at', { ascending: false })
+      .limit(40);
+
+    if (!canSeeAdult) showQuery = showQuery.neq('category', 'adult');
+
+    const { data: shows, error } = await showQuery;
+    if (error) throw error;
+
+    // Dedupe por host (un creator solo aparece una vez aunque tenga 2 shows)
+    const seen = new Set();
+    let creators = (shows || [])
+      .filter(s => s.host && !seen.has(s.host.id) && seen.add(s.host.id))
+      .map(s => ({
+        ...s.host,
+        live_show_id: s.id,
+        live_show_title: s.title,
+        live_category: s.category,
+      }));
+
+    // Filtro por q (cliente teclea)
+    if (q && q.length >= 1) {
+      creators = creators.filter(c =>
+        (c.full_name || '').toLowerCase().includes(q)
+        || (c.username || '').toLowerCase().includes(q)
+      );
+    }
+
+    res.json({ creators });
+  } catch (err) {
+    console.error('[getLiveCreators] error:', err.message);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
 // GET /api/shows/:id — detalle de un show
 export const getShow = async (req, res) => {
   try {

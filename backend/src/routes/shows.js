@@ -38,6 +38,7 @@ import {
   createGift,
   updateGift,
   deleteGift,
+  getLiveCreators,
 } from '../controllers/showController.js';
 import {
   inviteCoHost, acceptCoHostInvite, declineCoHostInvite,
@@ -49,6 +50,7 @@ router.use(authMiddleware);
 
 router.get('/', listShows);
 router.get('/leaderboard', getLeaderboard);
+router.get('/live-creators', getLiveCreators);
 router.get('/my', getMyShows);
 
 // Creator gifts (custom catalog) — antes de :id para evitar conflictos

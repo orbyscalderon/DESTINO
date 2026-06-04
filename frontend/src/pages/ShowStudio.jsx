@@ -203,19 +203,23 @@ function CoHostsPanel({ showId }) {
   };
   useEffect(() => { load(); }, [showId]);
 
+  // Carga creators con show LIVE. Si q está vacío trae todos los live;
+  // con texto filtra del lado del servidor.
   const doSearch = async (q) => {
     setSearch(q);
-    if (!q || q.length < 2) { setResults([]); return; }
     setSearching(true);
     try {
-      const { data } = await api.get(`/api/profiles/search?q=${encodeURIComponent(q)}&is_creator=true`);
-      setResults(data?.profiles || data?.results || []);
+      const { data } = await api.get(`/api/shows/live-creators${q ? `?q=${encodeURIComponent(q)}` : ''}`);
+      setResults(data?.creators || []);
     } catch {
       setResults([]);
     } finally {
       setSearching(false);
     }
   };
+
+  // Precargar la lista al montar (sin necesidad de teclear)
+  useEffect(() => { doSearch(''); /* eslint-disable-next-line */ }, []);
 
   const invite = async (userId) => {
     if (!showId) {
@@ -260,16 +264,32 @@ function CoHostsPanel({ showId }) {
         value={search}
         onChange={e => doSearch(e.target.value)}
       />
+      <p className="text-[9px] text-gray-500 uppercase tracking-wider font-bold mt-1">
+        {search ? 'Resultados' : 'En vivo ahora'}
+      </p>
       {searching && <p className="text-[10px] text-gray-500">Buscando…</p>}
-      {results.slice(0, 5).map(p => (
+      {!searching && results.length === 0 && (
+        <p className="text-[10px] text-gray-600 text-center py-3">
+          {search ? 'Sin resultados' : 'Nadie más está en vivo'}
+        </p>
+      )}
+      {results.slice(0, 8).map(p => (
         <div key={p.id} className="flex items-center gap-2 p-1.5 rounded bg-dark-800">
-          <img src={p.avatar_url || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(p.full_name || 'U')}
-            className="w-6 h-6 rounded-full" alt="" />
-          <span className="flex-1 text-xs text-white truncate">{p.full_name}</span>
+          <div className="relative shrink-0">
+            <img src={p.avatar_url || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(p.full_name || 'U')}
+              className="w-7 h-7 rounded-full object-cover" alt="" />
+            <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-red-500 border-2 border-dark-800 animate-pulse" title="En vivo" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs text-white truncate font-semibold">{p.full_name}</p>
+            {p.live_show_title && (
+              <p className="text-[9px] text-gray-500 truncate">🔴 {p.live_show_title}</p>
+            )}
+          </div>
           <button
             onClick={() => invite(p.id)}
             disabled={inviting === p.id}
-            className="text-[10px] px-2 py-1 bg-brand-500 hover:bg-brand-600 text-white rounded font-bold disabled:opacity-50"
+            className="text-[10px] px-2 py-1 bg-brand-500 hover:bg-brand-600 text-white rounded font-bold disabled:opacity-50 shrink-0"
           >
             {inviting === p.id ? '…' : 'Invitar'}
           </button>
@@ -828,14 +848,21 @@ export default function ShowStudio() {
   };
 
   // ── BATTLES handlers ─────────────────────────────────────────────────────────
+  // Carga creators con show LIVE. Si q está vacío, devuelve todos. Si q tiene
+  // texto, filtra por nombre/username del lado del servidor.
   const searchBattleOpponents = async (q) => {
     setBattleSearch(q);
-    if (!q || q.length < 2) { setBattleResults([]); return; }
     try {
-      const { data } = await api.get(`/api/profiles/search?q=${encodeURIComponent(q)}&is_creator=true`);
-      setBattleResults((data?.profiles || data?.results || []).filter(p => p.id !== user.id).slice(0, 5));
+      const { data } = await api.get(`/api/shows/live-creators${q ? `?q=${encodeURIComponent(q)}` : ''}`);
+      setBattleResults((data?.creators || []).slice(0, 10));
     } catch { setBattleResults([]); }
   };
+
+  // Cuando se abre el modal de battle, precargar la lista de live creators
+  useEffect(() => {
+    if (!showBattleSearch) return;
+    searchBattleOpponents('');
+  }, [showBattleSearch]);
 
   const inviteBattleOpponent = async (opponentId) => {
     if (!showId || !isLive) { toast.error('Inicia el show primero'); return; }
@@ -2356,7 +2383,10 @@ export default function ShowStudio() {
                 value={battleSearch}
                 onChange={e => searchBattleOpponents(e.target.value)}
               />
-              <div className="mt-3 space-y-1.5 max-h-60 overflow-y-auto">
+              <p className="text-[10px] uppercase tracking-wider text-gray-500 font-bold mt-3 mb-1">
+                {battleSearch ? 'Resultados' : 'En vivo ahora'}
+              </p>
+              <div className="space-y-1.5 max-h-72 overflow-y-auto">
                 {battleResults.map(p => (
                   <button
                     key={p.id}
@@ -2364,19 +2394,31 @@ export default function ShowStudio() {
                     disabled={battleInviting === p.id}
                     className="w-full flex items-center gap-2.5 p-2 rounded-lg bg-dark-800 hover:bg-dark-700 transition-colors disabled:opacity-50"
                   >
-                    <img
-                      src={p.avatar_url || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(p.full_name || 'U')}
-                      alt=""
-                      className="w-8 h-8 rounded-full object-cover"
-                    />
-                    <span className="flex-1 text-left text-white text-sm font-semibold truncate">{p.full_name}</span>
-                    <span className="text-[10px] text-pink-300 font-bold">
+                    <div className="relative shrink-0">
+                      <img
+                        src={p.avatar_url || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(p.full_name || 'U')}
+                        alt=""
+                        className="w-9 h-9 rounded-full object-cover"
+                      />
+                      <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-red-500 border-2 border-[#1a1a1e] animate-pulse" title="En vivo" />
+                    </div>
+                    <div className="flex-1 min-w-0 text-left">
+                      <p className="text-white text-sm font-semibold truncate">{p.full_name}</p>
+                      <p className="text-[10px] text-gray-500 truncate">
+                        {p.live_show_title ? `🔴 ${p.live_show_title}` : 'En vivo'}
+                      </p>
+                    </div>
+                    <span className="text-[10px] text-pink-300 font-bold shrink-0">
                       {battleInviting === p.id ? '…' : 'Invitar'}
                     </span>
                   </button>
                 ))}
-                {battleSearch.length >= 2 && battleResults.length === 0 && (
-                  <p className="text-center text-gray-500 text-xs py-4">Sin resultados</p>
+                {battleResults.length === 0 && (
+                  <p className="text-center text-gray-500 text-xs py-6">
+                    {battleSearch
+                      ? 'Sin resultados con ese nombre'
+                      : 'Nadie más está en vivo ahora — intenta buscar por @username'}
+                  </p>
                 )}
               </div>
             </motion.div>
