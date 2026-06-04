@@ -218,7 +218,7 @@ export default function CoHostStage() {
               {camOn ? <FiVideo size={18} /> : <FiVideoOff size={18} />}
             </button>
             <button onClick={disconnect}
-              className="w-12 h-12 rounded-2xl bg-red-500 hover:bg-red-600 text-white flex items-center justify-center">
+              className="w-12 h-12 rounded-2xl bg-red-500 hover:bg-red-600 text-white flex items-center justify-center" aria-label="Colgar llamada">
               <FiPhoneOff size={18} />
             </button>
           </>

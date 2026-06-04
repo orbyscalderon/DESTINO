@@ -115,7 +115,7 @@ export default function GiftSubModal({ creatorId, creatorName, onClose, onSucces
               <FiGift className="text-pink-400" size={20} />
               <h3 className="text-white font-bold">Regalar suscripción</h3>
             </div>
-            <button onClick={onClose} className="text-gray-400 hover:text-white">
+            <button onClick={onClose} className="text-gray-400 hover:text-white" aria-label="Cerrar">
               <FiX size={20} />
             </button>
           </div>

@@ -1374,7 +1374,7 @@ export default function LiveShow() {
             <div className="flex items-center gap-2">
               <span className="flex items-center gap-1 text-sm text-gray-300"><FiUsers size={13} />{viewerCount}</span>
               <span className="flex items-center gap-1 text-sm text-yellow-400 font-bold"><FiZap size={13} />{totalCoinsEarned}</span>
-              <button onClick={handleShareLink} className="w-7 h-7 rounded-full bg-dark-700 hover:bg-dark-600 flex items-center justify-center transition-colors ml-1" title="Copiar link del show">
+              <button onClick={handleShareLink} className="w-7 h-7 rounded-full bg-dark-700 hover:bg-dark-600 flex items-center justify-center transition-colors ml-1" title="Copiar link del show" aria-label="Copiar">
                 <FiCopy size={12} className="text-gray-400" />
               </button>
             </div>
@@ -1479,7 +1479,7 @@ export default function LiveShow() {
                 {isDesktop && (
                   <button onClick={toggleScreenShare} title={screenSharing ? 'Dejar de compartir' : 'Compartir pantalla'}
                     className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${screenSharing ? 'bg-blue-500/30 border border-blue-500/60 text-blue-400' : 'bg-white/10 hover:bg-white/20 border border-white/20 text-white'}`}
-                  >
+                   aria-label="Pantalla">
                     <FiMonitor size={16} />
                   </button>
                 )}
@@ -1762,7 +1762,7 @@ export default function LiveShow() {
                   />
                   <button onClick={sendChatMessage} disabled={!chatInput.trim()}
                     className="w-7 h-7 rounded-full bg-brand-500 flex items-center justify-center shrink-0 disabled:opacity-40"
-                  >
+                   aria-label="Enviar">
                     <FiSend size={12} className="text-white" />
                   </button>
                 </div>
@@ -1922,7 +1922,7 @@ export default function LiveShow() {
               />
               <button onClick={sendChatMessage} disabled={!chatInput.trim()}
                 className="w-7 h-7 rounded-full bg-brand-500 flex items-center justify-center shrink-0 disabled:opacity-40"
-              >
+               aria-label="Enviar">
                 <FiSend size={12} className="text-white" />
               </button>
             </div>
@@ -1976,7 +1976,7 @@ export default function LiveShow() {
               />
               <button onClick={sendDM} disabled={!dmInput.trim()}
                 className="w-7 h-7 rounded-full bg-purple-600 flex items-center justify-center shrink-0 disabled:opacity-40"
-              >
+               aria-label="Enviar">
                 <FiSend size={12} className="text-white" />
               </button>
             </div>
@@ -2299,7 +2299,7 @@ export default function LiveShow() {
                   />
                   <button onClick={sendChatMessage} disabled={!chatInput.trim()}
                     className="w-8 h-8 rounded-full bg-brand-500 flex items-center justify-center shrink-0 disabled:opacity-40"
-                  >
+                   aria-label="Enviar">
                     <FiSend size={13} className="text-white" />
                   </button>
                 </div>
@@ -2457,7 +2457,7 @@ export default function LiveShow() {
           )}
 
           {/* Salir */}
-          <button onClick={handleLeave} className="w-10 h-10 rounded-full bg-red-500 flex items-center justify-center shrink-0">
+          <button onClick={handleLeave} className="w-10 h-10 rounded-full bg-red-500 flex items-center justify-center shrink-0" aria-label="Cerrar">
             <FiX className="text-white" size={18} />
           </button>
         </div>
@@ -2480,7 +2480,7 @@ export default function LiveShow() {
         <button
           onClick={handleShare}
           className="w-9 h-9 flex items-center justify-center text-gray-400 hover:text-white bg-dark-700 hover:bg-dark-600 rounded-full transition-colors"
-        >
+         aria-label="Compartir">
           <FiShare2 size={16} />
         </button>
       </div>

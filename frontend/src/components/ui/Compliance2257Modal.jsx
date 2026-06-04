@@ -71,7 +71,7 @@ export default function Compliance2257Modal({ videoId, onComplete, onClose }) {
               <h3 className="text-white font-bold text-sm">Records 2257 — obligatorio</h3>
               <p className="text-[10px] text-gray-500">US Title 18 § 2257 compliance</p>
             </div>
-            <button onClick={onClose} className="text-gray-400 hover:text-white">
+            <button onClick={onClose} className="text-gray-400 hover:text-white" aria-label="Cerrar">
               <FiX size={18} />
             </button>
           </div>

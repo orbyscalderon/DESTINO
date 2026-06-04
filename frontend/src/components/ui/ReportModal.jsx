@@ -60,7 +60,7 @@ export default function ReportModal({ targetId, targetName, onClose }) {
                 {step === 'done' ? 'Reporte enviado' : `Reportar a ${targetName || 'usuario'}`}
               </h2>
             </div>
-            <button onClick={onClose} className="text-gray-600 hover:text-white">
+            <button onClick={onClose} className="text-gray-600 hover:text-white" aria-label="Cerrar">
               <FiX size={18} />
             </button>
           </div>

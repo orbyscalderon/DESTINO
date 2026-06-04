@@ -60,7 +60,7 @@ export default function MatchNotification({ match, onClose }) {
         <Confetti />
 
         {/* Botón cerrar */}
-        <button onClick={onClose} className="absolute top-6 right-6 text-white/40 hover:text-white/80 transition-colors z-10">
+        <button onClick={onClose} className="absolute top-6 right-6 text-white/40 hover:text-white/80 transition-colors z-10" aria-label="Cerrar">
           <FiX size={22} />
         </button>
 

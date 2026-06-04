@@ -58,7 +58,7 @@ export default function BlockReportModal({ userId, userName, onClose, onBlocked 
           <>
             <div className="flex items-center justify-between p-4 border-b border-white/5">
               <p className="font-semibold text-white">{userName}</p>
-              <button onClick={onClose} className="text-gray-400 hover:text-white"><FiX /></button>
+              <button onClick={onClose} className="text-gray-400 hover:text-white" aria-label="Cerrar"><FiX /></button>
             </div>
             <div className="p-2">
               <button

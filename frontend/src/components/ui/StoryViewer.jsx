@@ -144,7 +144,7 @@ export default function StoryViewer({ groups, initialGroupIndex = 0, onClose, on
           />
           <p className="text-white text-sm font-medium flex-1">{currentGroup.user.full_name}</p>
           <p className="text-white/60 text-xs">{timeLeft}h</p>
-          <button onClick={onClose} className="text-white/80 hover:text-white ml-1">
+          <button onClick={onClose} className="text-white/80 hover:text-white ml-1" aria-label="Cerrar">
             <FiX size={20} />
           </button>
         </div>

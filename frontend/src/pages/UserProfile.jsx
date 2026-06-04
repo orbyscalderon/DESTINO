@@ -469,7 +469,7 @@ export default function UserProfile() {
             <button
               onClick={handleShare}
               className="w-10 h-10 bg-black/50 backdrop-blur-md rounded-full flex items-center justify-center text-white hover:bg-black/70 transition-colors"
-            >
+             aria-label="Compartir">
               <FiShare2 size={17} />
             </button>
             <button

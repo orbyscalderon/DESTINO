@@ -34,7 +34,7 @@ export default function ProfileQRModal({ profile, onClose }) {
         className="card p-6 w-full max-w-sm text-center relative"
         onClick={e => e.stopPropagation()}
       >
-        <button onClick={onClose} className="absolute top-3 right-3 text-gray-500 hover:text-white">
+        <button onClick={onClose} className="absolute top-3 right-3 text-gray-500 hover:text-white" aria-label="Cerrar">
           <FiX size={18} />
         </button>
 

@@ -53,7 +53,7 @@ export default function PremiumModal({ onClose, requiredTier = 'premium' }) {
           transition={{ type: 'spring', damping: 20 }}
           className="card w-full max-w-sm p-6 relative"
         >
-          <button onClick={onClose} className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors">
+          <button onClick={onClose} className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors" aria-label="Cerrar">
             <FiX size={20} />
           </button>
 

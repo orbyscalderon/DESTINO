@@ -262,14 +262,14 @@ export default function VideoCall() {
         {multiCam && (
           <button onClick={flipCamera}
             className="w-12 h-12 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-sm flex items-center justify-center transition-all"
-          >
+           aria-label="Cambiar cámara">
             <FiRotateCw size={18} className="text-white" />
           </button>
         )}
 
         <button onClick={endCall}
           className="w-16 h-16 rounded-full bg-red-600 hover:bg-red-700 flex items-center justify-center transition-colors shadow-xl"
-        >
+         aria-label="Colgar llamada">
           <FiPhoneOff size={26} className="text-white" />
         </button>
 

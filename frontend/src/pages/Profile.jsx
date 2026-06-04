@@ -415,7 +415,7 @@ export default function Profile() {
           <Link to="/settings" className="w-9 h-9 rounded-xl bg-dark-700 flex items-center justify-center text-gray-400 hover:text-white transition-colors">
             <FiSettings size={16} />
           </Link>
-          <button onClick={logout} className="w-9 h-9 rounded-xl bg-dark-700 flex items-center justify-center text-gray-400 hover:text-brand-500 transition-colors">
+          <button onClick={logout} className="w-9 h-9 rounded-xl bg-dark-700 flex items-center justify-center text-gray-400 hover:text-brand-500 transition-colors" aria-label="Cerrar sesión">
             <FiLogOut size={16} />
           </button>
         </div>

@@ -47,7 +47,7 @@ export default function TutorialOverlay({ onDone }) {
         <button
           onClick={onDone}
           className="absolute top-4 right-4 w-8 h-8 rounded-full bg-dark-700 flex items-center justify-center text-gray-500 hover:text-gray-300 transition-colors"
-        >
+         aria-label="Cerrar">
           <FiX size={15} />
         </button>
 

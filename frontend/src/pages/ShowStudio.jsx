@@ -1811,7 +1811,7 @@ export default function ShowStudio() {
                     onChange={e => setChatInput(e.target.value)}
                     onKeyDown={e => e.key === 'Enter' && sendChatMessage()} maxLength={120} />
                   <button onClick={sendChatMessage} disabled={!chatInput.trim()}
-                    className="w-6 h-6 rounded-full bg-brand-500 flex items-center justify-center shrink-0 disabled:opacity-40">
+                    className="w-6 h-6 rounded-full bg-brand-500 flex items-center justify-center shrink-0 disabled:opacity-40" aria-label="Enviar">
                     <FiSend size={10} className="text-white" />
                   </button>
                 </div>
@@ -2202,7 +2202,7 @@ export default function ShowStudio() {
                 ⚔️ Battle
               </button>
             )}
-            <button onClick={handleCopyLink} className="w-6 h-6 rounded bg-white/5 hover:bg-white/10 flex items-center justify-center transition-colors shrink-0" title="Copiar link">
+            <button onClick={handleCopyLink} className="w-6 h-6 rounded bg-white/5 hover:bg-white/10 flex items-center justify-center transition-colors shrink-0" title="Copiar link" aria-label="Copiar">
               <FiCopy size={11} className="text-gray-400" />
             </button>
           </>

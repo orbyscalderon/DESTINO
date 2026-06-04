@@ -64,7 +64,7 @@ export default function SelfieVerifyModal({ onClose, onVerified }) {
         className="card p-5 w-full max-w-md relative"
         onClick={e => e.stopPropagation()}
       >
-        <button onClick={onClose} className="absolute top-3 right-3 text-gray-500 hover:text-white">
+        <button onClick={onClose} className="absolute top-3 right-3 text-gray-500 hover:text-white" aria-label="Cerrar">
           <FiX size={18} />
         </button>
 

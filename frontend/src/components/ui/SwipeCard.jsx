@@ -213,7 +213,7 @@ export default function SwipeCard({ profile, onLike, onDislike, onSuperLike, isP
           onClick={triggerDislike}
           className="w-16 h-16 rounded-full bg-dark-700 border border-white/10 flex items-center justify-center
                      text-brand-500 text-2xl transition-all hover:bg-brand-500 hover:text-white hover:scale-110 active:scale-95"
-        >
+         aria-label="Cerrar">
           <FiX />
         </button>
 
@@ -226,7 +226,7 @@ export default function SwipeCard({ profile, onLike, onDislike, onSuperLike, isP
               ? 'bg-dark-700 border-blue-500/30 text-blue-400 hover:bg-blue-500 hover:text-white hover:scale-110'
               : 'bg-dark-800 border-white/5 text-gray-700 cursor-not-allowed'
           }`}
-        >
+         aria-label="Super like">
           <FiStar size={18} />
         </button>
 
@@ -234,7 +234,7 @@ export default function SwipeCard({ profile, onLike, onDislike, onSuperLike, isP
           onClick={triggerLike}
           className="w-16 h-16 rounded-full bg-dark-700 border border-white/10 flex items-center justify-center
                      text-green-500 text-2xl transition-all hover:bg-green-500 hover:text-white hover:scale-110 active:scale-95"
-        >
+         aria-label="Me gusta">
           <FiHeart />
         </button>
       </div>

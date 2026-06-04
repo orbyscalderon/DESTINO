@@ -51,7 +51,7 @@ export default function TipModal({ userId, userName, onClose, onSent }) {
               <h3 className="text-white font-bold text-lg">Enviar propina</h3>
               <p className="text-gray-500 text-sm">a {userName}</p>
             </div>
-            <button onClick={onClose} className="w-8 h-8 rounded-full bg-dark-700 flex items-center justify-center text-gray-400 hover:text-white">
+            <button onClick={onClose} className="w-8 h-8 rounded-full bg-dark-700 flex items-center justify-center text-gray-400 hover:text-white" aria-label="Cerrar">
               <FiX size={15} />
             </button>
           </div>

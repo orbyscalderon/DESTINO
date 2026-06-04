@@ -74,7 +74,7 @@ export default function GiftPanel({ showId, hostId, coinBalance, onClose, onGift
             <span className="text-white font-bold text-sm">Regalos</span>
             <span className="text-yellow-400 text-[10px] ml-2">⚡ {balance.toLocaleString()}</span>
           </div>
-          <button onClick={onClose} className="text-gray-500 hover:text-white"><FiX size={14} /></button>
+          <button onClick={onClose} className="text-gray-500 hover:text-white" aria-label="Cerrar"><FiX size={14} /></button>
         </div>
 
         <div className="overflow-y-auto flex-1 p-3 space-y-2">

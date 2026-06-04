@@ -623,7 +623,7 @@ export default function ChatWindow({ matchId, otherUser }) {
             disabled={clearingConv}
             title="Borrar conversación"
             className="w-7 h-7 rounded-full bg-dark-700 flex items-center justify-center text-gray-600 hover:text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-40"
-          >
+           aria-label="Eliminar">
             <FiTrash2 size={12} />
           </button>
         </div>
@@ -660,7 +660,7 @@ export default function ChatWindow({ matchId, otherUser }) {
                 <span className="text-brand-400 font-medium">Fijado: </span>
                 {pinnedMsg.content || '🎤 Voz'}
               </p>
-              <button onClick={handleUnpinMessage} className="text-gray-500 hover:text-white shrink-0">
+              <button onClick={handleUnpinMessage} className="text-gray-500 hover:text-white shrink-0" aria-label="Cerrar">
                 <FiX size={12} />
               </button>
             </div>
