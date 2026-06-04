@@ -29,6 +29,8 @@ import {
   endPrivateShow,
   resetPrivateShow,
   resumePublicShow,
+  buyPrivateTicket,
+  activatePrivateShow,
   heartbeatShow,
   getTipGoalProgress,
   updateTipGoal,
@@ -88,6 +90,8 @@ router.post('/:id/private/decline',   declinePrivateShow);
 router.post('/:id/private/end',       endPrivateShow);
 router.post('/:id/private/reset',     resetPrivateShow);
 router.post('/:id/private/resume',    resumePublicShow);
+router.post('/:id/private/buy-ticket', buyPrivateTicket);
+router.post('/:id/private/activate',  activatePrivateShow);
 router.post('/:id/heartbeat',         heartbeatShow);
 router.get('/:id/tip-goal',           getTipGoalProgress);
 router.patch('/:id/tip-goal',         updateTipGoal);

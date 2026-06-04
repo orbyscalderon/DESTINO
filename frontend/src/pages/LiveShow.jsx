@@ -138,9 +138,14 @@ function CaptionLayer({ showId, captionsEnabled }) {
   return <CaptionOverlay captions={captions} bottom={90} />;
 }
 
-// Overlay que muestra el countdown al viewer cuando el host acepta una
-// solicitud privada. Mensaje contextual según rol (aceptado vs otros) y type.
-function PrivateCountdownOverlay({ countdown }) {
+// Overlay durante el countdown previo al inicio de un show privado/exclusive.
+// Modos:
+//  · viewer aceptado: solo info, countdown numérico grande.
+//  · otro viewer + exclusive: aviso "serás desconectado".
+//  · otro viewer + private: aviso + botón "Comprar acceso por N coins".
+//    Si compra durante el countdown, el botón cambia a "✅ Acceso comprado"
+//    y el viewer se queda al terminar el countdown.
+function PrivateCountdownOverlay({ countdown, onBuyTicket, ticketStatus }) {
   const [secs, setSecs] = useState(() => Math.max(0, Math.ceil((countdown.endsAt - Date.now()) / 1000)));
   useEffect(() => {
     const t = setInterval(() => {
@@ -149,11 +154,13 @@ function PrivateCountdownOverlay({ countdown }) {
     return () => clearInterval(t);
   }, [countdown.endsAt]);
 
-  const { isAccepted, type, rate, hostName, viewerName, kickOthers } = countdown;
+  const { isAccepted, type, rate, hostName, viewerName, ticketPriceCoins } = countdown;
   const isCam2cam = type === 'exclusive';
+  const canBuy = !isAccepted && type === 'private' && !!ticketPriceCoins;
+
   const title = isAccepted
     ? (isCam2cam ? '🔒 CAM2CAM iniciando' : '🔒 Tu show privado iniciando')
-    : (isCam2cam ? '🔒 CAM2CAM exclusivo iniciando' : '🔒 Show privado iniciando');
+    : (isCam2cam ? '🔒 CAM2CAM exclusivo' : '🔒 Show privado');
 
   const message = isAccepted
     ? (isCam2cam
@@ -161,16 +168,34 @@ function PrivateCountdownOverlay({ countdown }) {
         : `Solo tú y ${hostName}. Pagarás ${rate} coins/min.`)
     : (isCam2cam
         ? `${hostName} aceptó CAM2CAM con ${viewerName || 'otro viewer'}. Serás desconectado cuando termine la cuenta.`
-        : kickOthers
-          ? `${hostName} pasa a show privado con ${viewerName || 'otro viewer'}. Serás desconectado cuando termine la cuenta.`
-          : `${hostName} pasa a show privado. Compra ticket para seguir viendo.`);
+        : canBuy
+          ? `${hostName} pasa a show privado. Compra ticket para seguir viendo.`
+          : `${hostName} pasa a show privado. Serás desconectado cuando termine la cuenta.`);
 
   return (
     <div className="absolute inset-0 z-40 bg-black/80 backdrop-blur-sm flex items-center justify-center px-4">
       <div className="bg-gradient-to-br from-purple-700 to-pink-600 rounded-3xl px-6 py-8 max-w-xs w-full text-center shadow-2xl shadow-purple-500/40">
         <div className="text-7xl font-black text-white tabular-nums mb-2">{secs}</div>
         <p className="text-white text-base font-black mb-2">{title}</p>
-        <p className="text-purple-100 text-sm leading-snug">{message}</p>
+        <p className="text-purple-100 text-sm leading-snug mb-4">{message}</p>
+
+        {canBuy && (
+          <button
+            onClick={onBuyTicket}
+            disabled={ticketStatus === 'buying' || ticketStatus === 'bought'}
+            className={`w-full font-black py-3 rounded-2xl transition-all ${
+              ticketStatus === 'bought'
+                ? 'bg-green-400 text-green-900'
+                : 'bg-yellow-400 text-yellow-900 hover:brightness-110 active:scale-95'
+            } disabled:opacity-70`}
+          >
+            {ticketStatus === 'bought'
+              ? '✅ Acceso comprado · quédate'
+              : ticketStatus === 'buying'
+                ? 'Procesando…'
+                : `Comprar acceso · ${ticketPriceCoins} coins`}
+          </button>
+        )}
       </div>
     </div>
   );
@@ -267,7 +292,8 @@ export default function LiveShow() {
   // Show privado
   const [privateModal, setPrivateModal]       = useState(false);
   const [privateSession, setPrivateSession]   = useState(null); // { type, rate, startTime }
-  const [privateCountdown, setPrivateCountdown] = useState(null); // { endsAt, isAccepted, type, rate, hostName, viewerName, kickOthers }
+  const [privateCountdown, setPrivateCountdown] = useState(null); // { endsAt, isAccepted, type, rate, hostName, viewerName, ticketPriceCoins }
+  const [privateTicketStatus, setPrivateTicketStatus] = useState('idle'); // idle | buying | bought
   const [privateRequest, setPrivateRequest]   = useState(null); // { viewerId, viewerName, viewerAvatar, type, rate }
   const [privateMinutes, setPrivateMinutes]   = useState(0);
   const [privateBalance, setPrivateBalance]   = useState(0);
@@ -538,6 +564,18 @@ export default function LiveShow() {
         setLatestTip({ coins: payload.coins, message: payload.message });
         setTimeout(() => setLatestTip(null), 4000);
       })
+      .on('broadcast', { event: 'private_active' }, ({ payload }) => {
+        // El host marcó la session como 'active' tras el countdown.
+        // Si soy viewer en private y NO compré ticket → backend ya no me dará
+        // token. Aquí solo confirmamos UI.
+      })
+      .on('broadcast', { event: 'private_ticket_bought' }, ({ payload }) => {
+        // Otro viewer compró ticket para el privado normal. Útil para que el
+        // host vea el counter de compradores. Los viewers no necesitan saberlo.
+        if (role === 'host') {
+          toast(`💰 +1 viewer compró acceso (${payload.allowedCount} en total)`, { icon: '🎟' });
+        }
+      })
       .on('broadcast', { event: 'private_resumed' }, ({ payload }) => {
         // El host volvió al show público — si yo estaba "esperando" desde el
         // privado, podría re-entrar; en esta iteración el show queda visible
@@ -586,6 +624,7 @@ export default function LiveShow() {
         if (role !== 'viewer') return;
         const isAccepted = payload.viewerId === user?.id;
         const countdownSec = payload.countdownSec ?? 10;
+        setPrivateTicketStatus('idle');
         setPrivateCountdown({
           endsAt: Date.now() + countdownSec * 1000,
           isAccepted,
@@ -595,14 +634,17 @@ export default function LiveShow() {
           viewerName: payload.viewerName,
           privateRoomId: payload.privateRoomId,
           kickOthers: !!payload.kickOthers,
+          ticketPriceCoins: payload.ticketPriceCoins || null,
         });
 
-        // Tras el countdown:
-        //  · viewer aceptado: reconnect al room privado
-        //  · otros viewers: si kickOthers, navigate a /shows
+        // Tras el countdown — comportamiento depende del type:
+        //  · exclusive: viewer aceptado reconnect al privateRoom, los demás kick.
+        //  · private: viewer aceptado se queda en el room público (no reconnect);
+        //    otros viewers se quedan SI compraron ticket, sino kick.
         setTimeout(() => {
+          const bought = privateTicketStatus === 'bought'; // closure snapshot
           setPrivateCountdown(null);
-          if (isAccepted && payload.privateRoomId) {
+          if (isAccepted && payload.type === 'exclusive' && payload.privateRoomId) {
             setPrivateSession({ type: payload.type, rate: payload.rate, startTime: Date.now() });
             setPrivateBalance(coinBalance);
             setPrivateMinutes(0);
@@ -652,9 +694,30 @@ export default function LiveShow() {
                 toast.error('No se pudo conectar al room privado');
               }
             })();
+          } else if (isAccepted && payload.type === 'private') {
+            // Viewer aceptado en privado normal: NO reconnect, sigue en el room
+            // público. Activamos el tick de cobro coins/min.
+            setPrivateSession({ type: payload.type, rate: payload.rate, startTime: Date.now() });
+            setPrivateBalance(coinBalance);
+            setPrivateMinutes(0);
+            startPrivateTick(payload.type, payload.rate);
           } else if (!isAccepted && payload.kickOthers) {
-            toast(`El host inició un show ${payload.type === 'exclusive' ? 'CAM2CAM' : 'privado'}`, { icon: '🔒' });
+            // Exclusive: kick siempre.
+            toast(`El host inició un show CAM2CAM`, { icon: '🔒' });
             navigate('/shows');
+          } else if (!isAccepted && payload.type === 'private') {
+            // Privado: kick solo si NO compraste ticket.
+            // Lee el estado en ese momento via ref/snapshot — usamos un timeout
+            // de 0 para resolver el state actual desde la closure.
+            setTimeout(() => {
+              setPrivateTicketStatus(curr => {
+                if (curr !== 'bought') {
+                  toast('No compraste ticket — el show ahora es privado', { icon: '🔒' });
+                  navigate('/shows');
+                }
+                return curr;
+              });
+            }, 100);
           }
         }, countdownSec * 1000);
       })
@@ -2245,6 +2308,21 @@ export default function LiveShow() {
           {privateCountdown && (
             <PrivateCountdownOverlay
               countdown={privateCountdown}
+              ticketStatus={privateTicketStatus}
+              onBuyTicket={async () => {
+                if (privateTicketStatus !== 'idle') return;
+                setPrivateTicketStatus('buying');
+                try {
+                  const { data } = await api.post(`/api/shows/${id}/private/buy-ticket`);
+                  setPrivateTicketStatus('bought');
+                  setCoinBalance(b => Math.max(0, b - (privateCountdown.ticketPriceCoins || 0)));
+                  toast.success('✅ Acceso al show privado comprado');
+                } catch (err) {
+                  const msg = err.response?.data?.error || 'No se pudo comprar';
+                  toast.error(msg);
+                  setPrivateTicketStatus('idle');
+                }
+              }}
             />
           )}
 

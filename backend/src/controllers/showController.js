@@ -1481,14 +1481,26 @@ export const acceptPrivateShow = async (req, res) => {
     const startedAt = new Date();
     const minEndsAt = new Date(startedAt.getTime() + minMinutes * 60_000);
 
+    // Para exclusive: room privado nuevo, kick a todos los demás.
+    // Para private normal: NO genera room nuevo — el host sigue en el room
+    // público. Solo los que compran ticket (allowed_viewers) mantienen
+    // acceso; los demás son kickeados por el guard de assertRoomAccess.
+    const publicRoomId = `show_${cleanShowId}`;
+    const ticketPrice = type === 'private' ? Math.max(1, rate * minMinutes) : null;
     const session = {
       viewer_id: viewerId,
       type,
-      room_id: privateRoomId,
+      room_id: type === 'exclusive' ? privateRoomId : publicRoomId,
       rate,
       started_at: startedAt.toISOString(),
       min_ends_at: minEndsAt.toISOString(),
       state: 'countdown',
+      // Lista de UUIDs autorizados durante un privado normal.
+      // El viewer aceptado entra automáticamente sin pagar (ya pagó al
+      // hacer el request originalmente, o paga el primer tick coins/min).
+      // En 'exclusive' este campo no se usa porque hay room separado.
+      allowed_viewers: type === 'private' ? [viewerId] : [],
+      ticket_price: ticketPrice,
     };
 
     const { error: upErr } = await supabase
@@ -1512,11 +1524,14 @@ export const acceptPrivateShow = async (req, res) => {
       viewerName: req.body.viewerName || null,
       type, rate,
       hostName: host?.full_name || 'El host',
-      privateRoomId,
+      privateRoomId: type === 'exclusive' ? privateRoomId : null,
       countdownSec: COUNTDOWN_SEC,
-      kickOthers: true,
+      // Exclusive: kickea TODOS los no-aceptados sin opción.
+      // Private: NO kickea automáticamente — quien quiera quedarse compra ticket.
+      // Si no compra durante el countdown, sí queda fuera del room.
+      kickOthers: type === 'exclusive',
       minEndsAt: session.min_ends_at,
-      ticketPriceCoins: type === 'exclusive' ? null : (rate * 3),
+      ticketPriceCoins: ticketPrice,
     }).catch(() => {});
 
     res.json({
@@ -1548,6 +1563,111 @@ export const declinePrivateShow = async (req, res) => {
     broadcastToChannel(`show:${showId}`, 'private_decline', { viewerId }).catch(() => {});
     res.json({ ok: true });
   } catch {
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
+// POST /api/shows/:id/private/activate — tras el countdown el host marca
+// la session como 'active'. A partir de aquí, los no autorizados ya no pueden
+// obtener token (guard en livekitController.assertRoomAccess).
+export const activatePrivateShow = async (req, res) => {
+  try {
+    const hostId = req.user.id;
+    const showId = req.params.id;
+
+    const { data: show } = await supabase
+      .from('live_shows').select('host_id, private_session').eq('id', showId).single();
+    if (!show) return res.status(404).json({ error: 'Show no encontrado' });
+    if (show.host_id !== hostId) return res.status(403).json({ error: 'No autorizado' });
+    if (!show.private_session) return res.status(400).json({ error: 'No hay session' });
+
+    const newSession = { ...show.private_session, state: 'active' };
+    await supabase
+      .from('live_shows')
+      .update({ private_session: newSession })
+      .eq('id', showId);
+
+    broadcastToChannel(`show:${showId}`, 'private_active', {
+      type: newSession.type,
+      allowedViewers: newSession.allowed_viewers || [],
+    }).catch(() => {});
+
+    res.json({ ok: true, state: 'active' });
+  } catch (err) {
+    console.error('[activatePrivateShow] error:', err.message);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
+// POST /api/shows/:id/private/buy-ticket — un viewer compra acceso al
+// modo PRIVADO normal (no aplica a exclusive). Cobra ticket_price coins y
+// agrega al user a private_session.allowed_viewers para que pueda seguir
+// viendo. Si ya está en la lista, devuelve idempotente.
+export const buyPrivateTicket = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const showId = req.params.id;
+
+    const { data: show } = await supabase
+      .from('live_shows')
+      .select('host_id, private_session')
+      .eq('id', showId)
+      .single();
+    if (!show) return res.status(404).json({ error: 'Show no encontrado' });
+
+    const sess = show.private_session;
+    if (!sess || sess.type !== 'private') {
+      return res.status(400).json({
+        error: 'El show no está en modo privado normal',
+        code: 'NO_PRIVATE_SESSION',
+      });
+    }
+    if (sess.state === 'ended') {
+      return res.status(400).json({ error: 'El privado ya terminó', code: 'PRIVATE_ENDED' });
+    }
+    if (show.host_id === userId) {
+      return res.status(400).json({ error: 'Eres el host' });
+    }
+
+    const allowed = Array.isArray(sess.allowed_viewers) ? sess.allowed_viewers : [];
+    if (allowed.includes(userId)) {
+      return res.json({ ok: true, alreadyPaid: true });
+    }
+
+    const ticketPrice = sess.ticket_price || 0;
+    if (ticketPrice <= 0) {
+      return res.status(400).json({ error: 'Precio del ticket no configurado' });
+    }
+
+    // Cobro de coins al viewer + crédito al host (70% creator cut)
+    const spendOk = await spendCoins(userId, ticketPrice, 'private_show_ticket', showId);
+    if (!spendOk) {
+      return res.status(400).json({
+        error: `Coins insuficientes (necesitas ${ticketPrice})`,
+        code: 'INSUFFICIENT_COINS',
+      });
+    }
+    const creatorCoins = Math.round(ticketPrice * CREATOR_CUT);
+    await addCoins(show.host_id, creatorCoins, 'private_show_earning', showId).catch(() => {});
+
+    // Agregar a allowed_viewers
+    const newAllowed = [...allowed, userId];
+    const newSession = { ...sess, allowed_viewers: newAllowed };
+    await supabase
+      .from('live_shows')
+      .update({ private_session: newSession })
+      .eq('id', showId);
+
+    // Broadcast para que el host vea el counter actualizado
+    broadcastToChannel(`show:${showId}`, 'private_ticket_bought', {
+      userId,
+      ticketPrice,
+      allowedCount: newAllowed.length,
+    }).catch(() => {});
+
+    res.json({ ok: true, ticketPrice, allowedCount: newAllowed.length });
+  } catch (err) {
+    console.error('[buyPrivateTicket] error:', err.message);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };

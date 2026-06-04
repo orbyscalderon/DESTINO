@@ -1212,10 +1212,17 @@ export default function ShowStudio() {
         minEndsAt,
       });
 
-      // Tras el countdown: reconnect al room privado y promover a 'active'
+      // Tras el countdown:
+      //  · exclusive: reconnect al room privado (cam2cam 1-a-1).
+      //  · private: NO reconnect — el host sigue en el room público; backend
+      //    activará el bloqueo de no-allowed_viewers cuando el cliente llame
+      //    POST /private/activate.
       setTimeout(async () => {
         try {
-          await reconnectToRoom(privateRoomId);
+          if (type === 'exclusive' && privateRoomId) {
+            await reconnectToRoom(privateRoomId);
+          }
+          await api.post(`/api/shows/${showId}/private/activate`).catch(() => {});
           setPrivateSessionHost(prev => prev ? { ...prev, state: 'active', countdownEndsAt: null } : null);
           toast.success(
             type === 'exclusive'
@@ -1223,8 +1230,8 @@ export default function ShowStudio() {
               : `🔒 Show privado activo con ${reqSnapshot.viewerName}`
           );
         } catch (e) {
-          console.error('[host] reconnect privado falló:', e);
-          toast.error('No se pudo reconectar al room privado');
+          console.error('[host] activate privado falló:', e);
+          toast.error('No se pudo activar el privado');
         }
       }, countdownSec * 1000);
     } catch (err) {
@@ -1360,11 +1367,15 @@ export default function ShowStudio() {
   };
 
   // Tras terminar privado, vuelve al room público SOLO cuando el host quiere.
+  // Para 'private' no había reconnect (estaba en el room público), así que
+  // solo limpiamos la session. Para 'exclusive' sí reconnect al público.
   const handleResumePublicShow = async () => {
     try {
       await api.post(`/api/shows/${showId}/private/resume`);
-      const publicRoomId = `show_${showId.replace(/-/g, '')}`;
-      await reconnectToRoom(publicRoomId);
+      if (privateSession?.type === 'exclusive') {
+        const publicRoomId = `show_${showId.replace(/-/g, '')}`;
+        await reconnectToRoom(publicRoomId);
+      }
       setPrivateSessionHost(null);
       toast.success('🔴 De vuelta al show público');
     } catch (err) {

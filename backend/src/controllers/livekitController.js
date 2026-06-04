@@ -53,7 +53,7 @@ async function assertRoomAccess(userId, roomName, requestedCanPublish) {
 
     const { data: show } = await supabase
       .from('live_shows')
-      .select('host_id, ticket_price, status, category')
+      .select('host_id, ticket_price, status, category, private_session')
       .eq('id', showId)
       .single();
 
@@ -61,6 +61,21 @@ async function assertRoomAccess(userId, roomName, requestedCanPublish) {
 
     // Host siempre tiene acceso
     if (show.host_id === userId) return;
+
+    // Privado normal activo: solo allowed_viewers pueden entrar.
+    // El countdown 'countdown' aún deja pasar (los viewers existentes ven
+    // el overlay para comprar). El 'active' bloquea a los que no compraron.
+    const ps = show.private_session;
+    if (ps && ps.type === 'private' && ps.state === 'active') {
+      const allowed = Array.isArray(ps.allowed_viewers) ? ps.allowed_viewers : [];
+      if (!allowed.includes(userId)) {
+        throw {
+          status: 403,
+          message: 'Show en modo privado · necesitas comprar ticket',
+          code: 'PRIVATE_TICKET_REQUIRED',
+        };
+      }
+    }
 
     // Co-host aceptado tiene acceso como publisher
     const { data: coHost } = await supabase
