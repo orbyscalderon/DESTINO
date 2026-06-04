@@ -1404,6 +1404,29 @@ export default function ShowStudio() {
         document.body.appendChild(a);
       }
     };
+    // Detección de desconexión del viewer aceptado: si cierra pestaña sin
+    // pulsar Terminar, LiveKit emite ParticipantDisconnected. Cerramos la
+    // sesión del lado del host para que pase a modo pausa.
+    rtc.onParticipantLeft = (participant) => {
+      const pid = participant?.identity;
+      // Solo nos importa el viewer aceptado, no co-hosts u otros
+      setPrivateSessionHost(prev => {
+        if (!prev || prev.viewerId !== pid) return prev;
+        // Llamada async fuera del setState
+        Promise.resolve().then(async () => {
+          try {
+            await api.post(`/api/shows/${showId}/private/end`, {
+              viewerId: pid, reason: 'viewer_disconnected',
+            });
+          } catch {}
+          setPrivateViewerStream(null);
+          cleanupPrivateAudioElements();
+          toast('El viewer se desconectó — pulsa "Volver a broadcast" cuando estés listo',
+            { icon: '⚠️', duration: 6000 });
+        });
+        return { ...prev, state: 'ended' };
+      });
+    };
 
     try {
       await rtc.join(true, { skipAutoMedia: true });

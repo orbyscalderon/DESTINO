@@ -223,6 +223,7 @@ export default function LiveShow() {
   const [muted, setMuted]             = useState(false);
   const [cameraOff, setCameraOff]     = useState(false);
   const [viewerCount, setViewerCount] = useState(0);
+  const [hostFollowing, setHostFollowing] = useState(false);
 
   // Battles (viewer ve overlay cuando host está en battle)
   const [activeBattleId, setActiveBattleId] = useState(null);
@@ -445,6 +446,13 @@ export default function LiveShow() {
       setInterested(interestRes.data.interested);
       setInterestCount(interestRes.data.interest_count || 0);
       if (s.host?.id !== user?.id) showBottomBanner();
+
+      // Estado del follow con el host — para mostrar/ocultar el botón "Seguir"
+      if (s.host?.id && s.host.id !== user?.id) {
+        api.get(`/api/follows/${s.host.id}/status`)
+          .then(({ data }) => setHostFollowing(!!data?.following))
+          .catch(() => {});
+      }
       if (s.status === 'live') {
         loadTipGoal();
         loadPoll();
@@ -2454,13 +2462,49 @@ export default function LiveShow() {
             </div>
           )}
 
-          {/* Info overlay top */}
-          <div className="absolute top-4 left-4 right-4 flex items-center justify-between z-10">
-            <div className="bg-black/50 backdrop-blur-sm rounded-xl px-3 py-2 flex items-center gap-2">
-              <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-              <span className="text-white text-sm font-medium truncate max-w-[160px]">{show?.title}</span>
+          {/* Info overlay top — pill del host + acciones */}
+          <div className="absolute top-4 left-4 right-4 flex items-center justify-between gap-2 z-10">
+            {/* Pill izq: avatar + nombre del host + botón Seguir (Instagram-style).
+                Tap al pill abre el perfil del host. */}
+            <div className="flex items-center gap-1 min-w-0 flex-1">
+              <button
+                onClick={() => show?.host?.id && navigate(`/profile/${show.host.id}`)}
+                className="flex items-center gap-2 bg-black/55 backdrop-blur-md rounded-full pl-1 pr-2.5 py-1 hover:bg-black/70 transition-colors shrink min-w-0"
+              >
+                {show?.host?.avatar_url ? (
+                  <img src={show.host.avatar_url} alt="" className="w-7 h-7 rounded-full object-cover shrink-0" />
+                ) : (
+                  <div className="w-7 h-7 rounded-full bg-brand-500/30 flex items-center justify-center shrink-0 text-white text-xs font-bold">
+                    {(show?.host?.full_name || '?')[0]}
+                  </div>
+                )}
+                <div className="text-left min-w-0">
+                  <p className="text-white text-xs font-bold truncate leading-tight max-w-[110px]">{show?.host?.full_name || 'Host'}</p>
+                  <div className="flex items-center gap-1 leading-none">
+                    <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse shrink-0" />
+                    <span className="text-gray-300 text-[10px] truncate max-w-[100px]">{show?.title}</span>
+                  </div>
+                </div>
+              </button>
+              {/* Seguir — solo si no soy el host y no estoy ya siguiendo */}
+              {show?.host?.id && show.host.id !== user?.id && !hostFollowing && (
+                <button
+                  onClick={async () => {
+                    try {
+                      await api.post(`/api/follows/${show.host.id}/toggle`);
+                      setHostFollowing(true);
+                      toast.success('Siguiendo · te avisaremos de sus shows');
+                    } catch {
+                      toast.error('No se pudo seguir');
+                    }
+                  }}
+                  className="bg-brand-500 hover:bg-brand-600 text-white text-[10px] font-black px-2.5 py-1 rounded-full shrink-0 transition-colors"
+                >
+                  + Seguir
+                </button>
+              )}
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 shrink-0">
               {connState !== 'connected' && (
                 <div className="bg-black/50 backdrop-blur-sm rounded-xl px-2 py-2">
                   {connState === 'reconnecting'
