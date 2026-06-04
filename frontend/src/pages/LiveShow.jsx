@@ -23,6 +23,7 @@ import { LiveKitSession } from '../lib/livekitSession.js';
 import api from '../lib/api.js';
 import toast from 'react-hot-toast';
 import PaymentModal from '../components/ui/PaymentModal.jsx';
+import TierPicker from '../components/ui/TierPicker.jsx';
 
 const TIP_OPTIONS = [
   { coins: 20,  label: '20',  usd: '$1'  },
@@ -224,6 +225,8 @@ export default function LiveShow() {
   const [cameraOff, setCameraOff]     = useState(false);
   const [viewerCount, setViewerCount] = useState(0);
   const [hostFollowing, setHostFollowing] = useState(false);
+  const [hostSubscribed, setHostSubscribed] = useState(false);
+  const [showSubscribeSheet, setShowSubscribeSheet] = useState(false);
   // Cuando el viewer es expulsado del room durante un privado/exclusivo, en
   // lugar de navegar a /shows lo mantenemos en este estado. Cuando recibimos
   // private_resumed lo rejoineamos automáticamente.
@@ -455,6 +458,11 @@ export default function LiveShow() {
       if (s.host?.id && s.host.id !== user?.id) {
         api.get(`/api/follows/${s.host.id}/status`)
           .then(({ data }) => setHostFollowing(!!data?.following))
+          .catch(() => {});
+        // is_subscribed viene en el profile endpoint de creator. Si ya está
+        // suscrito ocultamos el botón ⭐ VIP.
+        api.get(`/api/profiles/${s.host.id}`)
+          .then(({ data }) => setHostSubscribed(!!data?.profile?.is_subscribed))
           .catch(() => {});
       }
       if (s.status === 'live') {
@@ -2447,6 +2455,35 @@ export default function LiveShow() {
             </div>
           )}
 
+          {/* Sheet rápido de suscripción: lista tiers y abre el perfil
+              del host en el tier elegido (UserProfile maneja el pago). */}
+          {showSubscribeSheet && show?.host?.id && (
+            <div
+              className="absolute inset-0 z-40 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center"
+              onClick={() => setShowSubscribeSheet(false)}
+            >
+              <div
+                className="w-full max-w-sm bg-dark-800 rounded-t-3xl sm:rounded-3xl p-5 border border-white/10 max-h-[80vh] overflow-y-auto"
+                onClick={e => e.stopPropagation()}
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-white font-black">⭐ Suscríbete a {show.host.full_name}</p>
+                  <button onClick={() => setShowSubscribeSheet(false)} className="text-gray-400 hover:text-white" aria-label="Cerrar">
+                    <FiX size={18} />
+                  </button>
+                </div>
+                <p className="text-gray-400 text-xs mb-4">Beneficios exclusivos · contenido VIP · sin anuncios</p>
+                <TierPicker
+                  creatorId={show.host.id}
+                  onSelect={() => {
+                    setShowSubscribeSheet(false);
+                    navigate(`/profile/${show.host.id}?subscribe=1`);
+                  }}
+                />
+              </div>
+            </div>
+          )}
+
           {/* Overlay "esperando que el host vuelva del privado" */}
           {waitingForResume && (
             <div className="absolute inset-0 z-40 bg-black/85 backdrop-blur-sm flex items-center justify-center px-4">
@@ -2556,6 +2593,16 @@ export default function LiveShow() {
                   className="bg-brand-500 hover:bg-brand-600 text-white text-[10px] font-black px-2.5 py-1 rounded-full shrink-0 transition-colors"
                 >
                   + Seguir
+                </button>
+              )}
+              {/* Suscribirse — visible si es creator y no estoy suscrito */}
+              {show?.host?.id && show.host.id !== user?.id && show.host.is_creator && !hostSubscribed && (
+                <button
+                  onClick={() => setShowSubscribeSheet(true)}
+                  className="bg-gradient-to-r from-yellow-500 to-amber-600 hover:brightness-110 text-white text-[10px] font-black px-2.5 py-1 rounded-full shrink-0 transition-all"
+                  aria-label="Suscribirse al creador"
+                >
+                  ⭐ VIP
                 </button>
               )}
             </div>
