@@ -9,7 +9,7 @@ import toast from 'react-hot-toast';
 // Modal que aparece cuando OTRO host te invita a un battle.
 // Polling cada 10s + listener Supabase para detectar invitaciones nuevas.
 // Solo se monta cuando estás en /show/:id (durante un show live).
-export default function BattleInviteModal({ onAccepted }) {
+export default function BattleInviteModal({ onAccepted, showId }) {
   const { user } = useAuthStore();
   const [invitation, setInvitation] = useState(null);
   const [processing, setProcessing] = useState(false);
@@ -33,9 +33,26 @@ export default function BattleInviteModal({ onAccepted }) {
     };
     fetchPending();
     const t = setInterval(fetchPending, 10_000);
-    return () => { cancel = true; clearInterval(t); };
+
+    // Subscribe al canal de mi show si lo conozco. Cuando alguien me invita
+    // y emite `battle_invite_received`, refrescamos pendings al instante en
+    // vez de esperar al próximo polling de 10s.
+    let ch = null;
+    if (showId) {
+      ch = supabase.channel(`show:${showId}`)
+        .on('broadcast', { event: 'battle_invite_received' }, () => {
+          fetchPending();
+        })
+        .subscribe();
+    }
+
+    return () => {
+      cancel = true;
+      clearInterval(t);
+      if (ch) supabase.removeChannel(ch);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]);
+  }, [user?.id, showId]);
 
   // Countdown
   useEffect(() => {

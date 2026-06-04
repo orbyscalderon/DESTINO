@@ -2938,7 +2938,7 @@ export default function ShowStudio() {
       </AnimatePresence>
 
       {/* Modal de invitación entrante a battle (cuando otro host me invita) */}
-      {isLive && <BattleInviteModal onAccepted={handleBattleAccepted} />}
+      {isLive && <BattleInviteModal onAccepted={handleBattleAccepted} showId={showId} />}
     </div>
   );
 }

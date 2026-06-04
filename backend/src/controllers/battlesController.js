@@ -83,7 +83,7 @@ export const inviteBattle = async (req, res) => {
       .single();
     if (error) throw error;
 
-    const { data: host } = await supabase.from('profiles').select('full_name').eq('id', hostId).single();
+    const { data: host } = await supabase.from('profiles').select('full_name, avatar_url').eq('id', hostId).single();
     createNotification(
       opponentId, 'battle_invite',
       `⚔️ ${host?.full_name || 'Alguien'} te invitó a un battle`,
@@ -95,6 +95,18 @@ export const inviteBattle = async (req, res) => {
       body: `${duration} min — acepta para empezar`,
       url: `/show/${oppShow?.id || ''}?battle=${battle.id}`,
     }).catch(() => {});
+
+    // Realtime: si el oponente está live, llega instantáneo al BattleInviteModal
+    // que escucha el canal de su show. Sin esto, el modal solo poll cada 10s.
+    if (oppShow?.id) {
+      broadcastToChannel(`show:${oppShow.id}`, 'battle_invite_received', {
+        battle_id: battle.id,
+        host_id: hostId,
+        host_name: host?.full_name || 'Alguien',
+        host_avatar: host?.avatar_url || null,
+        duration_minutes: duration,
+      }).catch(() => {});
+    }
 
     res.status(201).json({ battle });
   } catch (err) {

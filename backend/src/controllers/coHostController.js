@@ -75,7 +75,7 @@ export const inviteCoHost = async (req, res) => {
     if (error) throw error;
 
     const { data: host } = await supabase
-      .from('profiles').select('full_name').eq('id', hostId).single();
+      .from('profiles').select('full_name, avatar_url').eq('id', hostId).single();
 
     createNotification(
       inviteeId,
@@ -89,6 +89,21 @@ export const inviteCoHost = async (req, res) => {
       body: `${host?.full_name || 'Un creador'} te invitó a "${show.title}"`,
       url: `/shows/${showId}`,
     }).catch(() => {});
+
+    // Realtime: si el invitado está live (en su propio show), llega instantáneo
+    // al CoHostInviteModal global montado en App.jsx.
+    const { data: inviteeShow } = await supabase
+      .from('live_shows').select('id').eq('host_id', inviteeId).eq('status', 'live').maybeSingle();
+    if (inviteeShow?.id) {
+      const { broadcastToChannel } = await import('../lib/supabase.js');
+      broadcastToChannel(`show:${inviteeShow.id}`, 'cohost_invite_received', {
+        show_id: showId,
+        show_title: show.title,
+        host_id: hostId,
+        host_name: host?.full_name || 'Un creador',
+        host_avatar: host?.avatar_url || null,
+      }).catch(() => {});
+    }
 
     res.json({ success: true });
   } catch (err) {

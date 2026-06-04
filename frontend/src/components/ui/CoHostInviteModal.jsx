@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { FiX, FiCheck, FiUsers } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import api from '../../lib/api.js';
+import { supabase } from '../../lib/supabase.js';
 import { useAuthStore } from '../../store/authStore.js';
 import toast from 'react-hot-toast';
 
@@ -32,7 +33,26 @@ export default function CoHostInviteModal() {
     };
     fetchPending();
     const t = setInterval(fetchPending, 10_000);
-    return () => { cancel = true; clearInterval(t); };
+
+    // Si estoy live (tengo un show propio en estado 'live'), suscribirme al
+    // canal de mi show para reaccionar instantáneo al broadcast
+    // `cohost_invite_received` en vez de esperar el polling de 10s.
+    let ch = null;
+    api.get('/api/shows/my').then(({ data }) => {
+      const live = (data.shows || []).find(s => s.status === 'live');
+      if (cancel || !live?.id) return;
+      ch = supabase.channel(`show:${live.id}`)
+        .on('broadcast', { event: 'cohost_invite_received' }, () => {
+          fetchPending();
+        })
+        .subscribe();
+    }).catch(() => {});
+
+    return () => {
+      cancel = true;
+      clearInterval(t);
+      if (ch) supabase.removeChannel(ch);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, profile?.is_creator]);
 
