@@ -12,6 +12,7 @@
     "cap:ios": "npx cap open ios"
   },
   "dependencies": {
+    "@capacitor-community/admob": "^7.2.0",
     "@capacitor/android": "^8.3.3",
     "@capacitor/app": "^8.1.0",
     "@capacitor/browser": "^8.0.3",
@@ -19,6 +20,7 @@
     "@capacitor/core": "^8.3.3",
     "@capacitor/haptics": "^8.0.2",
     "@capacitor/ios": "^8.3.3",
+    "@capacitor/push-notifications": "^8.1.1",
     "@capacitor/splash-screen": "^8.0.1",
     "@capacitor/status-bar": "^8.0.2",
     "@marsidev/react-turnstile": "^1.5.2",

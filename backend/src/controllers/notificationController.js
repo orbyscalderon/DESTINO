@@ -46,6 +46,42 @@ export const unsubscribe = async (req, res) => {
   }
 };
 
+// POST /api/notifications/subscribe-mobile
+// Body: { token: string (FCM/APNs), platform: 'android' | 'ios' }
+// Guarda el token de push nativo del device. El send real requiere Firebase
+// Admin SDK en el backend (mobile_push_tokens). Por ahora solo persistimos.
+export const subscribeMobile = async (req, res) => {
+  try {
+    const { token, platform } = req.body || {};
+    if (!token || typeof token !== 'string' || token.length < 20) {
+      return res.status(400).json({ error: 'token inválido' });
+    }
+    if (!['android', 'ios'].includes(platform)) {
+      return res.status(400).json({ error: 'platform debe ser android o ios' });
+    }
+
+    // upsert por (user_id + token) — un user puede tener el mismo token en
+    // varios devices y queremos que cada device se registre una sola fila.
+    const { error } = await supabase
+      .from('mobile_push_tokens')
+      .upsert({
+        user_id: req.user.id,
+        token,
+        platform,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'user_id,token' });
+    if (error) {
+      // Si la tabla no existe aún en producción (migration pendiente),
+      // no rompemos el flujo del cliente — registramos warning.
+      console.warn('[subscribeMobile] supabase error:', error.message);
+      return res.json({ ok: false, code: 'STORAGE_UNAVAILABLE' });
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: safeErrorMessage(err) });
+  }
+};
+
 // GET /api/notifications/prefs
 export const getNotifPrefs = async (req, res) => {
   try {

@@ -1,12 +1,13 @@
 import { Router } from 'express';
 import { authMiddleware } from '../middleware/auth.js';
-import { getVapidKey, subscribe, unsubscribe, getNotifPrefs, updateNotifPrefs } from '../controllers/notificationController.js';
+import { getVapidKey, subscribe, unsubscribe, subscribeMobile, getNotifPrefs, updateNotifPrefs } from '../controllers/notificationController.js';
 import { listNotifications, markAllRead, markOneRead } from '../controllers/inAppNotifController.js';
 
 const router = Router();
 
 router.get('/vapid-key', authMiddleware, getVapidKey);
 router.post('/subscribe', authMiddleware, subscribe);
+router.post('/subscribe-mobile', authMiddleware, subscribeMobile);
 router.delete('/unsubscribe', authMiddleware, unsubscribe);
 
 // In-app notifications
