@@ -20,6 +20,7 @@ export default function BattleOverlay({ battleId, viewerSide = 'viewer', onEnded
   const [secondsLeft, setSecondsLeft] = useState(0);
   const [recentTips, setRecentTips] = useState([]); // [{ team, coins, id }]
   const [showWinner, setShowWinner] = useState(null); // { winner_id, score1, score2 }
+  const [rematchSending, setRematchSending] = useState(false);
   const channelRef = useRef(null);
   const recentIdRef = useRef(0);
 
@@ -217,9 +218,41 @@ export default function BattleOverlay({ battleId, viewerSide = 'viewer', onEnded
                 <span className="text-white/60">vs</span>
                 <span>{showWinner.score2}</span>
               </div>
+              {/* Solo los hosts pueden ofrecer revancha. El viewer solo ve "Continuar". */}
+              {(viewerSide === 'host1' || viewerSide === 'host2') && (
+                <button
+                  onClick={async () => {
+                    if (rematchSending) return;
+                    setRematchSending(true);
+                    try {
+                      const opponentId = viewerSide === 'host1' ? battle.host2_id : battle.host1_id;
+                      await api.post('/api/battles/invite', {
+                        opponent_id: opponentId,
+                        duration_minutes: battle.duration_minutes || 5,
+                      });
+                      toast.success('🔁 Invitación de revancha enviada');
+                      setShowWinner(null);
+                    } catch (err) {
+                      const status = err.response?.status;
+                      const code = err.response?.data?.code;
+                      if (code === 'BATTLE_EXISTS') {
+                        toast('Ya hay un battle pendiente con este creador', { icon: '⚔️' });
+                      } else {
+                        toast.error(err.response?.data?.error || `No se pudo enviar (HTTP ${status || '?'})`);
+                      }
+                    } finally {
+                      setRematchSending(false);
+                    }
+                  }}
+                  disabled={rematchSending}
+                  className="w-full bg-gradient-to-r from-pink-500 to-pink-600 hover:brightness-110 text-white font-black px-6 py-3 rounded-xl mb-2 disabled:opacity-60 flex items-center justify-center gap-2"
+                >
+                  {rematchSending ? '…' : '🔁 Pedir revancha'}
+                </button>
+              )}
               <button
                 onClick={() => setShowWinner(null)}
-                className="bg-white text-orange-600 font-black px-6 py-2.5 rounded-xl hover:brightness-110"
+                className="bg-white/95 text-orange-600 font-black px-6 py-2.5 rounded-xl hover:brightness-110 w-full"
               >
                 Continuar
               </button>
