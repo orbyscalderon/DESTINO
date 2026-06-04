@@ -20,6 +20,7 @@ import TipMenuManager from '../components/ui/TipMenuManager.jsx';
 import TierManager from '../components/ui/TierManager.jsx';
 import CCBillSetup from '../components/ui/CCBillSetup.jsx';
 import AdultCategoriesManager from '../components/ui/AdultCategoriesManager.jsx';
+import AdvancedStats from '../components/ui/AdvancedStats.jsx';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 
 /* ── Helpers ─────────────────────────────────────────────── */
@@ -1240,6 +1241,9 @@ export default function CreatorDashboard() {
                     <FiArrowDown size={12} /> {exporting?'Exportando…':'Exportar CSV'}
                   </button>
                 </div>
+
+                {/* Stats avanzados: top tippers, retention, earnings/hora */}
+                <AdvancedStats />
 
                 {/* Aviso de desync del balance */}
                 {breakdown && parseFloat(breakdown.total_current || 0) > 0 &&

@@ -13,6 +13,7 @@ import {
   confirmCreatorSubscription,
   cancelCreatorSubscription,
   getAnalytics,
+  getAdvancedStats,
   getPostAnalytics,
   getEarningsBreakdown,
   getIncomeFeed,
@@ -58,6 +59,7 @@ router.get('/onboarding-link', getOnboardingLink);
 router.get('/dashboard', getCreatorDashboard);
 router.get('/earnings', getEarnings);
 router.get('/analytics', getAnalytics);
+router.get('/advanced-stats', getAdvancedStats);
 router.get('/breakdown', getEarningsBreakdown);
 router.get('/income-feed', getIncomeFeed);
 router.post('/sync-earnings', syncEarnings);

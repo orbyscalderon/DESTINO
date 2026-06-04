@@ -749,6 +749,113 @@ export const getAnalytics = async (req, res) => {
   }
 };
 
+// GET /api/creator/advanced-stats?days=30 — métricas avanzadas para
+// el dashboard: top tippers, viewers únicos, retention, earnings por hora.
+export const getAdvancedStats = async (req, res) => {
+  try {
+    const creatorId = req.user.id;
+    const days = Math.max(1, Math.min(365, parseInt(req.query.days) || 30));
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+
+    const { data: profile } = await supabase
+      .from('profiles').select('is_creator').eq('id', creatorId).single();
+    if (!profile?.is_creator) return res.status(403).json({ error: 'No eres creador' });
+
+    const { data: myShows } = await supabase
+      .from('live_shows').select('id').eq('host_id', creatorId);
+    const myShowIds = (myShows || []).map(s => s.id);
+    const safeShowIds = myShowIds.length ? myShowIds : ['00000000-0000-0000-0000-000000000000'];
+
+    // 1) Tips agregados por tipper (top tippers)
+    const { data: tips } = await supabase
+      .from('show_tips')
+      .select('tipper_id, coins, created_at')
+      .eq('creator_id', creatorId)
+      .gte('created_at', since);
+
+    const tipperTotals = {};
+    (tips || []).forEach(t => {
+      if (!tipperTotals[t.tipper_id]) tipperTotals[t.tipper_id] = 0;
+      tipperTotals[t.tipper_id] += parseInt(t.coins) || 0;
+    });
+    const topTipperIds = Object.entries(tipperTotals)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10);
+
+    // Resolver perfiles de top tippers
+    const tipperIds = topTipperIds.map(([id]) => id);
+    let topTippers = [];
+    if (tipperIds.length > 0) {
+      const { data: tipperProfiles } = await supabase
+        .from('profiles')
+        .select('id, full_name, avatar_url, premium_tier')
+        .in('id', tipperIds);
+      const profileMap = Object.fromEntries((tipperProfiles || []).map(p => [p.id, p]));
+      topTippers = topTipperIds.map(([id, coins]) => ({
+        user: profileMap[id] || { id, full_name: 'Usuario eliminado' },
+        coins_total: coins,
+        usd_total: parseFloat((coins * 0.05 * CREATOR_CUT).toFixed(2)),
+      }));
+    }
+
+    // 2) Viewers únicos (compraron ticket o vieron al menos 1 show)
+    const { data: ticketBuyers } = await supabase
+      .from('show_tickets')
+      .select('buyer_id')
+      .in('show_id', safeShowIds)
+      .gte('purchased_at', since);
+    const uniqueViewers = new Set((ticketBuyers || []).map(t => t.buyer_id)).size;
+
+    // 3) Retention: viewers que vieron > 1 show de los últimos N días
+    const buyerCounts = {};
+    (ticketBuyers || []).forEach(t => {
+      buyerCounts[t.buyer_id] = (buyerCounts[t.buyer_id] || 0) + 1;
+    });
+    const returningViewers = Object.values(buyerCounts).filter(c => c > 1).length;
+    const retentionPct = uniqueViewers > 0
+      ? parseFloat(((returningViewers / uniqueViewers) * 100).toFixed(1))
+      : 0;
+
+    // 4) Earnings por hora del día (en USD, con creator cut aplicado)
+    // Agregamos todos los earnings (tickets + tips + posts + subs)
+    const { data: ticketEarnings } = await supabase
+      .from('show_tickets')
+      .select('creator_earnings, purchased_at')
+      .in('show_id', safeShowIds)
+      .gte('purchased_at', since);
+    const { data: tipEarnings } = await supabase
+      .from('show_tips')
+      .select('creator_earnings, created_at')
+      .eq('creator_id', creatorId)
+      .gte('created_at', since);
+
+    const hourMap = Array.from({ length: 24 }, () => 0);
+    (ticketEarnings || []).forEach(t => {
+      const h = new Date(t.purchased_at).getHours();
+      hourMap[h] += parseFloat(t.creator_earnings) || 0;
+    });
+    (tipEarnings || []).forEach(t => {
+      const h = new Date(t.created_at).getHours();
+      hourMap[h] += parseFloat(t.creator_earnings) || 0;
+    });
+
+    res.json({
+      days,
+      top_tippers: topTippers,
+      unique_viewers: uniqueViewers,
+      returning_viewers: returningViewers,
+      retention_pct: retentionPct,
+      earnings_by_hour: hourMap.map((amount, hour) => ({
+        hour,
+        amount: parseFloat(amount.toFixed(2)),
+      })),
+    });
+  } catch (err) {
+    console.error('[getAdvancedStats] error:', err.message);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
 // GET /api/creator/breakdown?days=30 — desglose unificado y comparativa
 // Todos los ingresos en USD ya con el 70% (creator_earnings)
 export const getEarningsBreakdown = async (req, res) => {
