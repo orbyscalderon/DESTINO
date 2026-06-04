@@ -502,6 +502,26 @@ export default function LiveShow() {
           navigate('/shows');
         }
       })
+      .on('broadcast', { event: 'show_updated' }, ({ payload }) => {
+        // El host editó el show en vivo. Refrescamos el state local del show.
+        if (payload?.show) {
+          setShow(prev => ({ ...prev, ...payload.show }));
+          if (payload.fields?.title) toast(`El host actualizó el título`, { icon: '✏️' });
+        }
+      })
+      .on('broadcast', { event: 'category_changed_adult' }, () => {
+        // El host cambió la categoría a 'adult'. Si yo (viewer) no tengo
+        // permisos, salgo del show con aviso.
+        if (role === 'host') return;
+        const myProfile = authProfile;
+        const canSeeAdult = !!myProfile?.is_adult_creator
+                         || !!myProfile?.age_verified_at
+                         || myProfile?.premium_tier === 'vip';
+        if (!canSeeAdult) {
+          toast.error('Este show ahora es para adultos. Verifica tu edad para continuar.', { duration: 5000 });
+          setTimeout(() => navigate('/shows'), 1500);
+        }
+      })
       .on('broadcast', { event: 'battle_started' }, ({ payload }) => {
         if (payload?.battleId) setActiveBattleId(payload.battleId);
       })

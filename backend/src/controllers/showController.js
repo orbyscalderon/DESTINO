@@ -6,6 +6,7 @@ import { uploadFile } from '../lib/storageProvider.js';
 import { spendCoins, addCoins, coinsToUSD, creatorCutUSD, CREATOR_CUT } from './coinController.js';
 import { createNotification } from './inAppNotifController.js';
 import { sendPushToUser } from './notificationController.js';
+import { sanitizeUserText } from '../lib/helpers.js';
 
 // Multer para grabaciones de show (hasta 1GB)
 const recordingUpload = multer({
@@ -120,6 +121,99 @@ export const listShows = async (req, res) => {
     res.json({ shows });
   } catch (err) {
     console.error('listShows error:', err.message);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
+// PATCH /api/shows/:id/live-update
+// Body: { title?, description?, category?, ticket_price?, scheduled_at?,
+//         tip_goal?, private_rate?, exclusive_rate?, min_private_minutes? }
+//
+// Permite al host actualizar metadatos del show MIENTRAS está live. Cambios:
+//   · title/description: solo sanitizado.
+//   · category: si pasa A 'adult', el host debe ser is_adult_creator y los
+//     viewers actuales que no tengan permisos serán "kickeados" vía broadcast
+//     `event: 'category_changed_adult'` — el cliente decide redireccionar.
+//   · ticket_price: solo afecta a futuros tickets, los actuales no se ven.
+//
+// Broadcast: tras guardar, emite `show:${id}` evento `show_updated` con los
+// campos cambiados para que viewers actualicen el chrome del show en vivo.
+export const updateShowLive = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+    const { data: show } = await supabase
+      .from('live_shows')
+      .select('id, host_id, status, category')
+      .eq('id', id).single();
+    if (!show) return res.status(404).json({ error: 'Show no encontrado' });
+    if (show.host_id !== userId) return res.status(403).json({ error: 'Solo el host puede editar' });
+    if (show.status !== 'live') return res.status(400).json({ error: 'El show no está en vivo' });
+
+    const body = req.body || {};
+    const patch = {};
+
+    if (typeof body.title === 'string') {
+      const t = sanitizeUserText(body.title, 120);
+      if (!t) return res.status(400).json({ error: 'El título no puede quedar vacío' });
+      patch.title = t;
+    }
+    if (typeof body.description === 'string') {
+      patch.description = sanitizeUserText(body.description, 2000);
+    }
+    if (typeof body.category === 'string' && VALID_CATEGORIES.includes(body.category)) {
+      // Si pasa A adult, validar que el host puede
+      if (body.category === 'adult') {
+        const { data: prof } = await supabase
+          .from('profiles').select('is_adult_creator').eq('id', userId).single();
+        if (!prof?.is_adult_creator) {
+          return res.status(403).json({ error: 'Solo creadores adultos pueden usar la categoría Adulto' });
+        }
+      }
+      patch.category = body.category;
+    }
+    if (body.ticket_price != null) {
+      const p = parseFloat(body.ticket_price);
+      if (!Number.isFinite(p) || p < 0) return res.status(400).json({ error: 'Precio inválido' });
+      patch.ticket_price = p;
+    }
+    if (body.scheduled_at !== undefined) {
+      // Permitir null para "ya no es programado"
+      patch.scheduled_at = body.scheduled_at || null;
+    }
+    if (body.tip_goal !== undefined) {
+      patch.tip_goal = body.tip_goal === '' || body.tip_goal == null
+        ? null
+        : parseFloat(body.tip_goal);
+    }
+    if (body.private_rate != null) patch.private_rate = parseInt(body.private_rate) || null;
+    if (body.exclusive_rate != null) patch.exclusive_rate = parseInt(body.exclusive_rate) || null;
+    if (body.min_private_minutes != null) patch.min_private_minutes = parseInt(body.min_private_minutes) || null;
+
+    if (Object.keys(patch).length === 0) {
+      return res.status(400).json({ error: 'Sin cambios' });
+    }
+
+    const { data: updated, error } = await supabase
+      .from('live_shows')
+      .update(patch)
+      .eq('id', id)
+      .select('id, title, description, category, ticket_price, scheduled_at, tip_goal, private_rate, exclusive_rate, min_private_minutes, host_id, status')
+      .single();
+    if (error) throw error;
+
+    // Broadcast al canal del show para que viewers actualicen UI
+    broadcastToChannel(`show:${id}`, 'show_updated', { fields: patch, show: updated }).catch(() => {});
+
+    // Si la categoría pasó A 'adult', kickear viewers sin permisos.
+    // El cliente decide cómo manejarlo (toast + navigate a /shows).
+    if (patch.category === 'adult' && show.category !== 'adult') {
+      broadcastToChannel(`show:${id}`, 'category_changed_adult', { show_id: id }).catch(() => {});
+    }
+
+    res.json({ ok: true, show: updated });
+  } catch (err) {
+    console.error('[updateShowLive] error:', err.message);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };

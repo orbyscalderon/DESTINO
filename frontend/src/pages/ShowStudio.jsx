@@ -1179,6 +1179,59 @@ export default function ShowStudio() {
   const set = (key, val) => setShow(s => ({ ...s, [key]: val }));
   const canGoLive = permCamera === 'granted' && permMic === 'granted';
 
+  // ── Live edit: snapshot del show al pasar a vivo + detector de cambios ───────
+  const liveSnapshotRef = useRef(null);
+  useEffect(() => {
+    if (isLive && !liveSnapshotRef.current) {
+      // Tomamos snapshot solo cuando arrancamos live, no en cada cambio
+      liveSnapshotRef.current = {
+        title: show.title,
+        description: show.description,
+        category: show.category,
+        ticket_price: show.ticket_price,
+        scheduled_at: show.scheduled_at,
+      };
+    } else if (!isLive) {
+      liveSnapshotRef.current = null;
+    }
+  }, [isLive]);
+
+  const editableFields = ['title', 'description', 'category', 'ticket_price', 'scheduled_at'];
+  const liveDirty = !!liveSnapshotRef.current && editableFields.some(k => {
+    const a = liveSnapshotRef.current[k] ?? '';
+    const b = show[k] ?? '';
+    return String(a) !== String(b);
+  });
+  const [savingLive, setSavingLive] = useState(false);
+
+  const applyLiveChanges = async () => {
+    if (!isLive || !showId || !liveDirty || savingLive) return;
+    setSavingLive(true);
+    try {
+      const payload = {
+        title: show.title,
+        description: show.description,
+        category: show.category,
+        ticket_price: parseFloat(show.ticket_price) || 0,
+        scheduled_at: show.scheduled_at || null,
+      };
+      await api.patch(`/api/shows/${showId}/live-update`, payload);
+      // Actualizar snapshot — los cambios son ahora el nuevo baseline
+      liveSnapshotRef.current = {
+        title: show.title,
+        description: show.description,
+        category: show.category,
+        ticket_price: show.ticket_price,
+        scheduled_at: show.scheduled_at,
+      };
+      toast.success('Cambios aplicados al show');
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'No se pudieron aplicar los cambios');
+    } finally {
+      setSavingLive(false);
+    }
+  };
+
   // ── COUNTDOWN OVERLAY ────────────────────────────────────────────────────────
   if (countdown !== null) {
     return (
@@ -1602,6 +1655,22 @@ export default function ShowStudio() {
         {/* ── TAB Config ── */}
         {rightTab === 'config' && (
           <div className="flex-1 overflow-y-auto p-3 space-y-3 min-h-0">
+            {/* Banner "Aplicar cambios" — solo en vivo, cuando hay diff con el snapshot */}
+            {isLive && liveDirty && (
+              <div className="sticky top-0 -mx-3 px-3 py-2 bg-amber-500/10 border-y border-amber-500/30 backdrop-blur-md z-10 flex items-center gap-2">
+                <div className="text-amber-300 text-[10px] flex-1">
+                  <p className="font-bold leading-tight">Cambios sin aplicar</p>
+                  <p className="text-amber-400/70 text-[9px]">Los viewers verán la nueva info al aplicar</p>
+                </div>
+                <button
+                  onClick={applyLiveChanges}
+                  disabled={savingLive}
+                  className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-amber-950 text-xs font-black rounded transition-colors disabled:opacity-50 shrink-0"
+                >
+                  {savingLive ? 'Aplicando…' : 'Aplicar'}
+                </button>
+              </div>
+            )}
             <div>
               <label className="text-[10px] text-gray-500 font-medium mb-1 block">Título *</label>
               <input className="w-full bg-[#111115] border border-white/10 text-white text-xs rounded px-2.5 py-1.5 placeholder-gray-600 outline-none focus:border-brand-500/50 transition-colors"

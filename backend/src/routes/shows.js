@@ -39,6 +39,7 @@ import {
   updateGift,
   deleteGift,
   getLiveCreators,
+  updateShowLive,
 } from '../controllers/showController.js';
 import {
   inviteCoHost, acceptCoHostInvite, declineCoHostInvite,
@@ -63,6 +64,7 @@ router.get('/:id', getShow);
 router.post('/', createShow);
 router.post('/:id/start', startShow);
 router.post('/:id/end', endShow);
+router.patch('/:id/live-update', updateShowLive);
 router.get('/:id/token', getShowToken);
 router.post('/:id/ticket', purchaseShowTicket);
 router.post('/:id/ticket/confirm', confirmShowTicket);
