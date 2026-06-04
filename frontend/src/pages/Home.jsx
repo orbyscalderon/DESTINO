@@ -209,9 +209,9 @@ export default function Home() {
   const { user, profile } = useAuthStore();
   const confirm = useConfirm();
 
-  // Carrusel mobile: Inicio (este) ←→ Reels ←→ Mensajes ←→ Cámara.
-  // Inicio es el extremo izquierdo — solo permite swipe-izq → Reels.
-  useSwipeNavigation({ left: '/reels' });
+  // Patrón Instagram mobile: en Home swipe-izq abre la Cámara (Stories),
+  // swipe-der abre los DMs (Mensajes). Reels se accede por el botón del navbar.
+  useSwipeNavigation({ left: '/reels/new', right: '/messages' });
 
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);

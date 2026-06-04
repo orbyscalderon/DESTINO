@@ -5,7 +5,6 @@ import ReelCard from '../components/ui/ReelCard.jsx';
 import ReelComments from '../components/ui/ReelComments.jsx';
 import api from '../lib/api.js';
 import toast from 'react-hot-toast';
-import { useSwipeNavigation } from '../lib/useSwipeNavigation.js';
 
 // Feed de Reels estilo TikTok. Scroll vertical full-screen con snap.
 // Cada card es un reel; el activo se reproduce, el resto pausan.
@@ -24,10 +23,8 @@ export default function Reels() {
     setSearchParams(next);
   };
 
-  // Carrusel mobile: Inicio ←→ Reels (este) ←→ Mensajes ←→ Cámara.
-  // El hook valida ratio horizontal > vertical * 2, por lo que el scroll
-  // vertical del feed sigue funcionando. Swipe-der → Inicio · swipe-izq → Mensajes.
-  useSwipeNavigation({ left: '/messages', right: '/home' });
+  // Patrón Instagram: Reels NO usa swipe horizontal — el feed es full-screen
+  // con scroll vertical snap. El user vuelve a Inicio con el botón del navbar.
 
   const containerRef = useRef(null);
   const [reels, setReels] = useState([]);

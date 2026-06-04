@@ -40,9 +40,9 @@ export default function Messages() {
   const { clearUnread } = useChatStore();
   const { trackAction } = useAds();
 
-  // Carrusel mobile: Inicio ←→ Reels ←→ Mensajes (este) ←→ Cámara.
-  // Swipe-der → Reels · swipe-izq → Cámara nueva.
-  useSwipeNavigation({ left: '/reels/new', right: '/reels' });
+  // Patrón Instagram (DMs): swipe-der vuelve a Inicio (gesto inverso a IG donde
+  // tocas la flecha back). No hay swipe-izq.
+  useSwipeNavigation({ right: '/home' });
 
   const openChat = useCallback(async (matchId) => {
     await trackAction();

@@ -16,9 +16,8 @@ export default function UploadReel() {
   const fileInputRef = useRef(null);
   const videoRef = useRef(null);
 
-  // Carrusel mobile: Inicio ←→ Reels ←→ Mensajes ←→ Cámara (este).
-  // Cámara es el extremo derecho — solo permite swipe-der → Mensajes.
-  useSwipeNavigation({ right: '/messages' });
+  // Patrón Instagram Stories/Cámara: swipe-der vuelve a Inicio (cierra la cámara).
+  useSwipeNavigation({ right: '/home' });
 
   const [file, setFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
