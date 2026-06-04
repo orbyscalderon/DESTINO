@@ -1,6 +1,6 @@
 import { supabase, broadcastToChannel } from '../lib/supabase.js';
 import { uploadFile } from '../lib/storageProvider.js';
-import { detectImageType, detectVideoType, safeErrorMessage, safeString } from '../lib/helpers.js';
+import { detectImageType, detectVideoType, safeErrorMessage, safeString, sanitizeUserText } from '../lib/helpers.js';
 import { createNotification } from './inAppNotifController.js';
 import { sendPushToUser } from './notificationController.js';
 import multer from 'multer';
@@ -59,10 +59,10 @@ export const uploadReel = async (req, res) => {
     if (!videoFile) return res.status(400).json({ error: 'Video requerido' });
 
     const userId = req.user.id;
-    const caption = safeString(req.body.caption, 2000);
+    const caption = sanitizeUserText(req.body.caption, 2000);
     const durationSec = parseFloat(req.body.duration_seconds);
     const isAdult = req.body.is_adult === 'true' || req.body.is_adult === true;
-    const audioLabel = safeString(req.body.audio_label, 120);
+    const audioLabel = sanitizeUserText(req.body.audio_label, 120);
 
     if (!Number.isFinite(durationSec) || durationSec <= 0 || durationSec > MAX_REEL_DURATION_SECONDS) {
       return res.status(400).json({
@@ -542,7 +542,7 @@ export const addReelComment = async (req, res) => {
   try {
     const userId = req.user.id;
     const reelId = req.params.id;
-    const content = safeString(req.body.content, 500);
+    const content = sanitizeUserText(req.body.content, 500);
     const parentId = req.body.parent_comment_id || null;
 
     if (!content) return res.status(400).json({ error: 'Comentario vacío' });

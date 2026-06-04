@@ -72,6 +72,26 @@ export function safeString(v, max = 500) {
   return s.length > max ? s.substring(0, max) : s;
 }
 
+// Strip HTML tags + decode entidades peligrosas. Defense-in-depth:
+// React escapa al renderizar, pero queremos que el texto persistido sea limpio
+// para que sea seguro en cualquier contexto futuro (SSR, meta tags OG, emails,
+// notificaciones push, exports JSON, etc.).
+export function sanitizeUserText(v, max = 500) {
+  if (v == null) return null;
+  let s = String(v).trim();
+  if (!s) return null;
+  // Quitar cualquier <script>…</script>, <style>…</style> y similares con su contenido
+  s = s.replace(/<(script|style|iframe|object|embed)\b[^>]*>[\s\S]*?<\/\1>/gi, '');
+  // Quitar el resto de tags HTML (deja el texto interno)
+  s = s.replace(/<\/?[a-z][^>]*>/gi, '');
+  // Normalizar entidades comunes que pueden ocultar payloads
+  s = s.replace(/&lt;/gi, '<').replace(/&gt;/gi, '>').replace(/&quot;/gi, '"').replace(/&#x?[\da-f]+;?/gi, '');
+  // Colapsar whitespace excesivo
+  s = s.replace(/\s+/g, ' ').trim();
+  if (!s) return null;
+  return s.length > max ? s.substring(0, max) : s;
+}
+
 // Procesar items en batches para evitar tumbar APIs externas (Resend, FCM, etc.)
 export async function processBatched(items, batchSize, processItem, delayMs = 100) {
   const results = [];

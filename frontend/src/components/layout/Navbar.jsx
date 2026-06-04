@@ -104,31 +104,63 @@ export default function Navbar() {
       isActive ? 'text-brand-500' : 'text-gray-500 hover:text-gray-300'
     }`;
 
-  // Items del menú "Más" — todo lo que no cabe en los 4 fijos
-  const moreItems = [
-    { to: '/profile',          icon: FiUser,       label: 'Mi Perfil'    },
-    { to: '/notifications',    icon: FiBell,       label: 'Notificaciones', badge: unreadNotifs },
-    { to: '/shows',            icon: FiFilm,       label: 'Shows en vivo'},
-    { to: '/search',           icon: FiSearch,     label: 'Buscar'       },
-    { to: '/coins',            icon: FiZap,        label: 'Coins', sub: coinsBalance !== null ? `${coinsBalance.toLocaleString()} disponibles` : null },
-    { to: '/leaderboard',      icon: FiTrendingUp, label: 'Leaderboard'  },
-    { to: '/video',            icon: FiVideo,      label: 'Videollamadas'},
-    { to: '/explore',          icon: FiFilm,       label: 'Videos 18+' },
-    ...(profile?.is_adult_creator ? [{ to: '/adult', icon: FiShield, label: 'Creadoras 18+' }] : []),
-    ...(profile?.is_creator    ? [{ to: '/creator/dashboard', icon: FiBarChart2, label: 'Mi Dashboard' }] : []),
-    ...(!profile?.is_creator   ? [{ to: '/become-creator',   icon: FiVideo,     label: 'Ser Creador'  }] : []),
-    { to: '/settings',         icon: FiSettings,   label: 'Configuración'},
-    ...(!profile?.is_premium   ? [{ to: '/premium', icon: FiZap, label: '✨ Hazte Premium' }] : []),
-    ...(profile?.is_admin      ? [{ to: '/admin',   icon: FiShield, label: '🛡 Admin Panel'  }] : []),
-  ];
+  // Menú "Más" agrupado por categorías para que no sea una lista plana de 13+ items
+  const moreSections = [
+    {
+      title: 'Yo',
+      items: [
+        { to: '/profile',       icon: FiUser, label: 'Mi Perfil' },
+        { to: '/notifications', icon: FiBell, label: 'Notificaciones', badge: unreadNotifs },
+        { to: '/coins',         icon: FiZap,  label: 'Coins', sub: coinsBalance !== null ? `${coinsBalance.toLocaleString()} disponibles` : null },
+        { to: '/settings',      icon: FiSettings, label: 'Configuración' },
+      ],
+    },
+    {
+      title: 'Explorar',
+      items: [
+        { to: '/search',       icon: FiSearch,     label: 'Buscar' },
+        { to: '/shows',        icon: FiFilm,       label: 'Shows en vivo' },
+        { to: '/video',        icon: FiVideo,      label: 'Videollamadas' },
+        { to: '/leaderboard',  icon: FiTrendingUp, label: 'Leaderboard' },
+      ],
+    },
+    {
+      title: 'Adulto 18+',
+      // Solo visible para usuarios mayores (premium VIP o adult creators o verificados).
+      // El backend filtra contenido real; aquí ocultamos los items para no tentar.
+      hidden: !(profile?.is_adult_creator || profile?.age_verified_at),
+      items: [
+        { to: '/explore', icon: FiFilm,   label: 'Videos 18+' },
+        { to: '/adult',   icon: FiShield, label: 'Creadoras 18+' },
+      ],
+    },
+    {
+      title: 'Creador',
+      items: [
+        ...(profile?.is_creator
+          ? [{ to: '/creator/dashboard', icon: FiBarChart2, label: 'Mi Dashboard' }]
+          : [{ to: '/become-creator', icon: FiVideo, label: 'Ser Creador' }]),
+        ...(!profile?.is_premium
+          ? [{ to: '/premium', icon: FiZap, label: '✨ Hazte Premium' }]
+          : []),
+      ],
+    },
+    {
+      title: 'Admin',
+      hidden: !profile?.is_admin,
+      items: [
+        { to: '/admin', icon: FiShield, label: '🛡 Admin Panel' },
+      ],
+    },
+  ].filter(s => !s.hidden && s.items.length > 0);
 
-  const isMoreActive = moreItems.some(i => location.pathname.startsWith(i.to));
+  const isMoreActive = moreSections.some(s => s.items.some(i => location.pathname.startsWith(i.to)));
 
   return (
     <>
       {/* ── DESKTOP SIDEBAR ──────────────────────────────────── */}
-      <aside className="hidden lg:flex fixed left-0 top-0 h-screen w-64 flex-col bg-dark-800 border-r border-white/[0.06] z-40">
-        <div className="px-6 py-6 border-b border-white/[0.06]">
+      <aside className="hidden lg:flex fixed left-0 top-0 h-screen w-64 flex-col bg-dark-800 border-r border-white/[0.06] z-40 min-h-0">
+        <div className="px-6 py-6 border-b border-white/[0.06] shrink-0">
           <h1 className="text-2xl font-black gradient-text">Destino TV 💕</h1>
           <p className="text-gray-600 text-xs mt-0.5">Encuentra tu conexión</p>
         </div>
@@ -222,7 +254,7 @@ export default function Navbar() {
         </nav>
 
         {profile && (
-          <div className="p-4 border-t border-white/[0.06]">
+          <div className="p-4 border-t border-white/[0.06] shrink-0">
             <NavLink to="/profile" className="flex items-center gap-3 px-2 py-2 rounded-xl hover:bg-white/5 transition-colors group">
               <img
                 src={profile.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.full_name || 'U')}&size=80&background=1a1a2e&color=f43f5e`}
@@ -353,36 +385,43 @@ export default function Navbar() {
 
               <div className="h-px bg-white/5 mx-4" />
 
-              {/* Grid de opciones */}
-              <div className="grid grid-cols-4 gap-1 px-3 py-3">
-                {moreItems.map(({ to, icon: Icon, label, badge, sub }) => {
-                  const isActive = location.pathname.startsWith(to);
-                  return (
-                    <button
-                      key={to}
-                      onClick={() => { navigate(to); setShowMore(false); }}
-                      className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl transition-all active:scale-95 ${
-                        isActive ? 'bg-brand-500/20' : 'hover:bg-white/5'
-                      }`}
-                    >
-                      <span className="relative">
-                        <Icon size={22} className={isActive ? 'text-brand-400' : 'text-gray-300'} />
-                        {badge > 0 && (
-                          <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-0.5">
-                            {badge > 99 ? '99+' : badge}
-                          </span>
-                        )}
-                      </span>
-                      <span className={`text-[10px] font-medium text-center leading-tight ${isActive ? 'text-brand-400' : 'text-gray-400'}`}>
-                        {label}
-                      </span>
-                      {sub && <span className="text-[9px] text-yellow-400 font-bold">{sub}</span>}
-                    </button>
-                  );
-                })}
+              {/* Secciones agrupadas */}
+              <div className="px-3 pb-3 max-h-[60vh] overflow-y-auto">
+                {moreSections.map((section) => (
+                  <div key={section.title} className="mt-3 first:mt-2">
+                    <p className="px-2 mb-1.5 text-[10px] uppercase tracking-wider text-gray-500 font-bold">
+                      {section.title}
+                    </p>
+                    <div className="grid grid-cols-4 gap-1">
+                      {section.items.map(({ to, icon: Icon, label, badge, sub }) => {
+                        const isActive = location.pathname.startsWith(to);
+                        return (
+                          <button
+                            key={to}
+                            onClick={() => { navigate(to); setShowMore(false); }}
+                            className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl transition-all active:scale-95 ${
+                              isActive ? 'bg-brand-500/20' : 'hover:bg-white/5'
+                            }`}
+                          >
+                            <span className="relative">
+                              <Icon size={22} className={isActive ? 'text-brand-400' : 'text-gray-300'} />
+                              {badge > 0 && (
+                                <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-0.5">
+                                  {badge > 99 ? '99+' : badge}
+                                </span>
+                              )}
+                            </span>
+                            <span className={`text-[10px] font-medium text-center leading-tight ${isActive ? 'text-brand-400' : 'text-gray-400'}`}>
+                              {label}
+                            </span>
+                            {sub && <span className="text-[9px] text-yellow-400 font-bold">{sub}</span>}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
               </div>
-
-              <div className="pb-3" />
             </motion.div>
           </>
         )}

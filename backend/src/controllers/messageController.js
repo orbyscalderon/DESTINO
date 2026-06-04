@@ -2,7 +2,7 @@ import { supabase } from '../lib/supabase.js';
 import { uploadFile } from '../lib/storageProvider.js';
 import { sendPushToUser } from './notificationController.js';
 import { spendCoins, addCoins, coinsToUSD, creatorCutUSD, CREATOR_CUT } from './coinController.js';
-import { detectImageType, detectVideoType, safeErrorMessage } from '../lib/helpers.js';
+import { detectImageType, detectVideoType, safeErrorMessage, sanitizeUserText } from '../lib/helpers.js';
 import { createNotification } from './inAppNotifController.js';
 import { upsertCreatorEarnings } from './showController.js';
 import multer from 'multer';
@@ -313,7 +313,7 @@ export const sendPPVMessage = async (req, res) => {
       .insert({
         match_id: matchId,
         sender_id: userId,
-        content: caption?.trim() || '🔒 Contenido exclusivo',
+        content: sanitizeUserText(caption, 500) || '🔒 Contenido exclusivo',
         is_ppv: true,
         ppv_price: price,
         ppv_media_url: ppvMediaUrl,

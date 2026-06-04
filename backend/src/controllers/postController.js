@@ -4,6 +4,7 @@ import multer from 'multer';
 import { createNotification } from './inAppNotifController.js';
 import { spendCoins, addCoins, CREATOR_CUT } from './coinController.js';
 import { moderateImage } from '../lib/moderation.js';
+import { sanitizeUserText } from '../lib/helpers.js';
 
 const ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp', 'video/mp4', 'video/quicktime'];
 
@@ -270,14 +271,15 @@ export const createPost = async (req, res) => {
     const status = autoStatus;
     const finalIsAdult = autoIsAdult;
 
-    const extractedHashtags = (caption || '').match(/#[\wÀ-ž]+/g)?.map(t => t.slice(1).toLowerCase()) || [];
+    const cleanCaption = sanitizeUserText(caption, 2000);
+    const extractedHashtags = (cleanCaption || '').match(/#[\wÀ-ž]+/g)?.map(t => t.slice(1).toLowerCase()) || [];
 
     // Base row (siempre presente). Las columnas opcionales se intentan abajo
     // y se retiran si el schema no las tiene aún (defensa ante migración
     // pendiente).
     const baseRow = {
       user_id: userId,
-      caption: caption?.trim() || null,
+      caption: cleanCaption,
       media_url: mediaUrl,
       media_type: mediaType,
       is_adult: finalIsAdult,
@@ -445,15 +447,14 @@ export const purchasePost = async (req, res) => {
 export const addComment = async (req, res) => {
   try {
     const { id } = req.params;
-    const { content } = req.body;
+    const cleanContent = sanitizeUserText(req.body.content, 500);
     const userId = req.user.id;
 
-    if (!content?.trim()) return res.status(400).json({ error: 'Comentario vacío' });
-    if (content.length > 500) return res.status(400).json({ error: 'Comentario demasiado largo' });
+    if (!cleanContent) return res.status(400).json({ error: 'Comentario vacío' });
 
     const { data: comment, error } = await supabase
       .from('post_comments')
-      .insert({ post_id: id, user_id: userId, content: content.trim() })
+      .insert({ post_id: id, user_id: userId, content: cleanContent })
       .select('id, content, created_at, user:profiles!user_id(id, full_name, avatar_url)')
       .single();
 
