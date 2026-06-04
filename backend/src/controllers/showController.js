@@ -1439,17 +1439,39 @@ export const acceptPrivateShow = async (req, res) => {
     if (!show) return res.status(404).json({ error: 'Show no encontrado' });
     if (show.host_id !== hostId) return res.status(403).json({ error: 'No autorizado' });
     if (show.status !== 'live')  return res.status(400).json({ error: 'Show no activo' });
-    if (show.private_session) {
-      return res.status(409).json({ error: 'Ya hay una sesión privada activa' });
-    }
 
     const rate = type === 'exclusive' ? (show.exclusive_rate ?? 35) : (show.private_rate ?? 20);
-    const { data: host } = await supabase.from('profiles').select('full_name').eq('id', hostId).single();
-
-    // Room privado: el sufijo del viewer lo hace único por sesión.
     const cleanShowId = showId.replace(/-/g, '');
     const cleanViewerId = viewerId.replace(/-/g, '');
     const privateRoomId = `show_${cleanShowId}_priv_${cleanViewerId}`;
+
+    // Idempotencia + stale recovery: si ya hay session, verificamos si es la
+    // misma (mismo viewer+type) o si lleva > 10 min sin uso → la limpiamos.
+    const existing = show.private_session;
+    if (existing) {
+      const isSameViewer = existing.viewer_id === viewerId && existing.type === type;
+      const startedAt = existing.started_at ? new Date(existing.started_at).getTime() : 0;
+      const stale = Date.now() - startedAt > 10 * 60 * 1000; // 10 min sin renovar
+      if (isSameViewer) {
+        // Idempotente — re-emitir broadcast y devolver el roomId ya generado
+        const existingRoom = existing.room_id || privateRoomId;
+        broadcastToChannel(`show:${showId}`, 'private_accept', {
+          viewerId, type, rate, hostName: 'El host', privateRoomId: existingRoom,
+        }).catch(() => {});
+        return res.json({ ok: true, rate, privateRoomId: existingRoom, type, idempotent: true });
+      }
+      if (!stale) {
+        return res.status(409).json({
+          error: 'Ya hay una sesión privada activa con otro viewer',
+          code: 'PRIVATE_ALREADY_ACTIVE',
+          hint: 'Usa /api/shows/:id/private/reset si quedó colgada.',
+        });
+      }
+      // stale → limpiar y continuar
+      console.warn('[acceptPrivateShow] limpiando session stale del show', showId);
+    }
+
+    const { data: host } = await supabase.from('profiles').select('full_name').eq('id', hostId).single();
 
     const session = {
       viewer_id: viewerId,
@@ -1462,8 +1484,7 @@ export const acceptPrivateShow = async (req, res) => {
     const { error: upErr } = await supabase
       .from('live_shows')
       .update({ private_session: session })
-      .eq('id', showId)
-      .is('private_session', null); // condición carrera: solo si nadie nos ganó
+      .eq('id', showId);
     if (upErr) {
       console.warn('[acceptPrivateShow] update private_session falló (columna falta?):',
         upErr.message);
@@ -1499,6 +1520,43 @@ export const declinePrivateShow = async (req, res) => {
     broadcastToChannel(`show:${showId}`, 'private_decline', { viewerId }).catch(() => {});
     res.json({ ok: true });
   } catch {
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
+// POST /api/shows/:id/private/reset — el host fuerza limpieza de la
+// sesión privada (cuando queda colgada por desconexión, browser cerrado, etc).
+// No requiere viewerId; limpia cualquier session activa.
+export const resetPrivateShow = async (req, res) => {
+  try {
+    const hostId = req.user.id;
+    const showId = req.params.id;
+
+    const { data: show } = await supabase
+      .from('live_shows').select('host_id, private_session').eq('id', showId).single();
+    if (!show) return res.status(404).json({ error: 'Show no encontrado' });
+    if (show.host_id !== hostId) return res.status(403).json({ error: 'No autorizado' });
+
+    if (!show.private_session) {
+      return res.json({ ok: true, hadSession: false });
+    }
+
+    await supabase
+      .from('live_shows')
+      .update({ private_session: null })
+      .eq('id', showId);
+
+    // Avisar a cualquier viewer aceptado que quedó colgado
+    broadcastToChannel(`show:${showId}`, 'private_end', {
+      viewerId: show.private_session.viewer_id,
+      endedBy: 'host',
+      reason: 'reset',
+      publicRoomId: `show_${showId.replace(/-/g, '')}`,
+    }).catch(() => {});
+
+    res.json({ ok: true, hadSession: true });
+  } catch (err) {
+    console.error('[resetPrivateShow] error:', err.message);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };

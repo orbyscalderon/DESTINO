@@ -1139,9 +1139,12 @@ export default function ShowStudio() {
     } catch { toast.error('Error al desbanear'); }
   };
 
-  const handleAcceptPrivate = async () => {
+  const handleAcceptPrivate = async (forceReset = false) => {
     if (!privateRequest) return;
     try {
+      if (forceReset) {
+        await api.post(`/api/shows/${showId}/private/reset`).catch(() => {});
+      }
       const { data } = await api.post(`/api/shows/${showId}/private/accept`, {
         viewerId: privateRequest.viewerId,
         type: privateRequest.type,
@@ -1149,7 +1152,6 @@ export default function ShowStudio() {
       const { privateRoomId, type } = data;
       setPrivateRequest(null);
 
-      // Reconectar al room privado manteniendo cámara/mic
       await reconnectToRoom(privateRoomId);
 
       setPrivateSessionHost({
@@ -1164,6 +1166,25 @@ export default function ShowStudio() {
           : `🔒 Show privado iniciado con ${privateRequest.viewerName}`
       );
     } catch (err) {
+      const code = err.response?.data?.code;
+      const reqInfo = privateRequest;
+      if (code === 'PRIVATE_ALREADY_ACTIVE' && !forceReset) {
+        // Ofrecer reset con un toast accionable
+        toast((t) => (
+          <div className="flex items-center gap-2">
+            <span className="text-xs">Hay otra sesión colgada. ¿Limpiar y aceptar?</span>
+            <button
+              onClick={() => {
+                toast.dismiss(t.id);
+                setPrivateRequest(reqInfo);
+                handleAcceptPrivate(true);
+              }}
+              className="bg-purple-500 text-white text-[10px] font-bold px-2 py-1 rounded"
+            >Sí, limpiar</button>
+          </div>
+        ), { duration: 8000 });
+        return;
+      }
       toast.error(err.response?.data?.error || 'Error al aceptar');
     }
   };
