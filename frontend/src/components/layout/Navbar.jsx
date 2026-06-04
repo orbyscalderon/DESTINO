@@ -14,18 +14,19 @@ import CreateMenuSheet from '../ui/CreateMenuSheet.jsx';
 
 // Items fijos del nav móvil. El 'create' es un botón especial central tipo IG
 // que abre un sheet con opciones (Reel, Post, Story, Show).
+// NOTA: Reels NO es un item separado — se accede swipeando desde Inicio
+// (carrusel mobile: Inicio ↔ Reels ↔ Mensajes ↔ Cámara). En desktop hay
+// link directo desde el item "Inicio" del sidebar.
 const MOBILE_MAIN = [
-  { to: '/home',     icon: FiHome,          label: 'Inicio'   },
-  { to: '/reels',    icon: FiFilm,          label: 'Reels'    },
+  { to: '/home',     icon: FiHome,          label: 'Inicio', sub: '← Reels' },
   { kind: 'create',  icon: FiPlus,          label: 'Crear'    },
   { to: '/matches',  icon: FiHeart,         label: 'Matches'  },
   { to: '/messages', icon: FiMessageCircle, label: 'Mensajes', badge: 'chat' },
 ];
 
-// Desktop sidebar
+// Desktop sidebar — Reels accesible desde Inicio (con badge "Reels →")
 const sidebarNavItems = [
-  { to: '/home',        icon: FiHome,          label: 'Inicio'       },
-  { to: '/reels',       icon: FiFilm,          label: 'Reels'        },
+  { to: '/home',        icon: FiHome,          label: 'Inicio',       extra: 'reels-shortcut' },
   { to: '/discover',    icon: FiCompass,       label: 'Descubrir'    },
   { to: '/matches',     icon: FiHeart,         label: 'Matches'      },
   { to: '/messages',    icon: FiMessageCircle, label: 'Mensajes'     },
@@ -133,7 +134,7 @@ export default function Navbar() {
         </div>
 
         <nav className="flex-1 px-4 py-4 space-y-1 overflow-y-auto">
-          {sidebarNavItems.map(({ to, icon: Icon, label }) => (
+          {sidebarNavItems.map(({ to, icon: Icon, label, extra }) => (
             <NavLink key={to} to={to} className={sidebarLink}>
               <span className="relative">
                 <Icon size={20} />
@@ -143,7 +144,17 @@ export default function Navbar() {
                   </span>
                 )}
               </span>
-              {label}
+              <span className="flex-1">{label}</span>
+              {extra === 'reels-shortcut' && (
+                <button
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); navigate('/reels'); }}
+                  className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-brand-500/15 text-brand-300 hover:bg-brand-500/25 transition-colors flex items-center gap-1"
+                  title="Ver Reels"
+                  aria-label="Ir a Reels"
+                >
+                  <FiFilm size={10} /> Reels
+                </button>
+              )}
             </NavLink>
           ))}
 
@@ -275,6 +286,11 @@ export default function Navbar() {
                   )}
                 </span>
                 <span className="text-[10px] font-medium">{label}</span>
+                {item.sub && (
+                  <span className="text-[8px] font-medium text-brand-400/80 leading-none">
+                    {item.sub}
+                  </span>
+                )}
               </NavLink>
             );
           })}
