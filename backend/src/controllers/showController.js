@@ -189,6 +189,10 @@ export const updateShowLive = async (req, res) => {
     if (body.private_rate != null) patch.private_rate = parseInt(body.private_rate) || null;
     if (body.exclusive_rate != null) patch.exclusive_rate = parseInt(body.exclusive_rate) || null;
     if (body.min_private_minutes != null) patch.min_private_minutes = parseInt(body.min_private_minutes) || null;
+    if (body.private_countdown_sec != null) {
+      const n = parseInt(body.private_countdown_sec) || 10;
+      patch.private_countdown_sec = Math.max(5, Math.min(180, n));
+    }
 
     if (Object.keys(patch).length === 0) {
       return res.status(400).json({ error: 'Sin cambios' });
@@ -380,7 +384,7 @@ export const createShow = async (req, res) => {
   try {
     const hostId = req.user.id;
     const { title, description, show_type, ticket_price, cover_url, scheduled_at, category = 'chat', tip_goal,
-            private_rate, exclusive_rate, min_private_minutes } = req.body;
+            private_rate, exclusive_rate, min_private_minutes, private_countdown_sec } = req.body;
 
     if (!title?.trim()) return res.status(400).json({ error: 'El título es obligatorio' });
     if (!['broadcast', 'private'].includes(show_type)) {
@@ -432,6 +436,7 @@ export const createShow = async (req, res) => {
       private_rate: Math.max(5, Math.min(500, parseInt(private_rate) || 20)),
       exclusive_rate: Math.max(5, Math.min(500, parseInt(exclusive_rate) || 35)),
       min_private_minutes: Math.max(1, Math.min(60, parseInt(min_private_minutes) || 3)),
+      private_countdown_sec: Math.max(5, Math.min(180, parseInt(private_countdown_sec) || 10)),
     };
 
     let { data: show, error } = await supabase
@@ -439,7 +444,8 @@ export const createShow = async (req, res) => {
 
     // Si fallan las columnas de show privado (migración pendiente), reintenta sin ellas
     if (error?.message?.includes('private_rate') || error?.message?.includes('column')) {
-      const { private_rate: _pr, exclusive_rate: _er, min_private_minutes: _mm, ...basePayload } = insertPayload;
+      const { private_rate: _pr, exclusive_rate: _er, min_private_minutes: _mm,
+              private_countdown_sec: _pc, ...basePayload } = insertPayload;
       ({ data: show, error } = await supabase
         .from('live_shows').insert(basePayload).select().single());
     }
@@ -1433,7 +1439,7 @@ export const acceptPrivateShow = async (req, res) => {
 
     const { data: show } = await supabase
       .from('live_shows')
-      .select('host_id, status, private_rate, exclusive_rate, private_session')
+      .select('host_id, status, private_rate, exclusive_rate, private_session, private_countdown_sec')
       .eq('id', showId).single();
 
     if (!show) return res.status(404).json({ error: 'Show no encontrado' });
@@ -1513,12 +1519,11 @@ export const acceptPrivateShow = async (req, res) => {
       // No abortamos — broadcasteamos igual para que el flujo legacy siga
     }
 
-    // Broadcast inicial: hay un countdown de 10s antes del cambio real.
-    // Durante esos 10s, todos los viewers ven el overlay con contexto
-    // según su rol (aceptado vs otros) y type (private vs exclusive).
-    // El reconnect (host + viewer aceptado) lo dispara el cliente del host
-    // tras el countdown.
-    const COUNTDOWN_SEC = 10;
+    // Broadcast inicial: countdown configurable por el host (live_shows.
+    // private_countdown_sec). Default 10s. Rango forzado 5–180s aunque la
+    // columna no esté aplicada (defensa por si la migration v48 no corrió).
+    const rawCountdown = show.private_countdown_sec ?? 10;
+    const COUNTDOWN_SEC = Math.max(5, Math.min(180, parseInt(rawCountdown) || 10));
     broadcastToChannel(`show:${showId}`, 'private_starting', {
       viewerId,
       viewerName: req.body.viewerName || null,

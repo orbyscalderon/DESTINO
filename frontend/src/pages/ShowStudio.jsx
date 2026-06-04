@@ -36,6 +36,7 @@ const DEFAULT_SHOW = {
   title: '', description: '', show_type: 'broadcast',
   ticket_price: '', category: 'chat', scheduled_at: '',
   tip_goal: '', private_rate: '20', exclusive_rate: '35', min_private_minutes: '3',
+  private_countdown_sec: '10',
 };
 
 const DEFAULT_LAYOUT = {
@@ -749,6 +750,7 @@ export default function ShowStudio() {
     private_rate:        parseInt(show.private_rate) || 20,
     exclusive_rate:      parseInt(show.exclusive_rate) || 35,
     min_private_minutes: parseInt(show.min_private_minutes) || 3,
+    private_countdown_sec: Math.max(5, Math.min(180, parseInt(show.private_countdown_sec) || 10)),
   });
 
   const handleSave = async () => {
@@ -847,6 +849,7 @@ export default function ShowStudio() {
             private_rate: String(sd.show.private_rate || '20'),
             exclusive_rate: String(sd.show.exclusive_rate || '35'),
             min_private_minutes: String(sd.show.min_private_minutes || '3'),
+            private_countdown_sec: String(sd.show.private_countdown_sec || '10'),
           });
         }
       } catch {}
@@ -1451,7 +1454,8 @@ export default function ShowStudio() {
     }
   }, [isLive]);
 
-  const editableFields = ['title', 'description', 'category', 'ticket_price', 'scheduled_at'];
+  const editableFields = ['title', 'description', 'category', 'ticket_price', 'scheduled_at',
+    'private_rate', 'exclusive_rate', 'min_private_minutes', 'private_countdown_sec'];
   const liveDirty = !!liveSnapshotRef.current && editableFields.some(k => {
     const a = liveSnapshotRef.current[k] ?? '';
     const b = show[k] ?? '';
@@ -1469,6 +1473,10 @@ export default function ShowStudio() {
         category: show.category,
         ticket_price: parseFloat(show.ticket_price) || 0,
         scheduled_at: show.scheduled_at || null,
+        private_rate: parseInt(show.private_rate) || 20,
+        exclusive_rate: parseInt(show.exclusive_rate) || 35,
+        min_private_minutes: parseInt(show.min_private_minutes) || 3,
+        private_countdown_sec: Math.max(5, Math.min(180, parseInt(show.private_countdown_sec) || 10)),
       };
       await api.patch(`/api/shows/${showId}/live-update`, payload);
       // Actualizar snapshot — los cambios son ahora el nuevo baseline
@@ -1478,6 +1486,10 @@ export default function ShowStudio() {
         category: show.category,
         ticket_price: show.ticket_price,
         scheduled_at: show.scheduled_at,
+        private_rate: show.private_rate,
+        exclusive_rate: show.exclusive_rate,
+        min_private_minutes: show.min_private_minutes,
+        private_countdown_sec: show.private_countdown_sec,
       };
       toast.success('Cambios aplicados al show');
     } catch (err) {
@@ -2275,16 +2287,26 @@ export default function ShowStudio() {
                 </p>
               </div>
               {[
-                { key: 'private_rate',       label: 'Tarifa privado (coins/min)',    hint: 'El espectador paga por cada minuto de show privado' },
-                { key: 'exclusive_rate',     label: 'Tarifa exclusivo (coins/min)', hint: 'Solo ese espectador puede ver el show' },
-                { key: 'min_private_minutes', label: 'Duración mínima (min)',        hint: 'Mínimo que se cobrará al aceptar' },
-              ].map(({ key, label, hint }) => (
+                { key: 'private_rate',       label: 'Tarifa privado (coins/min)',    hint: 'El espectador paga por cada minuto de show privado', min: 1, max: 500 },
+                { key: 'exclusive_rate',     label: 'Tarifa exclusivo (coins/min)', hint: 'Solo ese espectador puede ver el show', min: 1, max: 500 },
+                { key: 'min_private_minutes', label: 'Duración mínima (min)',        hint: 'Mínimo que se cobrará al aceptar', min: 1, max: 60 },
+                { key: 'private_countdown_sec', label: 'Cuenta regresiva al iniciar privado (segundos)',
+                  hint: 'Tiempo que ven los demás antes de que cambie a privado/exclusivo. Mínimo 5s, máximo 180s (3 min).', min: 5, max: 180 },
+              ].map(({ key, label, hint, min, max }) => (
                 <div key={key}>
                   <label className="text-[10px] text-gray-400 font-medium mb-0.5 block">{label}</label>
                   <p className="text-[9px] text-gray-700 mb-1.5">{hint}</p>
                   <input className="w-full bg-[#111115] border border-white/10 text-white text-xs rounded px-2.5 py-1.5 outline-none focus:border-brand-500/50 transition-colors text-center"
-                    type="number" min="1"
-                    value={show[key]} onChange={e => set(key, e.target.value)} />
+                    type="number" min={min} max={max}
+                    value={show[key]}
+                    onChange={e => {
+                      const v = e.target.value;
+                      if (v === '' || (parseInt(v) >= min && parseInt(v) <= max)) {
+                        set(key, v);
+                      } else {
+                        set(key, String(Math.max(min, Math.min(max, parseInt(v) || min))));
+                      }
+                    }} />
                 </div>
               ))}
             </div>
