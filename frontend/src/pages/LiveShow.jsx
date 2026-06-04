@@ -842,9 +842,23 @@ export default function LiveShow() {
       // For multi-host: identify the main host by show.host_id and route
       // additional publishers into coHostStreams.
       const hostUserId = show?.host_id;
+      // Track quién está en el slot del host (puede ser el real host o un
+      // fallback promovido). Usamos ref para no causar re-renders innecesarios.
+      const promotedAsHostRef = { current: null };
       rtc.onRemoteTrack = (track, participant) => {
         const pid = participant?.identity;
-        const isHostTrack = !pid || pid === hostUserId;
+        const isRealHost = pid && hostUserId && pid === hostUserId;
+        const isPromotedHost = pid && pid === promotedAsHostRef.current;
+        const isHostTrack = isRealHost || isPromotedHost;
+
+        // Log para debug en producción (se ve en DevTools)
+        console.log('[viewer onRemoteTrack]', {
+          identity: pid,
+          kind: track.kind,
+          expectedHost: hostUserId,
+          isRealHost,
+          isPromotedHost,
+        });
 
         if (isHostTrack) {
           if (track.kind === 'video') {
@@ -853,6 +867,21 @@ export default function LiveShow() {
             setPendingViewerTracks(prev => ({ ...(prev || {}), audio: track.mediaStreamTrack }));
           }
         } else {
+          // Si aún no hay host en el slot principal Y este es el primer publisher
+          // remoto, promoverlo al slot del host (fallback robusto cuando
+          // show.host_id no coincide con la identity LiveKit publicada — pasa
+          // si el show fue recargado, si identity tiene prefix, o si el track
+          // llega antes de que `show` esté cargado en el state).
+          if (!promotedAsHostRef.current && pid) {
+            promotedAsHostRef.current = pid;
+            console.log('[viewer] promoviendo a host fallback:', pid);
+            if (track.kind === 'video') {
+              setPendingViewerTracks(prev => ({ ...(prev || {}), video: track.mediaStreamTrack }));
+            } else if (track.kind === 'audio') {
+              setPendingViewerTracks(prev => ({ ...(prev || {}), audio: track.mediaStreamTrack }));
+            }
+            return;
+          }
           setCoHostStreams(prev => {
             const cur = prev[pid] || {};
             return {
@@ -2457,14 +2486,16 @@ export default function LiveShow() {
             <FiGift className="text-white" size={18} />
           </button>
 
-          {/* Show privado */}
+          {/* Show privado — icono solo en mobile para no romper layout en 360px */}
           {!privateSession ? (
             <button
               onClick={() => setPrivateModal(true)}
-              className="flex items-center gap-1.5 bg-purple-600/20 hover:bg-purple-600/40 border border-purple-500/40 text-purple-300 font-bold px-3 h-10 rounded-full transition-colors shrink-0"
+              className="flex items-center gap-1.5 bg-purple-600/20 hover:bg-purple-600/40 border border-purple-500/40 text-purple-300 font-bold h-10 rounded-full transition-colors shrink-0 px-2 sm:px-3"
+              aria-label={`Show privado ${show?.private_rate ?? 20} coins por minuto`}
             >
               <FiDollarSign size={13} />
-              <span className="text-xs">Show Privado {show?.private_rate ?? 20}tk</span>
+              <span className="text-xs hidden sm:inline">Privado {show?.private_rate ?? 20}/min</span>
+              <span className="text-xs sm:hidden">{show?.private_rate ?? 20}/min</span>
             </button>
           ) : (
             <button
