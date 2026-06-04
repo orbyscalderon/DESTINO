@@ -224,6 +224,10 @@ export default function LiveShow() {
   const [cameraOff, setCameraOff]     = useState(false);
   const [viewerCount, setViewerCount] = useState(0);
   const [hostFollowing, setHostFollowing] = useState(false);
+  // Cuando el viewer es expulsado del room durante un privado/exclusivo, en
+  // lugar de navegar a /shows lo mantenemos en este estado. Cuando recibimos
+  // private_resumed lo rejoineamos automáticamente.
+  const [waitingForResume, setWaitingForResume] = useState(false);
 
   // Battles (viewer ve overlay cuando host está en battle)
   const [activeBattleId, setActiveBattleId] = useState(null);
@@ -591,12 +595,35 @@ export default function LiveShow() {
         }
       })
       .on('broadcast', { event: 'private_resumed' }, ({ payload }) => {
-        // El host volvió al show público — si yo estaba "esperando" desde el
-        // privado, podría re-entrar; en esta iteración el show queda visible
-        // en /shows para que el user re-entre manualmente.
-        if (role === 'viewer') {
+        // El host volvió al show público. Si estaba waiting, rejoineo
+        // automáticamente al room público.
+        if (role !== 'viewer') return;
+        if (!waitingForResume) {
           toast(`📺 El show volvió a transmitir`, { icon: '🔴' });
+          return;
         }
+        toast.success('🔴 El host volvió — reconectando…', { duration: 3000 });
+        const publicRoomId = payload?.publicRoomId || `show_${id.replace(/-/g, '')}`;
+        (async () => {
+          try {
+            const rtc = new LiveKitSession(publicRoomId);
+            rtc.onRemoteTrack = (track, participant) => {
+              if (track.kind === 'video') {
+                setPendingViewerTracks(prev => ({ ...(prev || {}), video: track.mediaStreamTrack }));
+              } else if (track.kind === 'audio') {
+                setPendingViewerTracks(prev => ({ ...(prev || {}), audio: track.mediaStreamTrack }));
+              }
+            };
+            rtcRef.current = rtc;
+            await rtc.join(false, { skipAutoMedia: true });
+            setWaitingForResume(false);
+          } catch (e) {
+            console.warn('[viewer] rejoin tras pausa falló', e?.message);
+            toast.error('No se pudo reconectar — vuelve a /shows');
+            setWaitingForResume(false);
+            navigate('/shows');
+          }
+        })();
       })
       .on('broadcast', { event: 'show_ended' }, () => {
         if (role !== 'host') {
@@ -716,18 +743,27 @@ export default function LiveShow() {
             setPrivateMinutes(0);
             startPrivateTick(payload.type, payload.rate);
           } else if (!isAccepted && payload.kickOthers) {
-            // Exclusive: kick siempre.
-            toast(`El host inició un show CAM2CAM`, { icon: '🔒' });
-            navigate('/shows');
+            // Exclusive: nos quedamos en la página pero salimos del room
+            // LiveKit. Vemos un overlay "Esperando que vuelva" hasta que
+            // llegue private_resumed.
+            (async () => {
+              try { await rtcRef.current?.leave(); } catch {}
+              rtcRef.current = null;
+              setPendingViewerTracks(null);
+              setWaitingForResume(true);
+              toast('El host inició CAM2CAM · te avisaremos cuando vuelva', { icon: '🔒', duration: 4000 });
+            })();
           } else if (!isAccepted && payload.type === 'private') {
-            // Privado: kick solo si NO compraste ticket.
-            // Lee el estado en ese momento via ref/snapshot — usamos un timeout
-            // de 0 para resolver el state actual desde la closure.
             setTimeout(() => {
               setPrivateTicketStatus(curr => {
                 if (curr !== 'bought') {
-                  toast('No compraste ticket — el show ahora es privado', { icon: '🔒' });
-                  navigate('/shows');
+                  (async () => {
+                    try { await rtcRef.current?.leave(); } catch {}
+                    rtcRef.current = null;
+                    setPendingViewerTracks(null);
+                    setWaitingForResume(true);
+                    toast('Show ahora es privado · te avisaremos cuando vuelva', { icon: '🔒', duration: 4000 });
+                  })();
                 }
                 return curr;
               });
@@ -2411,6 +2447,25 @@ export default function LiveShow() {
             </div>
           )}
 
+          {/* Overlay "esperando que el host vuelva del privado" */}
+          {waitingForResume && (
+            <div className="absolute inset-0 z-40 bg-black/85 backdrop-blur-sm flex items-center justify-center px-4">
+              <div className="bg-gradient-to-br from-amber-600 to-orange-500 rounded-3xl px-6 py-8 max-w-xs w-full text-center shadow-2xl">
+                <div className="text-5xl mb-3 animate-pulse">⏸️</div>
+                <p className="text-white text-base font-black mb-2">El host está en privado</p>
+                <p className="text-amber-50 text-sm leading-snug mb-4">
+                  Te avisaremos cuando vuelva al show público. No cierres esta página.
+                </p>
+                <button
+                  onClick={() => { setWaitingForResume(false); navigate('/shows'); }}
+                  className="w-full bg-white/15 hover:bg-white/25 text-white font-bold py-2.5 rounded-xl text-sm"
+                >
+                  Salir
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Countdown overlay cuando el host inicia privado/exclusive */}
           {privateCountdown && (
             <PrivateCountdownOverlay
@@ -2546,32 +2601,9 @@ export default function LiveShow() {
             </div>
           )}
 
-          {/* Tip goal bar */}
-          {show?.tip_goal > 0 && (() => {
-            const tipTotal = tippers.reduce((s, t) => s + t.coins_total, 0);
-            const tipPct = Math.min(100, (tipTotal / (show.tip_goal * 20)) * 100);
-            return (
-              <div className="absolute top-16 left-4 right-4 z-10">
-                <div className="bg-black/70 backdrop-blur-sm rounded-xl px-3 py-2.5 border border-white/10">
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-white text-[10px] font-bold flex items-center gap-1">
-                      <FiZap size={9} className="text-yellow-400" />
-                      {tipPct >= 100 ? '🎉 ¡Meta!' : 'Meta de propinas'}
-                    </span>
-                    <span className="text-yellow-400 text-[10px] font-bold">{tipTotal} / {show.tip_goal * 20} ⚡</span>
-                  </div>
-                  <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden">
-                    <motion.div
-                      className={`h-full rounded-full ${tipPct >= 100 ? 'bg-gradient-to-r from-yellow-400 to-orange-400' : 'bg-gradient-to-r from-yellow-500 to-brand-500'}`}
-                      initial={{ width: 0 }}
-                      animate={{ width: `${tipPct}%` }}
-                      transition={{ duration: 0.8 }}
-                    />
-                  </div>
-                </div>
-              </div>
-            );
-          })()}
+          {/* Tip goal bar: solo el DraggableTipGoal de abajo lo maneja
+              (el creador puede moverlo). La barra fija que estaba aquí se
+              quitó porque colisionaba con el header/banner. */}
 
           {/* Gift animations */}
           <div className="absolute bottom-20 left-4 pointer-events-none z-20">
@@ -2833,8 +2865,9 @@ export default function LiveShow() {
           )}
         </AnimatePresence>
 
-        {/* Controles inferiores (viewer) */}
-        <div className="h-[72px] px-3 bg-dark-900/95 border-t border-white/5 flex items-center gap-2 shrink-0 z-10">
+        {/* Controles inferiores (viewer) — gap-1.5 + px-2 en mobile para no
+            romper layout con 7 botones en 360px ancho. */}
+        <div className="h-[72px] px-2 sm:px-3 bg-dark-900/95 border-t border-white/5 flex items-center gap-1.5 sm:gap-2 shrink-0 z-10">
 
           {/* ❤️ contador de reacciones */}
           <button onClick={() => sendReaction('❤️')}
@@ -2864,12 +2897,13 @@ export default function LiveShow() {
             <FiAward className={showLeaderboard ? 'text-black' : 'text-yellow-400'} size={18} />
           </button>
 
-          {/* Propina */}
+          {/* Propina — texto solo en sm+, icono-only en mobile para no romper layout */}
           <button onClick={() => { setShowTips(v => !v); setShowChat(false); setShowGifts(false); }}
-            className={`flex items-center gap-1.5 px-3 h-10 rounded-full font-bold text-sm transition-colors ${showTips ? 'bg-yellow-500 text-black' : 'bg-dark-700 hover:bg-yellow-500/20 text-yellow-400'}`}
+            className={`flex items-center gap-1.5 h-10 rounded-full font-bold text-sm transition-colors shrink-0 px-2.5 sm:px-3 ${showTips ? 'bg-yellow-500 text-black' : 'bg-dark-700 hover:bg-yellow-500/20 text-yellow-400'}`}
+            aria-label="Enviar propina"
           >
             <FiZap size={15} />
-            <span className="text-xs">Propina</span>
+            <span className="text-xs hidden sm:inline">Propina</span>
           </button>
 
           {/* Regalos */}
