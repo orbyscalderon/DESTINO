@@ -1491,14 +1491,24 @@ export const acceptPrivateShow = async (req, res) => {
       // No abortamos — broadcasteamos igual para que el flujo legacy siga
     }
 
-    // Broadcast — los clientes filtran por viewerId
-    broadcastToChannel(`show:${showId}`, 'private_accept', {
-      viewerId, type, rate,
+    // Broadcast inicial: hay un countdown de 10s antes del cambio real.
+    // Durante esos 10s, todos los viewers ven el overlay con contexto
+    // según su rol (aceptado vs otros) y type (private vs exclusive).
+    // El reconnect (host + viewer aceptado) lo dispara el cliente del host
+    // tras el countdown.
+    const COUNTDOWN_SEC = 10;
+    broadcastToChannel(`show:${showId}`, 'private_starting', {
+      viewerId,
+      viewerName: req.body.viewerName || null,
+      type, rate,
       hostName: host?.full_name || 'El host',
       privateRoomId,
+      countdownSec: COUNTDOWN_SEC,
+      kickOthers: true, // por ahora ambos types kickean a los no-aceptados
+      ticketPriceCoins: type === 'exclusive' ? null : (rate * 3), // sugerido (TODO: implementar compra)
     }).catch(() => {});
 
-    res.json({ ok: true, rate, privateRoomId, type });
+    res.json({ ok: true, rate, privateRoomId, type, countdownSec: COUNTDOWN_SEC });
   } catch (err) {
     console.error('[acceptPrivateShow] error:', err.message);
     res.status(500).json({ error: 'Error interno del servidor' });

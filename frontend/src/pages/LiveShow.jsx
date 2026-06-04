@@ -138,6 +138,44 @@ function CaptionLayer({ showId, captionsEnabled }) {
   return <CaptionOverlay captions={captions} bottom={90} />;
 }
 
+// Overlay que muestra el countdown al viewer cuando el host acepta una
+// solicitud privada. Mensaje contextual según rol (aceptado vs otros) y type.
+function PrivateCountdownOverlay({ countdown }) {
+  const [secs, setSecs] = useState(() => Math.max(0, Math.ceil((countdown.endsAt - Date.now()) / 1000)));
+  useEffect(() => {
+    const t = setInterval(() => {
+      setSecs(Math.max(0, Math.ceil((countdown.endsAt - Date.now()) / 1000)));
+    }, 250);
+    return () => clearInterval(t);
+  }, [countdown.endsAt]);
+
+  const { isAccepted, type, rate, hostName, viewerName, kickOthers } = countdown;
+  const isCam2cam = type === 'exclusive';
+  const title = isAccepted
+    ? (isCam2cam ? '🔒 CAM2CAM iniciando' : '🔒 Tu show privado iniciando')
+    : (isCam2cam ? '🔒 CAM2CAM exclusivo iniciando' : '🔒 Show privado iniciando');
+
+  const message = isAccepted
+    ? (isCam2cam
+        ? `Solo tú y ${hostName} en cam2cam. Tu cámara se prenderá al empezar. Pagarás ${rate} coins/min.`
+        : `Solo tú y ${hostName}. Pagarás ${rate} coins/min.`)
+    : (isCam2cam
+        ? `${hostName} aceptó CAM2CAM con ${viewerName || 'otro viewer'}. Serás desconectado cuando termine la cuenta.`
+        : kickOthers
+          ? `${hostName} pasa a show privado con ${viewerName || 'otro viewer'}. Serás desconectado cuando termine la cuenta.`
+          : `${hostName} pasa a show privado. Compra ticket para seguir viendo.`);
+
+  return (
+    <div className="absolute inset-0 z-40 bg-black/80 backdrop-blur-sm flex items-center justify-center px-4">
+      <div className="bg-gradient-to-br from-purple-700 to-pink-600 rounded-3xl px-6 py-8 max-w-xs w-full text-center shadow-2xl shadow-purple-500/40">
+        <div className="text-7xl font-black text-white tabular-nums mb-2">{secs}</div>
+        <p className="text-white text-base font-black mb-2">{title}</p>
+        <p className="text-purple-100 text-sm leading-snug">{message}</p>
+      </div>
+    </div>
+  );
+}
+
 export default function LiveShow() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -229,6 +267,7 @@ export default function LiveShow() {
   // Show privado
   const [privateModal, setPrivateModal]       = useState(false);
   const [privateSession, setPrivateSession]   = useState(null); // { type, rate, startTime }
+  const [privateCountdown, setPrivateCountdown] = useState(null); // { endsAt, isAccepted, type, rate, hostName, viewerName, kickOthers }
   const [privateRequest, setPrivateRequest]   = useState(null); // { viewerId, viewerName, viewerAvatar, type, rate }
   const [privateMinutes, setPrivateMinutes]   = useState(0);
   const [privateBalance, setPrivateBalance]   = useState(0);
@@ -531,47 +570,55 @@ export default function LiveShow() {
       .on('broadcast', { event: 'private_request' }, ({ payload }) => {
         if (role === 'host') setPrivateRequest(payload);
       })
-      .on('broadcast', { event: 'private_accept' }, ({ payload }) => {
-        // Si soy el viewer aceptado → reconectar al room privado.
-        // Si soy otro viewer → quedarme en el público (el host saldrá del
-        // room público y vendrá un private_kick por separado).
+      .on('broadcast', { event: 'private_starting' }, ({ payload }) => {
+        // Countdown UI. Diferencia 3 casos: viewer aceptado / otros viewers / host.
         if (role !== 'viewer') return;
-        if (payload.viewerId === user?.id && payload.privateRoomId) {
-          setPrivateSession({ type: payload.type, rate: payload.rate, startTime: Date.now() });
-          setPrivateBalance(coinBalance);
-          setPrivateMinutes(0);
-          startPrivateTick(payload.type, payload.rate);
-          toast.success(
-            payload.type === 'exclusive'
-              ? `🔒 CAM2CAM iniciado — tu cámara va a publicar`
-              : `🔒 Show privado iniciado — ${payload.rate} coins/min`
-          );
-          // Reconnect a privateRoomId con canPublish=true si exclusive
-          (async () => {
-            try {
-              await rtcRef.current?.leave().catch(() => {});
-              const rtc = new LiveKitSession(payload.privateRoomId);
-              rtc.onRemoteTrack = (track, participant) => {
-                if (track.kind === 'video') {
-                  setPendingViewerTracks(prev => ({ ...(prev || {}), video: track.mediaStreamTrack }));
-                } else if (track.kind === 'audio') {
-                  setPendingViewerTracks(prev => ({ ...(prev || {}), audio: track.mediaStreamTrack }));
-                }
-              };
-              rtcRef.current = rtc;
-              // canPublish=true; el backend decide si realmente puede según el type
-              await rtc.join(payload.type === 'exclusive');
-            } catch (e) {
-              console.error('[viewer] reconnect privado falló', e);
-              toast.error('No se pudo conectar al room privado');
-            }
-          })();
-        } else if (payload.viewerId !== user?.id) {
-          // Otros viewers: el host estará pronto en otro room, no veremos su
-          // cámara. Mostrar aviso y mandar al directorio de shows.
-          toast(`El host inició un show privado con otro viewer`, { icon: '🔒', duration: 4000 });
-          setTimeout(() => navigate('/shows'), 1800);
-        }
+        const isAccepted = payload.viewerId === user?.id;
+        const countdownSec = payload.countdownSec ?? 10;
+        setPrivateCountdown({
+          endsAt: Date.now() + countdownSec * 1000,
+          isAccepted,
+          type: payload.type,
+          rate: payload.rate,
+          hostName: payload.hostName,
+          viewerName: payload.viewerName,
+          privateRoomId: payload.privateRoomId,
+          kickOthers: !!payload.kickOthers,
+        });
+
+        // Tras el countdown:
+        //  · viewer aceptado: reconnect al room privado
+        //  · otros viewers: si kickOthers, navigate a /shows
+        setTimeout(() => {
+          setPrivateCountdown(null);
+          if (isAccepted && payload.privateRoomId) {
+            setPrivateSession({ type: payload.type, rate: payload.rate, startTime: Date.now() });
+            setPrivateBalance(coinBalance);
+            setPrivateMinutes(0);
+            startPrivateTick(payload.type, payload.rate);
+            (async () => {
+              try {
+                await rtcRef.current?.leave().catch(() => {});
+                const rtc = new LiveKitSession(payload.privateRoomId);
+                rtc.onRemoteTrack = (track, participant) => {
+                  if (track.kind === 'video') {
+                    setPendingViewerTracks(prev => ({ ...(prev || {}), video: track.mediaStreamTrack }));
+                  } else if (track.kind === 'audio') {
+                    setPendingViewerTracks(prev => ({ ...(prev || {}), audio: track.mediaStreamTrack }));
+                  }
+                };
+                rtcRef.current = rtc;
+                await rtc.join(payload.type === 'exclusive');
+              } catch (e) {
+                console.error('[viewer] reconnect privado falló', e);
+                toast.error('No se pudo conectar al room privado');
+              }
+            })();
+          } else if (!isAccepted && payload.kickOthers) {
+            toast(`El host inició un show ${payload.type === 'exclusive' ? 'CAM2CAM' : 'privado'}`, { icon: '🔒' });
+            navigate('/shows');
+          }
+        }, countdownSec * 1000);
       })
       .on('broadcast', { event: 'private_decline' }, ({ payload }) => {
         if (role === 'viewer' && payload.viewerId === user?.id) {
@@ -2147,6 +2194,13 @@ export default function LiveShow() {
               battleId={activeBattleId}
               viewerSide="viewer"
               onEnded={() => setActiveBattleId(null)}
+            />
+          )}
+
+          {/* Countdown overlay cuando el host inicia privado/exclusive */}
+          {privateCountdown && (
+            <PrivateCountdownOverlay
+              countdown={privateCountdown}
             />
           )}
 

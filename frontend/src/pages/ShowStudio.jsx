@@ -324,6 +324,32 @@ function CoHostsPanel({ showId }) {
   );
 }
 
+// Banner countdown que ve el HOST durante los 10s previos al reconnect.
+function PrivateCountdownBannerHost({ endsAt, type, viewerName }) {
+  const [secs, setSecs] = useState(() => Math.max(0, Math.ceil((endsAt - Date.now()) / 1000)));
+  useEffect(() => {
+    const t = setInterval(() => {
+      setSecs(Math.max(0, Math.ceil((endsAt - Date.now()) / 1000)));
+    }, 250);
+    return () => clearInterval(t);
+  }, [endsAt]);
+  return (
+    <div className="absolute top-3 left-1/2 -translate-x-1/2 z-30 bg-purple-600/95 backdrop-blur-md rounded-2xl px-4 py-2 flex items-center gap-3 shadow-2xl shadow-purple-500/40 animate-pulse">
+      <div className="text-2xl font-black text-white tabular-nums">{secs}</div>
+      <div className="text-left">
+        <p className="text-white text-[11px] font-black tracking-wider">
+          🔒 {type === 'exclusive' ? 'CAM2CAM iniciando' : 'PRIVADO iniciando'}
+        </p>
+        <p className="text-purple-100 text-[10px]">
+          {type === 'exclusive'
+            ? `Solo ${viewerName} y tú. Otros viewers serán desconectados.`
+            : `Tu show pasa a privado con ${viewerName}.`}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export default function ShowStudio() {
   const navigate = useNavigate();
   const { user, profile: authProfile } = useAuthStore();
@@ -1147,24 +1173,38 @@ export default function ShowStudio() {
       }
       const { data } = await api.post(`/api/shows/${showId}/private/accept`, {
         viewerId: privateRequest.viewerId,
+        viewerName: privateRequest.viewerName,
         type: privateRequest.type,
       });
-      const { privateRoomId, type } = data;
+      const { privateRoomId, type, countdownSec = 10 } = data;
+      const reqSnapshot = privateRequest;
       setPrivateRequest(null);
 
-      await reconnectToRoom(privateRoomId);
-
+      // Estado intermedio "countdown" para que la UI muestre el overlay
       setPrivateSessionHost({
-        viewerId: privateRequest.viewerId,
-        viewerName: privateRequest.viewerName,
+        viewerId: reqSnapshot.viewerId,
+        viewerName: reqSnapshot.viewerName,
         type, rate: data.rate,
         roomId: privateRoomId,
+        state: 'countdown',
+        countdownEndsAt: Date.now() + countdownSec * 1000,
       });
-      toast.success(
-        type === 'exclusive'
-          ? `🔒 CAM2CAM con ${privateRequest.viewerName} — verás su cámara`
-          : `🔒 Show privado iniciado con ${privateRequest.viewerName}`
-      );
+
+      // Tras el countdown: reconnect al room privado y promover a 'active'
+      setTimeout(async () => {
+        try {
+          await reconnectToRoom(privateRoomId);
+          setPrivateSessionHost(prev => prev ? { ...prev, state: 'active', countdownEndsAt: null } : null);
+          toast.success(
+            type === 'exclusive'
+              ? `🔒 CAM2CAM activo con ${reqSnapshot.viewerName}`
+              : `🔒 Show privado activo con ${reqSnapshot.viewerName}`
+          );
+        } catch (e) {
+          console.error('[host] reconnect privado falló:', e);
+          toast.error('No se pudo reconectar al room privado');
+        }
+      }, countdownSec * 1000);
     } catch (err) {
       const code = err.response?.data?.code;
       const reqInfo = privateRequest;
@@ -2323,22 +2363,30 @@ export default function ShowStudio() {
       {/* Banner MODO PRIVADO + tile del viewer (cam2cam exclusive) */}
       {isLive && privateSession && (
         <>
-          <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 bg-purple-600/90 backdrop-blur-md rounded-full px-3 py-1.5 flex items-center gap-2 shadow-lg shadow-purple-500/40">
-            <span className="text-white text-[10px] font-black tracking-wider">
-              🔒 {privateSession.type === 'exclusive' ? 'CAM2CAM' : 'PRIVADO'}
-            </span>
-            <span className="text-purple-100 text-[10px]">·</span>
-            <span className="text-white text-[10px] font-bold truncate max-w-[120px]">
-              {privateSession.viewerName}
-            </span>
-            <span className="text-purple-100 text-[10px]">·</span>
-            <span className="text-yellow-300 text-[10px] font-black">{privateSession.rate}/min</span>
-            <button
-              onClick={handleEndPrivateShow}
-              className="ml-1 bg-white/15 hover:bg-white/25 rounded-full px-2 py-0.5 text-white text-[9px] font-bold"
-              aria-label="Terminar show privado"
-            >Terminar</button>
-          </div>
+          {privateSession.state === 'countdown' ? (
+            <PrivateCountdownBannerHost
+              endsAt={privateSession.countdownEndsAt}
+              type={privateSession.type}
+              viewerName={privateSession.viewerName}
+            />
+          ) : (
+            <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 bg-purple-600/90 backdrop-blur-md rounded-full px-3 py-1.5 flex items-center gap-2 shadow-lg shadow-purple-500/40">
+              <span className="text-white text-[10px] font-black tracking-wider">
+                🔒 {privateSession.type === 'exclusive' ? 'CAM2CAM' : 'PRIVADO'}
+              </span>
+              <span className="text-purple-100 text-[10px]">·</span>
+              <span className="text-white text-[10px] font-bold truncate max-w-[120px]">
+                {privateSession.viewerName}
+              </span>
+              <span className="text-purple-100 text-[10px]">·</span>
+              <span className="text-yellow-300 text-[10px] font-black">{privateSession.rate}/min</span>
+              <button
+                onClick={handleEndPrivateShow}
+                className="ml-1 bg-white/15 hover:bg-white/25 rounded-full px-2 py-0.5 text-white text-[9px] font-bold"
+                aria-label="Terminar show privado"
+              >Terminar</button>
+            </div>
+          )}
           {/* Tile cámara del viewer (solo cam2cam exclusive) */}
           {privateSession.type === 'exclusive' && (
             <div className="absolute bottom-20 left-3 z-20 w-32 sm:w-40 aspect-[3/4] rounded-xl overflow-hidden border-2 border-purple-500 shadow-2xl shadow-purple-500/40 bg-black">
