@@ -435,6 +435,12 @@ export default function ShowStudio() {
   const [battleResults, setBattleResults]           = useState([]);
   const [battleInviting, setBattleInviting]         = useState(null);
   const [showBattleSearch, setShowBattleSearch]     = useState(false);
+  // Stream del oponente (otro host) durante el battle. Lo recibimos
+  // conectándonos como subscriber-only a su room LiveKit en paralelo al
+  // nuestro. Se muestra en un tile del canvas.
+  const [opponentStream, setOpponentStream]         = useState(null);
+  const opponentRtcRef = useRef(null);
+  const opponentVideoRef = useRef(null);
 
   // ── PRIVATE SHOW (host side) ─────────────────────────────────────────────────
   // Cuando aceptamos un request privado, reconectamos a un room nuevo y
@@ -948,6 +954,70 @@ export default function ShowStudio() {
       payload: { battleId: battle.id },
     }).catch(() => {});
   }, []);
+
+  // Subscribe-only al room del oponente para ver su cámara en un tile.
+  // Mientras dura el battle, este RTC vive paralelo al rtcRef.current (mi
+  // propio publisher). Al terminar el battle, cerramos esta sesión.
+  useEffect(() => {
+    if (!activeBattle || !user?.id) {
+      // Cleanup si había una conexión previa
+      if (opponentRtcRef.current) {
+        opponentRtcRef.current.leave().catch(() => {});
+        opponentRtcRef.current = null;
+      }
+      setOpponentStream(null);
+      return;
+    }
+
+    const amIHost1 = activeBattle.host1_id === user.id;
+    const opponentShowId = amIHost1 ? activeBattle.show2_id : activeBattle.show1_id;
+    const opponentHostId = amIHost1 ? activeBattle.host2_id : activeBattle.host1_id;
+    if (!opponentShowId || !opponentHostId) return;
+
+    const opponentRoomId = `show_${opponentShowId.replace(/-/g, '')}`;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const rtc = new LiveKitSession(opponentRoomId);
+        rtc.onRemoteTrack = (track, participant) => {
+          // Solo nos interesa el track del oponente (host del otro show)
+          if (participant?.identity !== opponentHostId) return;
+          if (track.kind === 'video') {
+            const ms = new MediaStream([track.mediaStreamTrack]);
+            setOpponentStream(ms);
+          } else if (track.kind === 'audio') {
+            // Reproducir audio del oponente. Lo agregamos al DOM con tag
+            // específico para limpiarlo al terminar el battle.
+            const a = document.createElement('audio');
+            a.autoplay = true;
+            a.srcObject = new MediaStream([track.mediaStreamTrack]);
+            a.dataset.battleOpponentAudio = 'true';
+            document.body.appendChild(a);
+          }
+        };
+        opponentRtcRef.current = rtc;
+        // canPublish=false: solo me suscribo, no envío nada al room oponente
+        await rtc.join(false, { skipAutoMedia: true });
+        if (cancelled) await rtc.leave().catch(() => {});
+      } catch (e) {
+        console.warn('[battle] no se pudo conectar al room del oponente:', e?.message);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      if (opponentRtcRef.current) {
+        opponentRtcRef.current.leave().catch(() => {});
+        opponentRtcRef.current = null;
+      }
+      setOpponentStream(null);
+      // Limpiar elementos <audio> del oponente
+      document.querySelectorAll('audio[data-battle-opponent-audio]').forEach(a => {
+        try { a.srcObject = null; a.remove(); } catch {}
+      });
+    };
+  }, [activeBattle, user?.id]);
 
   const handleBattleEnded = useCallback(() => {
     setActiveBattle(null);
@@ -2572,6 +2642,33 @@ export default function ShowStudio() {
           )}
         </>
       )}
+      {/* Tile del oponente durante battle: aparece arriba-derecha con su
+          cámara. Antes del primer track, muestra spinner "Esperando…". */}
+      {isLive && activeBattle && (
+        <div className="absolute top-20 right-3 z-20 w-32 sm:w-40 aspect-[3/4] rounded-xl overflow-hidden border-2 border-pink-500 shadow-2xl shadow-pink-500/40 bg-black">
+          {opponentStream ? (
+            <video
+              ref={(el) => {
+                opponentVideoRef.current = el;
+                if (el && opponentStream && el.srcObject !== opponentStream) {
+                  el.srcObject = opponentStream;
+                }
+              }}
+              autoPlay playsInline
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className="w-full h-full flex flex-col items-center justify-center text-center px-2">
+              <div className="w-6 h-6 border-2 border-pink-400 border-t-transparent rounded-full animate-spin mb-2" />
+              <p className="text-pink-300 text-[10px] font-bold">Esperando cámara del oponente</p>
+            </div>
+          )}
+          <div className="absolute top-1 left-1 bg-pink-600 text-white text-[8px] font-black px-1.5 py-0.5 rounded">
+            ⚔️ Oponente
+          </div>
+        </div>
+      )}
+
       {/* Battle overlay: host es host1 si el battle se invitó desde su show1 */}
       {isLive && activeBattle && (
         <BattleOverlay

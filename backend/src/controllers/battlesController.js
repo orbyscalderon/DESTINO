@@ -369,7 +369,8 @@ export const getBattle = async (req, res) => {
       .from('stream_battles')
       .select(`
         id, status, duration_minutes, score1_coins, score2_coins,
-        invited_at, accepted_at, started_at, ended_at, winner_id, show1_id, show2_id,
+        invited_at, accepted_at, started_at, ended_at, winner_id,
+        host1_id, host2_id, show1_id, show2_id,
         host1:profiles!host1_id (id, full_name, avatar_url, is_verified),
         host2:profiles!host2_id (id, full_name, avatar_url, is_verified)
       `)
