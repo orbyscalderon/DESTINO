@@ -1723,8 +1723,27 @@ export const endPrivateShow = async (req, res) => {
     const showId = req.params.id;
     const { viewerId, reason = 'manual' } = req.body;
 
-    const { data: show } = await supabase
-      .from('live_shows').select('host_id, private_session').eq('id', showId).single();
+    // SELECT defensivo: si la columna private_session no existe (migration v47
+    // no aplicada en producción), reintentamos sin ella para no devolver 500.
+    let show = null;
+    let selectErr = null;
+    {
+      const r = await supabase
+        .from('live_shows').select('host_id, private_session').eq('id', showId).maybeSingle();
+      show = r.data;
+      selectErr = r.error;
+    }
+    if (selectErr && /column .*private_session/i.test(selectErr.message || '')) {
+      console.warn('[endPrivateShow] columna private_session no existe — modo legacy');
+      const r2 = await supabase
+        .from('live_shows').select('host_id').eq('id', showId).maybeSingle();
+      show = r2.data;
+      selectErr = r2.error;
+    }
+    if (selectErr) {
+      console.error('[endPrivateShow] select error:', selectErr.message);
+      return res.status(500).json({ error: 'Error consultando el show' });
+    }
     if (!show) return res.status(404).json({ error: 'Show no encontrado' });
 
     if (show.host_id !== userId && viewerId !== userId) {
@@ -1752,22 +1771,34 @@ export const endPrivateShow = async (req, res) => {
     const endedSession = sess
       ? { ...sess, state: 'ended', ended_at: new Date().toISOString(), ended_by: isHostEnding ? 'host' : 'viewer' }
       : null;
-    await supabase
-      .from('live_shows')
-      .update({ private_session: endedSession })
-      .eq('id', showId)
-      .catch(() => {});
+    try {
+      const { error: upErr } = await supabase
+        .from('live_shows')
+        .update({ private_session: endedSession })
+        .eq('id', showId);
+      if (upErr) {
+        // Si la columna no existe (migration v47 no aplicada), seguimos sin
+        // romper — el broadcast vale solo para refrescar UI.
+        console.warn('[endPrivateShow] update private_session falló:', upErr.message);
+      }
+    } catch (e) {
+      console.warn('[endPrivateShow] update threw:', e?.message);
+    }
 
-    broadcastToChannel(`show:${showId}`, 'private_end', {
-      viewerId: viewerId || userId,
-      endedBy: isHostEnding ? 'host' : 'viewer',
-      reason,
-      publicRoomId: `show_${showId.replace(/-/g, '')}`,
-    }).catch(() => {});
+    try {
+      await broadcastToChannel(`show:${showId}`, 'private_end', {
+        viewerId: viewerId || userId,
+        endedBy: isHostEnding ? 'host' : 'viewer',
+        reason,
+        publicRoomId: `show_${showId.replace(/-/g, '')}`,
+      });
+    } catch (e) {
+      console.warn('[endPrivateShow] broadcast threw:', e?.message);
+    }
 
     res.json({ ok: true, state: 'ended' });
   } catch (err) {
-    console.error('[endPrivateShow] error:', err.message);
+    console.error('[endPrivateShow] error:', err.message, err.stack);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };

@@ -2330,7 +2330,13 @@ export default function LiveShow() {
           {privateSession?.type === 'exclusive' && (
             <div className="absolute bottom-24 right-3 z-20 w-28 sm:w-32 aspect-[3/4] rounded-xl overflow-hidden border-2 border-purple-500 shadow-2xl bg-black">
               <video
-                ref={myLocalVideoRef}
+                // callback-ref para garantizar srcObject independiente del orden de mount
+                ref={(el) => {
+                  myLocalVideoRef.current = el;
+                  if (el && localStreamRefViewer.current && el.srcObject !== localStreamRefViewer.current) {
+                    el.srcObject = localStreamRefViewer.current;
+                  }
+                }}
                 autoPlay playsInline muted
                 className="w-full h-full object-cover"
               />

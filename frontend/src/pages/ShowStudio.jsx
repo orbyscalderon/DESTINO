@@ -2510,7 +2510,15 @@ export default function ShowStudio() {
             <div className="absolute bottom-20 left-3 z-20 w-32 sm:w-40 aspect-[3/4] rounded-xl overflow-hidden border-2 border-purple-500 shadow-2xl shadow-purple-500/40 bg-black">
               {privateViewerStream ? (
                 <video
-                  ref={privateViewerVideoRef}
+                  // callback-ref: setea srcObject al montarse — el ref.current
+                  // anterior podía ser null cuando `reconnectToRoom` corría
+                  // antes del primer render del <video>.
+                  ref={(el) => {
+                    privateViewerVideoRef.current = el;
+                    if (el && privateViewerStream && el.srcObject !== privateViewerStream) {
+                      el.srcObject = privateViewerStream;
+                    }
+                  }}
                   autoPlay playsInline
                   className="w-full h-full object-cover"
                 />
