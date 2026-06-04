@@ -125,6 +125,46 @@ export const listShows = async (req, res) => {
   }
 };
 
+// GET /api/shows/replays?limit=20
+// Lista shows terminados que tienen grabación disponible. Útil para una
+// sección "Replays" en la página /shows — el viewer puede ver shows pasados
+// gratis (o con paywall en futura iteración).
+export const listReplays = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const limit = Math.max(1, Math.min(50, parseInt(req.query.limit) || 20));
+
+    // Adult filter: solo VIP/age-verified pueden ver replays adultos
+    const { data: viewer } = await supabase
+      .from('profiles').select('is_adult_creator, age_verified_at, premium_tier')
+      .eq('id', userId).single();
+    const canSeeAdult = !!viewer?.is_adult_creator
+                     || !!viewer?.age_verified_at
+                     || viewer?.premium_tier === 'vip';
+
+    let q = supabase
+      .from('live_shows')
+      .select(`
+        id, title, description, category, recording_url, ended_at, cover_url,
+        host:profiles!host_id(id, full_name, avatar_url, is_verified)
+      `)
+      .eq('status', 'ended')
+      .not('recording_url', 'is', null)
+      .order('ended_at', { ascending: false })
+      .limit(limit);
+
+    if (!canSeeAdult) q = q.neq('category', 'adult');
+
+    const { data: shows, error } = await q;
+    if (error) throw error;
+
+    res.json({ replays: shows || [] });
+  } catch (err) {
+    console.error('[listReplays] error:', err.message);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
 // PATCH /api/shows/:id/live-update
 // Body: { title?, description?, category?, ticket_price?, scheduled_at?,
 //         tip_goal?, private_rate?, exclusive_rate?, min_private_minutes? }

@@ -44,6 +44,7 @@ import {
   deleteGift,
   getLiveCreators,
   updateShowLive,
+  listReplays,
 } from '../controllers/showController.js';
 import {
   inviteCoHost, acceptCoHostInvite, declineCoHostInvite,
@@ -57,6 +58,7 @@ router.get('/', listShows);
 router.get('/leaderboard', getLeaderboard);
 router.get('/live-creators', getLiveCreators);
 router.get('/co-hosts/pending', getMyPendingCoHostInvites);
+router.get('/replays', listReplays);
 router.get('/my', getMyShows);
 
 // Creator gifts (custom catalog) — antes de :id para evitar conflictos

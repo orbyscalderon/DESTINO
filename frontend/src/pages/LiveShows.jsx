@@ -6,6 +6,7 @@ import {
   FiRadio, FiUsers, FiLock, FiSearch, FiX,
   FiRefreshCw, FiPlus, FiBarChart2, FiClock,
   FiCalendar, FiChevronDown, FiChevronUp, FiMonitor,
+  FiPlay, FiFilm,
 } from 'react-icons/fi';
 import { useAuthStore } from '../store/authStore.js';
 import VerifiedBadge from '../components/ui/VerifiedBadge.jsx';
@@ -593,6 +594,9 @@ export default function LiveShows() {
           </section>
         )}
 
+        {/* ── Replays (shows pasados con grabación) ─────────────────── */}
+        <ReplaysSection />
+
       </div>
 
       {/* ── FAB: ir en vivo (solo creadores) ─────────────────────── */}
@@ -612,5 +616,79 @@ export default function LiveShows() {
         </motion.div>
       )}
     </div>
+  );
+}
+
+// ── Sección de Replays (shows pasados con grabación) ──────────────────
+function ReplaysSection() {
+  const [replays, setReplays] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [expanded, setExpanded] = useState(false);
+
+  useEffect(() => {
+    let cancel = false;
+    api.get('/api/shows/replays?limit=12')
+      .then(({ data }) => { if (!cancel) setReplays(data.replays || []); })
+      .catch(() => { if (!cancel) setReplays([]); })
+      .finally(() => { if (!cancel) setLoading(false); });
+    return () => { cancel = true; };
+  }, []);
+
+  if (loading || replays.length === 0) return null;
+
+  return (
+    <section className="mt-6">
+      <button
+        onClick={() => setExpanded(v => !v)}
+        className="w-full flex items-center justify-between mb-3 px-1"
+      >
+        <h2 className="font-bold text-white flex items-center gap-2">
+          <FiFilm size={16} className="text-pink-400" />
+          Replays · {replays.length}
+        </h2>
+        {expanded ? <FiChevronUp size={16} className="text-gray-500" /> : <FiChevronDown size={16} className="text-gray-500" />}
+      </button>
+      <AnimatePresence>
+        {expanded && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2">
+              {replays.map(r => (
+                <a
+                  key={r.id}
+                  href={r.recording_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group block bg-dark-800 rounded-xl overflow-hidden border border-white/5 hover:border-pink-500/40 transition-colors"
+                >
+                  <div className="aspect-video bg-black relative">
+                    {r.cover_url ? (
+                      <img src={r.cover_url} alt="" className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <FiFilm size={32} className="text-gray-700" />
+                      </div>
+                    )}
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="w-10 h-10 bg-pink-500/90 rounded-full flex items-center justify-center shadow-xl group-hover:scale-110 transition-transform">
+                        <FiPlay className="text-white ml-0.5" size={16} />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="p-2">
+                    <p className="text-white text-xs font-bold truncate">{r.title}</p>
+                    <p className="text-gray-500 text-[10px] truncate">{r.host?.full_name}</p>
+                  </div>
+                </a>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </section>
   );
 }
