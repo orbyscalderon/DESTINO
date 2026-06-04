@@ -84,6 +84,15 @@ async function run() {
   const playstoreDir = join(RES_DIR, '..', '..', '..');
   await sharp(SRC).resize(1024, 1024, { fit: 'cover' }).png().toFile(join(playstoreDir, 'ic_launcher-playstore.png'));
   console.log(`✓ playstore icon (1024px)`);
+
+  // iOS AppIcon — Xcode 14+ acepta un único PNG 1024x1024 universal
+  const iosIconDir = join(here, '..', 'ios', 'App', 'App', 'Assets.xcassets', 'AppIcon.appiconset');
+  try {
+    await sharp(SRC).resize(1024, 1024, { fit: 'cover' }).png().toFile(join(iosIconDir, 'AppIcon-512@2x.png'));
+    console.log(`✓ iOS AppIcon (1024px)`);
+  } catch {
+    // Si no hay carpeta ios/ (proyecto solo Android) lo saltamos sin ruido.
+  }
 }
 
 run().catch(err => {
