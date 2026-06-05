@@ -54,6 +54,7 @@ import videoRequestRoutes from './src/routes/videoRequests.js';
 import authRoutes from './src/routes/auth.js';
 import twoFactorRoutes from './src/routes/twoFactor.js';
 import taxFormRoutes from './src/routes/taxForms.js';
+import seoRoutes from './src/routes/seo.js';
 import gdprRoutes from './src/routes/gdpr.js';
 import dmcaRoutes from './src/routes/dmca.js';
 import achievementsRoutes from './src/routes/achievements.js';
@@ -242,6 +243,12 @@ app.use('/api/video-requests', videoRequestRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/2fa', twoFactorRoutes);
 app.use('/api/tax-forms', taxFormRoutes);
+app.use('/api/seo', seoRoutes);
+// El sitemap se sirve también en la raíz para que los crawlers lo encuentren
+app.get('/sitemap.xml', (req, res, next) => {
+  req.url = '/sitemap.xml';
+  seoRoutes(req, res, next);
+});
 app.use('/api/gdpr', gdprRoutes);
 app.use('/api/dmca', dmcaRoutes);
 app.use('/api/achievements', achievementsRoutes);

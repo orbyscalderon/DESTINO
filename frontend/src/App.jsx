@@ -48,7 +48,13 @@ const Moments       = lazy(() => import('./pages/Moments.jsx'));
 const Search        = lazy(() => import('./pages/Search.jsx'));
 const Notifications   = lazy(() => import('./pages/Notifications.jsx'));
 const VideoCall       = lazy(() => import('./pages/VideoCall.jsx'));
-const AdultCreators   = lazy(() => import('./pages/AdultCreators.jsx'));
+// Build flag IOS_BUILD: cuando se compila para App Store, no se importa la
+// página de creators 18+. El bundle iOS pasa review de Apple (Guideline 1.1.4).
+// Para activar: VITE_IOS_BUILD=1 npm run build:mobile
+const IOS_BUILD = import.meta.env.VITE_IOS_BUILD === '1';
+const AdultCreators = IOS_BUILD
+  ? lazy(() => import('./pages/NotFound.jsx'))
+  : lazy(() => import('./pages/AdultCreators.jsx'));
 const VideoRequests   = lazy(() => import('./pages/VideoRequests.jsx'));
 const Leaderboard     = lazy(() => import('./pages/Leaderboard.jsx'));
 const VerifyEmail     = lazy(() => import('./pages/VerifyEmail.jsx'));
@@ -358,7 +364,7 @@ export default function App() {
           <Route path="/search" element={<Search />} />
           <Route path="/notifications" element={<Notifications />} />
           <Route path="/call/:matchId" element={<VideoCall />} />
-          <Route path="/adult" element={<AdultCreators />} />
+          {!IOS_BUILD && <Route path="/adult" element={<AdultCreators />} />}
           <Route path="/video-requests" element={<VideoRequests />} />
           <Route path="/leaderboard" element={<Leaderboard />} />
           <Route path="/referrals" element={<Referrals />} />

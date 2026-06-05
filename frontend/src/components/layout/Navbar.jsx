@@ -128,7 +128,8 @@ export default function Navbar() {
       title: 'Adulto 18+',
       // Solo visible para usuarios mayores (premium VIP o adult creators o verificados).
       // El backend filtra contenido real; aquí ocultamos los items para no tentar.
-      hidden: !(profile?.is_adult_creator || profile?.age_verified_at),
+      // En build iOS la sección entera está hidden (Apple Guideline 1.1.4).
+      hidden: import.meta.env.VITE_IOS_BUILD === '1' || !(profile?.is_adult_creator || profile?.age_verified_at),
       items: [
         { to: '/explore', icon: FiFilm,   label: 'Videos 18+' },
         { to: '/adult',   icon: FiShield, label: 'Creadoras 18+' },

@@ -17,6 +17,7 @@ import CreatorContentTabs from '../components/ui/CreatorContentTabs.jsx';
 import WatermarkLayer from '../components/ui/WatermarkLayer.jsx';
 import { useConfirm } from '../components/ui/ConfirmDialog.jsx';
 import { useAuthStore } from '../store/authStore.js';
+import { useMetaTags } from '../lib/useMetaTags.js';
 
 export default function UserProfile() {
   const { userId } = useParams();
@@ -25,6 +26,17 @@ export default function UserProfile() {
   const currentUserId = user?.id;
   const confirm = useConfirm();
   const [profile, setProfile] = useState(null);
+
+  // Meta tags dinámicos — perfiles públicos de creators salen mejor en
+  // OpenGraph (preview en Discord/WhatsApp) y mejoran SEO.
+  useMetaTags(profile ? {
+    title: `${profile.full_name} · Destino TV`,
+    description: profile.bio?.slice(0, 160) || `Conecta con ${profile.full_name} en Destino TV`,
+    image: profile.avatar_url || '/icon-512.png',
+    url: typeof window !== 'undefined' ? window.location.href : '',
+    type: 'profile',
+  } : {});
+
   const [photos, setPhotos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showBlockModal, setShowBlockModal] = useState(false);

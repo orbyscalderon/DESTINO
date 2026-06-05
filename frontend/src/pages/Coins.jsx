@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiZap, FiArrowLeft, FiClock, FiStar, FiTag, FiArrowDown, FiArrowUp } from 'react-icons/fi';
+import { FiZap, FiArrowLeft, FiClock, FiStar, FiTag, FiArrowDown, FiArrowUp, FiGift } from 'react-icons/fi';
 import { Link, useNavigate } from 'react-router-dom';
 import api from '../lib/api.js';
 import toast from 'react-hot-toast';
@@ -138,6 +138,20 @@ export default function Coins() {
         <p className="text-4xl font-black text-white">{fmtCoins(balance)}</p>
         <p className="text-gray-400 text-sm mt-1">≈ ${fmtUsd(balance * COIN_VALUE_USD)} USD</p>
       </div>
+
+      {/* Banner Referidos — free coins por invitar (mayor CTR que comprar) */}
+      <Link to="/referrals" className="block mb-3">
+        <div className="card p-4 border-brand-500/30 bg-gradient-to-r from-brand-500/10 to-purple-500/5 flex items-center gap-3 hover:border-brand-500/50 transition-colors">
+          <div className="w-10 h-10 bg-brand-500/20 rounded-xl flex items-center justify-center shrink-0">
+            <FiGift className="text-brand-400" size={18} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-white font-bold text-sm">Invita amigos · gana 50 coins</p>
+            <p className="text-gray-400 text-xs truncate">50 coins por cada amigo que se una y compre</p>
+          </div>
+          <span className="text-xs bg-brand-500/20 text-brand-400 font-bold px-2 py-1 rounded-xl border border-brand-500/30 shrink-0">INVITAR</span>
+        </div>
+      </Link>
 
       {/* Banner Premium */}
       {!profile?.is_premium && (

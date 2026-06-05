@@ -23,6 +23,7 @@ import { LiveKitSession } from '../lib/livekitSession.js';
 import api from '../lib/api.js';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
+import { useMetaTags } from '../lib/useMetaTags.js';
 import PaymentModal from '../components/ui/PaymentModal.jsx';
 import TierPicker from '../components/ui/TierPicker.jsx';
 
@@ -244,6 +245,18 @@ export default function LiveShow() {
 
   // Show data
   const [show, setShow]               = useState(null);
+
+  // OG tags para que el preview al compartir el link del show muestre el
+  // título y el thumbnail correctos (no el genérico de Destino TV).
+  useMetaTags(show ? {
+    title: `${show.title || 'Show en vivo'} · ${show.host?.full_name || 'Destino TV'}`,
+    description: show.description?.slice(0, 160)
+      || `Show en vivo de ${show.host?.full_name || 'un creador'} en Destino TV`,
+    image: show.cover_url || show.host?.avatar_url || '/icon-512.png',
+    url: typeof window !== 'undefined' ? window.location.href : '',
+    type: 'video.other',
+  } : {});
+
   const [loading, setLoading]         = useState(true);
   const [joining, setJoining]         = useState(false);
   const [inShow, setInShow]           = useState(false);

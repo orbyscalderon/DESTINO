@@ -8,6 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "build:mobile": "vite build && npx cap sync",
+    "build:ios": "VITE_IOS_BUILD=1 vite build && npx cap sync ios",
     "cap:android": "npx cap open android",
     "cap:ios": "npx cap open ios",
     "test": "playwright test",
