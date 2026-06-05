@@ -23,6 +23,9 @@ import CCBillSetup from '../components/ui/CCBillSetup.jsx';
 import AdultCategoriesManager from '../components/ui/AdultCategoriesManager.jsx';
 import AdvancedStats from '../components/ui/AdvancedStats.jsx';
 import TaxFormSection from '../components/ui/TaxFormSection.jsx';
+import RecurringShowsManager from '../components/ui/RecurringShowsManager.jsx';
+import AffiliateProgramSection from '../components/ui/AffiliateProgramSection.jsx';
+import ChatModeratorsManager from '../components/ui/ChatModeratorsManager.jsx';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 
 /* ── Helpers ─────────────────────────────────────────────── */
@@ -142,6 +145,9 @@ const NAV_ITEMS = [
   { key: 'subscribers', labelKey: 'dashboard.subscribers',  icon: FiUsers },
   { key: 'earnings',    labelKey: 'dashboard.earnings',     icon: FiDollarSign },
   { key: 'analytics',   labelKey: 'dashboard.analytics',    icon: FiBarChart2 },
+  { key: 'schedule',    labelKey: 'dashboard.schedule',     icon: FiCalendar },
+  { key: 'mods',        labelKey: 'dashboard.mods',         icon: FiShield },
+  { key: 'affiliate',   labelKey: 'dashboard.affiliate',    icon: FiTrendingUp },
   { key: 'settings',    labelKey: 'dashboard.settings',     icon: FiSettings },
 ];
 
@@ -1465,6 +1471,36 @@ export default function CreatorDashboard() {
 
                 {/* Story analytics */}
                 <StoryAnalyticsCard />
+              </motion.div>
+            )}
+
+            {/* ══ AGENDA (Recurring shows) ════════════════════ */}
+            {tab === 'schedule' && (
+              <motion.div key="schedule" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-3">
+                <h2 className="font-bold text-white text-lg flex items-center gap-2">
+                  <FiCalendar size={18} className="text-brand-400" /> Agenda recurrente
+                </h2>
+                <RecurringShowsManager />
+              </motion.div>
+            )}
+
+            {/* ══ MODERADORES DE CHAT ════════════════════════ */}
+            {tab === 'mods' && (
+              <motion.div key="mods" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-3">
+                <h2 className="font-bold text-white text-lg flex items-center gap-2">
+                  <FiShield size={18} className="text-brand-400" /> Mods de chat
+                </h2>
+                <ChatModeratorsManager creatorId={user?.id} />
+              </motion.div>
+            )}
+
+            {/* ══ AFILIADOS ══════════════════════════════════ */}
+            {tab === 'affiliate' && (
+              <motion.div key="affiliate" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-3">
+                <h2 className="font-bold text-white text-lg flex items-center gap-2">
+                  <FiTrendingUp size={18} className="text-brand-400" /> Programa de Afiliados
+                </h2>
+                <AffiliateProgramSection />
               </motion.div>
             )}
 

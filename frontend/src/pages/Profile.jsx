@@ -8,6 +8,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import VerifiedBadge from '../components/ui/VerifiedBadge.jsx';
 import { useAuthStore } from '../store/authStore.js';
 import { useTranslation } from 'react-i18next';
+import PinnedReelsGrid from '../components/ui/PinnedReelsGrid.jsx';
 import api from '../lib/api.js';
 import toast from 'react-hot-toast';
 import { COUNTRIES, LANGUAGES, countryByCode, languageByCode } from '../lib/geodata.js';
@@ -1137,6 +1138,13 @@ export default function Profile() {
 
           {/* ── Galería de vídeos ──────────────────────────── */}
           <div className="card p-5 lg:p-6">
+            {/* Reels destacados (pinned) — visible siempre, propio o no */}
+            {user?.id && (
+              <div className="mb-4">
+                <PinnedReelsGrid userId={user.id} isOwner={true} />
+              </div>
+            )}
+
             {!profile?.is_creator ? (
               <div className="flex flex-col items-center text-center py-4 gap-3">
                 <FiFilm size={28} className="text-gray-700" />

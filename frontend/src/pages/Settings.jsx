@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { FiArrowLeft, FiTrash2, FiLock, FiBell, FiBellOff, FiShield, FiEye, FiEyeOff, FiGift, FiCopy, FiCheck, FiUserX, FiChevronDown, FiChevronUp, FiSun, FiMoon, FiDownload, FiPause, FiPlay, FiWifiOff, FiGlobe, FiKey } from 'react-icons/fi';
 import { QRCodeSVG } from 'qrcode.react';
+import AccountDeletionSection from '../components/ui/AccountDeletionSection.jsx';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../store/authStore.js';
 import { useThemeStore } from '../store/themeStore.js';
@@ -813,34 +814,8 @@ export default function Settings() {
             )}
           </div>
 
-          {/* Exportar datos (GDPR) */}
-          <button
-            onClick={handleExportData}
-            disabled={exportingData}
-            className="flex items-center gap-3 p-4 w-full text-left card hover:border-white/15 transition-colors disabled:opacity-50"
-          >
-            <FiDownload className="text-purple-400" size={18} />
-            <div>
-              <p className="text-sm font-medium text-purple-400">
-                {exportingData ? 'Preparando descarga...' : 'Exportar mis datos'}
-              </p>
-              <p className="text-xs text-gray-500">Descarga todos tus datos personales (GDPR)</p>
-            </div>
-          </button>
-
-          <button
-            onClick={handleDeleteAccount}
-            disabled={deletingAccount}
-            className="flex items-center gap-3 p-4 w-full text-left card hover:border-brand-500/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <FiTrash2 className="text-brand-500" size={18} />
-            <div>
-              <p className="text-sm font-medium text-brand-400">
-                {deletingAccount ? 'Eliminando cuenta...' : 'Eliminar cuenta'}
-              </p>
-              <p className="text-xs text-gray-500">Esta acción no se puede deshacer</p>
-            </div>
-          </button>
+          {/* Export GDPR + Account deletion con grace period 30d */}
+          <AccountDeletionSection />
 
           <button
             onClick={async () => {

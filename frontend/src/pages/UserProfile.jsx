@@ -18,6 +18,7 @@ import WatermarkLayer from '../components/ui/WatermarkLayer.jsx';
 import { useConfirm } from '../components/ui/ConfirmDialog.jsx';
 import { useAuthStore } from '../store/authStore.js';
 import { useMetaTags } from '../lib/useMetaTags.js';
+import PinnedReelsGrid from '../components/ui/PinnedReelsGrid.jsx';
 
 export default function UserProfile() {
   const { userId } = useParams();
@@ -877,6 +878,13 @@ export default function UserProfile() {
             >
               Ver plan VIP 👑
             </button>
+          </div>
+        )}
+
+        {/* Reels destacados del creator (pinned) — máx 3 */}
+        {userId && (
+          <div className="mb-4">
+            <PinnedReelsGrid userId={userId} isOwner={isOwnProfile} />
           </div>
         )}
 

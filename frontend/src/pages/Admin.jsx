@@ -12,6 +12,7 @@ import toast from 'react-hot-toast';
 import { SHOW_CATEGORIES } from './LiveShows.jsx';
 import AdminGlobalSearch from '../components/ui/AdminGlobalSearch.jsx';
 import AdminAuditLog from '../components/ui/AdminAuditLog.jsx';
+import AdminFunnel from '../components/ui/AdminFunnel.jsx';
 
 // Recharts es pesado — lazy load solo cuando el admin entra al tab Revenue
 const AdminRevenueChart = lazy(() => import('../components/ui/AdminRevenueChart.jsx'));
@@ -29,6 +30,7 @@ const TABS = [
   { key: 'dmca',           label: 'DMCA',       icon: FiShield },
   { key: 'appeals',        label: 'Apelaciones', icon: FiMessageCircle },
   { key: 'support',        label: 'Soporte',     icon: FiHelpCircle },
+  { key: 'funnel',         label: 'Funnel',      icon: FiTrendingUp },
   { key: 'audit',          label: 'Audit',       icon: FiFileText },
 ];
 
@@ -1613,6 +1615,9 @@ export default function Admin() {
           )}
         </div>
       )}
+
+      {/* ── FUNNEL ── */}
+      {tab === 'funnel' && <AdminFunnel />}
 
       {/* ── AUDIT LOG ── */}
       {tab === 'audit' && <AdminAuditLog />}
