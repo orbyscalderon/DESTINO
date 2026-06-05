@@ -461,7 +461,7 @@ export default function CreatorDashboard() {
 
           {/* Desktop: vertical sidebar */}
           <div className="hidden lg:flex flex-col gap-0.5 p-3 pt-5">
-            {NAV_ITEMS.map(({ key, label, icon: Icon }) => (
+            {NAV_ITEMS.map(({ key, labelKey, icon: Icon }) => (
               <button
                 key={key}
                 onClick={() => setTab(key)}
