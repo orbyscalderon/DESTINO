@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { FiArrowLeft, FiTrash2, FiLock, FiBell, FiBellOff, FiShield, FiEye, FiEyeOff, FiGift, FiCopy, FiCheck, FiUserX, FiChevronDown, FiChevronUp, FiSun, FiMoon, FiDownload, FiPause, FiPlay, FiWifiOff, FiGlobe } from 'react-icons/fi';
+import { FiArrowLeft, FiTrash2, FiLock, FiBell, FiBellOff, FiShield, FiEye, FiEyeOff, FiGift, FiCopy, FiCheck, FiUserX, FiChevronDown, FiChevronUp, FiSun, FiMoon, FiDownload, FiPause, FiPlay, FiWifiOff, FiGlobe, FiKey } from 'react-icons/fi';
+import { QRCodeSVG } from 'qrcode.react';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../store/authStore.js';
 import { useThemeStore } from '../store/themeStore.js';
@@ -435,6 +436,9 @@ export default function Settings() {
 
           {/* Notificaciones push */}
           <PushNotificationsToggle />
+
+          {/* Verificación en 2 pasos (TOTP) */}
+          <TwoFactorSection />
 
           {/* Apariencia */}
           <div className="card p-4 flex items-center justify-between">
@@ -951,5 +955,254 @@ function PushNotificationsToggle() {
         <div className={`w-5 h-5 rounded-full bg-white transition-transform ${isOn ? 'translate-x-5' : ''}`} />
       </div>
     </button>
+  );
+}
+
+// Bloque de verificación en 2 pasos (TOTP). Tres estados:
+// · idle:    muestra estado actual + botón "Activar" o "Desactivar"
+// · enroll:  QR + input de 6 dígitos para activar
+// · codes:   muestra los 8 backup codes una sola vez tras activar
+//
+// El secreto nunca se persiste en el cliente. El QR se renderiza con qrcode.react
+// a partir del otpauth URI que devuelve el backend.
+function TwoFactorSection() {
+  const { t } = useTranslation();
+  const [status, setStatus] = useState(null); // { enabled, backup_codes_remaining, last_verified_at }
+  const [stage, setStage] = useState('idle'); // idle | enroll | codes
+  const [enrollData, setEnrollData] = useState(null); // { secret, otpauth_uri }
+  const [token, setToken] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [shownCodes, setShownCodes] = useState(null); // codes después de activar/regenerar
+  const [disableMode, setDisableMode] = useState(false); // mostrando input para desactivar
+
+  useEffect(() => { loadStatus(); }, []);
+
+  const loadStatus = async () => {
+    try {
+      const { data } = await api.get('/api/2fa/status');
+      setStatus(data);
+    } catch {
+      setStatus({ enabled: false, backup_codes_remaining: 0 });
+    }
+  };
+
+  const handleStartEnroll = async () => {
+    setBusy(true);
+    try {
+      const { data } = await api.post('/api/2fa/enroll');
+      setEnrollData(data);
+      setStage('enroll');
+      setToken('');
+    } catch (e) {
+      toast.error(e?.response?.data?.error || 'No se pudo iniciar 2FA');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleVerifyEnroll = async () => {
+    if (!/^\d{6}$/.test(token)) {
+      toast.error('Ingresa los 6 dígitos');
+      return;
+    }
+    setBusy(true);
+    try {
+      const { data } = await api.post('/api/2fa/verify-enroll', { token });
+      setShownCodes(data.backup_codes);
+      setStage('codes');
+      setEnrollData(null);
+      setToken('');
+      await loadStatus();
+      toast.success('2FA activado');
+    } catch (e) {
+      toast.error(e?.response?.data?.error || 'Código inválido');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleDisable = async () => {
+    if (!/^\d{6}$/.test(token)) {
+      toast.error('Ingresa los 6 dígitos');
+      return;
+    }
+    setBusy(true);
+    try {
+      await api.delete('/api/2fa', { data: { token } });
+      toast.success('2FA desactivado');
+      setStage('idle');
+      setDisableMode(false);
+      setToken('');
+      await loadStatus();
+    } catch (e) {
+      toast.error(e?.response?.data?.error || 'No se pudo desactivar');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleRegenCodes = async () => {
+    if (!/^\d{6}$/.test(token)) {
+      toast.error('Ingresa los 6 dígitos');
+      return;
+    }
+    setBusy(true);
+    try {
+      const { data } = await api.post('/api/2fa/regenerate-backup-codes', { token });
+      setShownCodes(data.backup_codes);
+      setStage('codes');
+      setToken('');
+      await loadStatus();
+    } catch (e) {
+      toast.error(e?.response?.data?.error || 'No se pudieron regenerar');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const copyAll = () => {
+    if (!shownCodes) return;
+    navigator.clipboard.writeText(shownCodes.join('\n'));
+    toast.success('Códigos copiados');
+  };
+
+  if (!status) {
+    return <div className="card p-4 text-sm text-gray-500">Cargando…</div>;
+  }
+
+  // Vista: códigos de respaldo (mostrar una vez)
+  if (stage === 'codes' && shownCodes) {
+    return (
+      <div className="card p-4 space-y-3">
+        <div className="flex items-center gap-3">
+          <FiShield className="text-green-400 shrink-0" size={18} />
+          <p className="text-sm font-medium text-white">{t('settings.two_factor')} activado</p>
+        </div>
+        <p className="text-xs text-yellow-400">
+          Guarda estos códigos en un lugar seguro. Cada uno funciona <b>una vez</b> si pierdes tu dispositivo.
+          No los volverás a ver.
+        </p>
+        <div className="grid grid-cols-2 gap-2 font-mono text-sm bg-dark-700/50 p-3 rounded">
+          {shownCodes.map(c => <div key={c} className="text-white">{c}</div>)}
+        </div>
+        <div className="flex gap-2">
+          <button onClick={copyAll} className="btn-secondary flex-1 text-sm">
+            <FiCopy className="inline mr-1" size={14} /> Copiar
+          </button>
+          <button onClick={() => { setShownCodes(null); setStage('idle'); }} className="btn-primary flex-1 text-sm">
+            Entendido
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Vista: enroll en curso (QR + verificar)
+  if (stage === 'enroll' && enrollData) {
+    return (
+      <div className="card p-4 space-y-3">
+        <div className="flex items-center gap-3">
+          <FiShield className="text-brand-400 shrink-0" size={18} />
+          <p className="text-sm font-medium text-white">Activar {t('settings.two_factor')}</p>
+        </div>
+        <p className="text-xs text-gray-400">
+          Escanea el QR con Google Authenticator, Authy o 1Password y luego ingresa el código de 6 dígitos.
+        </p>
+        <div className="bg-white p-3 rounded mx-auto w-fit">
+          <QRCodeSVG value={enrollData.otpauth_uri} size={180} />
+        </div>
+        <details className="text-xs text-gray-500">
+          <summary className="cursor-pointer">¿No puedes escanear? Ingresa el código manualmente</summary>
+          <div className="mt-2 p-2 bg-dark-700 rounded font-mono break-all text-white text-[11px]">
+            {enrollData.secret}
+          </div>
+        </details>
+        <input
+          type="text"
+          inputMode="numeric"
+          autoComplete="one-time-code"
+          maxLength={6}
+          value={token}
+          onChange={e => setToken(e.target.value.replace(/\D/g, ''))}
+          placeholder="123456"
+          className="input w-full text-center font-mono tracking-widest text-lg"
+        />
+        <div className="flex gap-2">
+          <button onClick={() => { setStage('idle'); setEnrollData(null); setToken(''); }} disabled={busy} className="btn-secondary flex-1 text-sm">
+            {t('common.cancel')}
+          </button>
+          <button onClick={handleVerifyEnroll} disabled={busy || token.length !== 6} className="btn-primary flex-1 text-sm">
+            {busy ? t('common.loading') : 'Verificar y activar'}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Vista: idle (mostrar estado, ofrecer activar/desactivar)
+  return (
+    <div className="card p-4 space-y-3">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          {status.enabled
+            ? <FiShield className="text-green-400 shrink-0" size={18} />
+            : <FiKey className="text-gray-500 shrink-0" size={18} />}
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-white">{t('settings.two_factor')}</p>
+            <p className="text-xs text-gray-500 truncate">
+              {status.enabled
+                ? `Activada · ${status.backup_codes_remaining} códigos de respaldo`
+                : t('settings.two_factor_hint')}
+            </p>
+          </div>
+        </div>
+        {!status.enabled && (
+          <button onClick={handleStartEnroll} disabled={busy} className="btn-primary text-sm shrink-0">
+            {busy ? '…' : t('settings.two_factor_enable')}
+          </button>
+        )}
+      </div>
+
+      {status.enabled && !disableMode && (
+        <div className="flex gap-2">
+          <button onClick={() => { setDisableMode('regen'); setToken(''); }} className="btn-secondary flex-1 text-sm">
+            Regenerar códigos
+          </button>
+          <button onClick={() => { setDisableMode('disable'); setToken(''); }} className="text-sm px-3 py-2 rounded bg-red-500/20 text-red-400 hover:bg-red-500/30 flex-1">
+            {t('settings.two_factor_disable')}
+          </button>
+        </div>
+      )}
+
+      {status.enabled && disableMode && (
+        <div className="space-y-2 border-t border-white/10 pt-3">
+          <p className="text-xs text-gray-400">
+            Ingresa tu código TOTP actual para {disableMode === 'disable' ? 'desactivar 2FA' : 'regenerar los códigos de respaldo'}.
+          </p>
+          <input
+            type="text"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            maxLength={6}
+            value={token}
+            onChange={e => setToken(e.target.value.replace(/\D/g, ''))}
+            placeholder="123456"
+            className="input w-full text-center font-mono tracking-widest"
+          />
+          <div className="flex gap-2">
+            <button onClick={() => { setDisableMode(false); setToken(''); }} disabled={busy} className="btn-secondary flex-1 text-sm">
+              {t('common.cancel')}
+            </button>
+            <button
+              onClick={disableMode === 'disable' ? handleDisable : handleRegenCodes}
+              disabled={busy || token.length !== 6}
+              className={`flex-1 text-sm px-3 py-2 rounded ${disableMode === 'disable' ? 'bg-red-500 text-white' : 'btn-primary'}`}
+            >
+              {busy ? t('common.loading') : t('common.confirm')}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
