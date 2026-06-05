@@ -28,19 +28,17 @@ export function isCapacitorNative() {
 
 const NATIVE_REDIRECT = 'com.destino.app://auth/callback';
 
-export async function signInWithGoogle() {
+// Internal: factoriza el flow para cualquier provider (google, apple).
+async function signInWithOAuth(provider) {
   const isNative = isCapacitorNative();
   const redirectTo = isNative
     ? NATIVE_REDIRECT
     : `${window.location.origin}/#/auth/callback`;
 
   const { data, error } = await supabase.auth.signInWithOAuth({
-    provider: 'google',
+    provider,
     options: {
       redirectTo,
-      // En nativo abrimos el browser del sistema y dejamos que el OS dirija
-      // el deep link de vuelta a la app. `skipBrowserRedirect: true` evita
-      // que Supabase haga el window.location.href que falla en WebView.
       skipBrowserRedirect: isNative,
     },
   });
@@ -48,19 +46,21 @@ export async function signInWithGoogle() {
   if (error) throw error;
 
   if (isNative && data?.url) {
-    // Abrir el URL de Google en el browser del sistema. Tras autorizar,
-    // Google → Supabase → nuestro scheme → AndroidManifest → MainActivity
-    // → appUrlOpen listener (mounted en App.jsx).
     try {
       const { Browser } = await import('@capacitor/browser');
       await Browser.open({ url: data.url, presentationStyle: 'popover' });
     } catch {
-      // Fallback: si @capacitor/browser no está disponible, abrir como link
       window.open(data.url, '_system');
     }
   }
-  // En web, Supabase ya hizo el redirect — no hay que hacer nada más.
 }
+
+export const signInWithGoogle = () => signInWithOAuth('google');
+
+// Apple Sign-In. Apple exige este botón en iOS App Store si ofrecemos otros
+// OAuth (Google, etc.). En web también funciona, pero requiere Apple
+// Developer + Services ID + Key configurados en Supabase Auth → Providers.
+export const signInWithApple = () => signInWithOAuth('apple');
 
 // Procesa un deep link recibido por appUrlOpen y restaura la sesión.
 // Soporta los dos formatos comunes que Supabase puede devolver:

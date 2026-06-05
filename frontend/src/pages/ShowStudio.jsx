@@ -23,6 +23,7 @@ import CaptionOverlay from '../components/ui/CaptionOverlay.jsx';
 import { useCaptionsHost, captionsSupported } from '../lib/useLiveCaptions.js';
 import BattleOverlay from '../components/ui/BattleOverlay.jsx';
 import BattleInviteModal from '../components/ui/BattleInviteModal.jsx';
+import StudioOnboarding from '../components/ui/StudioOnboarding.jsx';
 
 const REACTIONS = ['❤️', '🔥', '⭐', '😍'];
 
@@ -2962,6 +2963,9 @@ export default function ShowStudio() {
 
       {/* Modal de invitación entrante a battle (cuando otro host me invita) */}
       {isLive && <BattleInviteModal onAccepted={handleBattleAccepted} showId={showId} />}
+
+      {/* Onboarding tutorial — solo la primera vez que el creator entra */}
+      <StudioOnboarding />
     </div>
   );
 }
