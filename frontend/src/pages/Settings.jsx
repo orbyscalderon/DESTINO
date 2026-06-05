@@ -1125,7 +1125,7 @@ function TwoFactorSection() {
           value={token}
           onChange={e => setToken(e.target.value.replace(/\D/g, ''))}
           placeholder="123456"
-          className="input w-full text-center font-mono tracking-widest text-lg"
+          className="input-field w-full text-center font-mono tracking-widest text-lg"
         />
         <div className="flex gap-2">
           <button onClick={() => { setStage('idle'); setEnrollData(null); setToken(''); }} disabled={busy} className="btn-secondary flex-1 text-sm">
@@ -1187,7 +1187,7 @@ function TwoFactorSection() {
             value={token}
             onChange={e => setToken(e.target.value.replace(/\D/g, ''))}
             placeholder="123456"
-            className="input w-full text-center font-mono tracking-widest"
+            className="input-field w-full text-center font-mono tracking-widest"
           />
           <div className="flex gap-2">
             <button onClick={() => { setDisableMode(false); setToken(''); }} disabled={busy} className="btn-secondary flex-1 text-sm">

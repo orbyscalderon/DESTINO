@@ -198,11 +198,13 @@ function TaxFormWizard({ onClose, onSuccess, initialCountry }) {
           <select
             value={country}
             onChange={(e) => setCountry(e.target.value)}
-            className="input w-full text-sm"
+            className="input-field w-full text-sm"
             required
           >
-            <option value="">Selecciona…</option>
-            {COUNTRIES.map(c => <option key={c.code} value={c.code}>{c.name}</option>)}
+            <option value="" className="bg-dark-700 text-white">Selecciona…</option>
+            {COUNTRIES.map(c => (
+              <option key={c.code} value={c.code} className="bg-dark-700 text-white">{c.name}</option>
+            ))}
           </select>
           {country && (
             <p className="text-[11px] mt-1 text-gray-500">
@@ -238,7 +240,7 @@ function TaxFormWizard({ onClose, onSuccess, initialCountry }) {
                 value={f.tin}
                 onChange={(e) => set('tin', e.target.value)}
                 placeholder={formType === 'W9' ? '123-45-6789' : 'Tu RFC/CPF/NIE/etc.'}
-                className="input w-full text-sm font-mono tracking-wider"
+                className="input-field w-full text-sm font-mono tracking-wider"
                 required
                 autoComplete="off"
                 maxLength={20}
@@ -258,11 +260,11 @@ function TaxFormWizard({ onClose, onSuccess, initialCountry }) {
                   <select
                     value={f.treaty_country}
                     onChange={(e) => set('treaty_country', e.target.value)}
-                    className="input w-full text-sm"
+                    className="input-field w-full text-sm"
                   >
-                    <option value="">Sin treaty / desconozco</option>
+                    <option value="" className="bg-dark-700 text-white">Sin treaty / desconozco</option>
                     {COUNTRIES.filter(c => c.code !== 'US' && c.code !== 'OT').map(c => (
-                      <option key={c.code} value={c.code}>{c.name}</option>
+                      <option key={c.code} value={c.code} className="bg-dark-700 text-white">{c.name}</option>
                     ))}
                   </select>
                   <p className="text-[10px] text-gray-600 mt-1">
@@ -299,7 +301,7 @@ function TaxFormWizard({ onClose, onSuccess, initialCountry }) {
                 value={f.signed_full_name}
                 onChange={(e) => set('signed_full_name', e.target.value)}
                 placeholder="Escribe tu nombre tal como aparece arriba"
-                className="input w-full text-sm font-serif italic"
+                className="input-field w-full text-sm font-serif italic"
                 required
               />
               <p className="text-[10px] text-gray-600 mt-1">
@@ -330,7 +332,7 @@ function Field({ label, value, onChange, type = 'text', required = false }) {
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="input w-full text-sm"
+        className="input-field w-full text-sm"
         required={required}
         autoComplete="off"
       />
