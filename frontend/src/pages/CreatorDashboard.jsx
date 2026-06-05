@@ -22,6 +22,7 @@ import TierManager from '../components/ui/TierManager.jsx';
 import CCBillSetup from '../components/ui/CCBillSetup.jsx';
 import AdultCategoriesManager from '../components/ui/AdultCategoriesManager.jsx';
 import AdvancedStats from '../components/ui/AdvancedStats.jsx';
+import TaxFormSection from '../components/ui/TaxFormSection.jsx';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 
 /* ── Helpers ─────────────────────────────────────────────── */
@@ -993,6 +994,9 @@ export default function CreatorDashboard() {
                 <h2 className="font-bold text-white text-lg flex items-center gap-2">
                   <FiDollarSign size={18} className="text-green-400" /> Ingresos y retiros
                 </h2>
+
+                {/* Tax forms — necesario antes de retirar más de $600/año */}
+                <TaxFormSection />
 
                 {/* Balance */}
                 <div className="rounded-2xl bg-gradient-to-r from-green-500/10 to-emerald-500/5 border border-green-500/20 p-5">

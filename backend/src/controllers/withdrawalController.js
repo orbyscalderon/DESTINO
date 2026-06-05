@@ -3,6 +3,12 @@ import { encryptField, decryptField } from '../lib/encrypt.js';
 
 const MIN_WITHDRAWAL = 10; // USD mínimo
 
+// Umbral IRS para 1099/W-9/W-8BEN. Por encima de este total acumulado anual
+// (incluyendo el retiro pendiente) requerimos un tax form firmado.
+// $600 es el threshold actual para 1099-NEC; 1099-K subió a $5000 pero
+// mantenemos el menor para ser conservador.
+const TAX_FORM_THRESHOLD_USD = 600;
+
 // GET /api/withdrawals/earnings — balance disponible del creador
 export const getEarnings = async (req, res) => {
   try {
@@ -52,6 +58,33 @@ export const requestWithdrawal = async (req, res) => {
 
     if (pending) {
       return res.status(400).json({ error: 'Ya tienes una solicitud de retiro pendiente' });
+    }
+
+    // ── Verificación de tax form si supera el umbral IRS ─────────────
+    // Suma de payouts del año + el retiro actual. Si pasa el threshold,
+    // requiere W-9 (US) o W-8BEN (foreign) firmado y no expirado.
+    const yearStart = new Date(new Date().getFullYear(), 0, 1).toISOString();
+    const { data: yearPayouts } = await supabase
+      .from('withdrawal_requests')
+      .select('amount_usd')
+      .eq('creator_id', creatorId)
+      .in('status', ['paid', 'pending'])
+      .gte('created_at', yearStart);
+
+    const yearTotal = (yearPayouts || []).reduce(
+      (sum, r) => sum + parseFloat(r.amount_usd || 0), 0
+    );
+
+    if (yearTotal + amount >= TAX_FORM_THRESHOLD_USD) {
+      const { data: hasForm } = await supabase.rpc('has_valid_tax_form', { p_user_id: creatorId });
+      if (!hasForm) {
+        return res.status(400).json({
+          error: `Para retirar superando $${TAX_FORM_THRESHOLD_USD} acumulados al año necesitas firmar W-9 (US) o W-8BEN (otro país). Ve a Pagos → Tax forms.`,
+          code: 'TAX_FORM_REQUIRED',
+          year_total: yearTotal,
+          threshold: TAX_FORM_THRESHOLD_USD,
+        });
+      }
     }
 
     // Descontar del balance disponible de forma atómica (previene race condition)
