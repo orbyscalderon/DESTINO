@@ -170,6 +170,21 @@ export const listChatRestrictions = async (req, res) => {
   }
 };
 
+// GET /api/shows/am-i-mod/:creatorId
+// Devuelve { is_mod: boolean, is_host: boolean }. El viewer lo llama
+// al cargar el show para saber si mostrar botones de moderación.
+export const amIMod = async (req, res) => {
+  try {
+    const { creatorId } = req.params;
+    const userId = req.user.id;
+    if (userId === creatorId) return res.json({ is_mod: true, is_host: true });
+    const mod = await isModOrHost(creatorId, userId);
+    res.json({ is_mod: mod, is_host: false });
+  } catch {
+    res.json({ is_mod: false, is_host: false });
+  }
+};
+
 // Helper exportado para usar en showController al recibir mensaje de chat
 export async function isChatBlocked(creatorId, viewerId) {
   if (creatorId === viewerId) return { blocked: false };

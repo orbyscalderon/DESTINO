@@ -1,5 +1,5 @@
-import { useState, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useState, useRef, useEffect } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { FiMail, FiLock, FiUser, FiEye, FiEyeOff } from 'react-icons/fi';
 import { Turnstile } from '@marsidev/react-turnstile';
@@ -20,15 +20,37 @@ function validate(form) {
   return errs;
 }
 
+// Clave en localStorage donde guardamos el affiliate code antes de signup.
+// Sobrevive a redirects de OAuth (Google/Apple) que pueden llevar al user
+// fuera y de vuelta. Tras login exitoso, AuthCallback/onboarding lo aplica.
+const AFF_STORAGE_KEY = 'destino-pending-affiliate';
+
 export default function Register() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [form, setForm] = useState({ fullName: '', email: '', password: '' });
   const [errors, setErrors] = useState({});
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState(null);
   const turnstileRef = useRef(null);
+  const [affCode, setAffCode] = useState(null);
+
+  // Captura el código ?aff= del URL y lo persiste en localStorage. Si ya
+  // había uno (signup multi-step o vuelta de OAuth), respeta el último.
+  useEffect(() => {
+    const codeFromUrl = searchParams.get('aff')?.trim().toUpperCase();
+    if (codeFromUrl) {
+      try { localStorage.setItem(AFF_STORAGE_KEY, codeFromUrl); } catch {}
+      setAffCode(codeFromUrl);
+    } else {
+      try {
+        const stored = localStorage.getItem(AFF_STORAGE_KEY);
+        if (stored) setAffCode(stored);
+      } catch {}
+    }
+  }, [searchParams]);
 
   const handleChange = (field) => (e) => {
     const val = e.target.value;
@@ -75,6 +97,19 @@ export default function Register() {
         email: form.email,
         name: form.fullName,
       }).catch(() => {});
+
+      // Atribuir affiliate si había un código capturado. Se intenta con la
+      // sesión recién creada (si data.session existe). Si el user requiere
+      // confirmación de email, lo aplica después en AuthCallback (el code
+      // queda en localStorage hasta ser consumido). Errores ignorados — el
+      // signup nunca falla por esto.
+      if (affCode && data.session) {
+        api.post('/api/affiliate/attribute', { code: affCode })
+          .then(() => {
+            try { localStorage.removeItem(AFF_STORAGE_KEY); } catch {}
+          })
+          .catch(() => {}); // ya atribuido, código inválido, etc.
+      }
 
       if (data.session) {
         toast.success('¡Cuenta creada! Completa tu perfil.');
@@ -127,6 +162,19 @@ export default function Register() {
           <h1 className="text-3xl font-black gradient-text">{t('auth.create_account')}</h1>
           <p className="text-gray-400 text-sm mt-2">{t('auth.free_forever')}</p>
         </div>
+
+        {/* Banner si llega con código de afiliado en el URL */}
+        {affCode && (
+          <div className="card p-3 mb-4 bg-gradient-to-r from-brand-500/15 to-purple-500/5 border-brand-500/30 flex items-center gap-2">
+            <span className="text-lg">🎁</span>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-bold text-white truncate">Invitado por afiliado</p>
+              <p className="text-[10px] text-gray-400">
+                Código <span className="font-mono text-brand-400">{affCode}</span> se aplicará al activar modo creador
+              </p>
+            </div>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>

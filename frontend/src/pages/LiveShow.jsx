@@ -24,6 +24,7 @@ import api from '../lib/api.js';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import { useMetaTags } from '../lib/useMetaTags.js';
+import { ChatModActions } from '../components/ui/ChatModeratorsManager.jsx';
 import PaymentModal from '../components/ui/PaymentModal.jsx';
 import TierPicker from '../components/ui/TierPicker.jsx';
 
@@ -300,6 +301,9 @@ export default function LiveShow() {
 
   // Live chat
   const [chatMessages, setChatMessages] = useState([]);
+  // Si el viewer (no host) es mod del creator del show, puede banear/mutear.
+  // Se computa después de cargar show desde GET /api/shows/mods de mi user.
+  const [isMod, setIsMod] = useState(false);
   const [chatInput, setChatInput]       = useState('');
   const [showChat, setShowChat]         = useState(false);
   const chatEndRef    = useRef(null);
@@ -502,6 +506,14 @@ export default function LiveShow() {
       setInterested(interestRes.data.interested);
       setInterestCount(interestRes.data.interest_count || 0);
       if (s.host?.id !== user?.id) showBottomBanner();
+
+      // Check si el viewer es mod del host (para mostrar botones de moderación
+      // inline en cada mensaje del chat). Si es el propio host, isMod via isHost.
+      if (s.host?.id && s.host.id !== user?.id) {
+        api.get(`/api/shows/am-i-mod/${s.host.id}`)
+          .then(({ data }) => setIsMod(!!data.is_mod))
+          .catch(() => setIsMod(false));
+      }
 
       // Estado del follow con el host — para mostrar/ocultar el botón "Seguir"
       if (s.host?.id && s.host.id !== user?.id) {
@@ -2026,21 +2038,12 @@ export default function LiveShow() {
                 {chatMessages.length === 0
                   ? <p className="text-gray-600 text-xs text-center py-4">El chat está vacío</p>
                   : chatMessages.slice(-50).map((msg, i) => (
-                    <div key={i} className={`flex items-start gap-2 ${msg.isSuperChat ? 'my-1' : ''}`}>
-                      {msg.avatar
-                        ? <img src={msg.avatar} className="w-5 h-5 rounded-full object-cover shrink-0 mt-0.5" alt="" />
-                        : <div className="w-5 h-5 rounded-full bg-brand-500/30 shrink-0 mt-0.5" />
-                      }
-                      <div className={msg.isSuperChat
-                        ? 'rounded-xl px-2.5 py-1.5 min-w-0 bg-gradient-to-r from-yellow-500/30 to-amber-500/20 border border-yellow-400/40'
-                        : 'bg-dark-700 rounded-xl px-2.5 py-1.5 min-w-0'}>
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-brand-300 text-[10px] font-semibold">{msg.name}</span>
-                          {msg.isSuperChat && <span className="text-yellow-400 text-[10px] font-bold">⚡ {msg.coins} coins</span>}
-                        </div>
-                        <p className="text-white text-xs leading-tight break-words">{msg.text}</p>
-                      </div>
-                    </div>
+                    <ChatMessageRow
+                      key={i}
+                      msg={msg}
+                      canModerate={msg.userId && msg.userId !== user?.id}
+                      creatorId={show?.host?.id || user?.id}
+                    />
                   ))
                 }
                 <div ref={chatEndRef} />
@@ -2272,21 +2275,12 @@ export default function LiveShow() {
             {chatMessages.length === 0
               ? <p className="text-gray-600 text-xs text-center py-4">El chat está vacío</p>
               : chatMessages.slice(-50).map((msg, i) => (
-                <div key={i} className={`flex items-start gap-2 ${msg.isSuperChat ? 'my-1' : ''}`}>
-                  {msg.avatar
-                    ? <img src={msg.avatar} className="w-5 h-5 rounded-full object-cover shrink-0 mt-0.5" alt="" />
-                    : <div className="w-5 h-5 rounded-full bg-brand-500/30 shrink-0 mt-0.5" />
-                  }
-                  <div className={msg.isSuperChat
-                    ? 'rounded-xl px-2.5 py-1.5 min-w-0 bg-gradient-to-r from-yellow-500/30 to-amber-500/20 border border-yellow-400/40'
-                    : 'bg-dark-700 rounded-xl px-2.5 py-1.5 min-w-0'}>
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-brand-300 text-[10px] font-semibold">{msg.name}</span>
-                      {msg.isSuperChat && <span className="text-yellow-400 text-[10px] font-bold">⚡ {msg.coins} coins</span>}
-                    </div>
-                    <p className="text-white text-xs leading-tight break-words">{msg.text}</p>
-                  </div>
-                </div>
+                <ChatMessageRow
+                  key={i}
+                  msg={msg}
+                  canModerate={(isHost || isMod) && msg.userId && msg.userId !== user?.id && msg.userId !== show?.host?.id}
+                  creatorId={show?.host?.id}
+                />
               ))
             }
             <div ref={chatEndRef} />
@@ -3245,6 +3239,54 @@ export default function LiveShow() {
           />
         )}
       </AnimatePresence>
+    </div>
+  );
+}
+
+// Fila de mensaje del chat con acciones de moderación inline cuando el viewer
+// actual es host/mod del creator del show. Se reutiliza en ambos chats
+// (host view y viewer view) para mantener la consistencia visual.
+function ChatMessageRow({ msg, canModerate, creatorId }) {
+  const [showActions, setShowActions] = useState(false);
+  return (
+    <div className={`flex items-start gap-2 ${msg.isSuperChat ? 'my-1' : ''}`}>
+      {msg.avatar
+        ? <img src={msg.avatar} className="w-5 h-5 rounded-full object-cover shrink-0 mt-0.5" alt="" />
+        : <div className="w-5 h-5 rounded-full bg-brand-500/30 shrink-0 mt-0.5" />
+      }
+      <div
+        className={msg.isSuperChat
+          ? 'rounded-xl px-2.5 py-1.5 min-w-0 bg-gradient-to-r from-yellow-500/30 to-amber-500/20 border border-yellow-400/40 flex-1'
+          : 'bg-dark-700 rounded-xl px-2.5 py-1.5 min-w-0 flex-1'}
+        onDoubleClick={() => canModerate && setShowActions(v => !v)}
+      >
+        <div className="flex items-center gap-1.5 justify-between">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className="text-brand-300 text-[10px] font-semibold truncate">{msg.name}</span>
+            {msg.isSuperChat && <span className="text-yellow-400 text-[10px] font-bold">⚡ {msg.coins} coins</span>}
+          </div>
+          {canModerate && (
+            <button
+              onClick={() => setShowActions(v => !v)}
+              className="text-gray-500 hover:text-red-400 text-[10px] font-bold shrink-0"
+              aria-label="Acciones de moderación"
+            >
+              ⋯
+            </button>
+          )}
+        </div>
+        <p className="text-white text-xs leading-tight break-words">{msg.text}</p>
+        {canModerate && showActions && creatorId && msg.userId && (
+          <div className="mt-1.5 pt-1.5 border-t border-white/10">
+            <ChatModActions
+              creatorId={creatorId}
+              viewerId={msg.userId}
+              viewerName={msg.name}
+              onActionDone={() => setShowActions(false)}
+            />
+          </div>
+        )}
+      </div>
     </div>
   );
 }

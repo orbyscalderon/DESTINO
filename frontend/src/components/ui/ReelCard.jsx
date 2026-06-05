@@ -7,6 +7,8 @@ import {
 } from 'react-icons/fi';
 import VerifiedBadge from './VerifiedBadge.jsx';
 import WatermarkLayer from './WatermarkLayer.jsx';
+import { PinReelButton } from './PinnedReelsGrid.jsx';
+import { useAuthStore } from '../../store/authStore.js';
 import api from '../../lib/api.js';
 import { supabase } from '../../lib/supabase.js';
 import toast from 'react-hot-toast';
@@ -26,6 +28,8 @@ import toast from 'react-hot-toast';
 function ReelCard({
   reel, active, muted, onToggleMute, onViewTracked, onOpenComments, onCommentDelta,
 }) {
+  const { user } = useAuthStore();
+  const isOwnReel = !!user?.id && reel.user?.id === user.id;
   const videoRef = useRef(null);
   const lastTapRef = useRef(0);
   const heartAnimRef = useRef(0); // contador para forzar animaciones nuevas
@@ -301,6 +305,14 @@ function ReelCard({
         <button onClick={handleShare} className="flex flex-col items-center gap-1 min-w-[44px]" aria-label="Compartir">
           <FiShare2 className="text-white" size={26} />
         </button>
+
+        {/* Pin/destacar — solo en mis propios reels (máx 3 pinned por user
+            con trigger SQL que despinea el más viejo automático). */}
+        {isOwnReel && (
+          <div className="flex flex-col items-center min-w-[44px]">
+            <PinReelButton reelId={reel.id} currentlyPinned={!!reel.pinned} />
+          </div>
+        )}
 
         {/* Más */}
         <button className="text-white" aria-label="Más opciones">

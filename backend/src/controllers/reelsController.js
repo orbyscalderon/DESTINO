@@ -196,7 +196,7 @@ export const getReelsFeed = async (req, res) => {
       .from('reels')
       .select(`
         id, video_url, thumbnail_url, caption, duration_seconds, hashtags,
-        audio_label, audio_url,
+        audio_label, audio_url, pinned,
         is_adult, likes_count, comments_count, views_count, shares_count, created_at,
         user:profiles!user_id (id, full_name, avatar_url, is_verified, is_creator, is_adult_creator)
       `)

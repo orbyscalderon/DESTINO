@@ -1,7 +1,26 @@
 import { useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../lib/supabase.js';
+import api from '../lib/api.js';
 import toast from 'react-hot-toast';
+
+const AFF_STORAGE_KEY = 'destino-pending-affiliate';
+
+// Consume el code de affiliate pendiente (si lo había). Llamado tras el login
+// exitoso vía OAuth o email confirmation — los flows donde el user salió del
+// browser entre Register.jsx y aquí. Errores ignorados — no rompen el flujo.
+async function consumePendingAffiliate() {
+  try {
+    const code = localStorage.getItem(AFF_STORAGE_KEY);
+    if (!code) return;
+    await api.post('/api/affiliate/attribute', { code });
+    localStorage.removeItem(AFF_STORAGE_KEY);
+  } catch {
+    // Code inválido / ya atribuido / no es creator todavía — limpiamos igual
+    // para no reintentar infinitamente en cada login.
+    try { localStorage.removeItem(AFF_STORAGE_KEY); } catch {}
+  }
+}
 
 async function redirectByProfile(userId, type, navigate) {
   const { data: profile } = await supabase
@@ -9,6 +28,9 @@ async function redirectByProfile(userId, type, navigate) {
     .select('username')
     .eq('id', userId)
     .single();
+
+  // Atribuir affiliate antes del redirect (fire-and-forget, no bloqueante).
+  consumePendingAffiliate();
 
   if (type === 'recovery') {
     navigate('/settings?reset=true', { replace: true });
