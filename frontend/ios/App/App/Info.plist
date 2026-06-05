@@ -68,5 +68,24 @@
 	<string>Destino TV accede a tus fotos para que puedas subir contenido a tu perfil.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>Destino TV guarda fotos y videos descargados en tu galería.</string>
+	<!-- App Tracking Transparency: requerido si usas analytics/ads de terceros (PostHog, AdMob) -->
+	<key>NSUserTrackingUsageDescription</key>
+	<string>Usamos tu IDFA solo para mostrarte mejores recomendaciones y entender qué funciones gustan más. Nunca compartimos tus datos con terceros.</string>
+	<!-- Localización: solo si la app pide geolocalización para matches por proximidad -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Destino TV usa tu ubicación para mostrarte personas cerca de ti. Puedes desactivarlo en cualquier momento desde Ajustes.</string>
+	<!-- Push notifications - Capacitor lo añade automáticamente, pero lo declaramos explícito -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+		<string>audio</string>
+		<string>voip</string>
+	</array>
+	<!-- Export compliance: la app NO usa cifrado propietario más allá de HTTPS estándar -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<!-- Apple Sign-In: usamos credential storage -->
+	<key>NSFaceIDUsageDescription</key>
+	<string>Destino TV usa Face ID para verificar tu identidad de forma rápida y segura.</string>
 </dict>
 </plist>
