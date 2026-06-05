@@ -77,6 +77,11 @@ export const sendTip = async (req, res) => {
     // Funnel: primer tip enviado
     trackFunnel(fromId, 'first_tip', { to: toId, coins });
 
+    // Comisión al affiliate del creator receptor (si está atribuido)
+    import('./affiliateController.js').then(({ recordAffiliateCommission }) =>
+      recordAffiliateCommission(toId, 'tip', `profile:${fromId}:${Date.now()}`, earningsUSD)
+    ).catch(() => {});
+
     // Email al creator (solo tips ≥50 coins = $2.50+ para no spammear)
     if (coins >= 50) {
       import('../lib/emailNotifier.js').then(({ notifyUser }) =>

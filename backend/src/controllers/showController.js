@@ -1071,6 +1071,13 @@ export const sendTip = async (req, res) => {
       ).catch(() => {});
     }
 
+    // Comisión al affiliate (si el creator está atribuido). El gross del
+    // affiliate es lo que el creator GANA neto (creatorEarnings), no el
+    // gross del show — porque el affiliate gana una % del revenue del creator.
+    import('./affiliateController.js').then(({ recordAffiliateCommission }) =>
+      recordAffiliateCommission(show.host_id, 'tip', `show:${id}:${Date.now()}`, creatorEarnings)
+    ).catch(() => {});
+
     res.json({
       success: true,
       coins_sent: coinsAmount,
@@ -1210,6 +1217,11 @@ export const sendGift = async (req, res) => {
         })
       ).catch(() => {});
     }
+
+    // Comisión al affiliate sobre el revenue neto del creator
+    import('./affiliateController.js').then(({ recordAffiliateCommission }) =>
+      recordAffiliateCommission(show.host_id, 'gift', `show:${id}:${Date.now()}`, creatorEarnings)
+    ).catch(() => {});
 
     res.json({
       success: true,

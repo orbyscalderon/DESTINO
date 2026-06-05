@@ -178,6 +178,11 @@ async function renewCreatorSubscriptions() {
             priceUsd: parseFloat(sub.subscription_price),
           })
         ).catch(() => {});
+
+        // Comisión al affiliate del creator sobre la renovación mensual
+        import('../controllers/affiliateController.js').then(({ recordAffiliateCommission }) =>
+          recordAffiliateCommission(sub.creator_id, 'subscription_renewal', `sub:${sub.id}:${Date.now()}`, earningsUSD)
+        ).catch(() => {});
       } catch (err) {
         const newCount = (sub.failed_renewal_count || 0) + 1;
         await supabase.from('creator_subscriptions').update({

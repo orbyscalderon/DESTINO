@@ -629,6 +629,11 @@ export const confirmCreatorSubscription = async (req, res) => {
       url: '/creator/dashboard',
     }).catch(() => {});
 
+    // Comisión al affiliate sobre el revenue neto del creator
+    import('./affiliateController.js').then(({ recordAffiliateCommission }) =>
+      recordAffiliateCommission(creatorId, 'subscription', `pi:${paymentIntentId}`, earningsUSD)
+    ).catch(() => {});
+
     res.json({ success: true });
   } catch (err) {
     console.error('confirmCreatorSubscription error:', err.message);
