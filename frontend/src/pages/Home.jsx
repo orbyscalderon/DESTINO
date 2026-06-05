@@ -8,6 +8,8 @@ import { compressImage } from '../lib/imageCompressor.js';
 import api from '../lib/api.js';
 import VerifiedBadge from '../components/ui/VerifiedBadge.jsx';
 import StoriesBar from '../components/ui/StoriesBar.jsx';
+import FirstTimeTour from '../components/ui/FirstTimeTour.jsx';
+import DailyReward from '../components/ui/DailyReward.jsx';
 import { PostCardSkeleton } from '../components/ui/Skeleton.jsx';
 import { useConfirm } from '../components/ui/ConfirmDialog.jsx';
 import { useSwipeNavigation } from '../lib/useSwipeNavigation.js';
@@ -356,6 +358,12 @@ export default function Home() {
           <FiPlus className="text-white" size={18} />
         </button>
       </div>
+
+      {/* Tour primera vez (se auto-oculta tras verlo) */}
+      <FirstTimeTour skipFor={!profile?.username} />
+
+      {/* Recompensa diaria — solo aparece si el user no reclamó hoy */}
+      {profile?.username && <DailyReward />}
 
       {/* Stories */}
       <StoriesBar />

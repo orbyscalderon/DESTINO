@@ -96,6 +96,17 @@ export const checkVerification = async (req, res) => {
         .from('identity_verifications')
         .update({ status: newStatus, reviewed_at: new Date().toISOString() })
         .eq('user_id', userId);
+
+      // Email cuando el estado cambia (approved / rejected). Pasa al notifier
+      // que ya valida prefs y obtiene email. Fire-and-forget.
+      if (newStatus === 'approved' || newStatus === 'rejected') {
+        import('../lib/emailNotifier.js').then(({ notifyUser }) =>
+          notifyUser(userId, 'identity', {
+            approved: newStatus === 'approved',
+            reason: session.last_error?.reason || session.last_error?.code || null,
+          }).catch(() => {})
+        );
+      }
     }
 
     res.json({ status: newStatus, stripe_status: session.status });

@@ -875,6 +875,12 @@ export const boostProfile = async (req, res) => {
 
     await supabase.from('profiles').update({ boosted_until: new Date(Date.now() + 30 * 60 * 1000) }).eq('id', userId);
 
+    // Email confirmando — pequeño feel-good, también sirve para que el user
+    // sepa cuánto le quedan si pierde el reloj. No bloquea response.
+    import('../lib/emailNotifier.js').then(({ notifyUser }) =>
+      notifyUser(userId, 'boost', { durationMin: 30 }).catch(() => {})
+    );
+
     res.json({ message: 'Boost activado por 30 minutos', cost: BOOST_COST });
   } catch (err) {
     res.status(500).json({ error: 'Error interno del servidor' });

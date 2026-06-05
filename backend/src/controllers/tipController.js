@@ -68,10 +68,21 @@ export const sendTip = async (req, res) => {
       message: message?.trim()?.substring(0, 200) || null,
     });
 
-    // Notify recipient
+    // Notify recipient (in-app)
     const { data: sender } = await supabase.from('profiles').select('full_name').eq('id', fromId).single();
     const tipMsg = message?.trim() ? `"${message.trim().substring(0, 60)}"` : '';
     createNotification(toId, 'tip', `💰 Propina recibida: ${coins} monedas`, `${sender?.full_name || 'Alguien'} te envió una propina${tipMsg ? ` — ${tipMsg}` : ''}`, { from_user_id: fromId });
+
+    // Email al creator (solo tips ≥50 coins = $2.50+ para no spammear)
+    if (coins >= 50) {
+      import('../lib/emailNotifier.js').then(({ notifyUser }) =>
+        notifyUser(toId, 'tip_received', {
+          fromName: sender?.full_name || 'Alguien',
+          amountUsd: coins * COIN_VALUE_USD,
+          coinsAmount: coins,
+        }).catch(() => {})
+      );
+    }
 
     const { data: newBal } = await supabase.from('profiles').select('coins_balance').eq('id', fromId).single();
     res.json({ success: true, coins_remaining: newBal?.coins_balance ?? 0 });

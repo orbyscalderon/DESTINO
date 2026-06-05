@@ -104,6 +104,22 @@ export const adminReviewAppeal = async (req, res) => {
       reviewed_at: new Date().toISOString(),
     }).eq('id', id);
 
+    // Notificar al user que presentó la apelación. Fetch user_id por separado
+    // porque el select inicial es lean para no exponer datos.
+    const { data: full } = await supabase
+      .from('content_appeals')
+      .select('user_id')
+      .eq('id', id)
+      .single();
+    if (full?.user_id) {
+      import('../lib/emailNotifier.js').then(({ notifyUser }) =>
+        notifyUser(full.user_id, 'appeal', {
+          status: action === 'approve' ? 'accepted' : 'rejected',
+          adminMessage: admin_note?.trim() || null,
+        }).catch(() => {})
+      );
+    }
+
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: safeErrorMessage(err) });

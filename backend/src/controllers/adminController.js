@@ -662,6 +662,16 @@ export const processVerification = async (req, res) => {
       await supabase.from('profiles').update({ is_verified: true }).eq('id', verif.user_id);
     }
 
+    // Notificar al user del resultado por email (respeta prefs)
+    if (status === 'approved' || status === 'rejected') {
+      import('../lib/emailNotifier.js').then(({ notifyUser }) =>
+        notifyUser(verif.user_id, 'identity', {
+          approved: status === 'approved',
+          reason: notes || null,
+        }).catch(() => {})
+      );
+    }
+
     res.json({ message: `Verificación ${status === 'approved' ? 'aprobada' : 'rechazada'}` });
   } catch {
     res.status(500).json({ error: 'Error interno del servidor' });
