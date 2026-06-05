@@ -2,14 +2,16 @@ import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import { FiHeart, FiVideo, FiMessageCircle, FiZap, FiUsers, FiRadio, FiStar } from 'react-icons/fi';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '../lib/supabase.js';
 import api from '../lib/api.js';
 
-const features = [
-  { icon: FiHeart, title: 'Swipe & Match', desc: 'Desliza perfiles, da likes y descubre con quién hay química real.' },
-  { icon: FiMessageCircle, title: 'Chat en tiempo real', desc: 'Mensajería instantánea con tus matches. Premium: sin límites.' },
-  { icon: FiVideo, title: 'Video aleatorio', desc: 'Videollamadas con desconocidos. Premium: elige el género.' },
-  { icon: FiZap, title: 'Perfil destacado', desc: 'Aparece primero en el feed y consigue más matches.' },
+// Features con keys i18n — se traducen en el render con t(titleKey/descKey)
+const FEATURES = [
+  { icon: FiHeart,         titleKey: 'landing.feature_swipe_title',  descKey: 'landing.feature_swipe_desc' },
+  { icon: FiMessageCircle, titleKey: 'landing.feature_chat_title',   descKey: 'landing.feature_chat_desc' },
+  { icon: FiVideo,         titleKey: 'landing.feature_video_title',  descKey: 'landing.feature_video_desc' },
+  { icon: FiZap,           titleKey: 'landing.feature_boost_title',  descKey: 'landing.feature_boost_desc' },
 ];
 
 // Formato de números para social proof: 12000 → "12k+", 800 → "800+"
@@ -20,6 +22,7 @@ function fmtCount(n) {
 }
 
 export default function Landing() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [stats, setStats] = useState(null);
   const [featured, setFeatured] = useState([]);
@@ -64,15 +67,15 @@ export default function Landing() {
             <span className="gradient-text">Destino TV</span>
           </h1>
           <p className="text-base sm:text-xl text-gray-300 max-w-md mx-auto leading-relaxed px-2">
-            Conoce personas reales. Conecta en video. Descubre Destino TV.
+            {t('landing.tagline')}
           </p>
 
           <div className="flex flex-col gap-3 justify-center pt-4 w-full max-w-xs mx-auto sm:max-w-none sm:flex-row sm:gap-4">
             <Link to="/register" className="btn-primary text-base sm:text-lg px-6 py-3 sm:px-8 sm:py-4">
-              Comenzar gratis
+              {t('landing.start_free')}
             </Link>
             <Link to="/login" className="btn-secondary text-base sm:text-lg px-6 py-3 sm:px-8 sm:py-4">
-              Iniciar sesión
+              {t('auth.login')}
             </Link>
           </div>
 
@@ -84,13 +87,13 @@ export default function Landing() {
               transition={{ delay: 0.3 }}
               className="flex items-center justify-center gap-5 sm:gap-8 pt-6"
             >
-              <Stat icon={FiUsers} value={fmtCount(stats.users)} label="usuarios" />
+              <Stat icon={FiUsers} value={fmtCount(stats.users)} label={t('landing.stat_users')} />
               <span className="w-px h-8 bg-white/10" />
-              <Stat icon={FiStar} value={fmtCount(stats.creators)} label="creadores" />
+              <Stat icon={FiStar} value={fmtCount(stats.creators)} label={t('landing.stat_creators')} />
               {stats.live_now > 0 && (
                 <>
                   <span className="w-px h-8 bg-white/10" />
-                  <Stat icon={FiRadio} value={stats.live_now} label="en vivo" pulse />
+                  <Stat icon={FiRadio} value={stats.live_now} label={t('landing.stat_live_now')} pulse />
                 </>
               )}
             </motion.div>
@@ -108,7 +111,7 @@ export default function Landing() {
               viewport={{ once: true }}
               className="text-2xl sm:text-3xl font-bold text-center mb-8"
             >
-              Creadores en <span className="gradient-text">Destino TV</span>
+              {t('landing.creators_in_destino')} <span className="gradient-text">Destino TV</span>
             </motion.h2>
             <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2 px-2 snap-x">
               {featured.map((c, i) => (
@@ -146,12 +149,12 @@ export default function Landing() {
             viewport={{ once: true }}
             className="text-3xl font-bold text-center mb-12 gradient-text"
           >
-            Todo lo que necesitas
+            {t('landing.everything_you_need')}
           </motion.h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {features.map(({ icon: Icon, title, desc }, i) => (
+            {FEATURES.map(({ icon: Icon, titleKey, descKey }, i) => (
               <motion.div
-                key={title}
+                key={titleKey}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, margin: '-40px' }}
@@ -161,8 +164,8 @@ export default function Landing() {
                 <div className="w-12 h-12 bg-brand-500/20 rounded-xl flex items-center justify-center mb-4">
                   <Icon size={22} className="text-brand-400" />
                 </div>
-                <h3 className="font-semibold text-white mb-2">{title}</h3>
-                <p className="text-gray-400 text-sm leading-relaxed">{desc}</p>
+                <h3 className="font-semibold text-white mb-2">{t(titleKey)}</h3>
+                <p className="text-gray-400 text-sm leading-relaxed">{t(descKey)}</p>
               </motion.div>
             ))}
           </div>
@@ -178,10 +181,10 @@ export default function Landing() {
           className="max-w-md mx-auto card p-8 text-center bg-gradient-to-br from-brand-500/10 to-yellow-500/5 border-brand-500/20"
         >
           <div className="text-4xl mb-4">⚡</div>
-          <h3 className="text-2xl font-bold mb-2">Premium por solo $20/mes</h3>
-          <p className="text-gray-400 text-sm mb-6">Chat ilimitado, filtros de video, ver quién te dio like y más.</p>
+          <h3 className="text-2xl font-bold mb-2">{t('landing.premium_cta_title')}</h3>
+          <p className="text-gray-400 text-sm mb-6">{t('landing.premium_cta_desc')}</p>
           <Link to="/register" className="btn-primary w-full block text-center">
-            Probar gratis
+            {t('landing.try_free')}
           </Link>
         </motion.div>
       </section>

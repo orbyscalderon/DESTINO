@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { FiMail, FiArrowLeft, FiCheckCircle } from 'react-icons/fi';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '../lib/supabase.js';
 import toast from 'react-hot-toast';
 
 export default function ForgotPassword() {
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
@@ -35,24 +37,21 @@ export default function ForgotPassword() {
             <FiCheckCircle className="w-10 h-10 text-green-400" />
           </div>
           <div className="space-y-2">
-            <h1 className="text-2xl font-bold text-white">Email enviado</h1>
+            <h1 className="text-2xl font-bold text-white">{t('auth.reset_link_sent')}</h1>
             <p className="text-gray-400">
-              Revisa tu bandeja de entrada en{' '}
-              <span className="text-white font-medium">{email}</span>{' '}
-              y sigue el enlace para restablecer tu contraseña.
+              <span className="text-white font-medium">{email}</span>
             </p>
           </div>
           <p className="text-sm text-gray-500">
-            ¿No llegó?{' '}
             <button
               onClick={() => setSent(false)}
               className="text-brand-400 hover:underline"
             >
-              Intentar de nuevo
+              {t('common.retry')}
             </button>
           </p>
           <Link to="/login" className="block text-gray-400 hover:text-white transition-colors">
-            ← Volver al inicio de sesión
+            ← {t('auth.login')}
           </Link>
         </div>
       </div>
@@ -66,15 +65,13 @@ export default function ForgotPassword() {
           <div className="w-16 h-16 bg-brand-500/20 rounded-full flex items-center justify-center mx-auto">
             <FiMail className="w-8 h-8 text-brand-400" />
           </div>
-          <h1 className="text-2xl font-bold text-white">¿Olvidaste tu contraseña?</h1>
-          <p className="text-gray-400 text-sm">
-            Ingresa tu email y te enviaremos un enlace para restablecerla.
-          </p>
+          <h1 className="text-2xl font-bold text-white">{t('auth.forgot_password')}</h1>
+          <p className="text-gray-400 text-sm">{t('auth.reset_password')}</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm text-gray-400 mb-1">Email</label>
+            <label className="block text-sm text-gray-400 mb-1">{t('auth.email')}</label>
             <input
               type="email"
               value={email}
@@ -90,7 +87,7 @@ export default function ForgotPassword() {
             disabled={loading}
             className="w-full bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-white font-semibold py-3 rounded-xl transition-colors"
           >
-            {loading ? 'Enviando...' : 'Enviar enlace de recuperación'}
+            {loading ? t('common.loading') : t('auth.send_reset_link')}
           </button>
         </form>
 
@@ -99,7 +96,7 @@ export default function ForgotPassword() {
           className="flex items-center justify-center gap-2 text-gray-400 hover:text-white transition-colors"
         >
           <FiArrowLeft />
-          Volver al inicio de sesión
+          {t('auth.login')}
         </Link>
       </div>
     </div>

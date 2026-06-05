@@ -6,6 +6,7 @@ import {
   FiStar, FiShield, FiGift, FiEyeOff, FiGlobe, FiAward,
 } from 'react-icons/fi';
 import { useAuthStore } from '../store/authStore.js';
+import { useTranslation } from 'react-i18next';
 import api from '../lib/api.js';
 import toast from 'react-hot-toast';
 
@@ -79,6 +80,7 @@ const COLOR = {
 };
 
 export default function Premium() {
+  const { t } = useTranslation();
   const { profile, fetchProfile, user } = useAuthStore();
   const [loading, setLoading] = useState(null); // 'premium' | 'vip'
   const [subscription, setSubscription] = useState(null);
@@ -224,9 +226,9 @@ export default function Premium() {
     <div className="min-h-screen px-4 pt-8 pb-28 lg:pb-10 lg:px-10">
       <div className="max-w-4xl mx-auto">
         <div className="text-center mb-10">
-          <p className="text-gray-400 text-sm font-semibold uppercase tracking-widest mb-2">Planes Destino TV</p>
-          <h1 className="text-3xl lg:text-4xl font-black gradient-text mb-2">Elige tu experiencia</h1>
-          <p className="text-gray-500 text-sm">Cancela cuando quieras · Cobro seguro vía Stripe</p>
+          <p className="text-gray-400 text-sm font-semibold uppercase tracking-widest mb-2">{t('premium.subtitle_plans')}</p>
+          <h1 className="text-3xl lg:text-4xl font-black gradient-text mb-2">{t('premium.title')}</h1>
+          <p className="text-gray-500 text-sm">{t('premium.subtitle_terms')}</p>
         </div>
 
         <motion.div
@@ -255,11 +257,11 @@ export default function Premium() {
                   <div className="text-3xl mb-2">{plan.emoji}</div>
                   <h2 className={`text-xl font-black ${c.text}`}>{plan.name}</h2>
                   {plan.price === 0
-                    ? <p className="text-2xl font-black text-white mt-1">Gratis</p>
+                    ? <p className="text-2xl font-black text-white mt-1">{t('premium.free')}</p>
                     : (
                       <div className="mt-1">
                         <span className="text-2xl font-black text-white">${plan.price}</span>
-                        <span className="text-gray-500 text-sm">/mes</span>
+                        <span className="text-gray-500 text-sm">{t('premium.per_month')}</span>
                       </div>
                     )
                   }

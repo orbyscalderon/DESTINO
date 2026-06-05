@@ -26,6 +26,7 @@
     "password": "Senha",
     "forgot_password": "Esqueceu sua senha?",
     "login": "Entrar",
+    "logging_in": "Entrando…",
     "continue_with_google": "Continuar com Google",
     "continue_with_apple": "Continuar com Apple",
     "no_account": "Não tem conta?",
@@ -34,11 +35,41 @@
     "free_forever": "Grátis para sempre",
     "full_name": "Nome completo",
     "create": "Criar conta",
+    "creating": "Criando…",
     "already_have_account": "Já tem conta?",
     "login_action": "Entrar",
     "or": "ou",
     "logout": "Sair",
-    "logout_confirm": "Sair da conta?"
+    "logout_confirm": "Sair da conta?",
+    "password_min": "Mínimo 8 caracteres",
+    "confirm_password": "Confirmar senha",
+    "passwords_dont_match": "As senhas não coincidem",
+    "account_locked": "Conta bloqueada por {{minutes}} min por tentativas falhadas.",
+    "verify_email_sent": "Verifique seu email para confirmar a conta",
+    "reset_password": "Redefinir senha",
+    "reset_link_sent": "Enviamos um link para seu email",
+    "send_reset_link": "Enviar link de recuperação",
+    "accept_terms": "Aceito os <0>Termos</0> e a <1>Política de Privacidade</1>"
+  },
+  "landing": {
+    "tagline": "Conheça pessoas reais. Conecte-se em vídeo. Descubra Destino TV.",
+    "start_free": "Começar grátis",
+    "everything_you_need": "Tudo o que você precisa",
+    "feature_swipe_title": "Swipe & Match",
+    "feature_swipe_desc": "Deslize perfis, dê likes e descubra química real.",
+    "feature_chat_title": "Chat em tempo real",
+    "feature_chat_desc": "Mensagens instantâneas com seus matches. Premium: ilimitado.",
+    "feature_video_title": "Vídeo aleatório",
+    "feature_video_desc": "Videochamadas com desconhecidos. Premium: escolha o gênero.",
+    "feature_boost_title": "Perfil destacado",
+    "feature_boost_desc": "Apareça primeiro no feed e ganhe mais matches.",
+    "premium_cta_title": "Premium por apenas $20/mês",
+    "premium_cta_desc": "Chat ilimitado, filtros de vídeo, veja quem curtiu você e mais.",
+    "try_free": "Testar grátis",
+    "creators_in_destino": "Criadores no",
+    "stat_users": "usuários",
+    "stat_creators": "criadores",
+    "stat_live_now": "ao vivo"
   },
   "nav": {
     "home": "Início",
@@ -243,6 +274,42 @@
     "blocked_users": "Usuários bloqueados",
     "delete_account": "Excluir conta",
     "danger_zone": "Zona de perigo"
+  },
+  "premium": {
+    "title": "Escolha sua experiência",
+    "subtitle_plans": "Planos Destino TV",
+    "subtitle_terms": "Cancele quando quiser · Pagamento seguro via Stripe",
+    "free": "Grátis",
+    "per_month": "/mês",
+    "current_plan": "Seu plano atual",
+    "upgrade": "Melhorar plano",
+    "switch_to": "Mudar para {{name}}",
+    "you_are": "Você é {{name}}!",
+    "cancel_anytime": "Cancele quando quiser",
+    "secure_payment": "Pagamento seguro"
+  },
+  "discover": {
+    "title": "Descobrir",
+    "no_more": "Sem mais pessoas no momento",
+    "no_more_hint": "Volte mais tarde ou ajuste seus filtros",
+    "filters": "Filtros",
+    "boost": "Boost",
+    "remove_filters": "Limpar filtros",
+    "retry": "Tentar de novo"
+  },
+  "messages_page": {
+    "title": "Mensagens",
+    "no_matches": "Sem matches ainda",
+    "start_swiping": "Comece a deslizar para conhecer pessoas",
+    "no_messages": "Sem mensagens ainda",
+    "search_placeholder": "Buscar conversas..."
+  },
+  "search_page": {
+    "title": "Buscar",
+    "placeholder": "Buscar usuários, hashtags...",
+    "recent": "Recentes",
+    "trending": "Tendências",
+    "no_results": "Sem resultados para \"{{q}}\""
   },
   "stories": {
     "your_story": "Seu story",

@@ -9,6 +9,7 @@ import { supabase } from '../lib/supabase.js';
 import { useChatStore } from '../store/chatStore.js';
 import VerifiedBadge from '../components/ui/VerifiedBadge.jsx';
 import { useSwipeNavigation } from '../lib/useSwipeNavigation.js';
+import { useTranslation } from 'react-i18next';
 
 function formatTime(dateStr) {
   if (!dateStr) return '';
@@ -35,6 +36,7 @@ function messagePreview(msg, myId) {
 }
 
 export default function Messages() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { profile, user } = useAuthStore();
   const { clearUnread } = useChatStore();
@@ -97,7 +99,7 @@ export default function Messages() {
         {/* Header */}
         <div className="flex items-center justify-between mb-5">
           <div>
-            <h1 className="text-2xl lg:text-3xl font-black gradient-text">Mensajes</h1>
+            <h1 className="text-2xl lg:text-3xl font-black gradient-text">{t('messages_page.title')}</h1>
             {totalUnread > 0 && (
               <p className="text-xs text-gray-500 mt-0.5">{totalUnread} sin leer</p>
             )}
@@ -160,7 +162,7 @@ export default function Messages() {
             className="flex flex-col items-center text-center pt-20"
           >
             <FiMessageCircle className="text-gray-700 mb-4" size={48} />
-            <h2 className="text-white font-bold text-lg mb-1">Sin mensajes</h2>
+            <h2 className="text-white font-bold text-lg mb-1">{t('messages_page.no_messages')}</h2>
             <p className="text-gray-500 text-sm mb-6 max-w-xs">
               Haz match con alguien en Descubrir y empieza a chatear
             </p>

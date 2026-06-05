@@ -7,6 +7,7 @@ import Compliance2257Modal from '../components/ui/Compliance2257Modal.jsx';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import VerifiedBadge from '../components/ui/VerifiedBadge.jsx';
 import { useAuthStore } from '../store/authStore.js';
+import { useTranslation } from 'react-i18next';
 import api from '../lib/api.js';
 import toast from 'react-hot-toast';
 import { COUNTRIES, LANGUAGES, countryByCode, languageByCode } from '../lib/geodata.js';
@@ -28,6 +29,7 @@ const ZODIAC_SIGNS = [
 
 
 export default function Profile() {
+  const { t } = useTranslation();
   const { user, profile, fetchProfile, logout } = useAuthStore();
   const location = useLocation();
   const navigate = useNavigate();
@@ -407,7 +409,7 @@ export default function Profile() {
     <div className="min-h-screen px-4 pt-8 pb-28 lg:pb-8 lg:px-10 lg:pt-10">
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
-        <h1 className="text-2xl lg:text-3xl font-black gradient-text">Mi Perfil</h1>
+        <h1 className="text-2xl lg:text-3xl font-black gradient-text">{t('profile.title')}</h1>
         <div className="flex gap-2">
           <button onClick={() => setShowQR(true)} title="Compartir perfil (QR)" className="w-9 h-9 rounded-xl bg-dark-700 flex items-center justify-center text-gray-400 hover:text-white transition-colors">
             <FiGrid size={16} />
@@ -508,7 +510,7 @@ export default function Profile() {
               </div>
               <div className="bg-dark-700/60 rounded-xl py-2">
                 <p className="text-white font-black text-lg">{followersCount}</p>
-                <p className="text-gray-500 text-[10px]">Seguidores</p>
+                <p className="text-gray-500 text-[10px]">{t('profile.followers')}</p>
               </div>
               <div className="bg-dark-700/60 rounded-xl py-2">
                 <p className="text-yellow-400 font-black text-lg">{coinsBalance.toLocaleString()}</p>

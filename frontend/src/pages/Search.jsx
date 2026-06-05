@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 import { countryByCode, COUNTRIES } from '../lib/geodata.js';
 import api from '../lib/api.js';
 import VerifiedBadge from '../components/ui/VerifiedBadge.jsx';
+import { useTranslation } from 'react-i18next';
 
 const RANK_BADGE = [
   'bg-yellow-400 text-black',   // #1 oro
@@ -73,6 +74,7 @@ function clearHistory() {
 }
 
 export default function Search() {
+  const { t } = useTranslation();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -143,7 +145,7 @@ const QUICK_INTERESTS = ['🎵 Música', '✈️ Viajes', '💪 Fitness', '🎮 
 
   return (
     <div className="min-h-screen px-4 pt-8 pb-28 max-w-lg mx-auto">
-      <h1 className="text-2xl font-black gradient-text mb-6">Buscar</h1>
+      <h1 className="text-2xl font-black gradient-text mb-6">{t('search_page.title')}</h1>
 
       {/* Input de búsqueda + filtros */}
       <div className="flex gap-2 mb-3">

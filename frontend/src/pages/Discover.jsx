@@ -9,6 +9,7 @@ import MatchNotification from '../components/ui/MatchNotification.jsx';
 import PremiumModal from '../components/ui/PremiumModal.jsx';
 import StoryRing from '../components/ui/StoryRing.jsx';
 import StoryViewer from '../components/ui/StoryViewer.jsx';
+import { useTranslation } from 'react-i18next';
 import api from '../lib/api.js';
 import VerifiedBadge from '../components/ui/VerifiedBadge.jsx';
 import { useAuthStore } from '../store/authStore.js';
@@ -33,6 +34,7 @@ function loadStoredFilters() {
 const QUICK_INTERESTS = ['🎵 Música', '✈️ Viajes', '💪 Fitness', '🎮 Gaming', '📸 Fotografía', '🍷 Vinos'];
 
 export default function Discover() {
+  const { t } = useTranslation();
   const { profile } = useAuthStore();
   const { trackAction } = useAds();
   const [feed, setFeed] = useState([]);
@@ -325,7 +327,7 @@ export default function Discover() {
       {/* Header */}
       <div className="flex items-center justify-between mb-8 lg:mb-10">
         <div>
-          <h1 className="text-2xl lg:text-3xl font-black gradient-text">Descubrir</h1>
+          <h1 className="text-2xl lg:text-3xl font-black gradient-text">{t('discover.title')}</h1>
           <p className="text-gray-500 text-sm mt-0.5">Encuentra tu conexión hoy</p>
         </div>
         <div className="flex items-center gap-2">
@@ -617,8 +619,8 @@ export default function Discover() {
                 <h3 className="text-xl font-bold text-white mb-2">Sin resultados</h3>
                 <p className="text-gray-400 text-sm mb-6">Ningún perfil coincide con tus filtros activos</p>
                 <div className="flex gap-3 justify-center flex-wrap">
-                  <button onClick={resetFilters} className="btn-primary px-6">Quitar filtros</button>
-                  <button onClick={() => loadFeed(activeFilters)} className="btn-secondary px-4">Reintentar</button>
+                  <button onClick={resetFilters} className="btn-primary px-6">{t('discover.remove_filters')}</button>
+                  <button onClick={() => loadFeed(activeFilters)} className="btn-secondary px-4">{t('discover.retry')}</button>
                 </div>
               </>
             ) : (
@@ -830,7 +832,7 @@ export default function Discover() {
               onClick={e => e.stopPropagation()}
             >
               <div className="flex items-center justify-between mb-5">
-                <h3 className="font-bold text-white">Filtros</h3>
+                <h3 className="font-bold text-white">{t('discover.filters')}</h3>
                 <button onClick={() => setShowFilters(false)} className="text-gray-400 hover:text-white">
                   <FiX />
                 </button>

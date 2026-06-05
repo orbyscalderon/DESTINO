@@ -26,6 +26,7 @@
     "password": "Password",
     "forgot_password": "Forgot your password?",
     "login": "Sign in",
+    "logging_in": "Signing in…",
     "continue_with_google": "Continue with Google",
     "continue_with_apple": "Continue with Apple",
     "no_account": "Don't have an account?",
@@ -34,11 +35,41 @@
     "free_forever": "Free forever",
     "full_name": "Full name",
     "create": "Create account",
+    "creating": "Creating…",
     "already_have_account": "Already have an account?",
     "login_action": "Sign in",
     "or": "or",
     "logout": "Sign out",
-    "logout_confirm": "Sign out?"
+    "logout_confirm": "Sign out?",
+    "password_min": "Min 8 characters",
+    "confirm_password": "Confirm password",
+    "passwords_dont_match": "Passwords don't match",
+    "account_locked": "Account locked for {{minutes}} min due to failed attempts.",
+    "verify_email_sent": "Check your email to verify your account",
+    "reset_password": "Reset password",
+    "reset_link_sent": "We sent a link to your email",
+    "send_reset_link": "Send reset link",
+    "accept_terms": "I accept the <0>Terms</0> and <1>Privacy Policy</1>"
+  },
+  "landing": {
+    "tagline": "Meet real people. Connect on video. Discover Destino TV.",
+    "start_free": "Start free",
+    "everything_you_need": "Everything you need",
+    "feature_swipe_title": "Swipe & Match",
+    "feature_swipe_desc": "Swipe profiles, like and discover real chemistry.",
+    "feature_chat_title": "Real-time chat",
+    "feature_chat_desc": "Instant messaging with your matches. Premium: unlimited.",
+    "feature_video_title": "Random video",
+    "feature_video_desc": "Video calls with strangers. Premium: pick the gender.",
+    "feature_boost_title": "Featured profile",
+    "feature_boost_desc": "Show up first in the feed and get more matches.",
+    "premium_cta_title": "Premium for just $20/mo",
+    "premium_cta_desc": "Unlimited chat, video filters, see who liked you and more.",
+    "try_free": "Try free",
+    "creators_in_destino": "Creators on",
+    "stat_users": "users",
+    "stat_creators": "creators",
+    "stat_live_now": "live now"
   },
   "nav": {
     "home": "Home",
@@ -243,6 +274,42 @@
     "blocked_users": "Blocked users",
     "delete_account": "Delete account",
     "danger_zone": "Danger zone"
+  },
+  "premium": {
+    "title": "Choose your experience",
+    "subtitle_plans": "Destino TV Plans",
+    "subtitle_terms": "Cancel anytime · Secure payment via Stripe",
+    "free": "Free",
+    "per_month": "/mo",
+    "current_plan": "Your current plan",
+    "upgrade": "Upgrade",
+    "switch_to": "Switch to {{name}}",
+    "you_are": "You're {{name}}!",
+    "cancel_anytime": "Cancel anytime",
+    "secure_payment": "Secure payment"
+  },
+  "discover": {
+    "title": "Discover",
+    "no_more": "No more people right now",
+    "no_more_hint": "Come back later or adjust your filters",
+    "filters": "Filters",
+    "boost": "Boost",
+    "remove_filters": "Clear filters",
+    "retry": "Retry"
+  },
+  "messages_page": {
+    "title": "Messages",
+    "no_matches": "No matches yet",
+    "start_swiping": "Start swiping to meet people",
+    "no_messages": "No messages yet",
+    "search_placeholder": "Search conversations..."
+  },
+  "search_page": {
+    "title": "Search",
+    "placeholder": "Search users, hashtags...",
+    "recent": "Recent",
+    "trending": "Trending",
+    "no_results": "No results for \"{{q}}\""
   },
   "stories": {
     "your_story": "Your story",
