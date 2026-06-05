@@ -12,7 +12,10 @@ function broadcastReelEvent(reelId, event, payload) {
 }
 
 const MAX_REEL_DURATION_SECONDS = 90;
-const MAX_REEL_SIZE_BYTES = 100 * 1024 * 1024; // 100 MB
+// 200 MB — suficiente para 90s a 1080p con bitrate de ~15 Mbps (calidad alta
+// para preservar detalle). El backend NO re-comprime para mantener la calidad
+// que el creator subió.
+const MAX_REEL_SIZE_BYTES = 200 * 1024 * 1024;
 
 const reelUpload = multer({
   storage: multer.memoryStorage(),

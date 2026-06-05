@@ -19,7 +19,7 @@ import BattleOverlay from '../components/ui/BattleOverlay.jsx';
 import { useAuthStore } from '../store/authStore.js';
 import { useAds } from '../hooks/useAds.js';
 import { supabase } from '../lib/supabase.js';
-import { LiveKitSession } from '../lib/livekitSession.js';
+import { LiveKitSession, HQ_AUDIO_CONSTRAINTS, HQ_VIDEO_CONSTRAINTS } from '../lib/livekitSession.js';
 import api from '../lib/api.js';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
@@ -777,8 +777,8 @@ export default function LiveShow() {
                   let camStream = null;
                   try {
                     camStream = await navigator.mediaDevices.getUserMedia({
-                      audio: true,
-                      video: { width: 1280, height: 720 },
+                      audio: HQ_AUDIO_CONSTRAINTS,
+                      video: HQ_VIDEO_CONSTRAINTS,
                     });
                   } catch (mediaErr) {
                     toast.error('Necesitas permitir cámara y micrófono para CAM2CAM');
@@ -1008,7 +1008,9 @@ export default function LiveShow() {
     // Try mic (store track so we can use it when going live)
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        audio: selectedMicId ? { deviceId: { exact: selectedMicId } } : true,
+        audio: selectedMicId
+          ? { ...HQ_AUDIO_CONSTRAINTS, deviceId: { exact: selectedMicId } }
+          : HQ_AUDIO_CONSTRAINTS,
       });
       stream.getAudioTracks().forEach(t => previewStreamRef.current.addTrack(t));
       setPermMic('granted');
@@ -1050,7 +1052,9 @@ export default function LiveShow() {
     }
     setPermMic('checking');
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: { deviceId: { exact: deviceId } } });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { ...HQ_AUDIO_CONSTRAINTS, deviceId: { exact: deviceId } },
+      });
       stream.getAudioTracks().forEach(t => previewStreamRef.current.addTrack(t));
       setPermMic('granted');
     } catch { setPermMic('denied'); }
@@ -1086,7 +1090,9 @@ export default function LiveShow() {
       if (!stream || stream.getTracks().length === 0) {
         const qOpt = QUALITY_OPTIONS.find(q => q.key === videoQuality) || QUALITY_OPTIONS[1];
         stream = await navigator.mediaDevices.getUserMedia({
-          audio: selectedMicId ? { deviceId: { exact: selectedMicId } } : true,
+          audio: selectedMicId
+          ? { ...HQ_AUDIO_CONSTRAINTS, deviceId: { exact: selectedMicId } }
+          : HQ_AUDIO_CONSTRAINTS,
           video: selectedCameraId
             ? { deviceId: { exact: selectedCameraId }, width: qOpt.w, height: qOpt.h, frameRate: qOpt.fps }
             : { width: qOpt.w, height: qOpt.h, frameRate: qOpt.fps },
@@ -1412,7 +1418,9 @@ export default function LiveShow() {
 
   const switchLiveMic = async (deviceId) => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: { deviceId: { exact: deviceId } } });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { ...HQ_AUDIO_CONSTRAINTS, deviceId: { exact: deviceId } },
+      });
       const newTrack = stream.getAudioTracks()[0];
       await rtcRef.current?.replaceAudioTrack(newTrack);
       localStreamRef.current?.getAudioTracks().forEach(t => t.stop());

@@ -8,7 +8,9 @@ import { useSwipeNavigation } from '../lib/useSwipeNavigation.js';
 import toast from 'react-hot-toast';
 
 const MAX_DURATION = 90;
-const MAX_SIZE_MB = 100;
+// 200 MB permite subir reels a 1080p sin re-compresión que degrade calidad.
+// Backend tiene el mismo límite en MAX_REEL_SIZE_BYTES.
+const MAX_SIZE_MB = 200;
 
 export default function UploadReel() {
   const navigate = useNavigate();

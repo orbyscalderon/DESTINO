@@ -14,7 +14,7 @@ import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import api from '../lib/api.js';
 import { supabase } from '../lib/supabase.js';
-import { LiveKitSession } from '../lib/livekitSession.js';
+import { LiveKitSession, HQ_AUDIO_CONSTRAINTS } from '../lib/livekitSession.js';
 import { useAuthStore } from '../store/authStore.js';
 import { SHOW_CATEGORIES } from './LiveShows.jsx';
 import DraggableTipGoal from '../components/ui/DraggableTipGoal.jsx';
@@ -29,10 +29,14 @@ import GiftGoalsManager from '../components/ui/GiftGoalsManager.jsx';
 
 const REACTIONS = ['❤️', '🔥', '⭐', '😍'];
 
+// 720p y 1080p son los presets principales. 360p queda como opción ultra-low
+// para creators con conexión muy mala. 60fps disponible en 1080p para gaming
+// streams donde la fluidez importa más que el bitrate.
 const QUALITY_OPTIONS = [
-  { key: '360p',  label: '360p',  w: 640,  h: 360,  fps: 24 },
-  { key: '720p',  label: '720p',  w: 1280, h: 720,  fps: 30 },
-  { key: '1080p', label: '1080p', w: 1920, h: 1080, fps: 30 },
+  { key: '360p',     label: '360p',      w: 640,  h: 360,  fps: 24 },
+  { key: '720p',     label: 'HD 720p',   w: 1280, h: 720,  fps: 30 },
+  { key: '1080p',    label: 'Full HD',   w: 1920, h: 1080, fps: 30 },
+  { key: '1080p60',  label: '1080p 60',  w: 1920, h: 1080, fps: 60 },
 ];
 
 const DEFAULT_SHOW = {
@@ -394,7 +398,16 @@ export default function ShowStudio() {
   const [micDevices, setMicDevices]             = useState([]);
   const [selectedCameraId, setSelectedCameraId] = useState('');
   const [selectedMicId, setSelectedMicId]       = useState('');
-  const [videoQuality, setVideoQuality]         = useState('720p');
+  // Default 1080p — el browser hace fallback a 720p si la cámara no llega.
+  // Persistimos preferencia en localStorage para que cada creator mantenga
+  // su elección entre sesiones.
+  const [videoQuality, setVideoQuality] = useState(() => {
+    try { return localStorage.getItem('destino-video-quality') || '1080p'; }
+    catch { return '1080p'; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem('destino-video-quality', videoQuality); } catch {}
+  }, [videoQuality]);
   const [previewActive, setPreviewActive]       = useState(false);
   const [vuLevel, setVuLevel]                   = useState(0);
 
@@ -471,7 +484,16 @@ export default function ShowStudio() {
     try {
       const mimeOptions = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm', 'video/mp4'];
       const mimeType = mimeOptions.find(m => MediaRecorder.isTypeSupported(m)) || '';
-      const rec = new MediaRecorder(localStreamRef.current, { mimeType, videoBitsPerSecond: 2_500_000 });
+      // Bitrate target: 6 Mbps para 1080p, 2.5 Mbps para 720p o menor.
+      // Detectamos la resolución del track local y elegimos el correcto.
+      const videoTrack = localStreamRef.current.getVideoTracks()[0];
+      const settings = videoTrack?.getSettings?.() || {};
+      const isHD1080 = (settings.height || 720) >= 1080;
+      const videoBitsPerSecond = isHD1080 ? 6_000_000 : 2_500_000;
+      const audioBitsPerSecond = 128_000; // 128 kbps audio estéreo
+      const rec = new MediaRecorder(localStreamRef.current, {
+        mimeType, videoBitsPerSecond, audioBitsPerSecond,
+      });
       recChunksRef.current = [];
       rec.ondataavailable = e => { if (e.data?.size > 0) recChunksRef.current.push(e.data); };
       rec.onstop = uploadRecording;
@@ -715,7 +737,9 @@ export default function ShowStudio() {
     }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        audio: selectedMicId ? { deviceId: { exact: selectedMicId } } : true,
+        audio: selectedMicId
+          ? { ...HQ_AUDIO_CONSTRAINTS, deviceId: { exact: selectedMicId } }
+          : HQ_AUDIO_CONSTRAINTS,
       });
       stream.getAudioTracks().forEach(t => previewStreamRef.current.addTrack(t));
       setPermMic('granted');
@@ -749,7 +773,9 @@ export default function ShowStudio() {
     previewStreamRef.current.getAudioTracks().forEach(t => { t.stop(); previewStreamRef.current.removeTrack(t); });
     setPermMic('checking');
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: { deviceId: { exact: deviceId } } });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { ...HQ_AUDIO_CONSTRAINTS, deviceId: { exact: deviceId } },
+      });
       stream.getAudioTracks().forEach(t => previewStreamRef.current.addTrack(t));
       setPermMic('granted');
       startVuMeter(previewStreamRef.current);
@@ -806,7 +832,9 @@ export default function ShowStudio() {
       if (!stream || stream.getTracks().length === 0) {
         const qOpt = QUALITY_OPTIONS.find(q => q.key === videoQuality) || QUALITY_OPTIONS[1];
         stream = await navigator.mediaDevices.getUserMedia({
-          audio: selectedMicId ? { deviceId: { exact: selectedMicId } } : true,
+          audio: selectedMicId
+          ? { ...HQ_AUDIO_CONSTRAINTS, deviceId: { exact: selectedMicId } }
+          : HQ_AUDIO_CONSTRAINTS,
           video: selectedCameraId
             ? { deviceId: { exact: selectedCameraId }, width: qOpt.w, height: qOpt.h, frameRate: qOpt.fps }
             : { width: qOpt.w, height: qOpt.h, frameRate: qOpt.fps },
@@ -875,7 +903,9 @@ export default function ShowStudio() {
       let stream = previewStreamRef.current;
       if (!stream || stream.getTracks().length === 0) {
         stream = await navigator.mediaDevices.getUserMedia({
-          audio: selectedMicId ? { deviceId: { exact: selectedMicId } } : true,
+          audio: selectedMicId
+          ? { ...HQ_AUDIO_CONSTRAINTS, deviceId: { exact: selectedMicId } }
+          : HQ_AUDIO_CONSTRAINTS,
           video: selectedCameraId
             ? { deviceId: { exact: selectedCameraId }, width: qOpt.w, height: qOpt.h, frameRate: qOpt.fps }
             : { width: qOpt.w, height: qOpt.h, frameRate: qOpt.fps },
@@ -1096,7 +1126,9 @@ export default function ShowStudio() {
 
   const switchLiveMic = async (deviceId) => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: { deviceId: { exact: deviceId } } });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { ...HQ_AUDIO_CONSTRAINTS, deviceId: { exact: deviceId } },
+      });
       const newTrack = stream.getAudioTracks()[0];
       await rtcRef.current?.replaceAudioTrack(newTrack);
       localStreamRef.current?.getAudioTracks().forEach(t => t.stop());
@@ -1384,7 +1416,9 @@ export default function ShowStudio() {
       try {
         const qOpt = QUALITY_OPTIONS.find(q => q.key === videoQuality) || QUALITY_OPTIONS[1];
         stream = await navigator.mediaDevices.getUserMedia({
-          audio: selectedMicId ? { deviceId: { exact: selectedMicId } } : true,
+          audio: selectedMicId
+          ? { ...HQ_AUDIO_CONSTRAINTS, deviceId: { exact: selectedMicId } }
+          : HQ_AUDIO_CONSTRAINTS,
           video: selectedCameraId
             ? { deviceId: { exact: selectedCameraId }, width: qOpt.w, height: qOpt.h, frameRate: qOpt.fps }
             : { width: qOpt.w, height: qOpt.h, frameRate: qOpt.fps },

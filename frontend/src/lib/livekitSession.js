@@ -1,11 +1,76 @@
-import { Room, RoomEvent, Track, ConnectionState, VideoQuality } from 'livekit-client';
+import {
+  Room, RoomEvent, Track, ConnectionState, VideoQuality,
+  VideoPresets, AudioPresets,
+} from 'livekit-client';
 import api from './api.js';
+
+// ── Defaults de captura y publish ──────────────────────────────────────────
+//
+// Objetivo: la mejor calidad posible compatible con dispositivos típicos +
+// degradación automática para conexiones malas (dynacast + adaptiveStream
+// + simulcast).
+//
+// Por qué cada cosa:
+// · videoCaptureDefaults 1080p@30 — la mayoría de cámaras de laptop y celular
+//   modernos capturan 1080p sin problema. Si el dispositivo no soporta, el
+//   browser cae automáticamente al máximo disponible.
+// · simulcast=true + 3 layers (h180/h540/h1080) — el SFU envía la layer que
+//   cada viewer pide según su tile size. Un viewer en battle (tile pequeño)
+//   recibe h180, un viewer full-screen recibe h1080. Esencial para no quemar
+//   bandwidth.
+// · videoCodec='vp9' con backupCodec vp8 — VP9 da ~30% mejor calidad al
+//   mismo bitrate que VP8. Safari iOS soporta VP8 pero no VP9; el backupCodec
+//   automatiza el fallback.
+// · videoEncoding maxBitrate 5 Mbps — estándar Twitch/YouTube para 1080p30.
+//   El default LiveKit es 1.7 Mbps que se ve como YouTube de 2012.
+// · audioPreset musicHighQuality (64 kbps stereo) — el default es 24 kbps mono.
+//   Para shows con música/conversaciones suena mucho mejor.
+// · dtx: discontinuous transmission del audio — ahorra ~50% bitrate cuando
+//   nadie habla sin afectar calidad.
+// · red: redundancia de audio — mantiene calidad aunque se pierdan paquetes
+//   (típico en redes móviles).
+
+const VIDEO_CAPTURE_DEFAULTS = {
+  resolution: VideoPresets.h1080.resolution, // 1920x1080 @ 30fps
+};
+
+// Simulcast layers — el host publica 3 streams en paralelo (low/med/high).
+// Cada viewer subscribe a la layer adecuada según su DOM size.
+const SIMULCAST_LAYERS = [VideoPresets.h180, VideoPresets.h540];
+
+// Encoding del publish — 5 Mbps @ 1080p30, equivalente a la calidad recomendada
+// de Twitch para streaming HD.
+const HIGH_QUALITY_ENCODING = {
+  maxBitrate: 5_000_000, // 5 Mbps
+  maxFramerate: 30,
+  priority: 'high',
+};
+
+function buildPublishDefaults() {
+  return {
+    simulcast: true,
+    videoSimulcastLayers: SIMULCAST_LAYERS,
+    videoCodec: 'vp9',           // mejor compresión que VP8
+    backupCodec: { codec: 'vp8', encoding: VideoPresets.h720.encoding },
+    videoEncoding: HIGH_QUALITY_ENCODING,
+    audioPreset: AudioPresets.musicHighQuality, // 64 kbps stereo
+    dtx: true,
+    red: true,
+    stopMicTrackOnMute: false, // mantiene el track vivo al mutear (reconexión instantánea)
+  };
+}
 
 export class LiveKitSession {
   constructor(roomName) {
     this.roomName          = roomName;
-    this.room              = new Room();
-    this._leaving          = false; // prevents onFailed from firing on intentional disconnect
+    this.room              = new Room({
+      videoCaptureDefaults: VIDEO_CAPTURE_DEFAULTS,
+      publishDefaults: buildPublishDefaults(),
+      // Mejora el flujo de reconexión y reduce el "freezing" en conexiones
+      // intermitentes
+      reconnectPolicy: { nextRetryDelayInMs: () => 2000 },
+    });
+    this._leaving          = false;
     this.onReconnecting    = null;
     this.onReconnected     = null;
     this.onFailed          = null;
@@ -13,7 +78,7 @@ export class LiveKitSession {
     this.onRemoteTrackEnded = null;
     this.onParticipantLeft = null;
     this.onLocalVideo      = null;
-    this.onRemoteMuteChange = null; // (kind, muted, participant) — para indicadores UI
+    this.onRemoteMuteChange = null;
   }
 
   async join(canPublish = true, { skipAutoMedia = false } = {}) {
@@ -29,9 +94,12 @@ export class LiveKitSession {
     });
 
     this.room.on(RoomEvent.TrackSubscribed, (track, pub, participant) => {
-      // Solicitar calidad máxima para video de shows/llamadas
+      // Por defecto subscribe a HIGH para video. Con adaptiveStream activo,
+      // si el elemento DOM es pequeño LiveKit baja a MEDIUM/LOW automáticamente,
+      // pero pedir HIGH explícito garantiza la mejor calidad cuando el viewer
+      // mira full-screen.
       if (track.kind === Track.Kind.Video && pub?.setVideoQuality) {
-        pub.setVideoQuality(VideoQuality.High);
+        pub.setVideoQuality(VideoQuality.HIGH);
       }
       this.onRemoteTrack?.(track, participant);
     });
@@ -40,7 +108,6 @@ export class LiveKitSession {
       this.onRemoteTrackEnded?.(track, participant);
     });
 
-    // Indicadores de mute remoto (mic/cam off del partner)
     this.room.on(RoomEvent.TrackMuted, (pub, participant) => {
       if (!participant?.isLocal) {
         this.onRemoteMuteChange?.(pub.kind, true, participant);
@@ -62,23 +129,24 @@ export class LiveKitSession {
       }
     });
 
-    // dynacast: true → el SFU baja la calidad enviada al viewer según su
-    // viewport/bandwidth. Esencial para móviles con conexión limitada o
-    // viewers con tiles pequeños (battles, cohosts) que no necesitan HD.
-    // Reduce buffering en ~70% sin sacrificar calidad de quien mira full screen.
     await this.room.connect(data.wsUrl, data.token, {
+      // dynacast: SFU baja la layer enviada a viewers según su tile size.
+      // adaptiveStream: el cliente local sube/baja qué layer pide según su DOM.
+      // Ambos combinados ahorran ~70% bandwidth sin afectar calidad percibida.
       dynacast: true,
-      adaptiveStream: true, // ajusta resolución suscrita según tamaño DOM
+      adaptiveStream: true,
     });
 
     if (canPublish && !skipAutoMedia) {
-      // Wrap separately so a camera/mic permission error doesn't kill the whole call
       try {
         await this.room.localParticipant.setMicrophoneEnabled(true);
       } catch (e) {
         console.warn('No se pudo activar el micrófono:', e);
       }
       try {
+        // setCameraEnabled usa los videoCaptureDefaults del Room (1080p) y
+        // los publishDefaults (simulcast + VP9). No hace falta especificar
+        // resolution aquí — el Room ya las tiene.
         await this.room.localParticipant.setCameraEnabled(true);
         const camPub = this.room.localParticipant.getTrackPublication(Track.Source.Camera);
         if (camPub?.track?.mediaStreamTrack) {
@@ -89,7 +157,6 @@ export class LiveKitSession {
       }
     }
 
-    // Deliver tracks already present (late joiner)
     this.room.remoteParticipants.forEach(participant => {
       participant.trackPublications.forEach(pub => {
         if (pub.track && pub.isSubscribed) {
@@ -99,7 +166,9 @@ export class LiveKitSession {
     });
   }
 
-  // Publish tracks from a pre-acquired MediaStream (shows — host controls device/quality)
+  // Publish tracks from a pre-acquired MediaStream — usado en shows donde el
+  // host ya capturó la cámara con sus propios constraints (filtros, virtual
+  // background, etc). Mantiene simulcast y bitrate HD.
   async publishStream(stream) {
     const audioTrack = stream.getAudioTracks()[0];
     const videoTrack = stream.getVideoTracks()[0];
@@ -107,18 +176,23 @@ export class LiveKitSession {
       try {
         await this.room.localParticipant.publishTrack(audioTrack, {
           source: Track.Source.Microphone,
+          audioPreset: AudioPresets.musicHighQuality,
+          dtx: true,
+          red: true,
         });
       } catch (e) { console.warn('No se pudo publicar audio:', e); }
     }
     if (videoTrack) {
       try {
         await this.room.localParticipant.publishTrack(videoTrack, {
-          source:    Track.Source.Camera,
-          simulcast: false,
-          videoEncoding: {
-            maxBitrate:  2_500_000, // 2.5 Mbps para calidad HD
-            maxFramerate: 30,
-          },
+          source: Track.Source.Camera,
+          // Simulcast TRUE — antes era false. El SFU ahora envía 3 layers
+          // y cada viewer subscribe a la que corresponde a su tile size.
+          simulcast: true,
+          videoSimulcastLayers: SIMULCAST_LAYERS,
+          videoCodec: 'vp9',
+          backupCodec: { codec: 'vp8', encoding: VideoPresets.h720.encoding },
+          videoEncoding: HIGH_QUALITY_ENCODING,
         });
         this.onLocalVideo?.(videoTrack);
       } catch (e) { console.warn('No se pudo publicar video:', e); }
@@ -162,3 +236,26 @@ export class LiveKitSession {
     await this.room.disconnect();
   }
 }
+
+// Helper para que ShowStudio / LiveShow puedan llamar getUserMedia con los
+// mismos constraints high-quality que LiveKit aplica internamente.
+// Las "ideal" + "max" hints permiten que el browser elija la mejor calidad
+// que el hardware soporta sin fallar si no llega a 1080p.
+export const HQ_VIDEO_CONSTRAINTS = {
+  width:     { ideal: 1920, max: 1920 },
+  height:    { ideal: 1080, max: 1080 },
+  frameRate: { ideal: 30,   max: 60 },
+  // Sugiere al browser pedir la cámara con menor latencia (no siempre se respeta)
+  // y desactivar zoom/exposure que dan resultados raros en algunos drivers.
+};
+
+// Audio constraints HQ: estéreo, sample rate alto, AGC + noise suppression + echo
+// cancellation activos. mantienen calidad sin artefactos en conversaciones.
+export const HQ_AUDIO_CONSTRAINTS = {
+  echoCancellation: true,
+  noiseSuppression: true,
+  autoGainControl:  true,
+  sampleRate:       48000,
+  sampleSize:       16,
+  channelCount:     2,
+};

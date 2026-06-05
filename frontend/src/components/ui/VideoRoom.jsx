@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { FiMic, FiMicOff, FiVideo, FiVideoOff, FiPhoneOff, FiSkipForward, FiUsers, FiUserPlus, FiCheck } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import api from '../../lib/api.js';
-import { LiveKitSession } from '../../lib/livekitSession.js';
+import { LiveKitSession, HQ_AUDIO_CONSTRAINTS, HQ_VIDEO_CONSTRAINTS } from '../../lib/livekitSession.js';
 import { supabase } from '../../lib/supabase.js';
 import { useAuthStore } from '../../store/authStore.js';
 import { VideoEffectProcessor } from '../../lib/videoEffects.js';
@@ -145,7 +145,12 @@ export default function VideoRoom({ genderFilter, countryFilter, videoCallsRemai
       if (sessionData.partner.id) setPartnerId(sessionData.partner.id);
     }
 
-    const rawStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+    // HQ constraints — 1080p preferido, audio estéreo 48kHz con noise suppression.
+    // El browser hace fallback automático si el dispositivo no llega.
+    const rawStream = await navigator.mediaDevices.getUserMedia({
+      audio: HQ_AUDIO_CONSTRAINTS,
+      video: HQ_VIDEO_CONSTRAINTS,
+    });
     if (!activeRef.current) { rawStream.getTracks().forEach(t => t.stop()); return; }
     localStream.current = rawStream;
 
