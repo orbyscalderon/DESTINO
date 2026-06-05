@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { FiHeart, FiMessageCircle, FiSend, FiClock } from 'react-icons/fi';
 import api from '../lib/api.js';
 import toast from 'react-hot-toast';
+import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../store/authStore.js';
 import VerifiedBadge from '../components/ui/VerifiedBadge.jsx';
 
@@ -33,6 +34,7 @@ function useMatchCountdown(expiresAt) {
 }
 
 export default function Matches() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { profile } = useAuthStore();
 
@@ -91,7 +93,7 @@ export default function Matches() {
 
         {/* Header */}
         <div className="flex items-center justify-between mb-5">
-          <h1 className="text-2xl lg:text-3xl font-black gradient-text">Matches</h1>
+          <h1 className="text-2xl lg:text-3xl font-black gradient-text">{t('matches.title')}</h1>
           {newMatches.length > 0 && (
             <motion.span
               initial={{ scale: 0 }}

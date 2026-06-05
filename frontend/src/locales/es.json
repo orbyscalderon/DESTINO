@@ -253,6 +253,29 @@
     "viewers": "{{count}} vistas",
     "no_stories": "Sin historias aún"
   },
+  "notifications": {
+    "title": "Notificaciones",
+    "empty": "Sin notificaciones aún",
+    "mark_all_read": "Marcar todas",
+    "marking": "Marcando..."
+  },
+  "matches": {
+    "title": "Matches",
+    "empty": "Sin matches todavía",
+    "go_discover": "Empieza a deslizar para conocer gente",
+    "say_hi": "Saluda primero",
+    "new": "Nuevo"
+  },
+  "profile": {
+    "title": "Mi Perfil",
+    "edit": "Editar perfil",
+    "verified": "Verificado",
+    "premium": "Premium",
+    "creator": "Creador",
+    "followers": "Seguidores",
+    "following": "Siguiendo",
+    "joined": "Se unió en {{date}}"
+  },
   "errors": {
     "auth_required": "Debes iniciar sesión",
     "permission_denied": "No tienes permiso para esta acción",

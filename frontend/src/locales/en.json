@@ -253,6 +253,29 @@
     "viewers": "{{count}} views",
     "no_stories": "No stories yet"
   },
+  "notifications": {
+    "title": "Notifications",
+    "empty": "No notifications yet",
+    "mark_all_read": "Mark all read",
+    "marking": "Marking..."
+  },
+  "matches": {
+    "title": "Matches",
+    "empty": "No matches yet",
+    "go_discover": "Start swiping to meet people",
+    "say_hi": "Say hi first",
+    "new": "New"
+  },
+  "profile": {
+    "title": "My Profile",
+    "edit": "Edit profile",
+    "verified": "Verified",
+    "premium": "Premium",
+    "creator": "Creator",
+    "followers": "Followers",
+    "following": "Following",
+    "joined": "Joined {{date}}"
+  },
   "errors": {
     "auth_required": "You must sign in",
     "permission_denied": "You don't have permission for this action",

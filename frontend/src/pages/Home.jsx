@@ -431,7 +431,10 @@ export default function Home() {
             >
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-bold text-white">{t('home.new_post')}</h3>
-                <button onClick={() => { setShowCreateModal(false); setMediaPreview(null); setMediaFile(null); }}>
+                <button
+                  onClick={() => { setShowCreateModal(false); setMediaPreview(null); setMediaFile(null); }}
+                  aria-label={t('common.close')}
+                >
                   <FiX className="text-gray-400" size={20} />
                 </button>
               </div>
@@ -457,7 +460,11 @@ export default function Home() {
               )}
 
               <div className="flex items-center gap-3 mb-4">
-                <button onClick={() => fileRef.current.click()} className="text-gray-400 hover:text-white transition-colors">
+                <button
+                  onClick={() => fileRef.current.click()}
+                  className="text-gray-400 hover:text-white transition-colors"
+                  aria-label="Adjuntar imagen"
+                >
                   <FiImage size={20} />
                 </button>
                 {profile?.is_creator && (

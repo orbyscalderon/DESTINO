@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { FiBell, FiArrowLeft, FiCheck, FiZap, FiHeart, FiMessageCircle, FiVideo, FiDollarSign, FiUsers, FiLock, FiShield, FiRadio, FiUserPlus, FiX } from 'react-icons/fi';
 import api from '../lib/api.js';
 import toast from 'react-hot-toast';
+import { useTranslation } from 'react-i18next';
 
 const TYPE_CONFIG = {
   tip:                 { icon: FiZap,           color: 'text-yellow-400', bg: 'bg-yellow-500/10' },
@@ -32,6 +33,7 @@ function timeAgo(dateStr) {
 }
 
 export default function Notifications() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -128,7 +130,7 @@ export default function Notifications() {
           <button onClick={() => navigate(-1)} className="text-gray-400 hover:text-white transition-colors">
             <FiArrowLeft size={20} />
           </button>
-          <h1 className="text-2xl font-black gradient-text">Notificaciones</h1>
+          <h1 className="text-2xl font-black gradient-text">{t('notifications.title')}</h1>
           {unreadCount > 0 && (
             <span className="bg-brand-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
               {unreadCount}
@@ -142,7 +144,7 @@ export default function Notifications() {
             className="text-xs text-brand-400 hover:text-brand-300 flex items-center gap-1 disabled:opacity-50"
           >
             <FiCheck size={12} />
-            {marking ? 'Marcando...' : 'Marcar todas'}
+            {marking ? t('notifications.marking') : t('notifications.mark_all_read')}
           </button>
         )}
       </div>
@@ -151,7 +153,7 @@ export default function Notifications() {
       {notifications.length === 0 ? (
         <div className="text-center py-20">
           <FiBell size={48} className="mx-auto text-gray-700 mb-4" />
-          <p className="text-gray-500">Sin notificaciones aún</p>
+          <p className="text-gray-500">{t('notifications.empty')}</p>
           <p className="text-gray-600 text-sm mt-1">Aquí verás tus propinas, matches y más</p>
         </div>
       ) : (
