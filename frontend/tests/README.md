@@ -1,6 +1,9 @@
-# Smoke Tests — Destino TV
+# Tests — Destino TV
 
-30 tests Playwright que verifican lo crítico **sin requerir autenticación**.
+**44 tests Playwright** repartidos en dos suites:
+
+- **smoke.spec.js** (30 tests) — corren siempre, sin auth
+- **auth.spec.js** (14 tests) — corren si hay seed user configurado, si no se saltan
 
 ## Qué cubren
 
@@ -57,12 +60,28 @@ Para Vercel preview/production: añadir en `package.json` un workflow GitHub Act
 
 Variables: `forbidOnly` y `retries: 2` ya activos cuando `CI=true`.
 
-## Qué NO cubren (TODO futuro)
+## Tests autenticados (auth.spec.js)
 
-- Flujo autenticado (requiere cuenta de prueba con credenciales en env)
-- Flow privado/exclusive end-to-end (requiere 2 cuentas live)
+Cubren login, persistencia de sesión, navegación a Settings/Dashboard, logout y visibilidad del bloque 2FA. Para correrlos, define dos env vars:
+
+```bash
+export TEST_USER_EMAIL=test+playwright@destino.app
+export TEST_USER_PASSWORD=<password>
+npm test
+```
+
+Sin esas vars, los 14 tests se saltan con `test.describe.skip` — los smoke tests siguen corriendo. Esto permite que un CI sin credenciales pase verde.
+
+**Crear el seed user**: una vez, hacer signup manual en el environment objetivo (Vercel preview o local), confirmar email, completar perfil mínimo (edad ≥ 18, bio, una foto). Guardar credenciales en GitHub Actions secrets o `.env.test` (gitignored).
+
+El seed user **no debe** tener 2FA activado ni ser admin — el flujo es de un usuario "normal".
+
+## Qué NO cubren todavía
+
+- Flow privado/exclusive end-to-end (requiere 2 cuentas live simultáneas)
 - Battles entre creators (requiere 2 cuentas live)
-- Pagos (Stripe test cards en sandbox)
+- Pagos reales (Stripe test cards en sandbox)
 - Push notifications (requiere Firebase setup)
+- Stories upload (cuando exista la feature)
 
-Para esos, planificar tests separados con `playwright.config.js` apuntando a un environment con seed data conocida.
+Para esos, plan futuro: spin up de Playwright con `browser.newContext()` ×2 en paralelo + sandbox de Stripe.
