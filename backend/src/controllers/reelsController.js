@@ -445,6 +445,52 @@ export const deleteReel = async (req, res) => {
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
+// PINNED REELS — máx 3 destacados en perfil
+// ═══════════════════════════════════════════════════════════════════════════
+
+// POST /api/reels/:id/pin — pinea o despinea (toggle)
+// El trigger SQL `enforce_pinned_limit` despinea el más antiguo si ya hay 3.
+export const togglePinReel = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const reelId = req.params.id;
+
+    const { data: reel } = await supabase
+      .from('reels').select('user_id, pinned').eq('id', reelId).single();
+    if (!reel) return res.status(404).json({ error: 'Reel no encontrado' });
+    if (reel.user_id !== userId) return res.status(403).json({ error: 'No autorizado' });
+
+    const newPinned = !reel.pinned;
+    const { error } = await supabase
+      .from('reels')
+      .update({ pinned: newPinned })
+      .eq('id', reelId);
+    if (error) throw error;
+
+    res.json({ pinned: newPinned });
+  } catch (err) {
+    console.error('[togglePinReel]', err);
+    res.status(500).json({ error: safeErrorMessage(err) });
+  }
+};
+
+// GET /api/reels/pinned/:userId — reels destacados del user (pa el perfil)
+export const getPinnedReels = async (req, res) => {
+  try {
+    const { data } = await supabase
+      .from('reels')
+      .select('id, video_url, thumbnail_url, caption, likes_count, views_count, created_at, pinned_at')
+      .eq('user_id', req.params.userId)
+      .eq('pinned', true)
+      .order('pinned_at', { ascending: false })
+      .limit(3);
+    res.json({ reels: data || [] });
+  } catch {
+    res.status(500).json({ error: 'Error' });
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
 // COMMENTS
 // ═══════════════════════════════════════════════════════════════════════════
 

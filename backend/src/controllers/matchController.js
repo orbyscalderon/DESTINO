@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase.js';
 import { sendPushToUser } from './notificationController.js';
+import { trackFunnel } from '../lib/funnelTracker.js';
 import { sendMatchEmail } from '../lib/emailService.js';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -88,7 +89,12 @@ export const likeProfile = async (req, res) => {
       if (error) throw error;
       isMatch = true;
       matchId = existingMatch.id;
+      // Funnel: ambos sides ya cruzaron al estado "matched"
+      trackFunnel(userId, 'first_match', { match_id: matchId });
+      trackFunnel(targetUserId, 'first_match', { match_id: matchId });
     } else {
+      // Primer like del usuario (idempotente — solo cuenta la primera vez)
+      trackFunnel(userId, 'first_like', { target: targetUserId });
       const { data: newMatch, error } = await supabase
         .from('matches')
         .insert({ user1_id: userId, user2_id: targetUserId, user1_liked: true, is_super_like: isSuperLike })

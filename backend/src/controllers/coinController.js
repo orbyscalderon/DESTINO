@@ -120,6 +120,14 @@ export const confirmCoinPurchase = async (req, res) => {
     // Reward referrer on user's first purchase (fire-and-forget, non-blocking)
     triggerReferralReward(userId).catch(() => {});
 
+    // Funnel: primera compra (idempotente)
+    import('../lib/funnelTracker.js').then(({ trackFunnel }) =>
+      trackFunnel(userId, 'first_purchase', {
+        coins: coins + bonusCoins,
+        price_usd: (pi.amount || 0) / 100,
+      })
+    ).catch(() => {});
+
     const { data: profile } = await supabase.from('profiles').select('coins_balance').eq('id', userId).single();
     res.json({ success: true, coins: profile?.coins_balance || 0, credited: coins + bonusCoins });
   } catch (err) {

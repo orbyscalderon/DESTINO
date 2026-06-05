@@ -55,6 +55,7 @@ import authRoutes from './src/routes/auth.js';
 import twoFactorRoutes from './src/routes/twoFactor.js';
 import taxFormRoutes from './src/routes/taxForms.js';
 import seoRoutes from './src/routes/seo.js';
+import v6Routes from './src/routes/v6Routes.js';
 import gdprRoutes from './src/routes/gdpr.js';
 import dmcaRoutes from './src/routes/dmca.js';
 import achievementsRoutes from './src/routes/achievements.js';
@@ -244,6 +245,9 @@ app.use('/api/auth', authRoutes);
 app.use('/api/2fa', twoFactorRoutes);
 app.use('/api/tax-forms', taxFormRoutes);
 app.use('/api/seo', seoRoutes);
+// Rutas agregadas en v54+: chat mods, account deletion, recurring shows,
+// affiliate, pinned reels (cada path completo definido dentro de v6Routes)
+app.use(v6Routes);
 // El sitemap se sirve también en la raíz para que los crawlers lo encuentren
 app.get('/sitemap.xml', (req, res, next) => {
   req.url = '/sitemap.xml';

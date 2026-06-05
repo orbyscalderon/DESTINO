@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase.js';
 import { createNotification } from './inAppNotifController.js';
+import { trackFunnel } from '../lib/funnelTracker.js';
 
 const COIN_VALUE_USD = 0.05;
 const PLATFORM_FEE_RATE = 0.30;
@@ -72,6 +73,9 @@ export const sendTip = async (req, res) => {
     const { data: sender } = await supabase.from('profiles').select('full_name').eq('id', fromId).single();
     const tipMsg = message?.trim() ? `"${message.trim().substring(0, 60)}"` : '';
     createNotification(toId, 'tip', `💰 Propina recibida: ${coins} monedas`, `${sender?.full_name || 'Alguien'} te envió una propina${tipMsg ? ` — ${tipMsg}` : ''}`, { from_user_id: fromId });
+
+    // Funnel: primer tip enviado
+    trackFunnel(fromId, 'first_tip', { to: toId, coins });
 
     // Email al creator (solo tips ≥50 coins = $2.50+ para no spammear)
     if (coins >= 50) {

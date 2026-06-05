@@ -5,6 +5,7 @@ import { spendCoins, addCoins, coinsToUSD, creatorCutUSD, CREATOR_CUT } from './
 import { detectImageType, detectVideoType, safeErrorMessage, sanitizeUserText } from '../lib/helpers.js';
 import { createNotification } from './inAppNotifController.js';
 import { upsertCreatorEarnings } from './showController.js';
+import { trackFunnel } from '../lib/funnelTracker.js';
 import multer from 'multer';
 
 const ALLOWED_IMAGE_MIME = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
@@ -115,6 +116,8 @@ export const sendImageMessage = async (req, res) => {
       body: '📷 Te envió una foto',
       url: `/chat/${matchId}`,
     }).catch(() => {});
+
+    trackFunnel(userId, 'first_message', { match_id: matchId });
 
     res.json({ message });
   } catch (err) {
@@ -266,6 +269,8 @@ export const sendMessage = async (req, res) => {
 
       remaining = DAILY_LIMIT - (counter?.count || 0);
     }
+
+    trackFunnel(userId, 'first_message', { match_id: matchId });
 
     res.json({ message, remaining });
   } catch (err) {

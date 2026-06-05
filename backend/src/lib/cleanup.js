@@ -449,6 +449,30 @@ async function cleanStaleLiveShows() {
   } catch { /* columna pendiente de migración */ }
 }
 
+// Cron jobs nuevos en v54-v60: recurring shows, push reminders, deletion
+async function runV6Crons() {
+  try {
+    const [gen, rem, del] = await Promise.all([
+      import('../controllers/recurringShowsController.js')
+        .then(m => m.generateUpcomingFromRecurring())
+        .catch(() => ({ created: 0 })),
+      import('../controllers/recurringShowsController.js')
+        .then(m => m.sendShowReminders())
+        .catch(() => ({ sent: 0 })),
+      import('../controllers/accountDeletionController.js')
+        .then(m => m.processDueDeletions())
+        .catch(() => ({ processed: 0 })),
+    ]);
+    if ((gen.created || rem.sent || del.processed) > 0) {
+      console.log(`[v6 cron] recurring=${gen.created} reminders=${rem.sent} deletions=${del.processed}`);
+    }
+  } catch (err) {
+    console.error('[v6 cron]', err?.message);
+  }
+}
+
+const V6_CRON_INTERVAL_MS = 10 * 60 * 1000; // cada 10 min
+
 export function startCleanupJob() {
   cleanStaleVideoSessions();
   setInterval(cleanStaleVideoSessions, CLEANUP_INTERVAL_MS);
@@ -477,5 +501,9 @@ export function startCleanupJob() {
   notifyUpcomingScheduledShows();
   setInterval(notifyUpcomingScheduledShows, SHOW_REMINDER_INTERVAL_MS);
 
-  console.log('🧹 Cleanup job iniciado (sesiones video 30s, shows 5min, recordatorios 5min, renovaciones/boosts/matches 6h, payouts 24h)');
+  // v6 crons: recurring shows generation + push reminders + deletion process
+  runV6Crons();
+  setInterval(runV6Crons, V6_CRON_INTERVAL_MS);
+
+  console.log('🧹 Cleanup job iniciado (sesiones 30s, shows 5min, v6 10min, renovaciones 6h, payouts 24h)');
 }

@@ -272,6 +272,58 @@ export const getUsersFiltered = async (req, res) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
+// FUNNEL ANALYTICS
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /api/admin/funnel?days=30
+//
+// Devuelve el funnel ordenado con count distinct de users por evento + % de
+// conversión vs el primer paso. Permite ver dónde el user drop-eea.
+export const getFunnel = async (req, res) => {
+  try {
+    const days = Math.max(1, Math.min(365, parseInt(req.query.days) || 30));
+    const since = new Date(Date.now() - days * 24 * 3600 * 1000).toISOString();
+
+    const STEPS = [
+      'signup_completed',
+      'onboarding_started',
+      'onboarding_completed',
+      'first_like',
+      'first_match',
+      'first_message',
+      'first_purchase',
+      'first_tip',
+      'first_subscription',
+      'became_creator',
+      'first_live_show',
+    ];
+
+    // Una query por step — más simple que un GROUP BY con cohort restrictivo
+    const results = await Promise.all(STEPS.map(async (step) => {
+      const { count } = await supabase
+        .from('funnel_events')
+        .select('user_id', { count: 'estimated', head: true })
+        .eq('event', step)
+        .gte('created_at', since);
+      return { step, count: count || 0 };
+    }));
+
+    const base = results[0]?.count || 1;
+    const enriched = results.map((r, i) => ({
+      step: r.step,
+      count: r.count,
+      pct_of_top: base ? +(r.count / base * 100).toFixed(1) : 0,
+      pct_of_prev: i === 0 ? 100 :
+        results[i - 1].count ? +(r.count / results[i - 1].count * 100).toFixed(1) : 0,
+    }));
+
+    res.json({ days, steps: enriched });
+  } catch (err) {
+    console.error('[funnel]', err);
+    res.status(500).json({ error: 'Error generando funnel' });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 // BULK ACTIONS — operaciones masivas
 // ─────────────────────────────────────────────────────────────────────────────
 // POST /api/admin/users/bulk { user_ids: [], action: 'verify' | 'unverify' | 'creator' | 'uncreator' | 'delete' }

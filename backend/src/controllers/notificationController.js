@@ -20,15 +20,20 @@ export const getVapidKey = (req, res) => {
 };
 
 // POST /api/notifications/subscribe
+// Multi-device: si el user ya tiene esa misma subscription (mismo endpoint)
+// solo actualiza last_seen. Si es nueva, la añade.
 export const subscribe = async (req, res) => {
   try {
     const { subscription } = req.body;
-    if (!subscription) return res.status(400).json({ error: 'subscription requerida' });
+    if (!subscription?.endpoint) return res.status(400).json({ error: 'subscription requerida con endpoint' });
 
+    // Tras migración v54, UNIQUE(user_id, endpoint) — onConflict actualiza
+    // last_seen sin reemplazar otras suscripciones del mismo user.
     await supabase.from('push_subscriptions').upsert({
       user_id: req.user.id,
       subscription,
-    }, { onConflict: 'user_id' });
+      last_seen: new Date().toISOString(),
+    }, { onConflict: 'user_id,endpoint' });
 
     res.json({ ok: true });
   } catch (err) {
@@ -142,24 +147,157 @@ export const sendBroadcastNotification = async (title, body) => {
   return { sent, failed, total: subs.length };
 };
 
-// Función interna — enviar push a un usuario
+// Envía push a TODOS los dispositivos del user (web + mobile FCM/APNs).
+// Errores 410/404 limpian la suscripción expirada. last_seen se actualiza
+// en cada envío exitoso para que el cron de cleanup no borre devices activos.
+//
+// payload típico:
+//   { title, body, url?, icon?, badge?, data? }
+//
+// El service worker (sw.js) lee este shape para showNotification.
 export const sendPushToUser = async (userId, payload) => {
-  if (!VAPID_PUBLIC || !VAPID_PRIVATE) return;
+  if (!userId) return { web: 0, mobile: 0 };
 
-  const { data: row } = await supabase
-    .from('push_subscriptions')
-    .select('subscription')
-    .eq('user_id', userId)
-    .single();
+  const payloadStr = JSON.stringify(payload);
+  let webSent = 0, mobileSent = 0;
 
-  if (!row) return;
+  // ── Web Push (todas las subs del user, no solo una) ──
+  if (VAPID_PUBLIC && VAPID_PRIVATE) {
+    const { data: webSubs } = await supabase
+      .from('push_subscriptions')
+      .select('id, subscription')
+      .eq('user_id', userId);
 
-  try {
-    await webpush.sendNotification(row.subscription, JSON.stringify(payload));
-  } catch (err) {
-    if (err.statusCode === 410 || err.statusCode === 404) {
-      // Suscripción expirada — eliminar
-      await supabase.from('push_subscriptions').delete().eq('user_id', userId);
+    if (webSubs?.length) {
+      await Promise.all(webSubs.map(async (row) => {
+        try {
+          await webpush.sendNotification(row.subscription, payloadStr);
+          webSent++;
+          // Touch last_seen — el cron no la borrará por inactividad
+          supabase.from('push_subscriptions')
+            .update({ last_seen: new Date().toISOString() })
+            .eq('id', row.id)
+            .then(() => {}, () => {});
+        } catch (err) {
+          if (err.statusCode === 410 || err.statusCode === 404) {
+            // Suscripción expirada (browser desinstalado, sub revocada)
+            await supabase.from('push_subscriptions').delete().eq('id', row.id);
+          } else {
+            console.error('[webpush]', err?.statusCode, err?.message);
+          }
+        }
+      }));
     }
   }
+
+  // ── Mobile Push (FCM/APNs via Firebase Admin SDK si está disponible) ──
+  // El SDK Firebase es opcional — si no está instalado, solo persistimos sin
+  // enviar (degradación graceful). Para activar: npm i firebase-admin en backend
+  // y exportar GOOGLE_APPLICATION_CREDENTIALS_JSON con el service account.
+  try {
+    const { data: mobileTokens } = await supabase
+      .from('mobile_push_tokens')
+      .select('id, token, platform')
+      .eq('user_id', userId);
+
+    if (mobileTokens?.length) {
+      const sentTokens = await sendFcmBatch(
+        mobileTokens.map(r => r.token),
+        payload,
+      );
+      mobileSent = sentTokens.length;
+
+      // Limpieza de tokens inválidos reportados por FCM
+      const invalidTokens = mobileTokens
+        .map(r => r.token)
+        .filter(t => !sentTokens.includes(t) && sentTokens.length > 0);
+      if (invalidTokens.length > 0) {
+        await supabase.from('mobile_push_tokens')
+          .delete()
+          .in('token', invalidTokens);
+      }
+
+      // Touch last_seen en los enviados
+      if (sentTokens.length > 0) {
+        await supabase.from('mobile_push_tokens')
+          .update({ last_seen: new Date().toISOString() })
+          .in('token', sentTokens);
+      }
+    }
+  } catch (err) {
+    console.error('[fcm push]', err?.message);
+  }
+
+  return { web: webSent, mobile: mobileSent };
 };
+
+// Envío a FCM. Carga firebase-admin lazy — si no está, devuelve [] sin error.
+// FCM también puede enviar a iOS via APNs si el config está en Firebase Console.
+let _fcmInit = null;
+async function getFcm() {
+  if (_fcmInit !== null) return _fcmInit;
+  try {
+    const credsJson = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
+    if (!credsJson) { _fcmInit = false; return false; }
+    const admin = await import('firebase-admin');
+    if (!admin.apps?.length) {
+      admin.initializeApp({
+        credential: admin.credential.cert(JSON.parse(credsJson)),
+      });
+    }
+    _fcmInit = admin.messaging();
+    return _fcmInit;
+  } catch (err) {
+    console.warn('[fcm init]', err.message);
+    _fcmInit = false;
+    return false;
+  }
+}
+
+async function sendFcmBatch(tokens, payload) {
+  if (!tokens?.length) return [];
+  const fcm = await getFcm();
+  if (!fcm) return []; // Sin firebase-admin no enviamos (graceful)
+
+  try {
+    // FCM moderno: sendEachForMulticast soporta hasta 500 tokens por call
+    const res = await fcm.sendEachForMulticast({
+      tokens,
+      notification: {
+        title: payload.title || 'Destino TV',
+        body: payload.body || '',
+      },
+      data: {
+        url: payload.url || '/',
+        ...(payload.data || {}),
+      },
+      // iOS: APNs payload
+      apns: {
+        payload: {
+          aps: {
+            sound: 'default',
+            badge: payload.badge || 1,
+          },
+        },
+      },
+      android: {
+        notification: {
+          channelId: 'destino-default',
+          icon: 'ic_notification',
+          color: '#e040fb',
+          clickAction: 'FLUTTER_NOTIFICATION_CLICK',
+        },
+      },
+    });
+
+    // Retorna los tokens que SÍ se entregaron
+    const okTokens = [];
+    res.responses.forEach((r, i) => {
+      if (r.success) okTokens.push(tokens[i]);
+    });
+    return okTokens;
+  } catch (err) {
+    console.error('[fcm send]', err.message);
+    return [];
+  }
+}

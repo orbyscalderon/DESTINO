@@ -16,7 +16,7 @@ import { listDMCA, processDMCA } from '../controllers/dmcaController.js';
 import { listTicketsAdmin, respondTicketAdmin } from '../controllers/supportController.js';
 import {
   globalSearch, revenueDaily, getAuditLog, exportDataset,
-  getUsersFiltered, bulkUserAction,
+  getUsersFiltered, bulkUserAction, getFunnel,
 } from '../controllers/adminExtraController.js';
 
 const router = Router();
@@ -64,5 +64,6 @@ router.get('/audit-log',        getAuditLog);
 router.get('/export/:dataset',  exportDataset);
 router.get('/users-filtered',   getUsersFiltered);
 router.post('/users/bulk',      bulkUserAction);
+router.get('/funnel',           getFunnel);
 
 export default router;
