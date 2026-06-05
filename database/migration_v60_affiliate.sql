@@ -38,9 +38,12 @@ CREATE TABLE IF NOT EXISTS public.affiliate_referrals (
 
 CREATE INDEX IF NOT EXISTS idx_affiliate_refs_program ON public.affiliate_referrals(affiliate_id);
 CREATE INDEX IF NOT EXISTS idx_affiliate_refs_creator ON public.affiliate_referrals(creator_user_id);
-CREATE INDEX IF NOT EXISTS idx_affiliate_refs_active
-  ON public.affiliate_referrals(commission_expires_at)
-  WHERE commission_expires_at > NOW();
+-- Index sobre commission_expires_at DESC para que el planner pueda hacer
+-- range scan eficiente en queries "WHERE commission_expires_at > NOW()".
+-- Postgres no permite NOW() en index predicates (no IMMUTABLE), así que el
+-- index es full pero igual sirve porque las queries siempre filtran por rango.
+CREATE INDEX IF NOT EXISTS idx_affiliate_refs_expires
+  ON public.affiliate_referrals(commission_expires_at DESC);
 
 -- Log de comisiones acumuladas (audit trail)
 CREATE TABLE IF NOT EXISTS public.affiliate_commission_log (
