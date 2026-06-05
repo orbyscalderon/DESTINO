@@ -5,6 +5,7 @@ import {
   FiTrash2, FiVideo, FiZap, FiSearch, FiExternalLink, FiRadio, FiGrid,
   FiCheck, FiX, FiCreditCard, FiImage, FiBell, FiPlus, FiMinus, FiFlag,
   FiAlertCircle, FiRefreshCw, FiTrendingUp, FiDownload, FiFileText,
+  FiHelpCircle, FiSend,
 } from 'react-icons/fi';
 import api from '../lib/api.js';
 import toast from 'react-hot-toast';
@@ -27,6 +28,7 @@ const TABS = [
   { key: 'reports',        label: 'Reportes',   icon: FiFlag },
   { key: 'dmca',           label: 'DMCA',       icon: FiShield },
   { key: 'appeals',        label: 'Apelaciones', icon: FiMessageCircle },
+  { key: 'support',        label: 'Soporte',     icon: FiHelpCircle },
   { key: 'audit',          label: 'Audit',       icon: FiFileText },
 ];
 
@@ -90,12 +92,48 @@ export default function Admin() {
   const [dmcaStatus, setDmcaStatus] = useState('pending');
   const [dmcaLoading, setDmcaLoading] = useState(false);
   const [processingDmca, setProcessingDmca] = useState(null);
+  const [tickets, setTickets] = useState([]);
+  const [ticketStatus, setTicketStatus] = useState('open');
+  const [ticketsLoading, setTicketsLoading] = useState(false);
+  const [respondingTicket, setRespondingTicket] = useState(null);
+  const [ticketResponse, setTicketResponse] = useState('');
 
   useEffect(() => { loadAll(); }, []);
   useEffect(() => {
     if (tab === 'revenue') loadPlatformRevenue(revenueDays);
     if (tab === 'dmca')    loadDmca(dmcaStatus);
-  }, [tab, revenueDays, dmcaStatus]);
+    if (tab === 'support') loadTickets(ticketStatus);
+  }, [tab, revenueDays, dmcaStatus, ticketStatus]);
+
+  const loadTickets = async (status) => {
+    setTicketsLoading(true);
+    try {
+      const { data } = await api.get(`/api/admin/support?status=${status}`);
+      setTickets(data?.tickets || []);
+    } catch {
+      toast.error('Error cargando tickets de soporte');
+    } finally {
+      setTicketsLoading(false);
+    }
+  };
+
+  const handleRespondTicket = async (ticketId, status) => {
+    if (status === 'resolved' && !ticketResponse.trim()) {
+      return toast.error('Escribe una respuesta antes de resolver');
+    }
+    try {
+      await api.patch(`/api/admin/support/${ticketId}`, {
+        status,
+        admin_response: ticketResponse.trim() || undefined,
+      });
+      toast.success(status === 'resolved' ? 'Ticket resuelto' : 'Ticket actualizado');
+      setRespondingTicket(null);
+      setTicketResponse('');
+      loadTickets(ticketStatus);
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Error procesando ticket');
+    }
+  };
 
   const loadDmca = async (status) => {
     try {
@@ -138,7 +176,7 @@ export default function Admin() {
 
   const loadAll = async () => {
     try {
-      const [sRes, uRes, cRes, shRes, wRes, vRes, cqRes, appRes, repRes] = await Promise.all([
+      const [sRes, uRes, cRes, shRes, wRes, vRes, cqRes, appRes, repRes, tkRes] = await Promise.all([
         api.get('/api/admin/stats'),
         api.get('/api/admin/users'),
         api.get('/api/admin/creators'),
@@ -148,6 +186,7 @@ export default function Admin() {
         api.get('/api/admin/content-queue').catch(() => ({ data: { posts: [] } })),
         api.get('/api/appeals/admin').catch(() => ({ data: { appeals: [] } })),
         api.get('/api/admin/reports?status=pending').catch(() => ({ data: { reports: [] } })),
+        api.get('/api/admin/support?status=open').catch(() => ({ data: { tickets: [] } })),
       ]);
       setStats(sRes.data.stats);
       setUsers(uRes.data.users);
@@ -158,6 +197,7 @@ export default function Admin() {
       setContentQueue(cqRes.data?.posts || []);
       setAppeals(appRes.data?.appeals || []);
       setReports(repRes.data?.reports || []);
+      setTickets(tkRes.data?.tickets || []);
     } catch (err) {
       if (err.response?.status === 403) navigate('/home', { replace: true });
       else toast.error('Error cargando datos admin');
@@ -301,7 +341,8 @@ export default function Admin() {
     appeals:       appeals.filter(a => a.status === 'pending').length,
     reports:       reports.filter(r => r.status === 'pending').length,
     dmca:          dmcaList.filter(d => d.status === 'pending').length,
-  }), [withdrawalRequests, verificationRequests, contentQueue, appeals, reports, dmcaList]);
+    support:       tickets.filter(t => t.status === 'open' || t.status === 'in_progress').length,
+  }), [withdrawalRequests, verificationRequests, contentQueue, appeals, reports, dmcaList, tickets]);
 
   const totalPending = Object.values(pendingCounts).reduce((a, b) => a + b, 0);
   const [refreshing, setRefreshing] = useState(false);
@@ -367,9 +408,10 @@ export default function Admin() {
         <AdminGlobalSearch />
       </div>
 
-      {/* Tabs — scroll horizontal en mobile (11 tabs no caben en 1 row angosta) */}
-      <div className="bg-dark-800 p-1 rounded-2xl mb-6 border border-white/5 overflow-x-auto scrollbar-hide">
-        <div className="flex gap-1 min-w-fit">
+      {/* Tabs — scroll horizontal en mobile, wrap en desktop para mostrar todos.
+          13 tabs no caben en 1 row angosta sin comprimir hasta ser ilegibles. */}
+      <div className="bg-dark-800 p-1 rounded-2xl mb-6 border border-white/5 overflow-x-auto md:overflow-x-visible scrollbar-hide">
+        <div className="flex gap-1 min-w-fit md:flex-wrap md:min-w-0">
           {TABS.map(({ key, label, icon: Icon }) => {
             const pendingCount = pendingCounts[key] || 0;
             const isActive = tab === key;
@@ -416,6 +458,7 @@ export default function Admin() {
                   { key: 'reports',       label: 'Reportes',      icon: FiFlag,       count: pendingCounts.reports },
                   { key: 'dmca',          label: 'DMCA',          icon: FiShield,     count: pendingCounts.dmca },
                   { key: 'appeals',       label: 'Apelaciones',   icon: FiMessageCircle, count: pendingCounts.appeals },
+                  { key: 'support',       label: 'Soporte',       icon: FiHelpCircle, count: pendingCounts.support },
                 ].filter(x => x.count > 0).map(({ key, label, icon: Icon, count }) => (
                   <button
                     key={key}
@@ -1438,6 +1481,136 @@ export default function Admin() {
               )}
             </div>
           ))}
+        </div>
+      )}
+
+      {/* ── SOPORTE ── */}
+      {tab === 'support' && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <h2 className="text-lg font-bold text-white flex items-center gap-2">
+              <FiHelpCircle size={16} /> Tickets de soporte
+            </h2>
+            {/* Filtro de status */}
+            <div className="flex gap-1 bg-dark-800 rounded-lg p-1">
+              {[
+                { k: 'open',        l: 'Abiertos' },
+                { k: 'in_progress', l: 'En curso' },
+                { k: 'resolved',    l: 'Resueltos' },
+                { k: 'closed',      l: 'Cerrados' },
+              ].map(({ k, l }) => (
+                <button
+                  key={k}
+                  onClick={() => setTicketStatus(k)}
+                  className={`text-[11px] px-2.5 py-1 rounded-md font-medium transition-colors ${
+                    ticketStatus === k ? 'bg-brand-500 text-white' : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  {l}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {ticketsLoading ? (
+            <div className="space-y-2">
+              {[...Array(4)].map((_, i) => <div key={i} className="card h-20 animate-pulse" />)}
+            </div>
+          ) : tickets.length === 0 ? (
+            <div className="card p-8 text-center text-gray-500 text-sm">
+              <FiHelpCircle size={32} className="mx-auto mb-2 text-gray-600" />
+              Sin tickets {ticketStatus === 'open' ? 'abiertos' : `con estado "${ticketStatus}"`}
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {tickets.map(t => (
+                <div key={t.id} className="card p-4">
+                  <div className="flex items-start justify-between gap-3 mb-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap mb-1">
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                          t.priority === 'high'   ? 'bg-red-500/20 text-red-400' :
+                          t.priority === 'medium' ? 'bg-yellow-500/20 text-yellow-400' :
+                          'bg-white/10 text-gray-400'
+                        }`}>
+                          {t.priority?.toUpperCase() || 'NORMAL'}
+                        </span>
+                        <span className="text-[10px] text-gray-600">
+                          {new Date(t.created_at).toLocaleString('es', {
+                            day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
+                          })}
+                        </span>
+                        {t.category && (
+                          <span className="text-[10px] bg-dark-700 text-gray-400 px-2 py-0.5 rounded-full">
+                            {t.category}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-sm font-bold text-white truncate">{t.subject || 'Sin asunto'}</p>
+                      <p className="text-xs text-gray-500 mt-1 whitespace-pre-wrap break-words">{t.message}</p>
+                      {t.admin_response && (
+                        <div className="mt-2 p-2 bg-brand-500/10 border-l-2 border-brand-500 rounded-r text-xs text-gray-300">
+                          <p className="text-[10px] text-brand-400 font-bold uppercase tracking-wide mb-1">Tu respuesta</p>
+                          {t.admin_response}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {respondingTicket === t.id ? (
+                    <div className="space-y-2 mt-3 border-t border-white/5 pt-3">
+                      <textarea
+                        value={ticketResponse}
+                        onChange={(e) => setTicketResponse(e.target.value)}
+                        placeholder="Respuesta al usuario..."
+                        rows={3}
+                        className="input-field py-2 text-sm w-full resize-none"
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => { setRespondingTicket(null); setTicketResponse(''); }}
+                          className="flex-1 text-xs bg-dark-700 text-gray-400 hover:text-white px-3 py-2 rounded-lg"
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          onClick={() => handleRespondTicket(t.id, 'in_progress')}
+                          className="flex-1 text-xs bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30 px-3 py-2 rounded-lg font-semibold"
+                        >
+                          Guardar (en curso)
+                        </button>
+                        <button
+                          onClick={() => handleRespondTicket(t.id, 'resolved')}
+                          className="flex-1 text-xs bg-green-500/20 text-green-400 hover:bg-green-500/30 px-3 py-2 rounded-lg font-semibold flex items-center justify-center gap-1"
+                        >
+                          <FiSend size={11} /> Resolver
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex gap-2 mt-3">
+                      {(ticketStatus === 'open' || ticketStatus === 'in_progress') && (
+                        <button
+                          onClick={() => { setRespondingTicket(t.id); setTicketResponse(t.admin_response || ''); }}
+                          className="flex-1 text-xs bg-brand-500/20 text-brand-400 hover:bg-brand-500/30 px-3 py-2 rounded-lg font-semibold flex items-center justify-center gap-1"
+                        >
+                          <FiMessageCircle size={11} /> Responder
+                        </button>
+                      )}
+                      {ticketStatus !== 'closed' && (
+                        <button
+                          onClick={() => handleRespondTicket(t.id, 'closed')}
+                          className="text-xs bg-dark-700 text-gray-400 hover:text-white px-3 py-2 rounded-lg"
+                        >
+                          Cerrar
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
