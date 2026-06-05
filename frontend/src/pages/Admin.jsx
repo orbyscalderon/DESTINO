@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   FiUsers, FiHeart, FiMessageCircle, FiDollarSign, FiShield, FiStar,
   FiTrash2, FiVideo, FiZap, FiSearch, FiExternalLink, FiRadio, FiGrid,
   FiCheck, FiX, FiCreditCard, FiImage, FiBell, FiPlus, FiMinus, FiFlag,
+  FiAlertCircle, FiRefreshCw, FiTrendingUp,
 } from 'react-icons/fi';
 import api from '../lib/api.js';
 import toast from 'react-hot-toast';
@@ -284,68 +285,163 @@ export default function Admin() {
   const totalUserPages = Math.ceil(filteredUsers.length / USERS_PAGE_SIZE);
   const pagedUsers = filteredUsers.slice(usersPage * USERS_PAGE_SIZE, (usersPage + 1) * USERS_PAGE_SIZE);
 
+  // Conteos de items que requieren atención del admin. Se calculan local desde
+  // los arrays ya cargados — cero requests extra. El tab badge ayuda a saber
+  // qué requiere acción sin tener que abrir cada pestaña.
+  const pendingCounts = useMemo(() => ({
+    withdrawals:   withdrawalRequests.filter(w => w.status === 'pending').length,
+    verifications: verificationRequests.filter(v => v.status === 'pending').length,
+    content:       contentQueue.length,
+    appeals:       appeals.filter(a => a.status === 'pending').length,
+    reports:       reports.filter(r => r.status === 'pending').length,
+    dmca:          dmcaList.filter(d => d.status === 'pending').length,
+  }), [withdrawalRequests, verificationRequests, contentQueue, appeals, reports, dmcaList]);
+
+  const totalPending = Object.values(pendingCounts).reduce((a, b) => a + b, 0);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try { await loadAll(); }
+    finally { setRefreshing(false); }
+  };
+
   if (loading) return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
+    <div className="min-h-screen px-4 pt-8 pb-24 max-w-3xl mx-auto">
+      {/* Skeleton del header */}
+      <div className="flex items-center gap-3 mb-6">
+        <div className="w-9 h-9 bg-dark-700 rounded-xl animate-pulse" />
+        <div className="flex-1">
+          <div className="w-32 h-5 bg-dark-700 rounded animate-pulse mb-1.5" />
+          <div className="w-48 h-3 bg-dark-700/60 rounded animate-pulse" />
+        </div>
+      </div>
+      {/* Skeleton tabs */}
+      <div className="h-10 bg-dark-800 rounded-2xl animate-pulse mb-6" />
+      {/* Skeleton stats cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
+        {[...Array(4)].map((_, i) => <div key={i} className="card h-24 animate-pulse" />)}
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+        {[...Array(5)].map((_, i) => <div key={i} className="card h-24 animate-pulse" />)}
+      </div>
     </div>
   );
 
   return (
     <div className="min-h-screen px-4 pt-8 pb-24 max-w-3xl mx-auto">
-      {/* Header */}
+      {/* Header con refresh y badge de pendientes totales */}
       <div className="flex items-center gap-3 mb-6">
-        <div className="w-9 h-9 bg-red-500/20 rounded-xl flex items-center justify-center">
+        <div className="w-9 h-9 bg-red-500/20 rounded-xl flex items-center justify-center shrink-0">
           <FiShield size={18} className="text-red-400" />
         </div>
-        <div>
-          <h1 className="text-xl font-black text-white">Admin Panel</h1>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-black text-white">Admin Panel</h1>
+            {totalPending > 0 && (
+              <span className="text-[10px] bg-red-500/20 text-red-400 font-bold px-2 py-0.5 rounded-full border border-red-500/30 flex items-center gap-1">
+                <FiAlertCircle size={9} /> {totalPending} pendiente{totalPending !== 1 ? 's' : ''}
+              </span>
+            )}
+          </div>
           <p className="text-gray-600 text-xs">Solo visible para super admins</p>
         </div>
+        <button
+          onClick={handleRefresh}
+          disabled={refreshing}
+          className="w-9 h-9 rounded-xl bg-dark-800 hover:bg-dark-700 flex items-center justify-center text-gray-400 hover:text-white transition-colors disabled:opacity-50 shrink-0"
+          aria-label="Refrescar datos"
+        >
+          <FiRefreshCw size={16} className={refreshing ? 'animate-spin' : ''} />
+        </button>
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-1 bg-dark-800 p-1 rounded-2xl mb-6 border border-white/5">
-        {TABS.map(({ key, label, icon: Icon }) => (
-          <button
-            key={key}
-            onClick={() => setTab(key)}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold transition-all ${
-              tab === key ? 'bg-brand-500 text-white' : 'text-gray-500 hover:text-gray-300'
-            }`}
-          >
-            <Icon size={13} /> {label}
-          </button>
-        ))}
+      {/* Tabs — scroll horizontal en mobile (11 tabs no caben en 1 row angosta) */}
+      <div className="bg-dark-800 p-1 rounded-2xl mb-6 border border-white/5 overflow-x-auto scrollbar-hide">
+        <div className="flex gap-1 min-w-fit">
+          {TABS.map(({ key, label, icon: Icon }) => {
+            const pendingCount = pendingCounts[key] || 0;
+            const isActive = tab === key;
+            return (
+              <button
+                key={key}
+                onClick={() => setTab(key)}
+                className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-semibold transition-all shrink-0 relative ${
+                  isActive ? 'bg-brand-500 text-white' : 'text-gray-500 hover:text-gray-300'
+                }`}
+              >
+                <Icon size={13} /> {label}
+                {pendingCount > 0 && (
+                  <span className={`min-w-[18px] h-[18px] flex items-center justify-center text-[10px] font-black rounded-full px-1 ${
+                    isActive ? 'bg-white text-brand-500' : 'bg-red-500 text-white'
+                  }`}>
+                    {pendingCount > 99 ? '99+' : pendingCount}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* ── RESUMEN ── */}
       {tab === 'overview' && stats && (
         <div className="space-y-4">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {[
-              { icon: FiUsers,       label: 'Usuarios',   value: stats.users,    color: 'text-blue-400' },
-              { icon: FiHeart,       label: 'Matches',    value: stats.matches,  color: 'text-brand-400' },
-              { icon: FiMessageCircle,label:'Mensajes',   value: stats.messages, color: 'text-green-400' },
-              { icon: FiStar,        label: 'Premium',    value: stats.premium,  color: 'text-brand-400' },
-            ].map(({ icon: Icon, label, value, color }) => (
-              <div key={label} className="card p-4">
-                <Icon size={18} className={`${color} mb-2`} />
-                <div className="text-2xl font-black text-white">{(value || 0).toLocaleString()}</div>
-                <div className="text-gray-500 text-xs">{label}</div>
+          {/* Acción requerida — solo si hay items pendientes. Atajos a cada tab. */}
+          {totalPending > 0 && (
+            <div className="card p-4 border-red-500/30 bg-gradient-to-r from-red-500/10 to-orange-500/5">
+              <div className="flex items-center gap-2 mb-3">
+                <FiAlertCircle size={16} className="text-red-400" />
+                <h3 className="text-sm font-bold text-white">Acción requerida</h3>
+                <span className="text-[10px] bg-red-500/20 text-red-400 font-bold px-2 py-0.5 rounded-full">
+                  {totalPending} item{totalPending !== 1 ? 's' : ''}
+                </span>
               </div>
-            ))}
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {[
+                  { key: 'withdrawals',   label: 'Retiros',       icon: FiCreditCard, count: pendingCounts.withdrawals },
+                  { key: 'verifications', label: 'Verificaciones', icon: FiShield,    count: pendingCounts.verifications },
+                  { key: 'content',       label: 'Contenido',     icon: FiImage,      count: pendingCounts.content },
+                  { key: 'reports',       label: 'Reportes',      icon: FiFlag,       count: pendingCounts.reports },
+                  { key: 'dmca',          label: 'DMCA',          icon: FiShield,     count: pendingCounts.dmca },
+                  { key: 'appeals',       label: 'Apelaciones',   icon: FiMessageCircle, count: pendingCounts.appeals },
+                ].filter(x => x.count > 0).map(({ key, label, icon: Icon, count }) => (
+                  <button
+                    key={key}
+                    onClick={() => setTab(key)}
+                    className="flex items-center gap-2 bg-dark-800/70 hover:bg-dark-700 rounded-lg p-2.5 text-left transition-colors"
+                  >
+                    <Icon size={14} className="text-red-400 shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-gray-300 truncate">{label}</p>
+                    </div>
+                    <span className="text-sm font-black text-white tabular-nums shrink-0">{count}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Stats unificadas — 9 cards en un solo grid responsivo */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
             {[
-              { icon: FiVideo,      label: 'Creadores',  value: stats.creators,                                   color: 'text-purple-400' },
-              { icon: FiRadio,      label: 'Shows',      value: stats.shows,                                      color: 'text-orange-400' },
-              { icon: FiDollarSign, label: 'Ganancias',  value: `$${(stats.total_earnings || 0).toFixed(2)}`,     color: 'text-green-400' },
-              { icon: FiZap,        label: 'Coins total',value: (stats.coins_total || 0).toLocaleString(),        color: 'text-yellow-400' },
-              { icon: FiStar,       label: 'VIP',        value: stats.vip,                                        color: 'text-yellow-400' },
-            ].map(({ icon: Icon, label, value, color }) => (
-              <div key={label} className="card p-4">
-                <Icon size={18} className={`${color} mb-2`} />
-                <div className="text-2xl font-black text-white">{value ?? 0}</div>
+              { icon: FiUsers,       label: 'Usuarios',   value: stats.users,    color: 'text-blue-400',   bg: 'bg-blue-500/10' },
+              { icon: FiVideo,       label: 'Creadores',  value: stats.creators, color: 'text-purple-400', bg: 'bg-purple-500/10' },
+              { icon: FiHeart,       label: 'Matches',    value: stats.matches,  color: 'text-brand-400',  bg: 'bg-brand-500/10' },
+              { icon: FiMessageCircle, label: 'Mensajes', value: stats.messages, color: 'text-green-400',  bg: 'bg-green-500/10' },
+              { icon: FiRadio,       label: 'Shows',      value: stats.shows,    color: 'text-orange-400', bg: 'bg-orange-500/10' },
+              { icon: FiStar,        label: 'Premium',    value: stats.premium,  color: 'text-brand-400',  bg: 'bg-brand-500/10' },
+              { icon: FiStar,        label: 'VIP',        value: stats.vip,      color: 'text-yellow-400', bg: 'bg-yellow-500/10' },
+              { icon: FiDollarSign,  label: 'Ganancias',  value: `$${(stats.total_earnings || 0).toFixed(2)}`, color: 'text-green-400', bg: 'bg-green-500/10' },
+              { icon: FiZap,         label: 'Coins',      value: (stats.coins_total || 0).toLocaleString(), color: 'text-yellow-400', bg: 'bg-yellow-500/10' },
+            ].map(({ icon: Icon, label, value, color, bg }) => (
+              <div key={label} className="card p-4 hover:border-white/10 transition-colors">
+                <div className={`w-9 h-9 rounded-xl ${bg} flex items-center justify-center mb-2`}>
+                  <Icon size={16} className={color} />
+                </div>
+                <div className="text-xl font-black text-white tabular-nums">
+                  {typeof value === 'number' ? value.toLocaleString() : (value ?? 0)}
+                </div>
                 <div className="text-gray-500 text-xs">{label}</div>
               </div>
             ))}
