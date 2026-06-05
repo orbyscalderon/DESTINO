@@ -24,6 +24,7 @@ import { useCaptionsHost, captionsSupported } from '../lib/useLiveCaptions.js';
 import BattleOverlay from '../components/ui/BattleOverlay.jsx';
 import BattleInviteModal from '../components/ui/BattleInviteModal.jsx';
 import StudioOnboarding from '../components/ui/StudioOnboarding.jsx';
+import GiftGoalsManager from '../components/ui/GiftGoalsManager.jsx';
 
 const REACTIONS = ['❤️', '🔥', '⭐', '😍'];
 
@@ -450,6 +451,11 @@ export default function ShowStudio() {
   const [privateViewerStream, setPrivateViewerStream] = useState(null); // MediaStream del viewer (solo exclusive)
   const privateViewerVideoRef = useRef(null);
 
+  // ── GIFT GOALS ──────────────────────────────────────────────────────────────
+  // Cargados al iniciar/reconectar. Actualizados por broadcast cuando un viewer
+  // manda un gift que matchea (backend emite gift_goal_progress).
+  const [giftGoals, setGiftGoals] = useState([]);
+
   // ── Grabación ────────────────────────────────────────────────────────────────
   const [recording, setRecording]       = useState(false);
   const [uploadingRec, setUploadingRec] = useState(false);
@@ -858,6 +864,8 @@ export default function ShowStudio() {
             min_private_minutes: String(sd.show.min_private_minutes || '3'),
             private_countdown_sec: String(sd.show.private_countdown_sec || '10'),
           });
+          // Cargar gift goals existentes para mostrarlos en el manager
+          if (Array.isArray(sd.show.gift_goals)) setGiftGoals(sd.show.gift_goals);
         }
       } catch {}
 
@@ -1179,6 +1187,14 @@ export default function ShowStudio() {
             coins: payload.coins, label: payload.label || 'Regalo',
           });
         }
+      })
+      .on('broadcast', { event: 'gift_goal_progress' }, ({ payload }) => {
+        if (Array.isArray(payload?.goals)) setGiftGoals(payload.goals);
+      })
+      .on('broadcast', { event: 'gift_goal_reached' }, ({ payload }) => {
+        const goal = payload?.goal;
+        if (!goal) return;
+        toast.success(`🎉 ¡Goal logrado! ${goal.reward_text || ''}`, { duration: 6000 });
       })
       .on('broadcast', { event: 'tip' }, ({ payload }) => {
         addGiftAnimation('⚡', payload.senderName);
@@ -2403,6 +2419,14 @@ export default function ShowStudio() {
                     }} />
                 </div>
               ))}
+
+              {/* Gift goals: viral mechanic — viewers mandan gifts para
+                  desbloquear acciones del host (cambiar outfit, etc.) */}
+              <GiftGoalsManager
+                showId={showId}
+                isLive={isLive}
+                initialGoals={giftGoals}
+              />
             </div>
           )
         )}

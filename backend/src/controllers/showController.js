@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { supabase, broadcastToChannel } from '../lib/supabase.js';
 import { stripe } from '../lib/stripe.js';
 import { v4 as uuidv4 } from 'uuid';
@@ -121,6 +122,61 @@ export const listShows = async (req, res) => {
     res.json({ shows });
   } catch (err) {
     console.error('listShows error:', err.message);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
+// PUT /api/shows/:id/gift-goals
+// Body: { goals: [{ id, gift_type, target_count, reward_text }, ...] }
+// El host setea sus goals para este show. Reemplaza el array entero;
+// preserva current_count y completed si el id coincide con uno existente.
+export const setGiftGoals = async (req, res) => {
+  try {
+    const hostId = req.user.id;
+    const showId = req.params.id;
+    const body = req.body || {};
+    const incoming = Array.isArray(body.goals) ? body.goals : [];
+
+    if (incoming.length > 10) {
+      return res.status(400).json({ error: 'Máximo 10 goals por show' });
+    }
+
+    const { data: show } = await supabase
+      .from('live_shows').select('host_id, gift_goals').eq('id', showId).single();
+    if (!show) return res.status(404).json({ error: 'Show no encontrado' });
+    if (show.host_id !== hostId) return res.status(403).json({ error: 'Solo el host' });
+
+    const existingById = Object.fromEntries(
+      (show.gift_goals || []).map(g => [g.id, g])
+    );
+
+    const sanitized = incoming
+      .filter(g => g && typeof g.gift_type === 'string' && parseInt(g.target_count) > 0)
+      .map(g => {
+        const existing = existingById[g.id] || {};
+        return {
+          id: g.id || crypto.randomUUID(),
+          gift_type: g.gift_type,
+          target_count: Math.max(1, Math.min(10000, parseInt(g.target_count))),
+          current_count: existing.current_count || 0,
+          completed: existing.completed || false,
+          reward_text: String(g.reward_text || '').substring(0, 200),
+        };
+      });
+
+    const { error } = await supabase
+      .from('live_shows')
+      .update({ gift_goals: sanitized })
+      .eq('id', showId);
+    if (error) {
+      console.warn('[setGiftGoals] update falló:', error.message);
+      return res.status(500).json({ error: 'No se pudo guardar' });
+    }
+
+    broadcastToChannel(`show:${showId}`, 'gift_goal_progress', { goals: sanitized }).catch(() => {});
+    res.json({ ok: true, goals: sanitized });
+  } catch (err) {
+    console.error('[setGiftGoals] error:', err.message);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
@@ -1071,7 +1127,7 @@ export const sendGift = async (req, res) => {
 
     const { data: show } = await supabase
       .from('live_shows')
-      .select('host_id, status, title')
+      .select('host_id, status, title, gift_goals')
       .eq('id', id)
       .single();
 
@@ -1080,6 +1136,30 @@ export const sendGift = async (req, res) => {
 
     const gift = await resolveGift(gift_type, show.host_id);
     if (!gift) return res.status(400).json({ error: 'Tipo de regalo inválido' });
+
+    // Tick de gift goals: si hay goals activos que matchean este gift_type,
+    // incrementar current_count. Si alcanza target, marcar completed y
+    // broadcast `gift_goal_reached`.
+    let goalReached = null;
+    if (Array.isArray(show.gift_goals) && show.gift_goals.length > 0) {
+      const updatedGoals = show.gift_goals.map(g => {
+        if (g.completed || g.gift_type !== gift_type) return g;
+        const newCount = (g.current_count || 0) + 1;
+        const completed = newCount >= g.target_count;
+        if (completed && !goalReached) goalReached = { ...g, current_count: newCount, completed: true };
+        return { ...g, current_count: newCount, completed };
+      });
+      // Persistir y emitir si hay cambio
+      await supabase
+        .from('live_shows')
+        .update({ gift_goals: updatedGoals })
+        .eq('id', id)
+        .catch(() => {});
+      broadcastToChannel(`show:${id}`, 'gift_goal_progress', { goals: updatedGoals }).catch(() => {});
+      if (goalReached) {
+        broadcastToChannel(`show:${id}`, 'gift_goal_reached', { goal: goalReached }).catch(() => {});
+      }
+    }
 
     await spendCoins(senderId, gift.coins, 'gift_sent', id);
 

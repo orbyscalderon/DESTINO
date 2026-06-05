@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { FiArrowLeft, FiTrash2, FiLock, FiBell, FiShield, FiEye, FiEyeOff, FiGift, FiCopy, FiCheck, FiUserX, FiChevronDown, FiChevronUp, FiSun, FiMoon, FiDownload, FiPause, FiPlay, FiWifiOff } from 'react-icons/fi';
+import { FiArrowLeft, FiTrash2, FiLock, FiBell, FiBellOff, FiShield, FiEye, FiEyeOff, FiGift, FiCopy, FiCheck, FiUserX, FiChevronDown, FiChevronUp, FiSun, FiMoon, FiDownload, FiPause, FiPlay, FiWifiOff, FiGlobe } from 'react-icons/fi';
+import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../store/authStore.js';
 import { useThemeStore } from '../store/themeStore.js';
 import { supabase } from '../lib/supabase.js';
@@ -432,6 +433,9 @@ export default function Settings() {
           {/* Idioma */}
           <LanguageSelector />
 
+          {/* Notificaciones push */}
+          <PushNotificationsToggle />
+
           {/* Apariencia */}
           <div className="card p-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -858,9 +862,7 @@ export default function Settings() {
   );
 }
 
-// ── Selector de idioma ──────────────────────────────────────────────
-import { useTranslation } from 'react-i18next';
-import { FiGlobe } from 'react-icons/fi';
+// ── Selector de idioma + Push toggle ────────────────────────────────
 
 const LANGUAGES = [
   { code: 'es', label: 'Español', flag: '🇪🇸' },
@@ -890,5 +892,64 @@ function LanguageSelector() {
         ))}
       </select>
     </div>
+  );
+}
+
+// Toggle de notificaciones push. Verifica el permiso del browser; al activar
+// dispara initPushNotifications() que registra al user con FCM/VAPID. Si el
+// browser ya negó permiso, el toggle muestra cómo habilitarlo desde el OS.
+function PushNotificationsToggle() {
+  const [permission, setPermission] = useState(
+    typeof Notification !== 'undefined' ? Notification.permission : 'unavailable'
+  );
+  const [loading, setLoading] = useState(false);
+
+  const isOn = permission === 'granted';
+
+  const handleClick = async () => {
+    if (permission === 'denied') {
+      toast('Permiso bloqueado por el navegador · habilítalo desde ajustes del sistema',
+        { icon: '⚙️', duration: 5000 });
+      return;
+    }
+    if (permission === 'unavailable') {
+      toast.error('Tu navegador no soporta notificaciones');
+      return;
+    }
+    setLoading(true);
+    try {
+      await initPushNotifications();
+      setPermission(Notification.permission);
+      if (Notification.permission === 'granted') {
+        toast.success('Notificaciones activadas');
+      } else if (Notification.permission === 'denied') {
+        toast.error('Permiso negado');
+      }
+    } catch {
+      toast.error('Error al activar notificaciones');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <button onClick={handleClick} disabled={loading} className="card p-4 flex items-center justify-between gap-3 w-full text-left hover:bg-white/5 transition-colors disabled:opacity-60">
+      <div className="flex items-center gap-3 min-w-0">
+        {isOn ? <FiBell className="text-green-400 shrink-0" size={18} /> : <FiBellOff className="text-gray-500 shrink-0" size={18} />}
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-white">Notificaciones</p>
+          <p className="text-xs text-gray-500 truncate">
+            {isOn
+              ? 'Activadas · te avisaremos de matches, shows y mensajes'
+              : permission === 'denied'
+                ? 'Bloqueadas · habilita desde ajustes del sistema'
+                : 'Tap para activar las notificaciones push'}
+          </p>
+        </div>
+      </div>
+      <div className={`w-11 h-6 rounded-full p-0.5 transition-colors shrink-0 ${isOn ? 'bg-brand-500' : 'bg-dark-600'}`}>
+        <div className={`w-5 h-5 rounded-full bg-white transition-transform ${isOn ? 'translate-x-5' : ''}`} />
+      </div>
+    </button>
   );
 }

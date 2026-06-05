@@ -202,6 +202,38 @@ function PrivateCountdownOverlay({ countdown, onBuyTicket, ticketStatus }) {
   );
 }
 
+// Overlay compacto que muestra el siguiente gift goal pendiente del host.
+// Se posiciona arriba-izq del canvas, debajo del header. Si no hay goals
+// activos o todos están completados, no renderiza nada.
+function GoalsViewerOverlay({ goals }) {
+  const next = (goals || []).find(g => !g.completed);
+  if (!next) return null;
+  const pct = Math.min(100, ((next.current_count || 0) / next.target_count) * 100);
+  const emoji = ({ rose: '🌹', heart: '💖', diamond: '💎', crown: '👑' })[next.gift_type] || '🎁';
+  return (
+    <div className="absolute top-20 left-3 z-10 max-w-[200px]">
+      <div className="bg-black/70 backdrop-blur-md rounded-xl px-2.5 py-1.5 border border-pink-500/30">
+        <div className="flex items-center gap-1.5 text-[10px] font-bold mb-1">
+          <span aria-hidden="true">{emoji}</span>
+          <span className="text-white truncate">{next.reward_text || 'Goal'}</span>
+        </div>
+        <div className="flex items-center justify-between text-[9px] mb-1">
+          <span className="text-pink-300 font-bold tabular-nums">
+            {next.current_count || 0} / {next.target_count}
+          </span>
+          <span className="text-pink-400 font-bold">{pct.toFixed(0)}%</span>
+        </div>
+        <div className="h-1 bg-white/10 rounded-full overflow-hidden">
+          <div
+            className="h-full bg-gradient-to-r from-pink-500 to-yellow-400 transition-all"
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function LiveShow() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -227,6 +259,7 @@ export default function LiveShow() {
   const [hostFollowing, setHostFollowing] = useState(false);
   const [hostSubscribed, setHostSubscribed] = useState(false);
   const [showSubscribeSheet, setShowSubscribeSheet] = useState(false);
+  const [giftGoals, setGiftGoals] = useState([]);
   // Cuando el viewer es expulsado del room durante un privado/exclusivo, en
   // lugar de navegar a /shows lo mantenemos en este estado. Cuando recibimos
   // private_resumed lo rejoineamos automáticamente.
@@ -449,6 +482,7 @@ export default function LiveShow() {
 
       setShow(s);
       setViewerCount(s.viewer_count || 0);
+      if (Array.isArray(s.gift_goals)) setGiftGoals(s.gift_goals);
       setCoinBalance(balanceRes.data.coins || 0);
       setInterested(interestRes.data.interested);
       setInterestCount(interestRes.data.interest_count || 0);
@@ -600,6 +634,15 @@ export default function LiveShow() {
         // host vea el counter de compradores. Los viewers no necesitan saberlo.
         if (role === 'host') {
           toast(`💰 +1 viewer compró acceso (${payload.allowedCount} en total)`, { icon: '🎟' });
+        }
+      })
+      .on('broadcast', { event: 'gift_goal_progress' }, ({ payload }) => {
+        if (Array.isArray(payload?.goals)) setGiftGoals(payload.goals);
+      })
+      .on('broadcast', { event: 'gift_goal_reached' }, ({ payload }) => {
+        if (payload?.goal) {
+          toast.success(`🎉 ¡Goal logrado! ${payload.goal.reward_text || ''}`,
+            { duration: 6000 });
         }
       })
       .on('broadcast', { event: 'private_resumed' }, ({ payload }) => {
@@ -2429,6 +2472,9 @@ export default function LiveShow() {
               onEnded={() => setActiveBattleId(null)}
             />
           )}
+
+          {/* Goal de regalo activo — muestra el siguiente goal no completado */}
+          <GoalsViewerOverlay goals={giftGoals} />
 
           {/* Tile del oponente del battle — el viewer ve a ambos hosts */}
           {activeBattleId && (
