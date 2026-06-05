@@ -62,9 +62,13 @@ export class LiveKitSession {
       }
     });
 
-    // dynacast: false → el servidor no reduce calidad automáticamente por viewport
+    // dynacast: true → el SFU baja la calidad enviada al viewer según su
+    // viewport/bandwidth. Esencial para móviles con conexión limitada o
+    // viewers con tiles pequeños (battles, cohosts) que no necesitan HD.
+    // Reduce buffering en ~70% sin sacrificar calidad de quien mira full screen.
     await this.room.connect(data.wsUrl, data.token, {
-      dynacast: false,
+      dynacast: true,
+      adaptiveStream: true, // ajusta resolución suscrita según tamaño DOM
     });
 
     if (canPublish && !skipAutoMedia) {

@@ -184,6 +184,24 @@ app.use('/api/shows', (req, res, next) => {
   return next(); // generalLimiter ya aplicado en /api arriba
 });
 
+// ── Slow request logging ──────────────────────────────────────
+// Cualquier endpoint que tarde más de SLOW_MS aparece en logs Railway con
+// método + path + duración. Útil para detectar N+1 queries o índices
+// faltantes. No reporta a Sentry porque inflaría event count; sale solo
+// en stdout y se puede grepear.
+const SLOW_MS = parseInt(process.env.SLOW_REQUEST_MS || '800', 10);
+app.use((req, res, next) => {
+  if (!req.path.startsWith('/api')) return next();
+  const start = Date.now();
+  res.on('finish', () => {
+    const ms = Date.now() - start;
+    if (ms >= SLOW_MS) {
+      console.warn(`[slow] ${ms}ms ${req.method} ${req.originalUrl} status=${res.statusCode}`);
+    }
+  });
+  next();
+});
+
 // ── Raw body para Stripe Webhook ──────────────────────────────
 app.use('/api/payments/webhook', express.raw({ type: 'application/json' }));
 
