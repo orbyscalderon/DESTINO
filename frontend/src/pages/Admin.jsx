@@ -1,14 +1,19 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, lazy, Suspense } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   FiUsers, FiHeart, FiMessageCircle, FiDollarSign, FiShield, FiStar,
   FiTrash2, FiVideo, FiZap, FiSearch, FiExternalLink, FiRadio, FiGrid,
   FiCheck, FiX, FiCreditCard, FiImage, FiBell, FiPlus, FiMinus, FiFlag,
-  FiAlertCircle, FiRefreshCw, FiTrendingUp,
+  FiAlertCircle, FiRefreshCw, FiTrendingUp, FiDownload, FiFileText,
 } from 'react-icons/fi';
 import api from '../lib/api.js';
 import toast from 'react-hot-toast';
 import { SHOW_CATEGORIES } from './LiveShows.jsx';
+import AdminGlobalSearch from '../components/ui/AdminGlobalSearch.jsx';
+import AdminAuditLog from '../components/ui/AdminAuditLog.jsx';
+
+// Recharts es pesado — lazy load solo cuando el admin entra al tab Revenue
+const AdminRevenueChart = lazy(() => import('../components/ui/AdminRevenueChart.jsx'));
 
 const TABS = [
   { key: 'overview',       label: 'Resumen',    icon: FiGrid },
@@ -22,6 +27,7 @@ const TABS = [
   { key: 'reports',        label: 'Reportes',   icon: FiFlag },
   { key: 'dmca',           label: 'DMCA',       icon: FiShield },
   { key: 'appeals',        label: 'Apelaciones', icon: FiMessageCircle },
+  { key: 'audit',          label: 'Audit',       icon: FiFileText },
 ];
 
 const REVENUE_CATS = [
@@ -356,6 +362,11 @@ export default function Admin() {
         </button>
       </div>
 
+      {/* Búsqueda global Cmd+K */}
+      <div className="mb-4">
+        <AdminGlobalSearch />
+      </div>
+
       {/* Tabs — scroll horizontal en mobile (11 tabs no caben en 1 row angosta) */}
       <div className="bg-dark-800 p-1 rounded-2xl mb-6 border border-white/5 overflow-x-auto scrollbar-hide">
         <div className="flex gap-1 min-w-fit">
@@ -532,6 +543,11 @@ export default function Admin() {
 
           {platformRevenue && (
             <>
+              {/* Gráfico de revenue diario — lazy load del chunk recharts */}
+              <Suspense fallback={<div className="card h-64 animate-pulse" />}>
+                <AdminRevenueChart days={Math.min(revenueDays, 90)} />
+              </Suspense>
+
               {/* Totales */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="card p-5 bg-gradient-to-br from-green-500/15 to-emerald-500/5 border-green-500/30">
@@ -648,64 +664,48 @@ export default function Admin() {
       {/* ── USUARIOS ── */}
       {tab === 'users' && (
         <div className="space-y-3">
-          <div className="relative">
-            <FiSearch size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
-            <input
-              className="input-field pl-9 py-2 text-sm w-full"
-              placeholder="Buscar por nombre o username..."
-              value={search}
-              onChange={e => { setSearch(e.target.value); setUsersPage(0); }}
-            />
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <FiSearch size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+              <input
+                className="input-field pl-9 py-2 text-sm w-full"
+                placeholder="Buscar por nombre o username..."
+                value={search}
+                onChange={e => { setSearch(e.target.value); setUsersPage(0); }}
+              />
+            </div>
+            <ExportCsvButton dataset="users" label="Users" />
           </div>
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-2">
             <p className="text-xs text-gray-600">{filteredUsers.length} usuario{filteredUsers.length !== 1 ? 's' : ''}</p>
             {selectedUsers.size > 0 && (
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-brand-400 font-semibold">{selectedUsers.size} seleccionados</span>
-                <button
-                  disabled={bulkLoading}
-                  onClick={async () => {
-                    setBulkLoading(true);
-                    await Promise.all([...selectedUsers].map(id => api.patch('/api/admin/users/tier', { userId: id, tier: 'premium' }).catch(() => {})));
-                    setUsers(p => p.map(u => selectedUsers.has(u.id) ? { ...u, is_premium: true, premium_tier: 'premium' } : u));
+              <BulkActionsToolbar
+                count={selectedUsers.size}
+                disabled={bulkLoading}
+                onAction={async (action) => {
+                  if (action === 'delete' && !confirm(`¿Eliminar ${selectedUsers.size} usuarios? Esta acción es irreversible.`)) return;
+                  setBulkLoading(true);
+                  try {
+                    const { data } = await api.post('/api/admin/users/bulk', {
+                      user_ids: [...selectedUsers],
+                      action,
+                    });
+                    toast.success(`${data.ok} ok · ${data.failed} fallidos`);
+                    // Refrescar lista local
+                    if (action === 'verify')   setUsers(p => p.map(u => selectedUsers.has(u.id) ? { ...u, is_verified: true } : u));
+                    if (action === 'unverify') setUsers(p => p.map(u => selectedUsers.has(u.id) ? { ...u, is_verified: false } : u));
+                    if (action === 'creator')  setUsers(p => p.map(u => selectedUsers.has(u.id) ? { ...u, is_creator: true } : u));
+                    if (action === 'uncreator')setUsers(p => p.map(u => selectedUsers.has(u.id) ? { ...u, is_creator: false } : u));
+                    if (action === 'delete')   setUsers(p => p.filter(u => !selectedUsers.has(u.id)));
                     setSelectedUsers(new Set());
+                  } catch (err) {
+                    toast.error(err.response?.data?.error || 'Error en bulk action');
+                  } finally {
                     setBulkLoading(false);
-                    toast.success('Premium aplicado');
-                  }}
-                  className="text-xs px-2.5 py-1 rounded-lg bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30 font-medium transition-colors disabled:opacity-50"
-                >
-                  ⚡ Premium
-                </button>
-                <button
-                  disabled={bulkLoading}
-                  onClick={async () => {
-                    setBulkLoading(true);
-                    await Promise.all([...selectedUsers].map(id => api.patch('/api/admin/users/tier', { userId: id, tier: 'vip' }).catch(() => {})));
-                    setUsers(p => p.map(u => selectedUsers.has(u.id) ? { ...u, is_premium: true, premium_tier: 'vip' } : u));
-                    setSelectedUsers(new Set());
-                    setBulkLoading(false);
-                    toast.success('VIP aplicado');
-                  }}
-                  className="text-xs px-2.5 py-1 rounded-lg bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30 font-medium transition-colors disabled:opacity-50"
-                >
-                  👑 VIP
-                </button>
-                <button
-                  disabled={bulkLoading}
-                  onClick={async () => {
-                    setBulkLoading(true);
-                    await Promise.all([...selectedUsers].map(id => api.patch('/api/admin/users/verified', { userId: id, isVerified: true }).catch(() => {})));
-                    setUsers(p => p.map(u => selectedUsers.has(u.id) ? { ...u, is_verified: true } : u));
-                    setSelectedUsers(new Set());
-                    setBulkLoading(false);
-                    toast.success('Verificación aplicada');
-                  }}
-                  className="text-xs px-2.5 py-1 rounded-lg bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 font-medium transition-colors disabled:opacity-50"
-                >
-                  ✓ Verificar
-                </button>
-                <button onClick={() => setSelectedUsers(new Set())} className="text-xs text-gray-500 hover:text-white">✕</button>
-              </div>
+                  }
+                }}
+                onClear={() => setSelectedUsers(new Set())}
+              />
             )}
           </div>
 
@@ -1027,7 +1027,10 @@ export default function Admin() {
       {/* ── RETIROS ── */}
       {tab === 'withdrawals' && (
         <div className="space-y-2">
-          <p className="text-xs text-gray-600 mb-3">{withdrawalRequests.length} solicitud{withdrawalRequests.length !== 1 ? 'es' : ''}</p>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs text-gray-600">{withdrawalRequests.length} solicitud{withdrawalRequests.length !== 1 ? 'es' : ''}</p>
+            <ExportCsvButton dataset="withdrawals" label="Retiros" />
+          </div>
           {withdrawalRequests.length === 0 && (
             <div className="text-center py-16 text-gray-600">
               <FiCreditCard size={36} className="mx-auto mb-3" />
@@ -1437,6 +1440,90 @@ export default function Admin() {
           ))}
         </div>
       )}
+
+      {/* ── AUDIT LOG ── */}
+      {tab === 'audit' && <AdminAuditLog />}
+    </div>
+  );
+}
+
+// Botón export CSV — descarga directa, hace request blob y triggera <a> download.
+// Reutilizable en cualquier listado: dataset es 'users' | 'withdrawals' | 'audit_log' | 'transactions'.
+function ExportCsvButton({ dataset, label }) {
+  const [busy, setBusy] = useState(false);
+  const handleExport = async () => {
+    setBusy(true);
+    try {
+      const res = await api.get(`/api/admin/export/${dataset}`, { responseType: 'blob' });
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${dataset}_${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error('Error exportando');
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <button
+      onClick={handleExport}
+      disabled={busy}
+      className="bg-dark-800 hover:bg-dark-700 text-gray-300 px-3 py-2 rounded-lg flex items-center gap-1.5 text-xs disabled:opacity-50 shrink-0"
+      aria-label={`Exportar ${label} CSV`}
+    >
+      <FiDownload size={12} /> {busy ? 'Exportando…' : label}
+    </button>
+  );
+}
+
+// Toolbar de acciones en masa sobre users seleccionados.
+// Pasa una sola request al backend en lugar de N requests paralelas.
+function BulkActionsToolbar({ count, disabled, onAction, onClear }) {
+  return (
+    <div className="flex items-center gap-1.5 flex-wrap">
+      <span className="text-xs text-brand-400 font-semibold mr-1">
+        {count} seleccionado{count !== 1 ? 's' : ''}
+      </span>
+      <button
+        disabled={disabled}
+        onClick={() => onAction('verify')}
+        className="text-xs px-2.5 py-1 rounded-lg bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 font-medium transition-colors disabled:opacity-50"
+      >
+        ✓ Verificar
+      </button>
+      <button
+        disabled={disabled}
+        onClick={() => onAction('unverify')}
+        className="text-xs px-2.5 py-1 rounded-lg bg-dark-700 text-gray-400 hover:text-white font-medium transition-colors disabled:opacity-50"
+      >
+        ✕ Quitar verif
+      </button>
+      <button
+        disabled={disabled}
+        onClick={() => onAction('creator')}
+        className="text-xs px-2.5 py-1 rounded-lg bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 font-medium transition-colors disabled:opacity-50"
+      >
+        🎥 Creador
+      </button>
+      <button
+        disabled={disabled}
+        onClick={() => onAction('delete')}
+        className="text-xs px-2.5 py-1 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 font-medium transition-colors disabled:opacity-50"
+      >
+        🚫 Banear
+      </button>
+      <button
+        onClick={onClear}
+        className="text-xs text-gray-500 hover:text-white px-1"
+        aria-label="Limpiar selección"
+      >
+        ✕
+      </button>
     </div>
   );
 }

@@ -14,6 +14,10 @@ import {
 } from '../controllers/adminController.js';
 import { listDMCA, processDMCA } from '../controllers/dmcaController.js';
 import { listTicketsAdmin, respondTicketAdmin } from '../controllers/supportController.js';
+import {
+  globalSearch, revenueDaily, getAuditLog, exportDataset,
+  getUsersFiltered, bulkUserAction,
+} from '../controllers/adminExtraController.js';
 
 const router = Router();
 router.use(authMiddleware);
@@ -52,5 +56,13 @@ router.patch('/dmca/:id',           processDMCA);
 
 router.get('/support',              listTicketsAdmin);
 router.patch('/support/:id',        respondTicketAdmin);
+
+// Búsqueda global, revenue diario, audit log, export CSV, filtros y bulk
+router.get('/search',           globalSearch);
+router.get('/revenue-daily',    revenueDaily);
+router.get('/audit-log',        getAuditLog);
+router.get('/export/:dataset',  exportDataset);
+router.get('/users-filtered',   getUsersFiltered);
+router.post('/users/bulk',      bulkUserAction);
 
 export default router;

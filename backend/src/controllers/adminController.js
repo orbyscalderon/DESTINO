@@ -3,6 +3,7 @@ import { decryptField } from '../lib/encrypt.js';
 import { sendBroadcastNotification } from './notificationController.js';
 import { sendWithdrawalStatusEmail } from '../lib/emailService.js';
 import { COIN_VALUE_USD, PLATFORM_FEE_RATE } from './coinController.js';
+import { logAdmin } from '../lib/auditLog.js';
 
 // GET /api/admin/platform-revenue?days=30 — ingresos de la plataforma (el 30%)
 // Solo accesible para admin. Suma TODAS las fuentes y devuelve:
@@ -286,6 +287,7 @@ export const setUserPremium = async (req, res) => {
     const { error } = await supabase.from('profiles')
       .update({ is_premium: isPremium, premium_tier: tier }).eq('id', userId);
     if (error) throw error;
+    logAdmin(req, 'user.set_premium', { type: 'user', id: userId }, { is_premium: isPremium });
     res.json({ message: `Premium ${isPremium ? 'activado' : 'desactivado'}` });
   } catch (err) {
     console.error('setUserPremium error:', err?.message || err);
@@ -304,6 +306,7 @@ export const setUserTier = async (req, res) => {
     const { error } = await supabase.from('profiles')
       .update({ premium_tier: tier, is_premium: isPremium }).eq('id', userId);
     if (error) throw error;
+    logAdmin(req, 'user.set_tier', { type: 'user', id: userId }, { tier });
     res.json({ message: `Tier actualizado a ${tier}` });
   } catch (err) {
     console.error('setUserTier error:', err?.message || err);
@@ -318,6 +321,7 @@ export const setUserVerified = async (req, res) => {
     if (!userId || typeof isVerified !== 'boolean') return res.status(400).json({ error: 'Parámetros inválidos' });
     const { error } = await supabase.from('profiles').update({ is_verified: isVerified }).eq('id', userId);
     if (error) throw error;
+    logAdmin(req, 'user.set_verified', { type: 'user', id: userId }, { is_verified: isVerified });
     res.json({ message: `Verificado ${isVerified ? 'activado' : 'desactivado'}` });
   } catch (err) {
     console.error('setUserVerified error:', err?.message || err);
@@ -338,6 +342,7 @@ export const setUserCreator = async (req, res) => {
         { onConflict: 'creator_id', ignoreDuplicates: true }
       );
     }
+    logAdmin(req, 'user.set_creator', { type: 'user', id: userId }, { is_creator: isCreator });
     res.json({ message: `Creador ${isCreator ? 'activado' : 'desactivado'}` });
   } catch (err) {
     console.error('setUserCreator error:', err?.message || err);
@@ -352,6 +357,7 @@ export const setUserAdult = async (req, res) => {
     if (!userId || typeof isAdult !== 'boolean') return res.status(400).json({ error: 'Parámetros inválidos' });
     const { error } = await supabase.from('profiles').update({ is_adult_creator: isAdult }).eq('id', userId);
     if (error) throw error;
+    logAdmin(req, 'user.set_adult', { type: 'user', id: userId }, { is_adult: isAdult });
     res.json({ message: `Adulto ${isAdult ? 'activado' : 'desactivado'}` });
   } catch (err) {
     console.error('setUserAdult error:', err?.message || err);
@@ -367,6 +373,7 @@ export const deleteUser = async (req, res) => {
     if (userId === req.user.id) return res.status(400).json({ error: 'No puedes eliminarte a ti mismo' });
     const { error } = await supabase.auth.admin.deleteUser(userId);
     if (error) throw error;
+    logAdmin(req, 'user.delete', { type: 'user', id: userId });
     res.json({ message: 'Usuario eliminado' });
   } catch (err) {
     res.status(500).json({ error: 'Error interno del servidor' });
@@ -446,6 +453,12 @@ export const processWithdrawal = async (req, res) => {
         if (email) sendWithdrawalStatusEmail(email, name, parseFloat(request.amount_usd), status).catch(() => {});
       }).catch(() => {});
     }
+
+    logAdmin(req, `withdrawal.${status}`, { type: 'withdrawal', id }, {
+      amount_usd: parseFloat(request.amount_usd),
+      creator_id: request.creator_id,
+      notes: notes || null,
+    });
 
     res.json({ withdrawal: updated });
   } catch {
@@ -549,6 +562,10 @@ export const adjustUserCoins = async (req, res) => {
       description: reason || (delta > 0 ? 'Ajuste admin (+)' : 'Ajuste admin (-)'),
     }).catch(() => {});
 
+    logAdmin(req, 'user.adjust_coins', { type: 'user', id: userId }, {
+      delta, new_balance: newBalance, reason: reason || null,
+    });
+
     res.json({ new_balance: newBalance });
   } catch (err) {
     res.status(500).json({ error: 'Error interno del servidor' });
@@ -563,6 +580,7 @@ export const endShow = async (req, res) => {
       .update({ status: 'ended', ended_at: new Date().toISOString() })
       .eq('id', id);
     if (error) throw error;
+    logAdmin(req, 'show.force_end', { type: 'show', id });
     res.json({ message: 'Show terminado' });
   } catch (err) {
     res.status(500).json({ error: 'Error interno del servidor' });
@@ -577,6 +595,9 @@ export const broadcastNotification = async (req, res) => {
       return res.status(400).json({ error: 'title y body requeridos' });
     }
     const result = await sendBroadcastNotification(title.trim(), body.trim());
+    logAdmin(req, 'notification.broadcast', null, {
+      title: title.trim(), sent: result?.sent, total: result?.total,
+    });
     res.json(result);
   } catch (err) {
     res.status(500).json({ error: 'Error interno del servidor' });
@@ -627,7 +648,12 @@ export const processReport = async (req, res) => {
 
     if (banUser && status === 'reviewed') {
       await supabase.auth.admin.deleteUser(report.reported_id);
+      logAdmin(req, 'user.ban_from_report', { type: 'user', id: report.reported_id }, { report_id: id });
     }
+
+    logAdmin(req, `report.${status}`, { type: 'report', id }, {
+      reported_id: report.reported_id, banned: !!banUser,
+    });
 
     res.json({ message: status === 'reviewed' ? 'Reporte revisado' : 'Reporte descartado' });
   } catch (err) {
@@ -661,6 +687,10 @@ export const processVerification = async (req, res) => {
     if (status === 'approved') {
       await supabase.from('profiles').update({ is_verified: true }).eq('id', verif.user_id);
     }
+
+    logAdmin(req, `verification.${status}`, { type: 'verification', id }, {
+      user_id: verif.user_id, notes: notes || null,
+    });
 
     // Notificar al user del resultado por email (respeta prefs)
     if (status === 'approved' || status === 'rejected') {
