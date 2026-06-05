@@ -9,8 +9,9 @@ import pt from '../locales/pt.json';
 // Bootstrap de i18n. Por defecto detecta idioma del browser; si el user
 // elige uno en Settings se guarda en localStorage y persiste.
 //
-// Cobertura actual: strings de auth (login/register), nav, header viewer.
-// El resto del UI sigue en español hasta que se haga un sweep completo.
+// Namespaces disponibles: common, auth, nav, home, reels, studio, live,
+// viewer, dashboard, settings, stories, errors. Patrón de uso en
+// frontend/I18N.md.
 i18n
   .use(LanguageDetector)
   .use(initReactI18next)
