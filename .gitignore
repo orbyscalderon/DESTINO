@@ -11,3 +11,5 @@ Thumbs.db
 # Playwright MCP test artifacts
 .playwright-mcp/
 mobile-*.png
+frontend/test-results/
+frontend/playwright-report/

@@ -9,7 +9,11 @@
     "preview": "vite preview",
     "build:mobile": "vite build && npx cap sync",
     "cap:android": "npx cap open android",
-    "cap:ios": "npx cap open ios"
+    "cap:ios": "npx cap open ios",
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:ui": "playwright test --ui",
+    "test:local": "PLAYWRIGHT_BASE_URL=http://localhost:5173 playwright test"
   },
   "dependencies": {
     "@capacitor-community/admob": "^7.2.0",
@@ -45,6 +49,7 @@
     "zustand": "^4.4.7"
   },
   "devDependencies": {
+    "@playwright/test": "^1.60.0",
     "@sentry/vite-plugin": "^3.6.1",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
