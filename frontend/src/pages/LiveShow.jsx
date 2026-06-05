@@ -22,6 +22,7 @@ import { supabase } from '../lib/supabase.js';
 import { LiveKitSession } from '../lib/livekitSession.js';
 import api from '../lib/api.js';
 import toast from 'react-hot-toast';
+import { useTranslation } from 'react-i18next';
 import PaymentModal from '../components/ui/PaymentModal.jsx';
 import TierPicker from '../components/ui/TierPicker.jsx';
 
@@ -235,6 +236,7 @@ function GoalsViewerOverlay({ goals }) {
 }
 
 export default function LiveShow() {
+  const { t } = useTranslation();
   const { id } = useParams();
   const navigate = useNavigate();
   const { user, profile: authProfile } = useAuthStore();
@@ -2638,7 +2640,7 @@ export default function LiveShow() {
                   }}
                   className="bg-brand-500 hover:bg-brand-600 text-white text-[10px] font-black px-2.5 py-1 rounded-full shrink-0 transition-colors"
                 >
-                  + Seguir
+                  + {t('live.follow')}
                 </button>
               )}
               {/* Suscribirse — visible si es creator y no estoy suscrito */}
@@ -2646,9 +2648,9 @@ export default function LiveShow() {
                 <button
                   onClick={() => setShowSubscribeSheet(true)}
                   className="bg-gradient-to-r from-yellow-500 to-amber-600 hover:brightness-110 text-white text-[10px] font-black px-2.5 py-1 rounded-full shrink-0 transition-all"
-                  aria-label="Suscribirse al creador"
+                  aria-label={t('live.subscribe_vip')}
                 >
-                  ⭐ VIP
+                  {t('live.subscribe_vip')}
                 </button>
               )}
             </div>
@@ -2722,7 +2724,7 @@ export default function LiveShow() {
               <motion.div initial={{ opacity: 0, x: 60 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 60 }}
                 className="absolute top-16 right-3 bg-dark-800/90 backdrop-blur-md rounded-2xl p-3 z-20 border border-white/10 w-44"
               >
-                <p className="text-white text-[11px] font-bold mb-2 flex items-center gap-1"><FiAward size={11} className="text-yellow-400" /> Top Propinas</p>
+                <p className="text-white text-[11px] font-bold mb-2 flex items-center gap-1"><FiAward size={11} className="text-yellow-400" /> {t('live.leaderboard')}</p>
                 {tippers.slice(0, 3).map((t, i) => (
                   <div key={t.id} className="flex items-center gap-2 mb-1.5">
                     <span className="text-[10px] font-black" style={{ color: i === 0 ? '#FFD700' : i === 1 ? '#C0C0C0' : '#CD7F32' }}>#{i+1}</span>
@@ -2825,7 +2827,7 @@ export default function LiveShow() {
                 className="absolute bottom-[80px] left-3 z-40 w-72 bg-dark-800 rounded-2xl border border-white/10 shadow-2xl overflow-hidden"
               >
                 <div className="flex items-center justify-between px-3 py-2.5 border-b border-white/5">
-                  <span className="text-white font-bold text-sm flex items-center gap-1.5"><FiZap size={13} className="text-yellow-400" /> Propina</span>
+                  <span className="text-white font-bold text-sm flex items-center gap-1.5"><FiZap size={13} className="text-yellow-400" /> {t('live.tip')}</span>
                   <button onClick={() => setShowTips(false)} className="text-gray-500 hover:text-white"><FiX size={14} /></button>
                 </div>
                 <div className="p-3">
@@ -2993,10 +2995,10 @@ export default function LiveShow() {
           {/* Propina — texto solo en sm+, icono-only en mobile para no romper layout */}
           <button onClick={() => { setShowTips(v => !v); setShowChat(false); setShowGifts(false); }}
             className={`flex items-center gap-1.5 h-10 rounded-full font-bold text-sm transition-colors shrink-0 px-2.5 sm:px-3 ${showTips ? 'bg-yellow-500 text-black' : 'bg-dark-700 hover:bg-yellow-500/20 text-yellow-400'}`}
-            aria-label="Enviar propina"
+            aria-label={t('live.tip')}
           >
             <FiZap size={15} />
-            <span className="text-xs hidden sm:inline">Propina</span>
+            <span className="text-xs hidden sm:inline">{t('live.tip')}</span>
           </button>
 
           {/* Regalos */}

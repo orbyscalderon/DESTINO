@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { FiArrowLeft, FiPlus, FiInbox, FiHash, FiX } from 'react-icons/fi';
+import { useTranslation } from 'react-i18next';
 import ReelCard from '../components/ui/ReelCard.jsx';
 import ReelComments from '../components/ui/ReelComments.jsx';
 import api from '../lib/api.js';
@@ -10,6 +11,7 @@ import toast from 'react-hot-toast';
 // Cada card es un reel; el activo se reproduce, el resto pausan.
 // Carga infinita cuando se acerca al final.
 export default function Reels() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const initialReelId = searchParams.get('id'); // deep link a un reel específico
@@ -70,7 +72,7 @@ export default function Reels() {
       .catch(err => {
         if (cancel) return;
         if (err?.response?.status !== 401) {
-          toast.error('No se pudo cargar el feed');
+          toast.error(t('reels.no_reels'));
         }
       })
       .finally(() => { if (!cancel) setLoading(false); });
@@ -149,14 +151,14 @@ export default function Reels() {
       <div className="h-screen [@supports(height:100dvh)]:h-[100dvh] w-full bg-black flex flex-col items-center justify-center px-6 text-center text-white">
         <FiInbox size={48} className="text-gray-600 mb-3" />
         <h2 className="text-xl font-bold mb-1">
-          {isFollowing ? 'Sin reels de tus seguidos' : hashtagFilter ? 'Sin reels con ese tag' : 'Sin reels aún'}
+          {isFollowing ? t('reels.no_reels_following') : hashtagFilter ? t('reels.no_reels_tag') : t('reels.no_reels_yet')}
         </h2>
         <p className="text-gray-400 text-sm mb-6 max-w-xs">
           {isFollowing
-            ? 'Sigue creadores para ver sus reels aquí.'
+            ? t('reels.follow_hint')
             : hashtagFilter
-              ? `Nadie ha publicado con #${hashtagFilter} aún. Sé el primero.`
-              : 'Sé el primero en publicar. Sube un video corto vertical y atrae fans.'}
+              ? t('reels.no_reels_tag_hint', { tag: hashtagFilter })
+              : t('reels.be_first_hint')}
         </p>
         <div className="flex gap-2">
           {isFollowing ? (
@@ -164,21 +166,21 @@ export default function Reels() {
               onClick={() => setTab('foryou')}
               className="bg-gradient-to-r from-brand-500 to-pink-500 text-white font-bold px-5 py-2.5 rounded-xl"
             >
-              Ver Para ti
+              {t('reels.view_for_you')}
             </button>
           ) : (
             <button
               onClick={() => navigate('/reels/new')}
               className="bg-gradient-to-r from-brand-500 to-pink-500 text-white font-bold px-5 py-2.5 rounded-xl flex items-center gap-2"
             >
-              <FiPlus size={16} /> Subir reel
+              <FiPlus size={16} /> {t('reels.upload_reel')}
             </button>
           )}
           <button
             onClick={() => navigate(-1)}
             className="bg-dark-700 text-gray-300 font-medium px-5 py-2.5 rounded-xl"
           >
-            Volver
+            {t('reels.back')}
           </button>
         </div>
       </div>
@@ -191,7 +193,7 @@ export default function Reels() {
       <div className="absolute top-0 left-0 right-0 z-20 px-4 py-3 flex items-center justify-between bg-gradient-to-b from-black/60 to-transparent">
         <button
           onClick={() => navigate(-1)}
-          aria-label="Volver"
+          aria-label={t('reels.back')}
           className="w-10 h-10 bg-black/40 backdrop-blur-md rounded-full flex items-center justify-center text-white"
         >
           <FiArrowLeft size={18} />
@@ -213,7 +215,7 @@ export default function Reels() {
               onClick={() => setTab('following')}
               className={`relative font-bold text-sm transition-opacity ${tab === 'following' ? 'opacity-100' : 'opacity-60'}`}
             >
-              Siguiendo
+              {t('reels.following')}
               {tab === 'following' && (
                 <span className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-1 h-1 bg-white rounded-full" />
               )}
@@ -223,7 +225,7 @@ export default function Reels() {
               onClick={() => setTab('foryou')}
               className={`relative font-bold text-sm transition-opacity ${tab === 'foryou' ? 'opacity-100' : 'opacity-60'}`}
             >
-              Para ti
+              {t('reels.for_you')}
               {tab === 'foryou' && (
                 <span className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-1 h-1 bg-white rounded-full" />
               )}
@@ -232,7 +234,7 @@ export default function Reels() {
         )}
         <button
           onClick={() => navigate('/reels/new')}
-          aria-label="Subir reel"
+          aria-label={t('reels.upload_reel')}
           className="w-10 h-10 bg-brand-500 rounded-full flex items-center justify-center text-white"
         >
           <FiPlus size={18} />

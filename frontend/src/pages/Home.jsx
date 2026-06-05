@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiPlus, FiHeart, FiMessageCircle, FiImage, FiX, FiLock, FiTrash2, FiCompass, FiUserPlus, FiUserCheck } from 'react-icons/fi';
+import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../store/authStore.js';
 import { compressImage } from '../lib/imageCompressor.js';
 import api from '../lib/api.js';
@@ -13,6 +14,7 @@ import { useSwipeNavigation } from '../lib/useSwipeNavigation.js';
 import toast from 'react-hot-toast';
 
 function PostCard({ post, onLike, onComment, onDelete, currentUserId }) {
+  const { t } = useTranslation();
   const [showComments, setShowComments] = useState(false);
   const [comments, setComments] = useState([]);
   const [commentText, setCommentText] = useState('');
@@ -80,13 +82,13 @@ function PostCard({ post, onLike, onComment, onDelete, currentUserId }) {
           <p className="text-gray-600 text-xs flex items-center gap-2">
             {new Date(post.created_at).toLocaleDateString('es', { day: '2-digit', month: 'short' })}
             {post.status === 'pending_review' && (
-              <span className="text-yellow-500/70 text-[10px]">En revisión</span>
+              <span className="text-yellow-500/70 text-[10px]">{t('home.in_review')}</span>
             )}
           </p>
         </div>
         {post.is_subscribers_only && (
           <span className="text-xs bg-purple-500/20 text-purple-400 px-2 py-0.5 rounded-full flex items-center gap-1">
-            <FiLock size={9} /> Suscriptores
+            <FiLock size={9} /> {t('home.subscribers_only')}
           </span>
         )}
         {currentUserId !== post.author?.id && (
@@ -100,7 +102,7 @@ function PostCard({ post, onLike, onComment, onDelete, currentUserId }) {
             }`}
           >
             {following ? <FiUserCheck size={11} /> : <FiUserPlus size={11} />}
-            {following ? 'Siguiendo' : 'Seguir'}
+            {following ? t('home.following') : t('home.follow')}
           </button>
         )}
         {currentUserId === post.author?.id && onDelete && (
@@ -116,9 +118,9 @@ function PostCard({ post, onLike, onComment, onDelete, currentUserId }) {
       {post.locked ? (
         <div className="bg-dark-700 h-48 flex flex-col items-center justify-center gap-2">
           <FiLock className="text-gray-500" size={28} />
-          <p className="text-gray-500 text-sm">Solo para suscriptores</p>
+          <p className="text-gray-500 text-sm">{t('home.locked_for_subs')}</p>
           <Link to={`/profile/${post.author?.id}`} className="btn-primary text-xs px-4 py-1.5">
-            Suscribirse
+            {t('home.subscribe')}
           </Link>
         </div>
       ) : post.blurred ? (
@@ -127,8 +129,8 @@ function PostCard({ post, onLike, onComment, onDelete, currentUserId }) {
             <img src={post.media_url} alt="" className="w-full h-full object-cover blur-xl scale-110 opacity-50" />
           )}
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
-            <p className="text-gray-300 text-sm font-medium">Contenido adulto</p>
-            <Link to={`/profile/${post.author?.id}`} className="text-brand-400 text-xs">Ver perfil</Link>
+            <p className="text-gray-300 text-sm font-medium">{t('home.adult_content')}</p>
+            <Link to={`/profile/${post.author?.id}`} className="text-brand-400 text-xs">{t('home.view_profile')}</Link>
           </div>
         </div>
       ) : post.media_url ? (
@@ -172,7 +174,7 @@ function PostCard({ post, onLike, onComment, onDelete, currentUserId }) {
                   <div className="w-4 h-4 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
                 </div>
               ) : comments.length === 0 ? (
-                <p className="text-gray-600 text-xs text-center py-2">Sin comentarios aún</p>
+                <p className="text-gray-600 text-xs text-center py-2">{t('home.no_comments')}</p>
               ) : comments.map(c => (
                 <div key={c.id} className="flex items-start gap-2">
                   <img
@@ -189,13 +191,13 @@ function PostCard({ post, onLike, onComment, onDelete, currentUserId }) {
             <div className="flex items-center gap-2 px-3 pb-3">
               <input
                 className="input-field text-xs py-1.5 flex-1"
-                placeholder="Comentar..."
+                placeholder={t('home.comment_placeholder')}
                 value={commentText}
                 onChange={e => setCommentText(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleAddComment()}
               />
               <button onClick={handleAddComment} className="text-brand-400 hover:text-brand-300 text-sm">
-                Enviar
+                {t('common.send')}
               </button>
             </div>
           </motion.div>
@@ -206,6 +208,7 @@ function PostCard({ post, onLike, onComment, onDelete, currentUserId }) {
 }
 
 export default function Home() {
+  const { t } = useTranslation();
   const { user, profile } = useAuthStore();
   const confirm = useConfirm();
 
@@ -348,7 +351,7 @@ export default function Home() {
         <button
           onClick={() => setShowCreateModal(true)}
           className="w-9 h-9 bg-brand-500 rounded-xl flex items-center justify-center hover:bg-brand-600 transition-colors"
-          title="Publicar"
+          title={t('home.publish')}
         >
           <FiPlus className="text-white" size={18} />
         </button>
@@ -367,8 +370,8 @@ export default function Home() {
             <FiCompass size={16} className="text-brand-400" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-white text-sm font-semibold">Descubrir personas</p>
-            <p className="text-gray-500 text-xs">Explora perfiles y encuentra tu conexión</p>
+            <p className="text-white text-sm font-semibold">{t('home.discover_people')}</p>
+            <p className="text-gray-500 text-xs">{t('home.discover_hint')}</p>
           </div>
           <span className="text-gray-600 group-hover:text-brand-400 transition-colors text-sm">→</span>
         </Link>
@@ -383,10 +386,10 @@ export default function Home() {
             className="text-center py-16"
           >
             <FiImage className="text-gray-700 mx-auto mb-3" size={40} />
-            <p className="text-gray-500 mb-1">El feed está vacío</p>
-            <p className="text-gray-600 text-sm mb-4">Sé el primero en publicar algo</p>
+            <p className="text-gray-500 mb-1">{t('home.feed_empty')}</p>
+            <p className="text-gray-600 text-sm mb-4">{t('home.be_first')}</p>
             <button onClick={() => setShowCreateModal(true)} className="btn-primary text-sm">
-              Publicar algo
+              {t('home.publish_something')}
             </button>
           </motion.div>
         ) : (
@@ -419,7 +422,7 @@ export default function Home() {
               className="card p-5 w-full max-w-lg"
             >
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-bold text-white">Nueva publicación</h3>
+                <h3 className="text-lg font-bold text-white">{t('home.new_post')}</h3>
                 <button onClick={() => { setShowCreateModal(false); setMediaPreview(null); setMediaFile(null); }}>
                   <FiX className="text-gray-400" size={20} />
                 </button>
@@ -428,7 +431,7 @@ export default function Home() {
               <textarea
                 className="input-field resize-none w-full mb-3"
                 rows={3}
-                placeholder="¿Qué quieres compartir?"
+                placeholder={t('home.share_placeholder')}
                 value={newPost.caption}
                 onChange={e => setNewPost(p => ({ ...p, caption: e.target.value }))}
               />
@@ -454,7 +457,7 @@ export default function Home() {
                     onClick={() => setNewPost(p => ({ ...p, is_subscribers_only: !p.is_subscribers_only }))}
                     className={`text-xs px-2 py-1 rounded-lg flex items-center gap-1 transition-colors ${newPost.is_subscribers_only ? 'bg-purple-500/20 text-purple-400' : 'bg-dark-700 text-gray-500'}`}
                   >
-                    <FiLock size={10} /> Solo suscriptores
+                    <FiLock size={10} /> {t('home.subscribers_only')}
                   </button>
                 )}
                 {profile?.is_adult_creator && (
@@ -474,12 +477,12 @@ export default function Home() {
                   onClick={() => { setShowCreateModal(false); setMediaPreview(null); setMediaFile(null); }}
                   className="btn-secondary flex-1"
                 >
-                  Cancelar
+                  {t('common.cancel')}
                 </button>
                 <button onClick={handleCreatePost} disabled={creating} className="btn-primary flex-1">
                   {creating ? (
                     <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mx-auto" />
-                  ) : 'Publicar'}
+                  ) : t('home.publish')}
                 </button>
               </div>
             </motion.div>

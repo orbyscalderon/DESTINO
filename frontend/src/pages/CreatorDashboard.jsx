@@ -9,6 +9,7 @@ import {
   FiCreditCard, FiArrowDown, FiPlay, FiTrash2, FiSend, FiGift,
   FiRadio, FiLogOut, FiLock,
 } from 'react-icons/fi';
+import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../store/authStore.js';
 import api from '../lib/api.js';
 import toast from 'react-hot-toast';
@@ -128,21 +129,24 @@ function BarChart({ data }) {
   );
 }
 
-/* ── Nav items ───────────────────────────────────────────── */
+/* ── Nav items ─────────────────────────────────────────────
+   labelKey se traduce con t() en el render — esto permite
+   internacionalizar sin tener que mover el array dentro del componente. */
 const NAV_ITEMS = [
-  { key: 'overview',    label: 'Resumen',      icon: FiGrid },
-  { key: 'shows',       label: 'Mis Shows',    icon: FiVideo },
-  { key: 'content',     label: 'Contenido',    icon: FiImage },
-  { key: 'packages',    label: 'Encargos',     icon: FiSend },
-  { key: 'gifts',       label: 'Regalos',      icon: FiGift },
-  { key: 'subscribers', label: 'Suscriptores', icon: FiUsers },
-  { key: 'earnings',    label: 'Ingresos',     icon: FiDollarSign },
-  { key: 'analytics',   label: 'Analytics',    icon: FiBarChart2 },
-  { key: 'settings',    label: 'Ajustes',      icon: FiSettings },
+  { key: 'overview',    labelKey: 'dashboard.overview',     icon: FiGrid },
+  { key: 'shows',       labelKey: 'dashboard.my_shows',     icon: FiVideo },
+  { key: 'content',     labelKey: 'dashboard.content_nav',  icon: FiImage },
+  { key: 'packages',    labelKey: 'dashboard.orders',       icon: FiSend },
+  { key: 'gifts',       labelKey: 'dashboard.gifts',        icon: FiGift },
+  { key: 'subscribers', labelKey: 'dashboard.subscribers',  icon: FiUsers },
+  { key: 'earnings',    labelKey: 'dashboard.earnings',     icon: FiDollarSign },
+  { key: 'analytics',   labelKey: 'dashboard.analytics',    icon: FiBarChart2 },
+  { key: 'settings',    labelKey: 'dashboard.settings',     icon: FiSettings },
 ];
 
 /* ══════════════════════════════════════════════════════════ */
 export default function CreatorDashboard() {
+  const { t } = useTranslation();
   const { profile, user, fetchProfile } = useAuthStore();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -436,7 +440,7 @@ export default function CreatorDashboard() {
           {/* Mobile: horizontal scroll con indicador visual */}
           <div className="relative lg:hidden border-b border-white/5">
             <div className="flex overflow-x-auto scrollbar-hide px-4 pt-3 pb-0 gap-0.5">
-              {NAV_ITEMS.map(({ key, label, icon: Icon }) => (
+              {NAV_ITEMS.map(({ key, labelKey, icon: Icon }) => (
                 <button
                   key={key}
                   onClick={() => setTab(key)}
@@ -446,7 +450,7 @@ export default function CreatorDashboard() {
                       : 'text-gray-500 border-transparent hover:text-gray-300'
                   }`}
                 >
-                  <Icon size={11} /> {label}
+                  <Icon size={11} /> {t(labelKey)}
                 </button>
               ))}
             </div>
@@ -467,7 +471,7 @@ export default function CreatorDashboard() {
                 }`}
               >
                 <Icon size={15} className={tab === key ? 'text-brand-400' : ''} />
-                {label}
+                {t(labelKey)}
               </button>
             ))}
 

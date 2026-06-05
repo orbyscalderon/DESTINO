@@ -11,6 +11,7 @@ import {
   FiMenu, FiChevronLeft, FiChevronRight, FiChevronUp, FiChevronDown,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import { useTranslation } from 'react-i18next';
 import api from '../lib/api.js';
 import { supabase } from '../lib/supabase.js';
 import { LiveKitSession } from '../lib/livekitSession.js';
@@ -375,6 +376,7 @@ function PrivateCountdownBannerHost({ endsAt, type, viewerName }) {
 }
 
 export default function ShowStudio() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { user, profile: authProfile } = useAuthStore();
   const confirm = useConfirm();
@@ -1618,7 +1620,7 @@ export default function ShowStudio() {
             initial={{ scale: 2, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.5, opacity: 0 }}
             transition={{ duration: 0.4 }} className="text-center"
           >
-            <p className="text-white/50 text-xl mb-2">Comenzando en</p>
+            <p className="text-white/50 text-xl mb-2">{t('studio.go_live')}</p>
             <p className="text-white font-black" style={{ fontSize: '10rem', lineHeight: 1 }}>{countdown}</p>
           </motion.div>
         </AnimatePresence>
@@ -1631,8 +1633,8 @@ export default function ShowStudio() {
       <div className="fixed inset-0 bg-black flex items-center justify-center z-50">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-brand-500 border-t-transparent rounded-full animate-spin mx-auto mb-5" />
-          <p className="text-white text-xl font-bold mb-2">Conectando…</p>
-          <p className="text-gray-400 text-sm">Iniciando tu show en vivo</p>
+          <p className="text-white text-xl font-bold mb-2">{t('common.loading')}</p>
+          <p className="text-gray-400 text-sm">{t('studio.preparing')}</p>
         </div>
       </div>
     );
@@ -2554,7 +2556,7 @@ export default function ShowStudio() {
           ) : permCamera === 'checking' ? (
             <>
               <div className="w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
-              <p className="text-gray-500 text-sm">Iniciando cámara…</p>
+              <p className="text-gray-500 text-sm">{t('studio.preparing')}</p>
             </>
           ) : (
             <>
@@ -2567,7 +2569,7 @@ export default function ShowStudio() {
       {isLive && cameraOff && (
         <div className="absolute inset-0 bg-[#0a0a0c] flex flex-col items-center justify-center pointer-events-none">
           <FiVideoOff className="text-gray-700 mb-2" size={48} />
-          <p className="text-gray-600 text-sm">Cámara apagada</p>
+          <p className="text-gray-600 text-sm">{t('studio.camera_off')}</p>
         </div>
       )}
       {!isLive && previewActive && permCamera === 'granted' && (
@@ -2579,7 +2581,7 @@ export default function ShowStudio() {
       {(isLive || (previewActive && permCamera === 'granted')) && (
         <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-black/70 border border-white/10 rounded px-2 py-1 pointer-events-none">
           <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-          <span className="text-white text-[10px] font-bold tracking-wider">{isLive ? 'EN VIVO' : 'PREVIEW'}</span>
+          <span className="text-white text-[10px] font-bold tracking-wider">{isLive ? t('live.live_now') : t('studio.preview').toUpperCase()}</span>
         </div>
       )}
       <div className="absolute bottom-3 right-3 bg-black/50 border border-white/10 rounded px-2 py-0.5 pointer-events-none">
@@ -2638,7 +2640,7 @@ export default function ShowStudio() {
               <button
                 onClick={handleResumePublicShow}
                 className="bg-white text-amber-700 hover:brightness-110 rounded-full px-2.5 py-0.5 text-[10px] font-black"
-              >Volver a broadcast</button>
+              >{t('studio.switch_to_public')}</button>
             </div>
           ) : (
             <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 bg-purple-600/90 backdrop-blur-md rounded-full px-3 py-1.5 flex items-center gap-2 shadow-lg shadow-purple-500/40">
@@ -2656,7 +2658,7 @@ export default function ShowStudio() {
                 onClick={handleEndPrivateShow}
                 className="ml-1 bg-white/15 hover:bg-white/25 rounded-full px-2 py-0.5 text-white text-[9px] font-bold"
                 aria-label="Terminar show privado"
-              >Terminar</button>
+              >{t('studio.end_show')}</button>
             </div>
           )}
           {/* Tile cámara del viewer (solo cam2cam exclusive) */}
@@ -2794,7 +2796,7 @@ export default function ShowStudio() {
           </>
         ) : (
           <>
-            <span className="text-white text-xs font-semibold">Estudio de Show</span>
+            <span className="text-white text-xs font-semibold">{t('studio.title')}</span>
             {show.title && <span className="text-gray-500 text-xs truncate max-w-[160px]">— {show.title}</span>}
             <div className="flex-1" />
             {activeReconnect && (
@@ -2866,7 +2868,7 @@ export default function ShowStudio() {
           <>
             <div className="flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-              <span className="text-[9px] text-red-400 font-semibold">EN VIVO</span>
+              <span className="text-[9px] text-red-400 font-semibold">{t('live.live_now')}</span>
             </div>
             <span className="text-[9px] text-gray-600 font-mono">{fmtDuration(liveDuration)}</span>
             <span className="text-[9px] text-gray-600">{viewerCount} viewers · pico {peakViewers}</span>
@@ -2881,11 +2883,11 @@ export default function ShowStudio() {
           <>
             <div className="flex items-center gap-1.5">
               <span className={`w-1.5 h-1.5 rounded-full ${permCamera === 'granted' ? 'bg-green-400' : permCamera === 'denied' ? 'bg-red-500' : 'bg-gray-600'}`} />
-              <span className="text-[9px] text-gray-600">Cámara</span>
+              <span className="text-[9px] text-gray-600">{t('studio.camera')}</span>
             </div>
             <div className="flex items-center gap-1.5">
               <span className={`w-1.5 h-1.5 rounded-full ${permMic === 'granted' ? 'bg-green-400 animate-pulse' : permMic === 'denied' ? 'bg-red-500' : 'bg-gray-600'}`} />
-              <span className="text-[9px] text-gray-600">Micrófono</span>
+              <span className="text-[9px] text-gray-600">{t('studio.microphone')}</span>
             </div>
             <span className="text-[9px] text-gray-700">{videoQuality}</span>
             <span className="text-[9px] text-gray-700">
