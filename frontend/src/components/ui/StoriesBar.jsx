@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiPlus, FiX, FiTrash2 } from 'react-icons/fi';
+import { FiPlus, FiX, FiTrash2, FiSend } from 'react-icons/fi';
 import { useAuthStore } from '../../store/authStore.js';
 import { compressImage } from '../../lib/imageCompressor.js';
 import api from '../../lib/api.js';
@@ -25,6 +25,8 @@ function StoryViewer({ groups, initialGroupIdx, onClose, onStoryViewed, onStoryD
   const [viewersTotal, setViewersTotal] = useState(0);
   const [loadingViewers, setLoadingViewers] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [replyText, setReplyText] = useState('');
+  const [sendingReply, setSendingReply] = useState(false);
   const videoRef = useRef(null);
   const startTimeRef = useRef(null);
   const rafRef = useRef(null);
@@ -91,7 +93,27 @@ function StoryViewer({ groups, initialGroupIdx, onClose, onStoryViewed, onStoryD
 
   useEffect(() => {
     setShowViewers(false);
+    setReplyText('');
   }, [storyIdx, groupIdx]);
+
+  const handleSendReply = async (e) => {
+    e?.preventDefault?.();
+    e?.stopPropagation?.();
+    const text = replyText.trim();
+    if (!text || sendingReply || !story?.id) return;
+    setSendingReply(true);
+    setPaused(true);
+    try {
+      await api.post(`/api/stories/${story.id}/reply`, { content: text });
+      setReplyText('');
+      toast.success('Mensaje enviado');
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'No se pudo enviar');
+    } finally {
+      setSendingReply(false);
+      setPaused(false);
+    }
+  };
 
   useEffect(() => {
     if (!story) return;
@@ -221,6 +243,40 @@ function StoryViewer({ groups, initialGroupIdx, onClose, onStoryViewed, onStoryD
           className="absolute right-2 top-1/2 -translate-y-1/2 z-10 hidden sm:flex w-8 h-8 bg-black/40 rounded-full items-center justify-center text-white"
           onClick={(e) => { e.stopPropagation(); setGroupIdx(i => i + 1); setStoryIdx(0); }}
         >›</button>
+      )}
+
+      {/* Reply input — solo para stories ajenas */}
+      {!isOwnStory && (
+        <form
+          onSubmit={handleSendReply}
+          onClick={(e) => e.stopPropagation()}
+          onMouseDown={(e) => { e.stopPropagation(); setPaused(true); }}
+          onTouchStart={(e) => { e.stopPropagation(); setPaused(true); }}
+          className="absolute bottom-4 inset-x-0 z-10 px-4 flex items-center gap-2"
+        >
+          <input
+            type="text"
+            value={replyText}
+            onChange={(e) => setReplyText(e.target.value)}
+            onFocus={() => setPaused(true)}
+            onBlur={() => setPaused(false)}
+            placeholder={`Responder a ${group.user.full_name?.split(' ')[0] || ''}…`}
+            className="flex-1 bg-black/50 backdrop-blur-sm border border-white/20 rounded-full px-4 py-2.5 text-sm text-white placeholder-white/50 focus:outline-none focus:border-brand-500"
+            maxLength={500}
+            disabled={sendingReply}
+          />
+          {replyText.trim() && (
+            <button
+              type="submit"
+              disabled={sendingReply}
+              className="w-10 h-10 rounded-full bg-brand-500 flex items-center justify-center text-white disabled:opacity-50"
+            >
+              {sendingReply
+                ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                : <FiSend size={16} />}
+            </button>
+          )}
+        </form>
       )}
 
       {/* Viewers button + delete — solo para el autor */}
