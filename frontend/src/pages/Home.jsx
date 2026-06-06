@@ -352,7 +352,7 @@ export default function Home() {
         <h1 className="text-xl font-black gradient-text">Destino TV 💕</h1>
         <button
           onClick={() => setShowCreateModal(true)}
-          className="w-9 h-9 bg-gradient-to-br from-brand-500 to-accent-500 rounded-xl flex items-center justify-center shadow-glow-sm hover:shadow-glow hover:scale-105 active:scale-95 transition-all duration-200"
+          className="w-9 h-9 bg-gradient-to-br from-brand-500 to-accent-500 rounded-xl flex items-center justify-center shadow-glow-sm hover:shadow-glow hover:scale-105 active:scale-95 transition-all duration-200 ease-out-expo"
           title={t('home.publish')}
           aria-label={t('home.publish')}
         >
@@ -425,7 +425,7 @@ export default function Home() {
       {/* Modal crear post */}
       <AnimatePresence>
         {showCreateModal && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-4">
+          <div className="fixed inset-0 glass flex items-end sm:items-center justify-center z-50 p-4">
             <motion.div
               initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 40 }}
               className="card p-5 w-full max-w-lg"

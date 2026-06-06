@@ -347,7 +347,7 @@ export default function Navbar() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="lg:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-30"
+              className="lg:hidden fixed inset-0 glass z-30"
               onClick={() => setShowMore(false)}
             />
 

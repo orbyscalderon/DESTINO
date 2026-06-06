@@ -174,13 +174,13 @@ export default function Coins() {
     <div className="min-h-screen px-4 pt-8 pb-28 max-w-lg mx-auto">
       {/* Skeleton del header + balance para evitar layout shift */}
       <div className="flex items-center gap-3 mb-6">
-        <div className="w-5 h-5 bg-dark-700 rounded animate-pulse" />
-        <div className="w-20 h-7 bg-dark-700 rounded animate-pulse" />
+        <div className="w-5 h-5 skeleton rounded" />
+        <div className="w-20 h-7 skeleton rounded" />
       </div>
       <div className="card p-6 mb-6 h-32 animate-pulse" />
       <div className="grid grid-cols-2 gap-3">
         {[...Array(4)].map((_, i) => (
-          <div key={i} className="card h-28 animate-pulse" />
+          <div key={i} className="skeleton h-28" />
         ))}
       </div>
     </div>
@@ -279,7 +279,7 @@ export default function Coins() {
       {packagesLoading ? (
         <div className="grid grid-cols-2 gap-3 mb-8">
           {[...Array(4)].map((_, i) => (
-            <div key={i} className="card h-28 animate-pulse" />
+            <div key={i} className="skeleton h-28" />
           ))}
         </div>
       ) : packages.length === 0 ? (

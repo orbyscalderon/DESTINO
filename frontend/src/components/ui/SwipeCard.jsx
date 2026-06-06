@@ -108,7 +108,7 @@ export default function SwipeCard({ profile, onLike, onDislike, onSuperLike, isP
             {allPhotos.map((_, i) => (
               <div
                 key={i}
-                className={`flex-1 h-1 rounded-full transition-all duration-200 ${
+                className={`flex-1 h-1 rounded-full transition-all duration-200 ease-out-expo ${
                   i === photoIndex ? 'bg-white' : 'bg-white/35'
                 }`}
               />

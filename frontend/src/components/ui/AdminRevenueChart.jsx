@@ -18,7 +18,7 @@ export default function AdminRevenueChart({ days = 30 }) {
   }, [days]);
 
   if (loading) {
-    return <div className="card h-64 animate-pulse" />;
+    return <div className="skeleton h-64" />;
   }
 
   if (!data || data.length === 0) {

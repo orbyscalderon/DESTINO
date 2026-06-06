@@ -1305,7 +1305,7 @@ export default function Profile() {
           {/* Modal reproductor de vídeo */}
           {playingVideo && (
             <div
-              className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+              className="fixed inset-0 glass-strong flex items-center justify-center z-50 p-4"
               onClick={() => setPlayingVideo(null)}
             >
               <motion.div
@@ -1334,7 +1334,7 @@ export default function Profile() {
 
           {/* Modal de pricing de foto */}
           {pricingPhoto && (
-            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-4">
+            <div className="fixed inset-0 glass flex items-end sm:items-center justify-center z-50 p-4">
               <motion.div
                 initial={{ opacity: 0, y: 40 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -1376,7 +1376,7 @@ export default function Profile() {
           )}
           {/* Modal de pricing de vídeo */}
           {pricingVideo && (
-            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-4">
+            <div className="fixed inset-0 glass flex items-end sm:items-center justify-center z-50 p-4">
               <motion.div
                 initial={{ opacity: 0, y: 40 }}
                 animate={{ opacity: 1, y: 0 }}

@@ -108,7 +108,7 @@ export default function PaymentModal({ clientSecret, amount, description, onSucc
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black/75 z-50 flex items-end sm:items-center justify-center p-4"
+      className="fixed inset-0 glass-strong z-50 flex items-end sm:items-center justify-center p-4"
       onClick={e => !paying && e.target === e.currentTarget && onClose()}
     >
       <motion.div
@@ -116,10 +116,11 @@ export default function PaymentModal({ clientSecret, amount, description, onSucc
         role="dialog"
         aria-modal="true"
         aria-labelledby="payment-modal-title"
-        initial={{ y: 60, opacity: 0 }}
-        animate={{ y: 0,  opacity: 1 }}
-        exit={{   y: 60, opacity: 0 }}
-        className="w-full max-w-sm bg-dark-800 rounded-2xl border border-white/10 p-6"
+        initial={{ scale: 0.9, opacity: 0, y: 40 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        exit={{ scale: 0.9, opacity: 0, y: 40 }}
+        transition={{ type: 'spring', stiffness: 200, damping: 22 }}
+        className="card p-6 w-full max-w-sm shadow-glow-lg"
       >
         {/* Header */}
         <div className="flex items-start justify-between mb-6">

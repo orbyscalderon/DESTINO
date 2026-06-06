@@ -56,7 +56,7 @@ export default function AdminFunnel() {
 
       {loading ? (
         <div className="space-y-2">
-          {[...Array(7)].map((_, i) => <div key={i} className="card h-16 animate-pulse" />)}
+          {[...Array(7)].map((_, i) => <div key={i} className="skeleton h-16" />)}
         </div>
       ) : !data?.steps?.length ? (
         <div className="card p-8 text-center text-gray-500 text-sm">

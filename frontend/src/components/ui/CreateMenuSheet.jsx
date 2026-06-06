@@ -61,7 +61,7 @@ export default function CreateMenuSheet({ open, onClose }) {
       {open && (
         <motion.div
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black/70 z-[70] flex items-end sm:items-center justify-center"
+          className="fixed inset-0 glass z-[70] flex items-end sm:items-center justify-center"
           onClick={onClose}
           role="dialog" aria-modal="true" aria-label="Crear contenido"
         >

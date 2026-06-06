@@ -361,7 +361,7 @@ export default function Admin() {
       <div className="flex items-center gap-3 mb-6">
         <div className="w-9 h-9 bg-dark-700 rounded-xl animate-pulse" />
         <div className="flex-1">
-          <div className="w-32 h-5 bg-dark-700 rounded animate-pulse mb-1.5" />
+          <div className="w-32 h-5 skeleton rounded mb-1.5" />
           <div className="w-48 h-3 bg-dark-700/60 rounded animate-pulse" />
         </div>
       </div>
@@ -369,10 +369,10 @@ export default function Admin() {
       <div className="h-10 bg-dark-800 rounded-2xl animate-pulse mb-6" />
       {/* Skeleton stats cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
-        {[...Array(4)].map((_, i) => <div key={i} className="card h-24 animate-pulse" />)}
+        {[...Array(4)].map((_, i) => <div key={i} className="skeleton h-24" />)}
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-        {[...Array(5)].map((_, i) => <div key={i} className="card h-24 animate-pulse" />)}
+        {[...Array(5)].map((_, i) => <div key={i} className="skeleton h-24" />)}
       </div>
     </div>
   );
@@ -491,7 +491,7 @@ export default function Admin() {
               { icon: FiDollarSign,  label: 'Ganancias',  value: `$${(stats.total_earnings || 0).toFixed(2)}`, color: 'text-green-400', bg: 'bg-green-500/10' },
               { icon: FiZap,         label: 'Coins',      value: (stats.coins_total || 0).toLocaleString(), color: 'text-yellow-400', bg: 'bg-yellow-500/10' },
             ].map(({ icon: Icon, label, value, color, bg }) => (
-              <div key={label} className="card p-4 hover:border-white/10 transition-colors">
+              <div key={label} className="card-interactive p-4">
                 <div className={`w-9 h-9 rounded-xl ${bg} flex items-center justify-center mb-2`}>
                   <Icon size={16} className={color} />
                 </div>
@@ -589,7 +589,7 @@ export default function Admin() {
           {platformRevenue && (
             <>
               {/* Gráfico de revenue diario — lazy load del chunk recharts */}
-              <Suspense fallback={<div className="card h-64 animate-pulse" />}>
+              <Suspense fallback={<div className="skeleton h-64" />}>
                 <AdminRevenueChart days={Math.min(revenueDays, 90)} />
               </Suspense>
 
@@ -1516,7 +1516,7 @@ export default function Admin() {
 
           {ticketsLoading ? (
             <div className="space-y-2">
-              {[...Array(4)].map((_, i) => <div key={i} className="card h-20 animate-pulse" />)}
+              {[...Array(4)].map((_, i) => <div key={i} className="skeleton h-20" />)}
             </div>
           ) : tickets.length === 0 ? (
             <div className="card p-8 text-center text-gray-500 text-sm">

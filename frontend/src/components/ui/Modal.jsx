@@ -85,7 +85,7 @@ export default function Modal({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.15 }}
-          className={`fixed inset-0 bg-black/80 ${zClass} flex items-end sm:items-center justify-center p-0 sm:p-4`}
+          className={`fixed inset-0 glass-strong ${zClass} flex items-end sm:items-center justify-center p-0 sm:p-4`}
           onClick={closeOnBackdrop ? onClose : undefined}
         >
           <motion.div

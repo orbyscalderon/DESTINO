@@ -168,7 +168,7 @@ export default function Landing() {
                 transition={{ delay: i * 0.08, ease: [0.19, 1, 0.22, 1] }}
                 className="card-interactive p-5 group"
               >
-                <div className="w-12 h-12 bg-gradient-to-br from-brand-500/30 to-accent-500/20 rounded-xl flex items-center justify-center mb-4 ring-1 ring-brand-500/20 group-hover:ring-brand-500/40 transition-all duration-200">
+                <div className="w-12 h-12 bg-gradient-to-br from-brand-500/30 to-accent-500/20 rounded-xl flex items-center justify-center mb-4 ring-1 ring-brand-500/20 group-hover:ring-brand-500/40 transition-all duration-200 ease-out-expo">
                   <Icon size={22} className="text-brand-400 group-hover:scale-110 transition-transform duration-200" />
                 </div>
                 <h3 className="font-bold text-white mb-2">{t(titleKey)}</h3>

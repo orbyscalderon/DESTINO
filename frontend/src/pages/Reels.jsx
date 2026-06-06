@@ -190,7 +190,7 @@ export default function Reels() {
   return (
     <div className="relative h-screen [@supports(height:100dvh)]:h-[100dvh] w-full bg-black overflow-hidden lg:flex">
       {/* Topbar */}
-      <div className="absolute top-0 left-0 right-0 z-20 px-4 py-3 flex items-center justify-between bg-gradient-to-b from-black/60 to-transparent">
+      <div className="absolute top-0 left-0 right-0 z-20 px-4 py-3 flex items-center justify-between bg-gradient-to-b from-black/70 via-black/40 to-transparent">
         <button
           onClick={() => navigate(-1)}
           aria-label={t('reels.back')}

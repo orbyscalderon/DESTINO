@@ -104,7 +104,7 @@ export default function AdminAuditLog() {
       {/* Lista */}
       {loading ? (
         <div className="space-y-2">
-          {[...Array(8)].map((_, i) => <div key={i} className="card h-14 animate-pulse" />)}
+          {[...Array(8)].map((_, i) => <div key={i} className="skeleton h-14" />)}
         </div>
       ) : log.length === 0 ? (
         <div className="card p-8 text-center text-gray-500 text-sm">

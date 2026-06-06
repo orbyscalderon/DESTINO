@@ -78,7 +78,7 @@ function ChannelCard({ show, index }) {
           }
 
           {/* Darkening on hover */}
-          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors duration-200" />
+          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors duration-200 ease-out-expo" />
 
           {/* LIVE badge — top left */}
           <div className="absolute top-2 left-2 flex items-center gap-1.5">
@@ -481,8 +481,8 @@ export default function LiveShows() {
                 <div className="flex gap-2">
                   <div className="w-9 h-9 rounded-full bg-dark-700 animate-pulse shrink-0" />
                   <div className="flex-1 space-y-1.5">
-                    <div className="h-3 bg-dark-700 rounded animate-pulse w-4/5" />
-                    <div className="h-2.5 bg-dark-700 rounded animate-pulse w-3/5" />
+                    <div className="h-3 skeleton rounded w-4/5" />
+                    <div className="h-2.5 skeleton rounded w-3/5" />
                   </div>
                 </div>
               </div>

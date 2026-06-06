@@ -349,7 +349,7 @@ export default function ReelComments({ reelId, reelOwnerId, onClose, onCommentAd
       {open && (
         <motion.div
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black/70 z-[60] flex items-end justify-center sm:items-center"
+          className="fixed inset-0 glass z-[60] flex items-end justify-center sm:items-center"
           onClick={onClose}
           role="dialog" aria-modal="true" aria-label="Comentarios del reel"
         >
