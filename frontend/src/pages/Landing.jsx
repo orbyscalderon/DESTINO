@@ -49,20 +49,27 @@ export default function Landing() {
   }, [navigate]);
 
   return (
-    <div className="min-h-screen bg-dark-900 overflow-hidden">
+    <div className="min-h-screen bg-dark-900 overflow-hidden hero-mesh">
       {/* Hero */}
       <div className="relative min-h-screen flex flex-col items-center justify-center px-6 text-center">
-        {/* Fondo con gradiente */}
-        <div className="absolute inset-0 bg-gradient-to-b from-brand-500/10 via-transparent to-dark-900 pointer-events-none" />
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-64 h-64 sm:w-[500px] sm:h-[500px] bg-brand-500/5 rounded-full blur-3xl pointer-events-none" />
+        {/* Glow orbs decorativos animados */}
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-64 h-64 sm:w-[500px] sm:h-[500px] bg-brand-500/10 rounded-full blur-3xl pointer-events-none animate-float" />
+        <div className="absolute bottom-1/4 right-1/4 w-48 h-48 sm:w-72 sm:h-72 bg-accent-500/10 rounded-full blur-3xl pointer-events-none animate-float" style={{ animationDelay: '1s' }} />
 
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8 }}
+          transition={{ duration: 0.8, ease: [0.19, 1, 0.22, 1] }}
           className="relative z-10 space-y-6"
         >
-          <div className="text-7xl mb-4">💕</div>
+          <motion.div
+            initial={{ scale: 0.5, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ delay: 0.1, type: 'spring', stiffness: 200, damping: 12 }}
+            className="text-7xl mb-4 inline-block"
+          >
+            💕
+          </motion.div>
           <h1 className="text-5xl sm:text-7xl font-black tracking-tight">
             <span className="gradient-text">Destino TV</span>
           </h1>
@@ -71,10 +78,10 @@ export default function Landing() {
           </p>
 
           <div className="flex flex-col gap-3 justify-center pt-4 w-full max-w-xs mx-auto sm:max-w-none sm:flex-row sm:gap-4">
-            <Link to="/register" className="btn-primary text-base sm:text-lg px-6 py-3 sm:px-8 sm:py-4">
+            <Link to="/register" className="btn-primary text-base sm:text-lg px-8 py-3.5 sm:px-10 sm:py-4 shadow-glow hover:shadow-glow-lg">
               {t('landing.start_free')}
             </Link>
-            <Link to="/login" className="btn-secondary text-base sm:text-lg px-6 py-3 sm:px-8 sm:py-4">
+            <Link to="/login" className="btn-secondary text-base sm:text-lg px-8 py-3.5 sm:px-10 sm:py-4">
               {t('auth.login')}
             </Link>
           </div>
@@ -158,13 +165,13 @@ export default function Landing() {
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, margin: '-40px' }}
-                transition={{ delay: i * 0.08 }}
-                className="card p-5 hover:border-brand-500/30 transition-colors"
+                transition={{ delay: i * 0.08, ease: [0.19, 1, 0.22, 1] }}
+                className="card-interactive p-5 group"
               >
-                <div className="w-12 h-12 bg-brand-500/20 rounded-xl flex items-center justify-center mb-4">
-                  <Icon size={22} className="text-brand-400" />
+                <div className="w-12 h-12 bg-gradient-to-br from-brand-500/30 to-accent-500/20 rounded-xl flex items-center justify-center mb-4 ring-1 ring-brand-500/20 group-hover:ring-brand-500/40 transition-all duration-200">
+                  <Icon size={22} className="text-brand-400 group-hover:scale-110 transition-transform duration-200" />
                 </div>
-                <h3 className="font-semibold text-white mb-2">{t(titleKey)}</h3>
+                <h3 className="font-bold text-white mb-2">{t(titleKey)}</h3>
                 <p className="text-gray-400 text-sm leading-relaxed">{t(descKey)}</p>
               </motion.div>
             ))}
@@ -178,9 +185,15 @@ export default function Landing() {
           initial={{ opacity: 0, scale: 0.95 }}
           whileInView={{ opacity: 1, scale: 1 }}
           viewport={{ once: true }}
-          className="max-w-md mx-auto card p-8 text-center bg-gradient-to-br from-brand-500/10 to-yellow-500/5 border-brand-500/20"
+          className="max-w-md mx-auto card p-8 text-center bg-gradient-to-br from-brand-500/15 via-accent-500/5 to-yellow-500/5 border-brand-500/30 shadow-glow"
         >
-          <div className="text-4xl mb-4">⚡</div>
+          <motion.div
+            animate={{ rotate: [0, 5, -5, 0] }}
+            transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+            className="text-4xl mb-4 inline-block"
+          >
+            ⚡
+          </motion.div>
           <h3 className="text-2xl font-bold mb-2">{t('landing.premium_cta_title')}</h3>
           <p className="text-gray-400 text-sm mb-6">{t('landing.premium_cta_desc')}</p>
           <Link to="/register" className="btn-primary w-full block text-center">

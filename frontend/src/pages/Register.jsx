@@ -151,14 +151,24 @@ export default function Register() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-6 bg-dark-900">
+    <div className="min-h-screen flex items-center justify-center px-6 bg-dark-900 hero-mesh relative overflow-hidden">
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-72 h-72 bg-accent-500/10 rounded-full blur-3xl pointer-events-none animate-float" />
+
       <motion.div
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-sm"
+        transition={{ duration: 0.5, ease: [0.19, 1, 0.22, 1] }}
+        className="w-full max-w-sm relative z-10"
       >
         <div className="text-center mb-8">
-          <div className="text-5xl mb-4">💕</div>
+          <motion.div
+            initial={{ scale: 0.5, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ delay: 0.1, type: 'spring', stiffness: 200, damping: 12 }}
+            className="text-5xl mb-4 inline-block"
+          >
+            💕
+          </motion.div>
           <h1 className="text-3xl font-black gradient-text">{t('auth.create_account')}</h1>
           <p className="text-gray-400 text-sm mt-2">{t('auth.free_forever')}</p>
         </div>

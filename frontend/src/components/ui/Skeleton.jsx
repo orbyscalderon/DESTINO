@@ -1,8 +1,8 @@
-// Componente base de skeleton pulsante
+// Componente base de skeleton con shimmer animado (.skeleton class de globals.css)
+// usa keyframe shimmer en lugar de animate-pulse — efecto de brillo deslizante
+// que se siente mucho más premium que el pulse simple.
 export function Skeleton({ className = '' }) {
-  return (
-    <div className={`bg-dark-700 rounded-xl animate-pulse ${className}`} />
-  );
+  return <div className={`skeleton ${className}`} />;
 }
 
 // Skeleton de tarjeta de match en la lista de mensajes

@@ -347,13 +347,14 @@ export default function Home() {
 
   return (
     <div className="min-h-screen pb-24">
-      {/* Header */}
-      <div className="sticky top-0 z-10 bg-dark-900/95 backdrop-blur-sm border-b border-white/5 px-4 py-3 flex items-center justify-between">
+      {/* Header con glass morphism */}
+      <div className="sticky top-0 z-10 glass border-b border-white/5 px-4 py-3 flex items-center justify-between">
         <h1 className="text-xl font-black gradient-text">Destino TV 💕</h1>
         <button
           onClick={() => setShowCreateModal(true)}
-          className="w-9 h-9 bg-brand-500 rounded-xl flex items-center justify-center hover:bg-brand-600 transition-colors"
+          className="w-9 h-9 bg-gradient-to-br from-brand-500 to-accent-500 rounded-xl flex items-center justify-center shadow-glow-sm hover:shadow-glow hover:scale-105 active:scale-95 transition-all duration-200"
           title={t('home.publish')}
+          aria-label={t('home.publish')}
         >
           <FiPlus className="text-white" size={18} />
         </button>

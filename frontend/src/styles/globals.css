@@ -4,71 +4,170 @@
 
 @layer base {
   html {
-    /* Evitar scroll horizontal por elementos que sobresalen */
     overflow-x: hidden;
+    /* Smooth scrolling para anchors y JS-driven scrolls */
+    scroll-behavior: smooth;
+    /* Tabular nums por defecto en counts numéricos */
+    font-variant-numeric: tabular-nums;
   }
 
   body {
     @apply bg-dark-900 text-white font-sans antialiased;
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
     overflow-x: hidden;
-    /* Solo safe-area lateral/top — el bottom lo maneja la bottom nav */
+    /* Safe area lateral/top — el bottom lo maneja la bottom nav */
     padding-top: env(safe-area-inset-top);
     padding-left: env(safe-area-inset-left);
     padding-right: env(safe-area-inset-right);
+    /* Texto base con line-height generosa */
+    line-height: 1.55;
   }
 
-  /* Evitar selección de texto accidental en móvil */
-  button, a {
+  /* Selección con tinte brand */
+  ::selection {
+    background-color: rgba(244, 63, 94, 0.35);
+    color: white;
+  }
+
+  /* Touch optimizations */
+  button, a, [role="button"] {
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
   }
 
+  /* Focus ring consistente para keyboard navigation */
+  button:focus-visible,
+  a:focus-visible,
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible,
+  [role="button"]:focus-visible {
+    @apply outline-none ring-2 ring-brand-500/60 ring-offset-2 ring-offset-dark-900;
+  }
 
   * {
     @apply box-border;
   }
 
+  /* Scrollbar custom para webkit */
   ::-webkit-scrollbar {
-    width: 4px;
+    width: 6px;
+    height: 6px;
   }
   ::-webkit-scrollbar-track {
-    @apply bg-dark-800;
+    background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    @apply bg-brand-500 rounded-full;
+    background: rgba(244, 63, 94, 0.4);
+    border-radius: 9999px;
+    transition: background 0.2s;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(244, 63, 94, 0.65);
+  }
+
+  /* Headings con tracking ligeramente apretado para look premium */
+  h1, h2, h3, h4 {
+    @apply tracking-tight;
   }
 }
 
 @layer components {
+  /* ── Botones ─────────────────────────────────────────────────── */
   .btn-primary {
-    @apply bg-gradient-to-r from-brand-500 to-brand-700 text-white font-semibold
-           px-6 py-3 rounded-xl transition-all duration-200
-           hover:opacity-90 hover:scale-[1.02] active:scale-95
-           disabled:opacity-50 disabled:cursor-not-allowed disabled:scale-100;
+    @apply inline-flex items-center justify-center gap-2
+           bg-gradient-to-r from-brand-500 to-brand-600 text-white font-semibold
+           px-6 py-3 rounded-xl shadow-glow-sm
+           transition-all duration-200 ease-out-expo
+           hover:from-brand-400 hover:to-brand-500 hover:shadow-glow hover:-translate-y-0.5
+           active:scale-95 active:shadow-glow-sm
+           disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-glow-sm;
   }
 
   .btn-secondary {
-    @apply bg-dark-700 border border-white/10 text-white font-semibold
-           px-6 py-3 rounded-xl transition-all duration-200
-           hover:bg-dark-600 hover:border-white/20 active:scale-95
+    @apply inline-flex items-center justify-center gap-2
+           bg-white/5 backdrop-blur-sm border border-white/10 text-white font-semibold
+           px-6 py-3 rounded-xl
+           transition-all duration-200 ease-out-expo
+           hover:bg-white/10 hover:border-white/20 hover:-translate-y-0.5
+           active:scale-95
+           disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0;
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2
+           text-gray-400 font-medium
+           px-4 py-2 rounded-lg
+           transition-colors duration-150
+           hover:text-white hover:bg-white/5
+           active:bg-white/10
            disabled:opacity-50 disabled:cursor-not-allowed;
   }
 
+  /* ── Inputs ──────────────────────────────────────────────────── */
   .input-field {
-    @apply w-full bg-dark-700 border border-white/10 text-white placeholder-gray-500
-           rounded-xl px-4 py-3 outline-none transition-all duration-200
-           focus:border-brand-500 focus:ring-1 focus:ring-brand-500/30;
+    @apply w-full bg-dark-700/80 backdrop-blur-sm border border-white/10 text-white placeholder-gray-500
+           rounded-xl px-4 py-3 outline-none
+           transition-all duration-200
+           focus:border-brand-500/60 focus:bg-dark-700 focus:ring-2 focus:ring-brand-500/20
+           hover:border-white/15;
   }
 
+  /* ── Cards ───────────────────────────────────────────────────── */
   .card {
-    @apply bg-dark-800 border border-white/5 rounded-2xl;
+    @apply bg-dark-800/60 backdrop-blur-sm border border-white/5 rounded-2xl
+           shadow-inset-soft;
   }
 
+  /* Card con hover sutil — lift + border highlight */
+  .card-interactive {
+    @apply card transition-all duration-200 ease-out-expo cursor-pointer
+           hover:border-white/15 hover:bg-dark-800 hover:-translate-y-0.5 hover:shadow-glow-sm;
+  }
+
+  /* ── Text effects ────────────────────────────────────────────── */
   .gradient-text {
-    @apply bg-gradient-to-r from-brand-500 to-pink-400 bg-clip-text text-transparent;
+    @apply bg-gradient-to-r from-brand-400 via-brand-500 to-accent-500 bg-clip-text text-transparent;
+    background-size: 200% auto;
+    animation: gradientShift 8s ease-in-out infinite;
   }
 
+  /* ── Glass morphism para overlays/toolbars ──────────────────── */
+  .glass {
+    @apply bg-dark-900/70 backdrop-blur-xl border border-white/5;
+  }
+
+  .glass-strong {
+    @apply bg-dark-900/85 backdrop-blur-2xl border border-white/10;
+  }
+
+  /* ── Skeleton con shimmer real (no solo opacity pulse) ──────── */
+  .skeleton {
+    @apply relative overflow-hidden bg-dark-700/60 rounded-lg;
+  }
+  .skeleton::after {
+    content: '';
+    @apply absolute inset-0 bg-shimmer bg-shimmer-bg animate-shimmer;
+  }
+
+  /* ── Badge LIVE pulsante ────────────────────────────────────── */
+  .live-badge {
+    @apply inline-flex items-center gap-1 bg-red-500 text-white text-[10px] font-black uppercase tracking-wider
+           px-2 py-0.5 rounded-md animate-glow-pulse;
+  }
+
+  /* ── Dividers ───────────────────────────────────────────────── */
+  .divider {
+    @apply border-t border-white/5;
+  }
+
+  .divider-glow {
+    border-top: 1px solid;
+    border-image: linear-gradient(90deg, transparent, rgba(244,63,94,0.3), transparent) 1;
+  }
+
+  /* ── Scrollbar hide (mantiene scroll, oculta barra) ──────────── */
   .scrollbar-hide {
     -ms-overflow-style: none;
     scrollbar-width: none;
@@ -77,19 +176,47 @@
     display: none;
   }
 
-  /* Altura correcta para páginas con fixed bottom nav en iOS */
+  /* ── Layout helpers para fixed bottom nav iOS ───────────────── */
   .h-screen-nav {
     height: calc(100dvh - 80px);
     height: calc(100dvh - 80px - env(safe-area-inset-bottom, 0px));
   }
 
-  /* Padding bottom para páginas con fixed bottom nav en iOS */
   .pb-nav {
     padding-bottom: calc(6rem + env(safe-area-inset-bottom, 0px));
   }
+
+  /* ── Hero gradient background mesh ──────────────────────────── */
+  .hero-mesh {
+    @apply bg-mesh-dark;
+  }
+
+  /* ── Chip / tag pill ────────────────────────────────────────── */
+  .chip {
+    @apply inline-flex items-center gap-1 bg-white/5 border border-white/10 text-gray-300
+           text-[11px] font-semibold px-2.5 py-1 rounded-full
+           transition-colors duration-150
+           hover:bg-white/10 hover:text-white;
+  }
+
+  .chip-active {
+    @apply bg-brand-500/20 border-brand-500/40 text-brand-300;
+  }
+
+  /* ── Stat card ──────────────────────────────────────────────── */
+  .stat-card {
+    @apply card p-4 transition-all duration-200
+           hover:border-white/10 hover:shadow-glow-sm;
+  }
 }
 
-/* Light mode: invert dark UI to light */
+/* ── Animations not in tailwind config ───────────────────────── */
+@keyframes gradientShift {
+  0%, 100% { background-position: 0% 50%; }
+  50%      { background-position: 100% 50%; }
+}
+
+/* Light mode: invert (hack visual, no afecta media) */
 html.light {
   filter: invert(1) hue-rotate(180deg);
 }
@@ -98,4 +225,14 @@ html.light video,
 html.light canvas,
 html.light [data-no-invert] {
   filter: invert(1) hue-rotate(180deg);
+}
+
+/* Disable animations para users que prefieren reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
