@@ -6,6 +6,7 @@ import { detectImageType, detectVideoType, safeErrorMessage, sanitizeUserText } 
 import { createNotification } from './inAppNotifController.js';
 import { upsertCreatorEarnings } from './showController.js';
 import { trackFunnel } from '../lib/funnelTracker.js';
+import { moderateText } from '../lib/textModeration.js';
 import multer from 'multer';
 
 const ALLOWED_IMAGE_MIME = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
@@ -207,6 +208,14 @@ export const sendMessage = async (req, res) => {
       .replace(/on\w+\s*=/gi, '');
     if (sanitized.length === 0) return res.status(400).json({ error: 'Mensaje vacío' });
     if (msgType === 'text' && sanitized.length > 1000) return res.status(400).json({ error: 'El mensaje no puede superar 1000 caracteres' });
+
+    // Moderación de texto (solo para mensajes de texto, no GIFs)
+    if (msgType === 'text') {
+      const mod = await moderateText(sanitized, { context: 'chat' });
+      if (!mod.ok) {
+        return res.status(422).json({ error: mod.reason, severity: mod.severity });
+      }
+    }
 
     // Verificar pertenencia al match
     const { data: match } = await supabase
@@ -624,33 +633,51 @@ export const deleteMessage = async (req, res) => {
 };
 
 // PUT /api/messages/:matchId/pin — pin a message in a match
+// Hasta 3 mensajes pinneados por match (v63 trigger). Si ya hay 3 y pinneas
+// un 4to, el más viejo se despinea automáticamente.
 export const pinMessage = async (req, res) => {
   try {
     const userId = req.user.id;
     const { matchId } = req.params;
     const { messageId } = req.body;
 
+    if (!messageId) return res.status(400).json({ error: 'messageId requerido' });
+
     const { data: match } = await supabase
       .from('matches').select('user1_id, user2_id').eq('id', matchId).single();
     if (!match || (match.user1_id !== userId && match.user2_id !== userId)) {
       return res.status(403).json({ error: 'No autorizado' });
     }
 
-    await supabase.from('pinned_messages').upsert(
-      { match_id: matchId, message_id: messageId, pinned_by: userId },
-      { onConflict: 'match_id' }
-    );
+    // Verificar que el mensaje pertenece a este match
+    const { data: msg } = await supabase
+      .from('messages').select('id, match_id').eq('id', messageId).single();
+    if (!msg || msg.match_id !== matchId) {
+      return res.status(404).json({ error: 'Mensaje no encontrado' });
+    }
+
+    // Insert; UNIQUE (match_id, message_id) lo hace idempotente
+    const { error } = await supabase.from('pinned_messages').insert({
+      match_id: matchId,
+      message_id: messageId,
+      pinned_by: userId,
+    });
+    // 23505 = unique_violation → ya estaba pinneado, no es error
+    if (error && error.code !== '23505') throw error;
+
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
 
-// DELETE /api/messages/:matchId/pin — unpin
+// DELETE /api/messages/:matchId/pin?messageId=xxx — despinea un mensaje específico
+// Si no se pasa messageId, despinea TODOS (backward compat con UI vieja)
 export const unpinMessage = async (req, res) => {
   try {
     const userId = req.user.id;
     const { matchId } = req.params;
+    const { messageId } = req.query;
 
     const { data: match } = await supabase
       .from('matches').select('user1_id, user2_id').eq('id', matchId).single();
@@ -658,7 +685,10 @@ export const unpinMessage = async (req, res) => {
       return res.status(403).json({ error: 'No autorizado' });
     }
 
-    await supabase.from('pinned_messages').delete().eq('match_id', matchId);
+    let query = supabase.from('pinned_messages').delete().eq('match_id', matchId);
+    if (messageId) query = query.eq('message_id', messageId);
+    await query;
+
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: 'Error interno del servidor' });
@@ -687,7 +717,8 @@ export const clearConversation = async (req, res) => {
   }
 };
 
-// GET /api/messages/:matchId/pin — get pinned message
+// GET /api/messages/:matchId/pin — get hasta 3 pinned messages (más reciente primero)
+// Backward compatible: la UI vieja lee `pinned` (1er item), la nueva lee `pinned_list`.
 export const getPinnedMessage = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -699,16 +730,21 @@ export const getPinnedMessage = async (req, res) => {
       return res.status(403).json({ error: 'No autorizado' });
     }
 
-    const { data: pin } = await supabase
+    const { data: pins } = await supabase
       .from('pinned_messages')
       .select(`
-        message_id,
+        message_id, pinned_at, pinned_by,
         message:messages!message_id(id, content, type, sender_id, created_at)
       `)
       .eq('match_id', matchId)
-      .single();
+      .order('pinned_at', { ascending: false })
+      .limit(3);
 
-    res.json({ pinned: pin?.message || null });
+    const list = (pins || []).map(p => p.message).filter(Boolean);
+    res.json({
+      pinned: list[0] || null,    // legacy single
+      pinned_list: list,          // nueva
+    });
   } catch (err) {
     res.status(500).json({ error: 'Error interno del servidor' });
   }

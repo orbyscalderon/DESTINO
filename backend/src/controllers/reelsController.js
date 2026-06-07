@@ -73,6 +73,15 @@ export const uploadReel = async (req, res) => {
       });
     }
 
+    // Moderación del caption del reel
+    if (caption?.trim()) {
+      const { moderateText } = await import('../lib/textModeration.js');
+      const mod = await moderateText(caption, { context: 'caption' });
+      if (!mod.ok && mod.severity === 'severe') {
+        return res.status(422).json({ error: mod.reason, severity: mod.severity });
+      }
+    }
+
     // Validar magic bytes del video
     const realVideoType = detectVideoType(videoFile.buffer);
     if (!realVideoType) {

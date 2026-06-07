@@ -436,6 +436,15 @@ export const updateProfile = async (req, res) => {
       return res.status(400).json({ error: 'La bio no puede superar 500 caracteres' });
     }
 
+    // Moderación de bio (solo si se está actualizando con texto)
+    if (bio !== undefined && bio.trim().length > 0) {
+      const { moderateText } = await import('../lib/textModeration.js');
+      const mod = await moderateText(bio, { context: 'bio' });
+      if (!mod.ok && mod.severity === 'severe') {
+        return res.status(422).json({ error: mod.reason, severity: mod.severity });
+      }
+    }
+
     const parsedAge = age !== undefined ? parseInt(age) : undefined;
     if (parsedAge !== undefined && (isNaN(parsedAge) || parsedAge < 18 || parsedAge > 100)) {
       return res.status(400).json({ error: 'Edad inválida (18-100)' });

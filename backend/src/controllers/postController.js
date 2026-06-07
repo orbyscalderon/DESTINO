@@ -214,6 +214,15 @@ export const createPost = async (req, res) => {
       }
     }
 
+    // Moderación de caption (solo si tiene texto)
+    if (caption?.trim()) {
+      const { moderateText } = await import('../lib/textModeration.js');
+      const mod = await moderateText(caption, { context: 'post' });
+      if (!mod.ok) {
+        return res.status(422).json({ error: mod.reason, severity: mod.severity });
+      }
+    }
+
     if (subOnly) {
       const { data: profile } = await supabase
         .from('profiles').select('is_creator').eq('id', userId).single();

@@ -98,7 +98,8 @@ export default function ChatWindow({ matchId, otherUser }) {
   const [msgMenu, setMsgMenu]           = useState(null); // { id, isMe, x, y }
   const [clearingConv, setClearingConv] = useState(false);
   // Pinned message
-  const [pinnedMsg, setPinnedMsg]       = useState(null);
+  const [pinnedList, setPinnedList]     = useState([]); // hasta 3 mensajes (v63)
+  const [pinnedExpanded, setPinnedExpanded] = useState(false);
 
   // GIF picker
   const [showGifPanel, setShowGifPanel] = useState(false);
@@ -318,7 +319,7 @@ export default function ChatWindow({ matchId, otherUser }) {
   const loadPinnedMessage = async () => {
     try {
       const { data } = await api.get(`/api/messages/${matchId}/pin`);
-      setPinnedMsg(data.pinned || null);
+      setPinnedList(data.pinned_list || (data.pinned ? [data.pinned] : []));
     } catch {}
   };
 
@@ -339,16 +340,28 @@ export default function ChatWindow({ matchId, otherUser }) {
     try {
       await api.put(`/api/messages/${matchId}/pin`, { messageId: msgId });
       const msg = messages.find(m => m.id === msgId);
-      setPinnedMsg(msg || null);
+      if (msg) {
+        // Push al principio (más reciente), dedupe, max 3 (matchea trigger DB)
+        setPinnedList(prev => [msg, ...prev.filter(m => m.id !== msgId)].slice(0, 3));
+      }
       toast.success('Mensaje fijado');
     } catch { toast.error('No se pudo fijar el mensaje'); }
   };
 
-  const handleUnpinMessage = async () => {
+  const handleUnpinMessage = async (msgId) => {
     try {
-      await api.delete(`/api/messages/${matchId}/pin`);
-      setPinnedMsg(null);
+      await api.delete(`/api/messages/${matchId}/pin`, { params: { messageId: msgId } });
+      setPinnedList(prev => prev.filter(m => m.id !== msgId));
     } catch {}
+  };
+
+  const scrollToMessage = (msgId) => {
+    const el = document.getElementById(`msg-${msgId}`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.classList.add('ring-2', 'ring-brand-500/60');
+      setTimeout(() => el.classList.remove('ring-2', 'ring-brand-500/60'), 1800);
+    }
   };
 
   // Long-press / right-click: show context menu (reactions + delete + pin)
@@ -647,23 +660,49 @@ export default function ChatWindow({ matchId, otherUser }) {
         </div>
       )}
 
-      {/* Pinned message banner */}
+      {/* Pinned messages banner (max 3, expandible) */}
       <AnimatePresence>
-        {pinnedMsg && (
+        {pinnedList.length > 0 && (
           <motion.div
             initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
             className="overflow-hidden shrink-0"
           >
-            <div className="flex items-center gap-2 px-4 py-1.5 bg-brand-500/10 border-b border-brand-500/20">
-              <FiBookmark size={11} className="text-brand-400 shrink-0" />
-              <p className="text-xs text-gray-300 truncate flex-1">
-                <span className="text-brand-400 font-medium">Fijado: </span>
-                {pinnedMsg.content || '🎤 Voz'}
-              </p>
-              <button onClick={handleUnpinMessage} className="text-gray-500 hover:text-white shrink-0" aria-label="Cerrar">
-                <FiX size={12} />
+            {(pinnedExpanded ? pinnedList : pinnedList.slice(0, 1)).map((p, idx) => (
+              <div
+                key={p.id}
+                className="flex items-center gap-2 px-4 py-1.5 bg-brand-500/10 border-b border-brand-500/20 hover:bg-brand-500/15 transition-colors cursor-pointer"
+                onClick={() => scrollToMessage(p.id)}
+              >
+                <FiBookmark size={11} className="text-brand-400 shrink-0" />
+                <p className="text-xs text-gray-300 truncate flex-1">
+                  <span className="text-brand-400 font-medium">Fijado{pinnedList.length > 1 ? ` ${idx + 1}/${pinnedList.length}` : ''}: </span>
+                  {p.content || '🎤 Voz'}
+                </p>
+                {pinnedList.length > 1 && idx === 0 && !pinnedExpanded && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setPinnedExpanded(true); }}
+                    className="text-[10px] text-brand-400 hover:text-brand-300 font-semibold shrink-0"
+                  >
+                    +{pinnedList.length - 1} más
+                  </button>
+                )}
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleUnpinMessage(p.id); }}
+                  className="text-gray-500 hover:text-white hover:bg-white/5 p-1 -m-1 rounded transition-colors shrink-0"
+                  aria-label="Desfijar"
+                >
+                  <FiX size={12} />
+                </button>
+              </div>
+            ))}
+            {pinnedExpanded && pinnedList.length > 1 && (
+              <button
+                onClick={() => setPinnedExpanded(false)}
+                className="w-full text-center text-[10px] py-1 text-gray-500 hover:text-gray-300 bg-brand-500/5 border-b border-brand-500/10 transition-colors"
+              >
+                Ocultar
               </button>
-            </div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
@@ -690,10 +729,25 @@ export default function ChatWindow({ matchId, otherUser }) {
               </div>
               {/* Actions */}
               <div className="py-1">
-                <button onClick={() => handlePinMessage(msgMenu.id)}
-                  className="w-full flex items-center gap-3 px-3 py-2 text-sm text-gray-300 hover:bg-white/5 rounded-xl">
-                  <FiBookmark size={14} /> Fijar mensaje
-                </button>
+                {(() => {
+                  const isPinned = pinnedList.some(p => p.id === msgMenu.id);
+                  return (
+                    <button
+                      onClick={() => {
+                        if (isPinned) {
+                          handleUnpinMessage(msgMenu.id);
+                          setMsgMenu(null);
+                        } else {
+                          handlePinMessage(msgMenu.id);
+                        }
+                      }}
+                      className="w-full flex items-center gap-3 px-3 py-2 text-sm text-gray-300 hover:bg-white/5 rounded-xl"
+                    >
+                      <FiBookmark size={14} className={isPinned ? 'fill-current text-brand-400' : ''} />
+                      {isPinned ? 'Desfijar mensaje' : 'Fijar mensaje'}
+                    </button>
+                  );
+                })()}
                 {msgMenu.isMe && (
                   <button onClick={() => handleDeleteMessage(msgMenu.id, true)}
                     className="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-400 hover:bg-red-500/10 rounded-xl">
@@ -737,9 +791,10 @@ export default function ChatWindow({ matchId, otherUser }) {
             return (
               <motion.div
                 key={msg.id}
+                id={`msg-${msg.id}`}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} relative`}
+                className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} relative scroll-mt-24 rounded-lg transition-shadow duration-300`}
               >
                 <div
                   className={`group flex items-end gap-1.5 max-w-[80%] ${isMe ? 'flex-row-reverse' : 'flex-row'}`}

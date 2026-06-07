@@ -10,6 +10,7 @@ import VerifiedBadge from '../components/ui/VerifiedBadge.jsx';
 import StoriesBar from '../components/ui/StoriesBar.jsx';
 import FirstTimeTour from '../components/ui/FirstTimeTour.jsx';
 import DailyReward from '../components/ui/DailyReward.jsx';
+import StreakBadge from '../components/ui/StreakBadge.jsx';
 import { PostCardSkeleton } from '../components/ui/Skeleton.jsx';
 import { useConfirm } from '../components/ui/ConfirmDialog.jsx';
 import { useSwipeNavigation } from '../lib/useSwipeNavigation.js';
@@ -350,14 +351,17 @@ export default function Home() {
       {/* Header con glass morphism */}
       <div className="sticky top-0 z-10 glass border-b border-white/5 px-4 py-3 flex items-center justify-between">
         <h1 className="text-xl font-black gradient-text">Destino TV 💕</h1>
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="w-9 h-9 bg-gradient-to-br from-brand-500 to-accent-500 rounded-xl flex items-center justify-center shadow-glow-sm hover:shadow-glow hover:scale-105 active:scale-95 transition-all duration-200 ease-out-expo"
-          title={t('home.publish')}
-          aria-label={t('home.publish')}
-        >
-          <FiPlus className="text-white" size={18} />
-        </button>
+        <div className="flex items-center gap-2">
+          <StreakBadge />
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="w-9 h-9 bg-gradient-to-br from-brand-500 to-accent-500 rounded-xl flex items-center justify-center shadow-glow-sm hover:shadow-glow hover:scale-105 active:scale-95 transition-all duration-200 ease-out-expo"
+            title={t('home.publish')}
+            aria-label={t('home.publish')}
+          >
+            <FiPlus className="text-white" size={18} />
+          </button>
+        </div>
       </div>
 
       {/* Tour primera vez (se auto-oculta tras verlo) */}
