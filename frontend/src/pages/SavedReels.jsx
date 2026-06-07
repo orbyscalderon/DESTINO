@@ -24,16 +24,16 @@ export default function SavedReels() {
   return (
     <div className="min-h-screen bg-dark-900 text-white">
       {/* Topbar */}
-      <div className="sticky top-0 z-20 px-4 py-3 flex items-center gap-3 bg-dark-900/95 backdrop-blur-md border-b border-white/5">
+      <div className="sticky top-0 z-20 px-4 py-3 flex items-center gap-3 glass border-b border-white/5">
         <button
           onClick={() => navigate(-1)}
           aria-label="Volver"
-          className="w-9 h-9 bg-dark-700 rounded-full flex items-center justify-center"
+          className="w-9 h-9 bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20 rounded-full flex items-center justify-center transition-all duration-200 ease-out-expo active:scale-90"
         >
           <FiArrowLeft size={16} />
         </button>
         <h1 className="font-bold tracking-tight flex items-center gap-2">
-          <FiBookmark className="text-yellow-400" size={16} /> Guardados
+          <FiBookmark className="text-yellow-400 drop-shadow-[0_0_6px_rgba(234,179,8,0.5)]" size={16} /> Guardados
         </h1>
       </div>
 
@@ -44,14 +44,16 @@ export default function SavedReels() {
           </div>
         ) : reels.length === 0 ? (
           <div className="text-center py-16 text-gray-400">
-            <FiBookmark className="text-gray-700 mx-auto mb-3" size={40} />
+            <div className="inline-block animate-float mb-3">
+              <FiBookmark className="text-gray-700" size={40} />
+            </div>
             <h2 className="text-white font-bold mb-1">Sin reels guardados</h2>
             <p className="text-sm mb-5 max-w-xs mx-auto">
               Toca el 🔖 en cualquier reel para guardarlo y verlo después.
             </p>
             <button
               onClick={() => navigate('/reels')}
-              className="bg-brand-500 hover:bg-brand-400 text-white font-bold px-5 py-2.5 rounded-xl text-sm"
+              className="btn-primary px-5 py-2.5 text-sm shadow-glow hover:shadow-glow-lg"
             >
               Ir al feed
             </button>

@@ -398,9 +398,9 @@ export default function Moments() {
 
   if (loading) return (
     <div className="min-h-screen pb-24">
-      <div className="sticky top-0 z-10 bg-dark-900/95 backdrop-blur-sm border-b border-white/5 px-4 py-3 flex items-center justify-between">
+      <div className="sticky top-0 z-10 glass border-b border-white/5 px-4 py-3 flex items-center justify-between">
         <h1 className="text-lg font-black gradient-text">Destino TV 💕</h1>
-        <div className="w-9 h-9 bg-brand-500 rounded-xl" />
+        <div className="skeleton w-9 h-9 rounded-xl" />
       </div>
       <div className="max-w-lg mx-auto px-4 pt-4 space-y-4">
         {[...Array(3)].map((_, i) => <PostCardSkeleton key={i} />)}
@@ -411,11 +411,11 @@ export default function Moments() {
   return (
     <div className="min-h-screen pb-24">
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-dark-900/95 backdrop-blur-sm border-b border-white/5 px-4 py-3">
+      <div className="sticky top-0 z-10 glass border-b border-white/5 px-4 py-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             {activeHashtag && (
-              <button onClick={() => setActiveHashtag(null)} className="text-brand-400 hover:text-white">
+              <button onClick={() => setActiveHashtag(null)} className="text-brand-400 hover:text-white hover:bg-brand-500/10 px-2 py-1 rounded-lg transition-colors">
                 ←
               </button>
             )}
@@ -426,7 +426,7 @@ export default function Moments() {
           <div className="flex items-center gap-2">
             <button
               onClick={() => setShowTrending(v => !v)}
-              className="w-9 h-9 bg-dark-700 rounded-xl flex items-center justify-center hover:bg-dark-600 transition-colors"
+              className="w-9 h-9 bg-white/5 border border-white/10 rounded-xl flex items-center justify-center hover:bg-white/10 hover:border-white/20 transition-all duration-200 ease-out-expo active:scale-90"
               title="Trending"
             >
               <FiTrendingUp className="text-yellow-400" size={16} />

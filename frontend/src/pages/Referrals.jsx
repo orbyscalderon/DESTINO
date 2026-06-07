@@ -57,15 +57,16 @@ export default function Referrals() {
   );
 
   return (
-    <div className="min-h-screen px-4 pt-8 pb-28 max-w-lg mx-auto">
+    <div className="min-h-screen px-4 pt-8 pb-28 max-w-lg mx-auto relative">
+      <div className="absolute top-12 right-0 w-64 h-64 bg-brand-500/6 rounded-full blur-3xl pointer-events-none animate-float -z-10" />
       <div className="flex items-center gap-3 mb-6">
-        <Link to="/profile" className="text-gray-400 hover:text-white"><FiArrowLeft size={20} /></Link>
-        <h1 className="text-2xl font-black gradient-text">Invita y gana</h1>
+        <Link to="/profile" className="text-gray-400 hover:text-white hover:bg-white/5 p-1.5 -m-1 rounded-lg transition-colors"><FiArrowLeft size={20} /></Link>
+        <h1 className="text-2xl lg:text-3xl font-black gradient-text">Invita y gana</h1>
       </div>
 
       {/* Hero card */}
-      <div className="card p-6 mb-6 text-center bg-gradient-to-br from-brand-500/15 to-pink-500/5 border-brand-500/30">
-        <FiGift className="text-brand-400 mx-auto mb-3" size={36} />
+      <div className="card p-6 mb-6 text-center bg-gradient-to-br from-brand-500/15 to-accent-500/8 border-brand-500/30 shadow-glow-sm">
+        <FiGift className="text-brand-400 mx-auto mb-3 drop-shadow-[0_0_8px_rgba(244,63,94,0.5)]" size={36} />
         <p className="text-lg font-bold text-white mb-1">50 coins por cada amigo</p>
         <p className="text-gray-400 text-sm">Recibe 50 coins cuando tu amigo haga su primera compra</p>
       </div>
@@ -74,8 +75,8 @@ export default function Referrals() {
       <div className="card p-5 mb-4">
         <p className="text-xs text-gray-500 uppercase font-bold tracking-wide mb-2">Tu código</p>
         <div className="flex items-center gap-2">
-          <div className="flex-1 bg-dark-800 rounded-xl py-3 px-4 text-center">
-            <p className="text-2xl font-black text-white tracking-widest">{data?.code}</p>
+          <div className="flex-1 bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-center">
+            <p className="text-2xl font-black gradient-text tracking-widest">{data?.code}</p>
           </div>
           <button onClick={() => copy(data?.code)}
             className="w-12 h-12 rounded-xl bg-dark-700 hover:bg-dark-600 flex items-center justify-center text-gray-300 shrink-0">

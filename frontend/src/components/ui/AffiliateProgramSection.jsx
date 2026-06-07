@@ -63,9 +63,9 @@ export default function AffiliateProgramSection() {
 
   if (!data?.program) {
     return (
-      <div className="card p-5 bg-gradient-to-br from-brand-500/15 to-purple-500/5 border-brand-500/30">
+      <div className="card p-5 bg-gradient-to-br from-brand-500/15 to-accent-500/8 border-brand-500/30 shadow-glow-sm">
         <div className="flex items-start gap-3 mb-3">
-          <div className="w-12 h-12 rounded-2xl bg-brand-500/20 flex items-center justify-center shrink-0">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-brand-500/30 to-accent-500/20 flex items-center justify-center shrink-0 shadow-glow-sm">
             <FiTrendingUp size={22} className="text-brand-400" />
           </div>
           <div>
@@ -87,7 +87,7 @@ export default function AffiliateProgramSection() {
         <button
           onClick={handleEnroll}
           disabled={enrolling}
-          className="btn-primary w-full text-sm py-2.5 disabled:opacity-50"
+          className="btn-primary w-full text-sm py-2.5 disabled:opacity-50 shadow-glow hover:shadow-glow-lg"
         >
           {enrolling ? 'Inscribiendo…' : 'Inscribirme al programa'}
         </button>

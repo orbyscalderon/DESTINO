@@ -119,7 +119,7 @@ export default function CCBillSetup() {
             onChange={e => setSubAccountId(e.target.value)}
             placeholder="0001"
             maxLength={32}
-            className="w-full mt-1 bg-dark-700 rounded-lg px-3 py-2 text-white text-sm font-mono"
+            className="w-full mt-1 bg-white/5 border border-white/10 hover:border-white/20 focus:border-brand-500/40 focus:ring-2 focus:ring-brand-500/20 rounded-lg px-3 py-2 text-white text-sm font-mono outline-none transition-colors"
           />
         </label>
         <label className="block text-xs text-gray-400">
@@ -130,7 +130,7 @@ export default function CCBillSetup() {
             onChange={e => setRecurringFormId(e.target.value)}
             placeholder="123cc"
             maxLength={32}
-            className="w-full mt-1 bg-dark-700 rounded-lg px-3 py-2 text-white text-sm font-mono"
+            className="w-full mt-1 bg-white/5 border border-white/10 hover:border-white/20 focus:border-brand-500/40 focus:ring-2 focus:ring-brand-500/20 rounded-lg px-3 py-2 text-white text-sm font-mono outline-none transition-colors"
           />
         </label>
       </div>
@@ -138,12 +138,12 @@ export default function CCBillSetup() {
       <button
         onClick={handleSave}
         disabled={saving}
-        className="w-full btn-primary py-2 text-sm disabled:opacity-50"
+        className="w-full btn-primary py-2 text-sm disabled:opacity-50 shadow-glow-sm hover:shadow-glow"
       >
         {saving ? 'Guardando...' : account.configured ? 'Actualizar credenciales' : 'Guardar'}
       </button>
 
-      <div className="bg-dark-800 rounded-lg p-3 text-[11px] text-gray-500 leading-relaxed">
+      <div className="bg-white/5 border border-white/10 rounded-lg p-3 text-[11px] text-gray-500 leading-relaxed">
         <p className="text-gray-400 font-semibold mb-1">¿Cómo conseguir las credenciales?</p>
         <ol className="list-decimal pl-4 space-y-0.5">
           <li>Regístrate en ccbill.com (proceso ~ 5-10 días con KYC)</li>

@@ -88,13 +88,13 @@ export default function ChatModeratorsManager({ creatorId }) {
       </p>
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-dark-900 rounded-lg p-1">
+      <div className="flex gap-1 bg-white/5 border border-white/10 rounded-lg p-1">
         {tabs.map(({ k, l, icon: Icon, count }) => (
           <button
             key={k}
             onClick={() => setTab(k)}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-[11px] font-semibold transition-colors ${
-              tab === k ? 'bg-brand-500 text-white' : 'text-gray-400 hover:text-white'
+            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-[11px] font-semibold transition-all duration-200 ease-out-expo active:scale-95 ${
+              tab === k ? 'bg-gradient-to-r from-brand-500 to-brand-600 text-white shadow-glow-sm' : 'text-gray-400 hover:text-white hover:bg-white/5'
             }`}
           >
             <Icon size={11} /> {l}
@@ -176,7 +176,7 @@ export default function ChatModeratorsManager({ creatorId }) {
                 </div>
                 <button
                   onClick={() => handleUnban(b.viewer.id)}
-                  className="text-xs bg-dark-700 hover:bg-dark-600 text-gray-300 px-2 py-1 rounded"
+                  className="text-xs bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20 text-gray-300 px-2.5 py-1 rounded transition-all duration-200 ease-out-expo active:scale-95"
                 >
                   Desbanear
                 </button>

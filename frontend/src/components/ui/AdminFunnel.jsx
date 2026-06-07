@@ -39,13 +39,13 @@ export default function AdminFunnel() {
         <h2 className="text-lg font-bold text-white flex items-center gap-2">
           <FiTrendingDown size={16} /> Funnel de conversión
         </h2>
-        <div className="flex gap-1 bg-dark-800 rounded-lg p-1">
+        <div className="flex gap-1 bg-white/5 border border-white/10 rounded-lg p-1">
           {[7, 30, 90].map(d => (
             <button
               key={d}
               onClick={() => setDays(d)}
-              className={`px-3 py-1 rounded-md text-xs font-bold transition ${
-                days === d ? 'bg-brand-500 text-white' : 'text-gray-400 hover:text-white'
+              className={`px-3 py-1 rounded-md text-xs font-bold transition-all duration-200 ease-out-expo active:scale-95 ${
+                days === d ? 'bg-gradient-to-r from-brand-500 to-brand-600 text-white shadow-glow-sm' : 'text-gray-400 hover:text-white hover:bg-white/5'
               }`}
             >
               {d}d
@@ -70,8 +70,8 @@ export default function AdminFunnel() {
             const isDropConcern = dropOff > 40;
             return (
               <div key={s.step}>
-                <div className={`card p-3 flex items-center gap-3 ${isDropConcern ? 'border-red-500/30 bg-red-500/5' : ''}`}>
-                  <div className="w-10 h-10 rounded-xl bg-dark-700 flex items-center justify-center shrink-0 text-lg">
+                <div className={`card p-3 flex items-center gap-3 transition-all duration-200 ${isDropConcern ? 'border-red-500/30 bg-red-500/5 shadow-[0_0_16px_rgba(239,68,68,0.2)]' : ''}`}>
+                  <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center shrink-0 text-lg">
                     {meta.emoji}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -85,9 +85,9 @@ export default function AdminFunnel() {
                       )}
                     </div>
                     {/* Barra visual */}
-                    <div className="w-full h-1 bg-dark-700 rounded-full mt-2 overflow-hidden">
+                    <div className="w-full h-1 bg-white/5 rounded-full mt-2 overflow-hidden">
                       <div
-                        className="h-full bg-gradient-to-r from-brand-500 to-pink-500"
+                        className="h-full bg-gradient-to-r from-brand-500 to-accent-500 shadow-glow-sm transition-all duration-500"
                         style={{ width: `${Math.min(100, s.pct_of_top)}%` }}
                       />
                     </div>

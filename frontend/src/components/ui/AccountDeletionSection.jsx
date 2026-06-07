@@ -138,7 +138,7 @@ export default function AccountDeletionSection() {
             </p>
             <button
               onClick={() => setStage('confirm')}
-              className="text-sm py-2 w-full rounded-lg bg-red-500/15 text-red-400 hover:bg-red-500/25 font-semibold transition-colors"
+              className="text-sm py-2 w-full rounded-lg bg-red-500/15 border border-red-500/30 text-red-400 hover:bg-red-500/25 hover:border-red-500/50 font-semibold transition-all duration-200 ease-out-expo active:scale-95"
             >
               Solicitar eliminación
             </button>
@@ -171,7 +171,7 @@ export default function AccountDeletionSection() {
               <button
                 onClick={handleRequest}
                 disabled={busy}
-                className="flex-1 text-sm py-2 rounded-lg bg-red-500 text-white font-semibold disabled:opacity-50"
+                className="flex-1 text-sm py-2 rounded-lg bg-gradient-to-r from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 text-white font-semibold disabled:opacity-50 shadow-[0_0_20px_rgba(239,68,68,0.4)] hover:shadow-[0_0_28px_rgba(239,68,68,0.55)] hover:-translate-y-0.5 active:scale-95 transition-all duration-200 ease-out-expo"
               >
                 {busy ? 'Enviando…' : 'Sí, eliminar'}
               </button>
