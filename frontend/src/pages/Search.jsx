@@ -144,8 +144,9 @@ const QUICK_INTERESTS = ['🎵 Música', '✈️ Viajes', '💪 Fitness', '🎮 
   const hasActiveFilters = filters.gender !== 'all' || filters.minAge || filters.maxAge || filters.country || filters.creatorOnly || filters.interests?.length > 0;
 
   return (
-    <div className="min-h-screen px-4 pt-8 pb-28 max-w-lg mx-auto">
-      <h1 className="text-2xl font-black gradient-text mb-6">{t('search_page.title')}</h1>
+    <div className="min-h-screen px-4 pt-8 pb-28 max-w-lg mx-auto relative">
+      <div className="absolute top-12 left-0 w-64 h-64 bg-brand-500/6 rounded-full blur-3xl pointer-events-none animate-float" />
+      <h1 className="relative text-2xl font-black gradient-text mb-6">{t('search_page.title')}</h1>
 
       {/* Input de búsqueda + filtros */}
       <div className="flex gap-2 mb-3">
@@ -244,7 +245,7 @@ const QUICK_INTERESTS = ['🎵 Música', '✈️ Viajes', '💪 Fitness', '🎮 
                   value={filters.country}
                   onChange={e => setFilters(f => ({ ...f, country: e.target.value }))}
                 >
-                  <option value="">Todos los países</option>
+                  <option value="" className="bg-dark-700 text-white">Todos los países</option>
                   {COUNTRIES.map(c => (
                     <option key={c.code} value={c.code}>{c.flag} {c.name}</option>
                   ))}

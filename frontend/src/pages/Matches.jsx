@@ -88,7 +88,8 @@ export default function Matches() {
   );
 
   return (
-    <div className="min-h-screen px-4 pt-8 pb-24 lg:px-10 lg:pt-10">
+    <div className="min-h-screen px-4 pt-8 pb-24 lg:px-10 lg:pt-10 relative">
+      <div className="absolute top-12 right-1/4 w-64 h-64 bg-brand-500/8 rounded-full blur-3xl pointer-events-none animate-float" />
       <div className="max-w-2xl mx-auto">
 
         {/* Header */}

@@ -321,11 +321,11 @@ export default function LiveShows() {
     <div className="min-h-screen pb-28">
 
       {/* ── Header ───────────────────────────────────────────────── */}
-      <div className="sticky top-0 z-20 bg-dark-900/95 backdrop-blur-md border-b border-white/5">
+      <div className="sticky top-0 z-20 glass border-b border-white/5">
         <div className="px-4 py-3 flex items-center justify-between gap-3">
           <div>
             <h1 className="text-lg font-black text-white flex items-center gap-2">
-              <FiRadio size={18} className="text-red-400" />
+              <FiRadio size={18} className="text-red-400 animate-pulse" />
               Shows en Vivo
             </h1>
             <div className="flex items-center gap-2 mt-0.5">

@@ -242,7 +242,7 @@ export default function Register() {
             </div>
           )}
 
-          <button type="submit" disabled={loading} className="btn-primary w-full">
+          <button type="submit" disabled={loading} className="btn-primary w-full shadow-glow hover:shadow-glow-lg">
             {loading ? t('auth.creating') : t('auth.create')}
           </button>
         </form>

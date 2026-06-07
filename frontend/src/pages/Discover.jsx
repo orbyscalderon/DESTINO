@@ -322,10 +322,12 @@ export default function Discover() {
   );
 
   return (
-    <div className="min-h-screen px-4 pt-8 pb-28 lg:pb-6 lg:px-10 lg:pt-10">
+    <div className="min-h-screen px-4 pt-8 pb-28 lg:pb-6 lg:px-10 lg:pt-10 relative">
+      {/* Glow orb sutil de fondo — da depth sin distraer del swipe */}
+      <div className="absolute top-0 right-1/4 w-72 h-72 bg-brand-500/5 rounded-full blur-3xl pointer-events-none animate-float" />
 
       {/* Header */}
-      <div className="flex items-center justify-between mb-8 lg:mb-10">
+      <div className="relative flex items-center justify-between mb-8 lg:mb-10">
         <div>
           <h1 className="text-2xl lg:text-3xl font-black gradient-text">{t('discover.title')}</h1>
           <p className="text-gray-500 text-sm mt-0.5">Encuentra tu conexión hoy</p>
@@ -615,7 +617,7 @@ export default function Discover() {
           >
             {hasActiveFilters ? (
               <>
-                <div className="text-6xl mb-4">🔍</div>
+                <div className="text-6xl mb-4 inline-block animate-float">🔍</div>
                 <h3 className="text-xl font-bold text-white mb-2">Sin resultados</h3>
                 <p className="text-gray-400 text-sm mb-6">Ningún perfil coincide con tus filtros activos</p>
                 <div className="flex gap-3 justify-center flex-wrap">

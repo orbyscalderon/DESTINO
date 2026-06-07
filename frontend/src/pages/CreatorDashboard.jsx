@@ -384,7 +384,7 @@ export default function CreatorDashboard() {
     <div className="min-h-screen bg-dark-900 pb-24 lg:pb-0 lg:flex lg:flex-col">
 
       {/* ── HEADER DEL ESTUDIO ───────────────────────────── */}
-      <div className="bg-dark-800 border-b border-white/5 px-4 py-3 lg:px-6 sticky top-0 z-30">
+      <div className="glass border-b border-white/5 px-4 py-3 lg:px-6 sticky top-0 z-30">
         <div className="max-w-6xl mx-auto flex items-center gap-3">
 
           {/* Avatar + nombre */}

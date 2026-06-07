@@ -223,13 +223,22 @@ export default function Premium() {
 
   // ── Vista upgrade (Básico) ───────────────────────────────────────────────────
   return (
-    <div className="min-h-screen px-4 pt-8 pb-28 lg:pb-10 lg:px-10">
-      <div className="max-w-4xl mx-auto">
-        <div className="text-center mb-10">
+    <div className="min-h-screen px-4 pt-8 pb-28 lg:pb-10 lg:px-10 hero-mesh relative overflow-hidden">
+      {/* Glow orbs — atmosphere de "premium" sin sobrecargar */}
+      <div className="absolute top-20 left-1/2 -translate-x-1/2 w-[400px] h-[400px] bg-yellow-500/10 rounded-full blur-3xl pointer-events-none animate-float" />
+      <div className="absolute top-1/2 right-10 w-72 h-72 bg-brand-500/10 rounded-full blur-3xl pointer-events-none animate-float" style={{ animationDelay: '1.5s' }} />
+
+      <div className="max-w-4xl mx-auto relative">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: [0.19, 1, 0.22, 1] }}
+          className="text-center mb-10"
+        >
           <p className="text-gray-400 text-sm font-semibold uppercase tracking-widest mb-2">{t('premium.subtitle_plans')}</p>
-          <h1 className="text-3xl lg:text-4xl font-black gradient-text mb-2">{t('premium.title')}</h1>
+          <h1 className="text-3xl lg:text-5xl font-black gradient-text mb-3">{t('premium.title')}</h1>
           <p className="text-gray-500 text-sm">{t('premium.subtitle_terms')}</p>
-        </div>
+        </motion.div>
 
         <motion.div
           initial={{ opacity: 0, y: 20 }}

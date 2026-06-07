@@ -123,7 +123,8 @@ export default function Notifications() {
   );
 
   return (
-    <div className="min-h-screen px-4 pt-8 pb-28 max-w-lg mx-auto">
+    <div className="min-h-screen px-4 pt-8 pb-28 max-w-lg mx-auto relative">
+      <div className="absolute top-12 left-1/4 w-64 h-64 bg-brand-500/6 rounded-full blur-3xl pointer-events-none animate-float" />
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
@@ -152,8 +153,10 @@ export default function Notifications() {
       {/* Lista */}
       {notifications.length === 0 ? (
         <div className="text-center py-20">
-          <FiBell size={48} className="mx-auto text-gray-700 mb-4" />
-          <p className="text-gray-500">{t('notifications.empty')}</p>
+          <div className="inline-block animate-float">
+            <FiBell size={48} className="text-gray-700" />
+          </div>
+          <p className="text-gray-400 font-medium mt-4">{t('notifications.empty')}</p>
           <p className="text-gray-600 text-sm mt-1">Aquí verás tus propinas, matches y más</p>
         </div>
       ) : (

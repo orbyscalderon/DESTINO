@@ -407,9 +407,12 @@ export default function Profile() {
   };
 
   return (
-    <div className="min-h-screen px-4 pt-8 pb-28 lg:pb-8 lg:px-10 lg:pt-10">
+    <div className="min-h-screen px-4 pt-8 pb-28 lg:pb-8 lg:px-10 lg:pt-10 relative">
+      {/* Glow sutil — Profile no debe gritar pero sí tener depth como Coins/Premium */}
+      <div className="absolute top-12 right-0 w-72 h-72 bg-brand-500/8 rounded-full blur-3xl pointer-events-none animate-float" />
+
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="relative flex items-center justify-between mb-8">
         <h1 className="text-2xl lg:text-3xl font-black gradient-text">{t('profile.title')}</h1>
         <div className="flex gap-2">
           <button onClick={() => setShowQR(true)} title="Compartir perfil (QR)" className="w-9 h-9 rounded-xl bg-dark-700 flex items-center justify-center text-gray-400 hover:text-white transition-colors">
@@ -894,7 +897,7 @@ export default function Profile() {
                         value={form.zodiac}
                         onChange={e => setForm(f => ({ ...f, zodiac: e.target.value }))}
                       >
-                        <option value="">Seleccionar</option>
+                        <option value="" className="bg-dark-700 text-white">Seleccionar</option>
                         {ZODIAC_SIGNS.map(z => <option key={z} value={z}>{z}</option>)}
                       </select>
                     </div>

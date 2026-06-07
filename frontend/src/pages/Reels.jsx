@@ -148,8 +148,9 @@ export default function Reels() {
   if (reels.length === 0) {
     const isFollowing = tab === 'following';
     return (
-      <div className="h-screen [@supports(height:100dvh)]:h-[100dvh] w-full bg-black flex flex-col items-center justify-center px-6 text-center text-white">
-        <FiInbox size={48} className="text-gray-600 mb-3" />
+      <div className="h-screen [@supports(height:100dvh)]:h-[100dvh] w-full bg-black hero-mesh flex flex-col items-center justify-center px-6 text-center text-white relative overflow-hidden">
+        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-72 h-72 bg-brand-500/10 rounded-full blur-3xl pointer-events-none animate-float" />
+        <FiInbox size={48} className="text-gray-600 mb-3 relative animate-float" />
         <h2 className="text-xl font-bold mb-1">
           {isFollowing ? t('reels.no_reels_following') : hashtagFilter ? t('reels.no_reels_tag') : t('reels.no_reels_yet')}
         </h2>

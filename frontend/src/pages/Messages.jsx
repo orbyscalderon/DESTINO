@@ -93,7 +93,8 @@ export default function Messages() {
   );
 
   return (
-    <div className="min-h-screen px-4 pt-8 pb-24 lg:px-10 lg:pt-10">
+    <div className="min-h-screen px-4 pt-8 pb-24 lg:px-10 lg:pt-10 relative">
+      <div className="absolute top-12 right-0 w-64 h-64 bg-brand-500/6 rounded-full blur-3xl pointer-events-none animate-float" />
       <div className="max-w-2xl mx-auto">
 
         {/* Header */}
@@ -161,7 +162,9 @@ export default function Messages() {
             animate={{ opacity: 1, y: 0 }}
             className="flex flex-col items-center text-center pt-20"
           >
-            <FiMessageCircle className="text-gray-700 mb-4" size={48} />
+            <div className="inline-block animate-float mb-4">
+              <FiMessageCircle className="text-gray-700" size={48} />
+            </div>
             <h2 className="text-white font-bold text-lg mb-1">{t('messages_page.no_messages')}</h2>
             <p className="text-gray-500 text-sm mb-6 max-w-xs">
               Haz match con alguien en Descubrir y empieza a chatear

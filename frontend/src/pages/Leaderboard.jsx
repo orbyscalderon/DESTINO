@@ -21,9 +21,12 @@ export default function Leaderboard() {
   const monthName = new Date().toLocaleString('es', { month: 'long' });
 
   return (
-    <div className="min-h-screen px-4 pt-8 pb-24 lg:px-10 lg:pt-10 max-w-2xl mx-auto">
-      <div className="flex items-center gap-3 mb-6">
-        <div className="w-10 h-10 rounded-xl bg-yellow-500/20 flex items-center justify-center">
+    <div className="min-h-screen px-4 pt-8 pb-24 lg:px-10 lg:pt-10 max-w-2xl mx-auto relative">
+      <div className="absolute top-12 right-0 w-72 h-72 bg-yellow-500/10 rounded-full blur-3xl pointer-events-none animate-float" />
+      <div className="absolute top-1/2 left-0 w-60 h-60 bg-brand-500/8 rounded-full blur-3xl pointer-events-none animate-float" style={{ animationDelay: '1.5s' }} />
+
+      <div className="relative flex items-center gap-3 mb-6">
+        <div className="w-10 h-10 rounded-xl bg-yellow-500/20 ring-1 ring-yellow-500/30 flex items-center justify-center">
           <FiTrendingUp size={18} className="text-yellow-400" />
         </div>
         <div>

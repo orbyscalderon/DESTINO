@@ -171,7 +171,8 @@ export default function Coins() {
   const fmtUsd   = (n) => Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   if (loading) return (
-    <div className="min-h-screen px-4 pt-8 pb-28 max-w-lg mx-auto">
+    <div className="min-h-screen px-4 pt-8 pb-28 max-w-lg mx-auto relative">
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-72 h-72 bg-yellow-500/8 rounded-full blur-3xl pointer-events-none animate-float" />
       {/* Skeleton del header + balance para evitar layout shift */}
       <div className="flex items-center gap-3 mb-6">
         <div className="w-5 h-5 skeleton rounded" />
@@ -187,11 +188,15 @@ export default function Coins() {
   );
 
   return (
-    <div className="min-h-screen px-4 pt-8 pb-28 max-w-lg mx-auto">
-      <div className="flex items-center gap-3 mb-6">
+    <div className="min-h-screen px-4 pt-8 pb-28 max-w-lg mx-auto relative">
+      {/* Glow orbs decorativos — refuerzan el tema "coins/valor" sin distraer */}
+      <div className="absolute top-12 right-4 w-72 h-72 bg-yellow-500/8 rounded-full blur-3xl pointer-events-none animate-float" />
+      <div className="absolute top-1/3 left-0 w-60 h-60 bg-brand-500/8 rounded-full blur-3xl pointer-events-none animate-float" style={{ animationDelay: '1.5s' }} />
+
+      <div className="relative flex items-center gap-3 mb-6">
         <button
           onClick={() => navigate(-1)}
-          className="text-gray-400 hover:text-white"
+          className="text-gray-400 hover:text-white transition-colors duration-200 ease-out-expo"
           aria-label="Volver"
         >
           <FiArrowLeft size={20} />

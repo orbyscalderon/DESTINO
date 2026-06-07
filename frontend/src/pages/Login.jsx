@@ -178,7 +178,7 @@ export default function Login() {
             </div>
           )}
 
-          <button type="submit" disabled={loading} className="btn-primary w-full">
+          <button type="submit" disabled={loading} className="btn-primary w-full shadow-glow hover:shadow-glow-lg">
             {loading ? t('auth.logging_in') : t('auth.login')}
           </button>
         </form>

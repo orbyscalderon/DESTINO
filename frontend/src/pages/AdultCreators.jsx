@@ -400,7 +400,7 @@ export default function AdultCreators() {
                     onChange={e => { setCountry(e.target.value); setPage(0); }}
                     className="flex-1 bg-dark-700 border border-white/10 rounded-xl px-3 py-1.5 text-sm text-white focus:outline-none focus:border-brand-500/50"
                   >
-                    <option value="">Todos los países</option>
+                    <option value="" className="bg-dark-700 text-white">Todos los países</option>
                     {COUNTRIES.map(c => (
                       <option key={c.value} value={c.value}>{c.label}</option>
                     ))}

@@ -117,11 +117,11 @@ export default function DMCA() {
               value={form.infringing_url} onChange={e => set('infringing_url', e.target.value)} required />
             <select className="input-field py-2 text-sm w-full"
               value={form.content_type} onChange={e => set('content_type', e.target.value)}>
-              <option value="photo">Foto</option>
-              <option value="video">Video</option>
-              <option value="post">Publicación</option>
-              <option value="show">Show en vivo / grabación</option>
-              <option value="other">Otro</option>
+              <option value="photo" className="bg-dark-700 text-white">Foto</option>
+              <option value="video" className="bg-dark-700 text-white">Video</option>
+              <option value="post" className="bg-dark-700 text-white">Publicación</option>
+              <option value="show" className="bg-dark-700 text-white">Show en vivo / grabación</option>
+              <option value="other" className="bg-dark-700 text-white">Otro</option>
             </select>
           </div>
         </section>

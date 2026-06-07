@@ -315,13 +315,30 @@ export default function App() {
       <Toaster
         position="top-center"
         toastOptions={{
+          duration: 3000,
           style: {
-            background: '#1a1a2e',
+            background: 'rgba(17, 17, 24, 0.85)',
             color: '#fff',
-            border: '1px solid rgba(255,255,255,0.1)',
-            borderRadius: '12px',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            borderRadius: '14px',
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
+            padding: '12px 16px',
+            fontSize: '14px',
+            fontWeight: 500,
+            boxShadow: '0 10px 30px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(244, 63, 94, 0.05)',
           },
-          success: { iconTheme: { primary: '#f43f5e', secondary: '#fff' } },
+          success: {
+            iconTheme: { primary: '#22c55e', secondary: '#fff' },
+            style: { boxShadow: '0 10px 30px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(34, 197, 94, 0.15)' },
+          },
+          error: {
+            iconTheme: { primary: '#ef4444', secondary: '#fff' },
+            style: { boxShadow: '0 10px 30px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(239, 68, 68, 0.15)' },
+          },
+          loading: {
+            iconTheme: { primary: '#f43f5e', secondary: '#fff' },
+          },
         }}
       />
       <Routes>

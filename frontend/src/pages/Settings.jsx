@@ -400,10 +400,13 @@ export default function Settings() {
   };
 
   return (
-    <div className="min-h-screen px-4 pt-8 pb-28 lg:pb-8 lg:px-10 lg:pt-10">
-      <div className="max-w-xl mx-auto">
+    <div className="min-h-screen px-4 pt-8 pb-28 lg:pb-8 lg:px-10 lg:pt-10 relative">
+      {/* Glow sutil para que Settings no se sienta plano comparado con Coins/Premium */}
+      <div className="absolute top-12 right-0 w-64 h-64 bg-brand-500/6 rounded-full blur-3xl pointer-events-none animate-float" />
+
+      <div className="max-w-xl mx-auto relative">
         <div className="flex items-center gap-3 mb-6">
-          <Link to="/profile" className="text-gray-400 hover:text-white transition-colors">
+          <Link to="/profile" className="text-gray-400 hover:text-white transition-colors duration-200 ease-out-expo">
             <FiArrowLeft size={20} />
           </Link>
           <h1 className="text-2xl font-black gradient-text">Configuración</h1>
@@ -690,11 +693,11 @@ export default function Settings() {
                     value={appealForm.content_type}
                     onChange={e => setAppealForm(f => ({ ...f, content_type: e.target.value }))}
                   >
-                    <option value="post">Publicación</option>
-                    <option value="profile">Perfil</option>
-                    <option value="show">Show</option>
-                    <option value="photo">Foto</option>
-                    <option value="video">Video</option>
+                    <option value="post" className="bg-dark-700 text-white">Publicación</option>
+                    <option value="profile" className="bg-dark-700 text-white">Perfil</option>
+                    <option value="show" className="bg-dark-700 text-white">Show</option>
+                    <option value="photo" className="bg-dark-700 text-white">Foto</option>
+                    <option value="video" className="bg-dark-700 text-white">Video</option>
                   </select>
                   <input
                     className="input-field text-sm py-2 w-full"
