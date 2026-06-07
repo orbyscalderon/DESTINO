@@ -1,8 +1,15 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { FiX, FiSlash, FiFlag } from 'react-icons/fi';
+import { FiX, FiSlash, FiFlag, FiBellOff, FiClock } from 'react-icons/fi';
 import api from '../../lib/api.js';
 import toast from 'react-hot-toast';
+
+const MUTE_DURATIONS = [
+  { value: '1d',      label: '24 horas' },
+  { value: '7d',      label: '7 días' },
+  { value: '30d',     label: '30 días' },
+  { value: 'forever', label: 'Indefinido' },
+];
 
 const REPORT_REASONS = [
   { value: 'spam', label: 'Spam o publicidad' },
@@ -13,9 +20,20 @@ const REPORT_REASONS = [
 ];
 
 export default function BlockReportModal({ userId, userName, onClose, onBlocked }) {
-  const [view, setView] = useState('menu'); // 'menu' | 'report'
+  const [view, setView] = useState('menu'); // 'menu' | 'report' | 'mute'
   const [reason, setReason] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const handleMute = async (duration) => {
+    setLoading(true);
+    try {
+      await api.post('/api/user-mutes', { muted_id: userId, duration });
+      toast.success(`${userName} silenciado`);
+      onClose();
+    } catch {
+      toast.error('Error al silenciar');
+    } finally { setLoading(false); }
+  };
 
   const handleBlock = async () => {
     setLoading(true);
@@ -55,13 +73,48 @@ export default function BlockReportModal({ userId, userName, onClose, onBlocked 
         className="w-full max-w-sm glass-strong rounded-2xl overflow-hidden shadow-2xl shadow-black/60"
         onClick={e => e.stopPropagation()}
       >
-        {view === 'menu' ? (
+        {view === 'mute' ? (
+          <>
+            <div className="flex items-center gap-3 p-4 border-b border-white/5">
+              <button onClick={() => setView('menu')} className="text-gray-400 hover:text-white hover:bg-white/5 p-1.5 -m-1 rounded-lg transition-colors"><FiX size={16} /></button>
+              <div>
+                <p className="font-semibold text-white">Silenciar a {userName}</p>
+                <p className="text-[10px] text-gray-500">Dejarás de ver sus posts/reels en tu feed</p>
+              </div>
+            </div>
+            <div className="p-4 space-y-2">
+              {MUTE_DURATIONS.map(d => (
+                <button
+                  key={d.value}
+                  onClick={() => handleMute(d.value)}
+                  disabled={loading}
+                  className="w-full text-left px-4 py-3 rounded-xl text-sm transition-all duration-200 ease-out-expo border bg-white/5 text-gray-300 hover:bg-white/10 hover:border-blue-500/40 border-white/10 active:scale-[0.98] disabled:opacity-50 flex items-center gap-2"
+                >
+                  <FiClock size={13} className="text-blue-400" />
+                  {d.label}
+                </button>
+              ))}
+            </div>
+          </>
+        ) : view === 'menu' ? (
           <>
             <div className="flex items-center justify-between p-4 border-b border-white/5">
               <p className="font-semibold text-white">{userName}</p>
               <button onClick={onClose} className="text-gray-400 hover:text-white hover:bg-white/5 p-1.5 -m-1 rounded-lg transition-colors" aria-label="Cerrar"><FiX /></button>
             </div>
             <div className="p-2">
+              <button
+                onClick={() => setView('mute')}
+                className="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-white/5 transition-colors text-left active:scale-[0.98]"
+              >
+                <div className="w-9 h-9 rounded-lg bg-blue-500/15 flex items-center justify-center shrink-0">
+                  <FiBellOff className="text-blue-400" size={16} />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-white">Silenciar</p>
+                  <p className="text-xs text-gray-500">Ocultar posts/reels temporalmente sin bloquear</p>
+                </div>
+              </button>
               <button
                 onClick={() => setView('report')}
                 className="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-white/5 transition-colors text-left active:scale-[0.98]"

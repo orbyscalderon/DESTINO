@@ -477,6 +477,143 @@ async function runV6Crons() {
 }
 
 const V6_CRON_INTERVAL_MS = 10 * 60 * 1000; // cada 10 min
+const V64_CRON_INTERVAL_MS = 60 * 1000;     // cada 1 min (scheduled msgs y disappear)
+const V64_MAINT_INTERVAL_MS = 60 * 60 * 1000; // cada 1h (mutes + show_chat_state)
+
+// ── v64 crons ────────────────────────────────────────────────────────
+// 1) Dispatch scheduled messages cuyo scheduled_for ya pasó
+async function dispatchScheduledMessages() {
+  try {
+    const nowIso = new Date().toISOString();
+    const { data: pending } = await supabase
+      .from('messages')
+      .select('id, content, sender_id, match_id, conversation_id, type')
+      .eq('is_scheduled', true)
+      .lte('scheduled_for', nowIso)
+      .limit(100);
+
+    for (const msg of pending || []) {
+      // Promote: clear is_scheduled, set scheduled_for null, set created_at to now
+      await supabase.from('messages')
+        .update({ is_scheduled: false, scheduled_for: null, created_at: nowIso })
+        .eq('id', msg.id);
+
+      // Push al destinatario
+      try {
+        const { data: sender } = await supabase.from('profiles').select('full_name').eq('id', msg.sender_id).single();
+        let recipients = [];
+        if (msg.match_id) {
+          const { data: match } = await supabase.from('matches').select('user1_id, user2_id').eq('id', msg.match_id).single();
+          if (match) recipients = [match.user1_id === msg.sender_id ? match.user2_id : match.user1_id];
+        } else if (msg.conversation_id) {
+          const { data: others } = await supabase.from('conversation_members')
+            .select('user_id').eq('conversation_id', msg.conversation_id).neq('user_id', msg.sender_id);
+          recipients = (others || []).map(o => o.user_id);
+        }
+        const url = msg.match_id ? `/chat/${msg.match_id}` : `/conversations/${msg.conversation_id}`;
+        const { sendPushToUser } = await import('../controllers/notificationController.js');
+        recipients.forEach(rid => {
+          sendPushToUser(rid, {
+            title: sender?.full_name || 'Mensaje programado',
+            body: (msg.content || '').slice(0, 100),
+            url,
+          }).catch(() => {});
+        });
+      } catch {}
+
+      // Mentions parse en el momento de envío (texto puede haber referenciado a username que ya cambió)
+      if (msg.type === 'text' && msg.content?.includes('@')) {
+        try {
+          const { insertMessageMentions } = await import('./mentions.js');
+          insertMessageMentions(msg.id, msg.content, msg.sender_id).catch(() => {});
+        } catch {}
+      }
+    }
+  } catch (err) {
+    console.error('[scheduled cron]', err.message);
+  }
+}
+
+// 2) Borrar mensajes disappearing cuyo expires_at ya pasó
+async function deleteExpiredMessages() {
+  try {
+    const nowIso = new Date().toISOString();
+    const { error, count } = await supabase
+      .from('messages')
+      .delete({ count: 'exact' })
+      .lt('expires_at', nowIso)
+      .not('expires_at', 'is', null);
+    if (error) console.warn('[disappearing cron]', error.message);
+    else if (count > 0) console.log(`[disappearing] borrados ${count} mensajes expirados`);
+  } catch (err) {
+    console.error('[disappearing cron]', err.message);
+  }
+}
+
+// 3) Notificar mentions pending (push a los mentioned aún no notificados)
+async function notifyMentions() {
+  try {
+    const { data: pending } = await supabase
+      .from('message_mentions')
+      .select(`
+        id, mentioned_id, mentioned_by, message_id,
+        message:messages!message_id(content, match_id, conversation_id),
+        by:profiles!mentioned_by(full_name)
+      `)
+      .eq('notified', false)
+      .limit(50);
+
+    if (!pending?.length) return;
+    const { sendPushToUser } = await import('../controllers/notificationController.js');
+
+    for (const m of pending) {
+      const url = m.message?.match_id ? `/chat/${m.message.match_id}` : `/conversations/${m.message?.conversation_id || ''}`;
+      sendPushToUser(m.mentioned_id, {
+        title: `${m.by?.full_name || 'Alguien'} te mencionó`,
+        body: (m.message?.content || '').slice(0, 100),
+        url,
+      }).catch(() => {});
+    }
+
+    const ids = pending.map(p => p.id);
+    await supabase.from('message_mentions').update({ notified: true }).in('id', ids);
+  } catch (err) {
+    console.error('[mention cron]', err.message);
+  }
+}
+
+// 4) Cleanup mutes expirados
+async function cleanExpiredMutes() {
+  try {
+    await supabase.from('user_mutes')
+      .delete()
+      .lt('expires_at', new Date().toISOString())
+      .not('expires_at', 'is', null);
+  } catch {}
+}
+
+// 5) Cleanup show_chat_user_state viejo (>1d)
+async function cleanShowChatState() {
+  try {
+    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    await supabase.from('show_chat_user_state').delete().lt('last_msg_at', cutoff);
+  } catch {}
+}
+
+async function v64Cron() {
+  await Promise.allSettled([
+    dispatchScheduledMessages(),
+    deleteExpiredMessages(),
+    notifyMentions(),
+  ]);
+}
+
+async function v64MaintCron() {
+  await Promise.allSettled([
+    cleanExpiredMutes(),
+    cleanShowChatState(),
+  ]);
+}
 
 export function startCleanupJob() {
   cleanStaleVideoSessions();
@@ -510,5 +647,13 @@ export function startCleanupJob() {
   runV6Crons();
   setInterval(runV6Crons, V6_CRON_INTERVAL_MS);
 
-  console.log('🧹 Cleanup job iniciado (sesiones 30s, shows 5min, v6 10min, renovaciones 6h, payouts 24h)');
+  // v64 crons: scheduled msgs + disappearing + mentions notify
+  v64Cron();
+  setInterval(v64Cron, V64_CRON_INTERVAL_MS);
+
+  // v64 maintenance: expired mutes + show_chat_state stale
+  v64MaintCron();
+  setInterval(v64MaintCron, V64_MAINT_INTERVAL_MS);
+
+  console.log('🧹 Cleanup job iniciado (sesiones 30s, shows 5min, v6 10min, scheduled 1min, mantenimiento 1h, renovaciones 6h, payouts 24h)');
 }

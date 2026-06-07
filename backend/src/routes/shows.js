@@ -46,11 +46,13 @@ import {
   updateShowLive,
   listReplays,
   setGiftGoals,
+  setSlowMode,
 } from '../controllers/showController.js';
 import {
   inviteCoHost, acceptCoHostInvite, declineCoHostInvite,
   removeCoHost, listCoHosts, getMyPendingCoHostInvites,
 } from '../controllers/coHostController.js';
+import { enableRtmp, disableRtmp, getRtmpInfo } from '../controllers/rtmpController.js';
 
 const router = Router();
 router.use(authMiddleware);
@@ -109,5 +111,11 @@ router.post('/:id/co-hosts/invite',   inviteCoHost);
 router.post('/:id/co-hosts/accept',   acceptCoHostInvite);
 router.post('/:id/co-hosts/decline',  declineCoHostInvite);
 router.delete('/:id/co-hosts/:userId', removeCoHost);
+
+// Slow mode + RTMP (v64/v65)
+router.patch('/:id/slow-mode',  setSlowMode);
+router.get('/:id/rtmp',         getRtmpInfo);
+router.post('/:id/rtmp/enable', enableRtmp);
+router.post('/:id/rtmp/disable', disableRtmp);
 
 export default router;

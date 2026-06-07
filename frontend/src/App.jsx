@@ -72,6 +72,9 @@ const Support         = lazy(() => import('./pages/Support.jsx'));
 const Reels           = lazy(() => import('./pages/Reels.jsx'));
 const UploadReel      = lazy(() => import('./pages/UploadReel.jsx'));
 const SavedReels      = lazy(() => import('./pages/SavedReels.jsx'));
+const Stickers        = lazy(() => import('./pages/Stickers.jsx'));
+const Conversations   = lazy(() => import('./pages/Conversations.jsx'));
+const ConversationChat = lazy(() => import('./pages/ConversationChat.jsx'));
 
 const PageLoader = () => (
   <div className="min-h-screen flex items-center justify-center bg-dark-900">
@@ -395,6 +398,9 @@ export default function App() {
           <Route path="/reels/new" element={<UploadReel />} />
           <Route path="/reels/saved" element={<SavedReels />} />
           <Route path="/reels/:id" element={<Reels />} />
+          <Route path="/stickers" element={<Stickers />} />
+          <Route path="/conversations" element={<Conversations />} />
+          <Route path="/conversations/:id" element={<ConversationChat />} />
         </Route>
 
         {/* 404 */}

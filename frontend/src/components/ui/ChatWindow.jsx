@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiSend, FiLock, FiCheck, FiGlobe, FiImage, FiZap, FiX, FiCornerUpLeft, FiClock, FiSearch, FiMic, FiPlay, FiPause, FiTrash2, FiBookmark, FiVideo } from 'react-icons/fi';
+import { FiSend, FiLock, FiCheck, FiGlobe, FiImage, FiZap, FiX, FiCornerUpLeft, FiClock, FiSearch, FiMic, FiPlay, FiPause, FiTrash2, FiBookmark, FiVideo, FiSmile, FiEye, FiEyeOff } from 'react-icons/fi';
+import StickerPanel from './StickerPanel.jsx';
+import AiIcebreakerChip from './AiIcebreakerChip.jsx';
 
 function DoubleCheck({ isRead, light = false }) {
   const color = isRead ? 'text-blue-400' : light ? 'text-white/40' : 'text-gray-600';
@@ -107,6 +109,14 @@ export default function ChatWindow({ matchId, otherUser }) {
   const [gifs, setGifs]                 = useState([]);
   const [loadingGifs, setLoadingGifs]   = useState(false);
   const gifDebounceRef = useRef(null);
+
+  // v64 features
+  const [showStickerPanel, setShowStickerPanel] = useState(false);
+  const [showAiChip, setShowAiChip] = useState(true); // se oculta tras dismiss o cuando hay mensajes
+  const [disappearMin, setDisappearMin] = useState(null);
+  const [showDisappearMenu, setShowDisappearMenu] = useState(false);
+  const [scheduledFor, setScheduledFor] = useState(null);
+  const [showSchedulePicker, setShowSchedulePicker] = useState(false);
 
   const bottomRef       = useRef(null);
   const topRef          = useRef(null);
@@ -286,18 +296,49 @@ export default function ChatWindow({ matchId, otherUser }) {
       content: replyTo
         ? `> ${replyTo.senderName}: ${replyTo.content.substring(0, 80)}${replyTo.content.length > 80 ? '…' : ''}\n${text.trim()}`
         : text.trim(),
+      ...(scheduledFor ? { scheduled_for: scheduledFor } : {}),
     };
 
     setSending(true);
     setReplyTo(null);
     try {
-      await api.post('/api/messages', payload);
+      const res = await api.post('/api/messages', payload);
       setText('');
-      if (!isPremiumPlus) decrementRemaining();
+      if (res.data?.scheduled) {
+        toast.success('Mensaje programado');
+      } else if (!isPremiumPlus) {
+        decrementRemaining();
+      }
+      setScheduledFor(null);
     } catch (err) {
       if (err.response?.data?.code === 'MESSAGE_LIMIT_REACHED') setShowPremiumModal(true);
+      else if (err.response?.data?.error) toast.error(err.response.data.error);
     } finally {
       setSending(false);
+    }
+  };
+
+  // v64: enviar sticker
+  const handleSendSticker = async ({ sticker_id }) => {
+    if (!isPremiumPlus && remaining <= 0) { setShowPremiumModal(true); return; }
+    try {
+      await api.post('/api/messages', { matchId, type: 'sticker', sticker_id });
+      setShowStickerPanel(false);
+      if (!isPremiumPlus) decrementRemaining();
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'No se pudo enviar el sticker');
+    }
+  };
+
+  // v64: cambiar disappearing
+  const updateDisappearing = async (minutes) => {
+    try {
+      await api.patch(`/api/messages/${matchId}/disappear`, { minutes });
+      setDisappearMin(minutes);
+      setShowDisappearMenu(false);
+      toast.success(minutes ? `Mensajes se borran en ${minutes < 60 ? minutes + 'm' : minutes < 1440 ? (minutes/60) + 'h' : (minutes/1440) + 'd'}` : 'Disappearing desactivado');
+    } catch {
+      toast.error('No se pudo actualizar');
     }
   };
 
@@ -858,6 +899,19 @@ export default function ChatWindow({ matchId, otherUser }) {
                         {isMe && <DoubleCheck isRead={msg.is_read} />}
                       </div>
                     </div>
+                  ) : msg.type === 'sticker' && msg.sticker ? (
+                    // Sticker (v64)
+                    <div className={`flex flex-col gap-1 ${isMe ? 'items-end' : 'items-start'}`}>
+                      <img
+                        src={msg.sticker.image_url}
+                        alt={msg.sticker.label || ''}
+                        className="max-w-[140px] max-h-[140px] object-contain drop-shadow-lg"
+                      />
+                      <div className={`flex items-center gap-1 ${isMe ? 'justify-end' : 'justify-start'}`}>
+                        <span className="text-[10px] text-gray-600">{new Date(msg.created_at).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })}</span>
+                        {isMe && <DoubleCheck isRead={msg.is_read} />}
+                      </div>
+                    </div>
                   ) : msg.type === 'voice' ? (
                     // Voz
                     <div className={`flex flex-col gap-1 ${isMe ? 'items-end' : 'items-start'}`}>
@@ -987,6 +1041,14 @@ export default function ChatWindow({ matchId, otherUser }) {
             GIF
           </button>
 
+          <button type="button" onClick={() => setShowStickerPanel(s => !s)}
+            disabled={!isPremiumPlus && remaining <= 0}
+            className={`w-10 h-10 shrink-0 rounded-xl flex items-center justify-center transition-all duration-200 ease-out-expo active:scale-90 disabled:opacity-40 ${showStickerPanel ? 'bg-gradient-to-br from-brand-500 to-brand-600 text-white shadow-glow-sm' : 'bg-white/5 border border-white/10 text-gray-400 hover:text-brand-400 hover:bg-white/10 hover:border-white/20'}`}
+            title="Stickers"
+          >
+            <FiSmile size={16} />
+          </button>
+
           <button type="button" onClick={() => imageInputRef.current?.click()}
             disabled={sendingImage || (!isPremiumPlus && remaining <= 0)}
             className="w-10 h-10 shrink-0 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-gray-400 hover:text-brand-400 hover:bg-white/10 hover:border-white/20 transition-all duration-200 ease-out-expo active:scale-90 disabled:opacity-40"
@@ -1058,6 +1120,13 @@ export default function ChatWindow({ matchId, otherUser }) {
           )}
         </div>
       </form>
+
+      {/* Panel Sticker (v64) */}
+      <AnimatePresence>
+        {showStickerPanel && (
+          <StickerPanel onClose={() => setShowStickerPanel(false)} onSend={handleSendSticker} />
+        )}
+      </AnimatePresence>
 
       {/* Panel GIF */}
       <AnimatePresence>

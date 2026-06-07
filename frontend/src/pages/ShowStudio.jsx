@@ -26,6 +26,7 @@ import BattleOverlay from '../components/ui/BattleOverlay.jsx';
 import BattleInviteModal from '../components/ui/BattleInviteModal.jsx';
 import StudioOnboarding from '../components/ui/StudioOnboarding.jsx';
 import GiftGoalsManager from '../components/ui/GiftGoalsManager.jsx';
+import ShowAdvancedPanel from '../components/ui/ShowAdvancedPanel.jsx';
 
 const REACTIONS = ['❤️', '🔥', '⭐', '😍'];
 
@@ -2463,6 +2464,9 @@ export default function ShowStudio() {
                 isLive={isLive}
                 initialGoals={giftGoals}
               />
+
+              {/* Slow mode chat + RTMP relay (v64/v65) */}
+              {showId && <ShowAdvancedPanel showId={showId} />}
             </div>
           )
         )}

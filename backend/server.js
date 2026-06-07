@@ -63,6 +63,10 @@ import exploreRoutes from './src/routes/explore.js';
 import { embedVideo } from './src/controllers/exploreController.js';
 import supportRoutes from './src/routes/support.js';
 import draftsRoutes from './src/routes/drafts.js';
+import userMutesRoutes from './src/routes/userMutes.js';
+import aiAssistantRoutes from './src/routes/aiAssistant.js';
+import stickerRoutes from './src/routes/stickers.js';
+import conversationsRoutes from './src/routes/conversations.js';
 import { supabase } from './src/lib/supabase.js';
 
 const app = express();
@@ -259,6 +263,11 @@ app.use('/api/achievements', achievementsRoutes);
 app.use('/api/explore', exploreRoutes);
 app.use('/api/support', supportRoutes);
 app.use('/api/drafts',  draftsRoutes);
+// v64/v65 chat & creator features
+app.use('/api/user-mutes',     userMutesRoutes);
+app.use('/api/ai',             aiAssistantRoutes);
+app.use('/api/stickers',       stickerRoutes);
+app.use('/api/conversations',  conversationsRoutes);
 
 // Embed público de video adulto (iframe) — NO requiere auth pero geo-blocked
 app.get('/embed/v/:id', async (req, res, next) => {

@@ -19,12 +19,16 @@ import {
   pinMessage,
   unpinMessage,
   getPinnedMessage,
+  setDisappearing,
+  cancelScheduled,
+  listScheduled,
 } from '../controllers/messageController.js';
 
 const router = Router();
 router.use(authMiddleware);
 
 router.get('/count/today', getTodayCount);
+router.get('/scheduled',   listScheduled);
 router.get('/:matchId/pin', getPinnedMessage);
 router.get('/:matchId', getMessages);
 router.post('/', messageLimitMiddleware, sendMessage);
@@ -35,8 +39,10 @@ router.post('/:id/reactions', toggleReaction);
 router.post('/ppv', chatImageMiddleware, sendPPVMessage);
 router.post('/ppv/:messageId/unlock', unlockPPV);
 router.delete('/:matchId/all', clearConversation);
+router.delete('/scheduled/:id', cancelScheduled);
 router.delete('/:id', deleteMessage);
 router.put('/:matchId/pin', pinMessage);
 router.delete('/:matchId/pin', unpinMessage);
+router.patch('/:matchId/disappear', setDisappearing);
 
 export default router;

@@ -2368,3 +2368,59 @@ export const getPoll = async (req, res) => {
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
+
+// ── SLOW MODE (v64) ──────────────────────────────────────────────────
+// PATCH /api/shows/:id/slow-mode { seconds }
+// Solo host del show puede setear. 0 = desactivado, max 300s.
+// El frontend lee este valor del show y aplica el cooldown localmente.
+// El validateShowChatRate helper opcional valida en backend si se persiste.
+export const setSlowMode = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { id: showId } = req.params;
+    const seconds = Math.max(0, Math.min(300, parseInt(req.body.seconds) || 0));
+
+    const { data: show } = await supabase
+      .from('live_shows').select('host_id').eq('id', showId).single();
+    if (!show) return res.status(404).json({ error: 'Show no encontrado' });
+    if (show.host_id !== userId) return res.status(403).json({ error: 'Solo el host puede configurar slow mode' });
+
+    await supabase.from('live_shows').update({ chat_slow_mode_seconds: seconds }).eq('id', showId);
+
+    // Broadcast a viewers para que actualicen su cooldown local sin refresh
+    broadcastToChannel(`show:${showId}`, 'slow_mode_changed', { seconds });
+
+    res.json({ success: true, seconds });
+  } catch (err) {
+    res.status(500).json({ error: 'Error interno' });
+  }
+};
+
+// Helper exportado: valida si el user puede mandar un mensaje en el chat de un show.
+// Llamar antes de hacer broadcast del mensaje. Devuelve { ok, wait_seconds }.
+export async function validateShowChatRate(showId, userId) {
+  const { data: show } = await supabase
+    .from('live_shows').select('chat_slow_mode_seconds, host_id').eq('id', showId).single();
+  if (!show) return { ok: false, error: 'show_not_found' };
+  // Host y mods bypassean slow mode
+  if (show.host_id === userId) return { ok: true };
+  const slow = show.chat_slow_mode_seconds || 0;
+  if (slow === 0) return { ok: true };
+
+  const { data: state } = await supabase
+    .from('show_chat_user_state')
+    .select('last_msg_at').eq('show_id', showId).eq('user_id', userId).maybeSingle();
+
+  if (state) {
+    const elapsed = (Date.now() - new Date(state.last_msg_at).getTime()) / 1000;
+    if (elapsed < slow) {
+      return { ok: false, error: 'slow_mode', wait_seconds: Math.ceil(slow - elapsed) };
+    }
+  }
+
+  await supabase.from('show_chat_user_state').upsert(
+    { show_id: showId, user_id: userId, last_msg_at: new Date().toISOString() },
+    { onConflict: 'show_id,user_id' }
+  );
+  return { ok: true };
+}
