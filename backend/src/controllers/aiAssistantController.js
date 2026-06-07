@@ -2,8 +2,9 @@
 // Usa OpenAI gpt-4o-mini para generar 3 ideas de primer mensaje basadas
 // en el perfil del other user (bio + intereses).
 //
-// Rate-limit: 3 generaciones por user por hora (en memoria — para prod
-// migrar a Redis). El user puede regenerar si no le gustan.
+// Rate-limit: 3 generaciones por user por hora, persistente en Postgres
+// (tabla ai_assistant_usage v66). Sobrevive a redeploys y funciona con
+// múltiples instancias del backend.
 //
 // Env var: OPENAI_API_KEY. Si no está, devuelve 503.
 
@@ -11,16 +12,23 @@ import { supabase } from '../lib/supabase.js';
 
 const OPENAI_URL = 'https://api.openai.com/v1/chat/completions';
 const HOURLY_LIMIT = 3;
-const rateCache = new Map(); // user_id → [{ at: ts }]
 
-function checkRate(userId) {
-  const now = Date.now();
-  const oneHour = 60 * 60 * 1000;
-  const hits = (rateCache.get(userId) || []).filter(h => now - h.at < oneHour);
-  if (hits.length >= HOURLY_LIMIT) return false;
-  hits.push({ at: now });
-  rateCache.set(userId, hits);
-  return true;
+// Verifica rate y registra el uso atomically. Devuelve { ok, remaining }.
+async function checkAndConsumeRate(userId, feature = 'icebreaker') {
+  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+  const { count } = await supabase
+    .from('ai_assistant_usage')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .eq('feature', feature)
+    .gte('created_at', oneHourAgo);
+
+  if ((count || 0) >= HOURLY_LIMIT) {
+    return { ok: false, remaining: 0 };
+  }
+
+  await supabase.from('ai_assistant_usage').insert({ user_id: userId, feature });
+  return { ok: true, remaining: HOURLY_LIMIT - (count || 0) - 1 };
 }
 
 // POST /api/ai/icebreaker { match_id }
@@ -35,8 +43,9 @@ export const generateIcebreaker = async (req, res) => {
       return res.status(503).json({ error: 'AI assistant no configurado' });
     }
 
-    if (!checkRate(userId)) {
-      return res.status(429).json({ error: 'Límite por hora alcanzado. Intenta luego.' });
+    const rate = await checkAndConsumeRate(userId, 'icebreaker');
+    if (!rate.ok) {
+      return res.status(429).json({ error: 'Límite por hora alcanzado. Intenta luego.', remaining: 0 });
     }
 
     // Cargar el match y el perfil del otro user

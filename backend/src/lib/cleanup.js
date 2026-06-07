@@ -600,6 +600,15 @@ async function cleanShowChatState() {
   } catch {}
 }
 
+// 6) Cleanup ai_assistant_usage viejo (>24h) — el rate-limit es por hora pero
+//    mantenemos 24h para analítica simple. Después se borra.
+async function cleanAiUsage() {
+  try {
+    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    await supabase.from('ai_assistant_usage').delete().lt('created_at', cutoff);
+  } catch {}
+}
+
 async function v64Cron() {
   await Promise.allSettled([
     dispatchScheduledMessages(),
@@ -612,6 +621,7 @@ async function v64MaintCron() {
   await Promise.allSettled([
     cleanExpiredMutes(),
     cleanShowChatState(),
+    cleanAiUsage(),
   ]);
 }
 

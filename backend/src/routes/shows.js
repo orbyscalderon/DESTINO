@@ -47,6 +47,7 @@ import {
   listReplays,
   setGiftGoals,
   setSlowMode,
+  sendShowChat,
 } from '../controllers/showController.js';
 import {
   inviteCoHost, acceptCoHostInvite, declineCoHostInvite,
@@ -114,6 +115,7 @@ router.delete('/:id/co-hosts/:userId', removeCoHost);
 
 // Slow mode + RTMP (v64/v65)
 router.patch('/:id/slow-mode',  setSlowMode);
+router.post('/:id/chat',        sendShowChat);
 router.get('/:id/rtmp',         getRtmpInfo);
 router.post('/:id/rtmp/enable', enableRtmp);
 router.post('/:id/rtmp/disable', disableRtmp);

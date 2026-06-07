@@ -2396,6 +2396,87 @@ export const setSlowMode = async (req, res) => {
   }
 };
 
+// POST /api/shows/:id/chat — envía mensaje al chat de un show con validación
+// server-side de slow mode + moderación de texto. Broadcasts vía service role
+// para que llegue a todos los viewers conectados.
+//
+// El frontend que usa este endpoint NO necesita hacer channel.send() — el
+// backend lo hace. Esto cierra el bypass donde un user mod podía mandar via
+// la API REST de Supabase directamente y saltarse el slow mode local.
+export const sendShowChat = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { id: showId } = req.params;
+    const text = (req.body.text || '').toString().trim();
+    if (!text) return res.status(400).json({ error: 'Mensaje vacío' });
+    if (text.length > 500) return res.status(400).json({ error: 'Max 500 caracteres' });
+
+    // Sanitize (mismo patrón que messageController)
+    const sanitized = text
+      .replace(/<[^>]*>/g, '')
+      .replace(/javascript:/gi, '')
+      .replace(/on\w+\s*=/gi, '');
+    if (!sanitized) return res.status(400).json({ error: 'Mensaje inválido' });
+
+    // Verificar que el user no está baneado del show
+    const { data: ban } = await supabase
+      .from('show_chat_bans')
+      .select('id').eq('show_id', showId).eq('viewer_id', userId).maybeSingle();
+    if (ban) return res.status(403).json({ error: 'Estás baneado de este chat' });
+
+    // Verificar mute temporal
+    const { data: mute } = await supabase
+      .from('show_chat_mutes')
+      .select('expires_at').eq('show_id', showId).eq('viewer_id', userId).maybeSingle();
+    if (mute && new Date(mute.expires_at) > new Date()) {
+      const mins = Math.ceil((new Date(mute.expires_at) - Date.now()) / 60000);
+      return res.status(403).json({ error: `Silenciado por ${mins} min más` });
+    }
+
+    // Slow mode (host y mods exentos vía validateShowChatRate)
+    const rate = await validateShowChatRate(showId, userId);
+    if (!rate.ok) {
+      if (rate.error === 'slow_mode') {
+        return res.status(429).json({
+          error: `Modo lento activo: espera ${rate.wait_seconds}s`,
+          wait_seconds: rate.wait_seconds,
+          code: 'SLOW_MODE',
+        });
+      }
+      return res.status(400).json({ error: rate.error });
+    }
+
+    // Moderación de texto
+    const { moderateText } = await import('../lib/textModeration.js');
+    const mod = await moderateText(sanitized, { context: 'chat' });
+    if (!mod.ok) return res.status(422).json({ error: mod.reason });
+
+    // Cargar info del sender (avatar, nombre, premium tier para badge)
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('full_name, avatar_url, premium_tier, is_verified')
+      .eq('id', userId).single();
+
+    const payload = {
+      text: sanitized,
+      name: profile?.full_name || 'Anónimo',
+      avatar: profile?.avatar_url || null,
+      userId,
+      premium_tier: profile?.premium_tier || null,
+      is_verified: !!profile?.is_verified,
+      ts: Date.now(),
+    };
+
+    // Broadcast via service role — llega a todos los viewers
+    broadcastToChannel(`show:${showId}`, 'msg', payload);
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[sendShowChat]', err.message);
+    res.status(500).json({ error: 'Error interno' });
+  }
+};
+
 // Helper exportado: valida si el user puede mandar un mensaje en el chat de un show.
 // Llamar antes de hacer broadcast del mensaje. Devuelve { ok, wait_seconds }.
 export async function validateShowChatRate(showId, userId) {

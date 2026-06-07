@@ -619,12 +619,27 @@ export default function LiveShow() {
         });
       })
       .on('broadcast', { event: 'msg' }, ({ payload }) => {
-        setChatMessages(prev => [...prev.slice(-79), payload]);
+        // Si es mi propio mensaje y ya lo añadí optimistically, no duplicar
+        setChatMessages(prev => {
+          if (payload.userId === user?.id) {
+            const dup = prev.some(m => m.userId === payload.userId && m.text === payload.text && Math.abs((m.ts || 0) - (payload.ts || 0)) < 5000);
+            if (dup) return prev;
+          }
+          return [...prev.slice(-79), payload];
+        });
       })
       .on('broadcast', { event: 'slow_mode' }, ({ payload }) => {
         slowModeRef.current = !!payload.enabled;
         setSlowMode(!!payload.enabled);
         toast(payload.enabled ? '🐢 Modo lento activado por el creador' : 'Modo lento desactivado', { id: 'slow-mode' });
+      })
+      .on('broadcast', { event: 'slow_mode_changed' }, ({ payload }) => {
+        // v64: slow mode con segundos custom (PATCH /shows/:id/slow-mode)
+        const secs = payload?.seconds || 0;
+        slowModeRef.current = secs > 0;
+        setSlowMode(secs > 0);
+        if (secs > 0) toast(`🐢 Modo lento: ${secs}s entre mensajes`, { id: 'slow-mode' });
+        else toast('Modo lento desactivado', { id: 'slow-mode' });
       })
       .on('broadcast', { event: 'react' }, ({ payload }) => {
         addReaction(payload.emoji);
@@ -928,25 +943,37 @@ export default function LiveShow() {
 
   const sendChatMessage = async () => {
     const text = chatInput.trim();
-    if (!text || !chatChannelRef.current) return;
+    if (!text) return;
+    // Throttle local mínimo (anti-flood) — el slow mode real se enforce
+    // server-side via POST /api/shows/:id/chat con código 429 SLOW_MODE.
     const now = Date.now();
-    const throttle = slowModeRef.current ? 30_000 : 1500;
-    if (now - lastChatSentRef.current < throttle) {
-      const wait = Math.ceil((throttle - (now - lastChatSentRef.current)) / 1000);
-      toast.error(slowModeRef.current ? `Modo lento: espera ${wait}s` : 'Espera un momento antes de enviar otro mensaje', { id: 'chat-throttle' });
-      return;
-    }
+    if (now - lastChatSentRef.current < 800) return;
     lastChatSentRef.current = now;
     setChatInput('');
-    const msg = {
-      text,
-      name: authProfile?.full_name || 'Anónimo',
-      avatar: authProfile?.avatar_url || null,
-      userId: user?.id,
-      ts: Date.now(),
-    };
-    await chatChannelRef.current.send({ type: 'broadcast', event: 'msg', payload: msg });
-    setChatMessages(prev => [...prev.slice(-79), msg]);
+    try {
+      await api.post(`/api/shows/${showId}/chat`, { text });
+      // El backend broadcasts a todos los viewers. Para feedback inmediato
+      // local, ponemos optimistically en chatMessages también — el mensaje
+      // realtime nos llegará pero ya estará ahí, no duplica porque el
+      // listener filtra por ts+userId+text.
+      setChatMessages(prev => [...prev.slice(-79), {
+        text,
+        name: authProfile?.full_name || 'Anónimo',
+        avatar: authProfile?.avatar_url || null,
+        userId: user?.id,
+        ts: now,
+      }]);
+    } catch (err) {
+      const code = err.response?.data?.code;
+      if (code === 'SLOW_MODE') {
+        const wait = err.response?.data?.wait_seconds || 30;
+        toast.error(`Modo lento: espera ${wait}s`, { id: 'chat-throttle' });
+        setChatInput(text); // restaura para que no pierda lo que escribió
+      } else {
+        toast.error(err.response?.data?.error || 'Error al enviar', { id: 'chat-error' });
+        setChatInput(text);
+      }
+    }
   };
 
   const sendDM = async () => {
