@@ -41,15 +41,15 @@ export default function ReportModal({ targetId, targetName, onClose }) {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[9995] bg-black/75 backdrop-blur-sm flex items-end sm:items-center justify-center p-4"
+        className="fixed inset-0 z-[9995] glass-strong flex items-end sm:items-center justify-center p-4"
         onClick={onClose}
       >
         <motion.div
-          initial={{ y: 60, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          exit={{ y: 60, opacity: 0 }}
+          initial={{ y: 60, opacity: 0, scale: 0.97 }}
+          animate={{ y: 0, opacity: 1, scale: 1 }}
+          exit={{ y: 60, opacity: 0, scale: 0.97 }}
           transition={{ type: 'spring', stiffness: 280, damping: 28 }}
-          className="w-full max-w-sm bg-dark-800 rounded-3xl border border-white/10 overflow-hidden shadow-2xl"
+          className="w-full max-w-sm glass-strong rounded-3xl overflow-hidden shadow-2xl shadow-black/60"
           onClick={e => e.stopPropagation()}
         >
           {/* Header */}
@@ -60,7 +60,7 @@ export default function ReportModal({ targetId, targetName, onClose }) {
                 {step === 'done' ? 'Reporte enviado' : `Reportar a ${targetName || 'usuario'}`}
               </h2>
             </div>
-            <button onClick={onClose} className="text-gray-600 hover:text-white" aria-label="Cerrar">
+            <button onClick={onClose} className="text-gray-500 hover:text-white hover:bg-white/5 p-1.5 -m-1 rounded-lg transition-colors" aria-label="Cerrar">
               <FiX size={18} />
             </button>
           </div>

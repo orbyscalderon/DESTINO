@@ -150,14 +150,14 @@ function PostCard({ post, onLike, onComment, onDelete, currentUserId }) {
       <div className="flex items-center gap-4 px-3 py-2 border-t border-white/5">
         <button
           onClick={() => onLike(post.id, post.liked)}
-          className={`flex items-center gap-1.5 text-sm transition-colors ${post.liked ? 'text-red-400' : 'text-gray-500 hover:text-red-400'}`}
+          className={`flex items-center gap-1.5 text-sm transition-all duration-200 ease-out-back active:scale-90 hover:scale-105 ${post.liked ? 'text-red-400 drop-shadow-[0_0_6px_rgba(248,113,113,0.5)]' : 'text-gray-500 hover:text-red-400'}`}
         >
           <FiHeart size={16} className={post.liked ? 'fill-current' : ''} />
           {post.likes_count > 0 && <span>{post.likes_count}</span>}
         </button>
         <button
           onClick={handleToggleComments}
-          className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-white transition-colors"
+          className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-white transition-all duration-200 ease-out-back active:scale-90 hover:scale-105"
         >
           <FiMessageCircle size={16} />
           {post.comments_count > 0 && <span>{post.comments_count}</span>}
@@ -335,9 +335,9 @@ export default function Home() {
 
   if (loading) return (
     <div className="min-h-screen pb-24">
-      <div className="sticky top-0 z-10 bg-dark-900/95 backdrop-blur-sm border-b border-white/5 px-4 py-3 flex items-center justify-between">
+      <div className="sticky top-0 z-10 glass border-b border-white/5 px-4 py-3 flex items-center justify-between">
         <h1 className="text-xl font-black gradient-text">Destino TV 💕</h1>
-        <div className="w-9 h-9 bg-dark-700 rounded-xl animate-pulse" />
+        <div className="skeleton w-9 h-9 rounded-xl" />
       </div>
       <div className="max-w-lg mx-auto px-4 pt-4 space-y-4">
         {[...Array(3)].map((_, i) => <PostCardSkeleton key={i} />)}
@@ -373,16 +373,16 @@ export default function Home() {
       <div className="max-w-lg mx-auto px-4 pt-3 pb-1">
         <Link
           to="/discover"
-          className="flex items-center gap-3 bg-gradient-to-r from-brand-600/20 to-purple-500/10 border border-brand-500/20 rounded-2xl px-4 py-3 hover:border-brand-500/40 transition-all group"
+          className="flex items-center gap-3 bg-gradient-to-r from-brand-500/15 to-accent-500/10 border border-brand-500/20 rounded-2xl px-4 py-3 hover:border-brand-500/40 hover:from-brand-500/20 hover:to-accent-500/15 hover:-translate-y-0.5 transition-all duration-200 ease-out-expo group active:scale-[0.99]"
         >
-          <div className="w-9 h-9 rounded-xl bg-brand-500/20 flex items-center justify-center shrink-0">
+          <div className="w-9 h-9 rounded-xl bg-brand-500/20 flex items-center justify-center shrink-0 group-hover:bg-brand-500/30 transition-colors">
             <FiCompass size={16} className="text-brand-400" />
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-white text-sm font-semibold">{t('home.discover_people')}</p>
             <p className="text-gray-500 text-xs">{t('home.discover_hint')}</p>
           </div>
-          <span className="text-gray-600 group-hover:text-brand-400 transition-colors text-sm">→</span>
+          <span className="text-gray-600 group-hover:text-brand-400 group-hover:translate-x-1 transition-all text-sm">→</span>
         </Link>
       </div>
 
@@ -425,18 +425,20 @@ export default function Home() {
       {/* Modal crear post */}
       <AnimatePresence>
         {showCreateModal && (
-          <div className="fixed inset-0 glass flex items-end sm:items-center justify-center z-50 p-4">
+          <div className="fixed inset-0 glass-strong flex items-end sm:items-center justify-center z-50 p-4">
             <motion.div
-              initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 40 }}
-              className="card p-5 w-full max-w-lg"
+              initial={{ opacity: 0, y: 40, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 40, scale: 0.97 }}
+              transition={{ type: 'spring', damping: 28, stiffness: 280 }}
+              className="glass-strong rounded-3xl p-5 w-full max-w-lg shadow-2xl shadow-black/60"
             >
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-bold text-white">{t('home.new_post')}</h3>
                 <button
                   onClick={() => { setShowCreateModal(false); setMediaPreview(null); setMediaFile(null); }}
                   aria-label={t('common.close')}
+                  className="text-gray-400 hover:text-white hover:bg-white/5 p-1.5 -m-1 rounded-lg transition-colors"
                 >
-                  <FiX className="text-gray-400" size={20} />
+                  <FiX size={20} />
                 </button>
               </div>
 

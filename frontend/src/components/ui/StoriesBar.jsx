@@ -429,8 +429,8 @@ export default function StoriesBar() {
       <div className="flex gap-3 px-4 py-3 overflow-x-auto scrollbar-hide">
         {[...Array(6)].map((_, i) => (
           <div key={i} className="shrink-0 flex flex-col items-center gap-1.5">
-            <div className="w-14 h-14 rounded-full bg-dark-700 animate-pulse" />
-            <div className="w-10 h-2 bg-dark-700 rounded-full animate-pulse" />
+            <div className="skeleton w-14 h-14 rounded-full" />
+            <div className="skeleton w-10 h-2 rounded-full" />
           </div>
         ))}
       </div>
@@ -456,12 +456,12 @@ export default function StoriesBar() {
           <button
             key={group.user.id}
             onClick={() => setViewerIdx(idx)}
-            className="shrink-0 flex flex-col items-center gap-1.5"
+            className="shrink-0 flex flex-col items-center gap-1.5 group transition-transform duration-150 ease-out-back active:scale-95 hover:-translate-y-0.5"
           >
-            <div className={`w-14 h-14 rounded-full p-0.5 ${
+            <div className={`w-14 h-14 rounded-full p-0.5 transition-shadow duration-200 ${
               group.has_unseen
-                ? 'bg-gradient-to-br from-brand-500 to-purple-500'
-                : 'bg-dark-600'
+                ? 'bg-gradient-to-br from-brand-500 to-accent-500 shadow-glow-sm group-hover:shadow-glow'
+                : 'bg-white/10'
             }`}>
               <img
                 src={group.user.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(group.user.full_name || 'U')}&size=64&background=1a1a2e&color=f43f5e`}
@@ -469,7 +469,7 @@ export default function StoriesBar() {
                 className="w-full h-full rounded-full object-cover bg-dark-900"
               />
             </div>
-            <span className="text-[10px] text-gray-500 leading-none w-14 text-center truncate">
+            <span className="text-[10px] text-gray-500 group-hover:text-gray-300 transition-colors leading-none w-14 text-center truncate">
               {group.user.id === user?.id ? 'Tú' : group.user.full_name?.split(' ')[0]}
             </span>
           </button>
@@ -497,14 +497,14 @@ function AddStoryButton({ uploading, profile, fileRef, onUpload }) {
       <button
         onClick={() => fileRef.current?.click()}
         disabled={uploading}
-        className="relative w-14 h-14 rounded-full border-2 border-dashed border-gray-600 hover:border-brand-500 transition-colors overflow-hidden flex items-center justify-center"
+        className="relative w-14 h-14 rounded-full border-2 border-dashed border-gray-600 hover:border-brand-500 hover:shadow-glow-sm hover:scale-105 transition-all duration-200 ease-out-back active:scale-95 overflow-hidden flex items-center justify-center"
       >
         {profile?.avatar_url && (
           <img src={profile.avatar_url} alt="" className="absolute inset-0 w-full h-full object-cover opacity-40" />
         )}
         {uploading
           ? <div className="relative w-4 h-4 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
-          : <div className="relative w-5 h-5 bg-brand-500 rounded-full flex items-center justify-center">
+          : <div className="relative w-5 h-5 bg-gradient-to-br from-brand-500 to-brand-600 rounded-full flex items-center justify-center shadow-glow-sm">
               <FiPlus size={12} className="text-white" />
             </div>
         }

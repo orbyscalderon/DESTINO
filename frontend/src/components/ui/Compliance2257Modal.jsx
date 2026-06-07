@@ -58,20 +58,21 @@ export default function Compliance2257Modal({ videoId, onComplete, onClose }) {
     <AnimatePresence>
       <motion.div
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center"
+        className="fixed inset-0 z-50 glass-strong flex items-end sm:items-center justify-center"
         onClick={e => { if (e.target === e.currentTarget) onClose?.(); }}
       >
         <motion.div
-          initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 50, opacity: 0 }}
-          className="bg-dark-800 border border-white/10 rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md max-h-[90vh] overflow-y-auto"
+          initial={{ y: 50, opacity: 0, scale: 0.97 }} animate={{ y: 0, opacity: 1, scale: 1 }} exit={{ y: 50, opacity: 0, scale: 0.97 }}
+          transition={{ type: 'spring', damping: 28, stiffness: 280 }}
+          className="glass-strong rounded-t-3xl sm:rounded-3xl w-full sm:max-w-md max-h-[90vh] overflow-y-auto shadow-2xl shadow-black/60"
         >
-          <div className="sticky top-0 bg-dark-800 border-b border-white/5 px-4 py-3 flex items-center gap-3">
+          <div className="sticky top-0 bg-dark-900/70 backdrop-blur-xl border-b border-white/5 px-4 py-3 flex items-center gap-3 z-10">
             <FiShield className="text-brand-400" size={18} />
             <div className="flex-1">
               <h3 className="text-white font-bold text-sm">Records 2257 — obligatorio</h3>
               <p className="text-[10px] text-gray-500">US Title 18 § 2257 compliance</p>
             </div>
-            <button onClick={onClose} className="text-gray-400 hover:text-white" aria-label="Cerrar">
+            <button onClick={onClose} className="text-gray-400 hover:text-white hover:bg-white/5 p-1.5 -m-1 rounded-lg transition-colors" aria-label="Cerrar">
               <FiX size={18} />
             </button>
           </div>

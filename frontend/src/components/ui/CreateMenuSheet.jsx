@@ -69,7 +69,7 @@ export default function CreateMenuSheet({ open, onClose }) {
             initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
             transition={{ type: 'spring', damping: 30, stiffness: 280 }}
             onClick={e => e.stopPropagation()}
-            className="w-full sm:max-w-md bg-dark-900 rounded-t-2xl sm:rounded-2xl overflow-hidden"
+            className="w-full sm:max-w-md glass-strong rounded-t-3xl sm:rounded-3xl overflow-hidden shadow-2xl shadow-black/60"
           >
             {/* Handle */}
             <div className="flex justify-center pt-2 pb-1">
@@ -78,7 +78,7 @@ export default function CreateMenuSheet({ open, onClose }) {
 
             <div className="px-4 pb-3 pt-2 flex items-center justify-between border-b border-white/5">
               <h3 className="text-white font-bold">Crear</h3>
-              <button onClick={onClose} aria-label="Cerrar" className="text-gray-400 hover:text-white p-1 -m-1">
+              <button onClick={onClose} aria-label="Cerrar" className="text-gray-400 hover:text-white hover:bg-white/5 p-1.5 -m-1 rounded-lg transition-colors">
                 <FiX size={20} />
               </button>
             </div>
@@ -88,15 +88,15 @@ export default function CreateMenuSheet({ open, onClose }) {
                 <li key={label}>
                   <button
                     onClick={() => go(to)}
-                    className="w-full flex items-center gap-4 px-4 py-3.5 hover:bg-white/5 transition-colors text-left"
+                    className="w-full flex items-center gap-4 px-4 py-3.5 hover:bg-white/5 transition-all duration-200 ease-out-expo text-left group active:scale-[0.99]"
                   >
                     <div
-                      className={`w-11 h-11 rounded-xl bg-gradient-to-br ${color} flex items-center justify-center shadow-lg`}
+                      className={`w-11 h-11 rounded-xl bg-gradient-to-br ${color} flex items-center justify-center shadow-lg group-hover:shadow-xl group-hover:scale-105 transition-transform duration-200`}
                     >
                       <Icon className="text-white" size={20} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-white font-semibold text-sm">{label}</p>
+                      <p className="text-white font-semibold text-sm group-hover:text-brand-300 transition-colors">{label}</p>
                       <p className="text-gray-500 text-xs">{sub}</p>
                     </div>
                   </button>

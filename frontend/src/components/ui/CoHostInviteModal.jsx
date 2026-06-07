@@ -120,7 +120,7 @@ export default function CoHostInviteModal() {
               <button
                 onClick={handleReject}
                 disabled={processing}
-                className="flex-1 py-3 bg-black/40 hover:bg-black/60 text-white font-bold rounded-xl flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+                className="flex-1 py-3 bg-black/40 hover:bg-black/60 text-white font-bold rounded-xl flex items-center justify-center gap-2 transition-all duration-200 ease-out-expo active:scale-95 disabled:opacity-50"
               >
                 <FiX size={16} /> Rechazar
               </button>
@@ -128,7 +128,7 @@ export default function CoHostInviteModal() {
                 onClick={handleAccept}
                 disabled={processing}
                 autoFocus
-                className="flex-1 py-3 bg-white text-purple-600 font-black rounded-xl flex items-center justify-center gap-2 hover:brightness-110 transition-all disabled:opacity-50"
+                className="flex-1 py-3 bg-white text-purple-600 font-black rounded-xl flex items-center justify-center gap-2 hover:bg-white/95 hover:-translate-y-0.5 active:scale-95 transition-all duration-200 ease-out-expo shadow-lg shadow-black/40 disabled:opacity-50"
               >
                 {processing
                   ? <div className="w-5 h-5 border-2 border-purple-600 border-t-transparent rounded-full animate-spin" />

@@ -60,7 +60,7 @@ export default function MatchNotification({ match, onClose }) {
         <Confetti />
 
         {/* Botón cerrar */}
-        <button onClick={onClose} className="absolute top-6 right-6 text-white/40 hover:text-white/80 transition-colors z-10" aria-label="Cerrar">
+        <button onClick={onClose} className="absolute top-6 right-6 text-white/40 hover:text-white hover:bg-white/10 p-2 -m-2 rounded-full transition-colors z-10" aria-label="Cerrar">
           <FiX size={22} />
         </button>
 
@@ -162,7 +162,7 @@ export default function MatchNotification({ match, onClose }) {
         >
           <button
             onClick={() => { onClose(); navigate(`/chat/${match.matchId}`); }}
-            className="btn-primary w-full flex items-center justify-center gap-2 py-3.5 text-base font-bold"
+            className="btn-primary w-full flex items-center justify-center gap-2 py-3.5 text-base font-bold shadow-glow hover:shadow-glow-lg"
           >
             <FiMessageCircle size={18} /> Enviar mensaje
           </button>

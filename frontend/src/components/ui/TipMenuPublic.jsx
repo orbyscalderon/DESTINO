@@ -63,7 +63,7 @@ export default function TipMenuPublic({ creatorId, creatorName, compact = false,
               whileTap={{ scale: 0.96 }}
               onClick={() => setConfirmItem(item)}
               disabled={redeeming === item.id}
-              className="bg-dark-800 hover:bg-dark-700 active:bg-dark-700 rounded-xl p-3 text-left transition-colors disabled:opacity-50 border border-white/5 hover:border-brand-500/30"
+              className="bg-white/5 hover:bg-white/10 rounded-xl p-3 text-left transition-all duration-200 ease-out-expo disabled:opacity-50 border border-white/10 hover:border-brand-500/40 hover:-translate-y-0.5 hover:shadow-glow-sm"
             >
               <div className="flex items-center justify-between mb-1">
                 <span className="text-2xl">{item.emoji || '💌'}</span>
@@ -84,11 +84,12 @@ export default function TipMenuPublic({ creatorId, creatorName, compact = false,
       {confirmItem && (
         <div
           onClick={e => { if (e.target === e.currentTarget) setConfirmItem(null); }}
-          className="fixed inset-0 z-[60] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
+          className="fixed inset-0 z-[60] glass-strong flex items-center justify-center p-4"
         >
           <motion.div
             initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-            className="bg-dark-800 border border-white/10 rounded-2xl p-5 max-w-sm w-full text-center"
+            transition={{ type: 'spring', damping: 24, stiffness: 280 }}
+            className="glass-strong rounded-3xl p-5 max-w-sm w-full text-center shadow-2xl shadow-black/60"
           >
             <div className="text-5xl mb-3">{confirmItem.emoji || '💌'}</div>
             <h3 className="text-white font-bold text-lg mb-1">{confirmItem.label}</h3>

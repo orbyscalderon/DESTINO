@@ -50,7 +50,7 @@ export default function DailyReward() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[9997] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
+        className="fixed inset-0 z-[9997] glass-strong flex items-center justify-center p-4"
         onClick={() => setVisible(false)}
       >
         <motion.div
@@ -58,10 +58,10 @@ export default function DailyReward() {
           animate={{ scale: 1, opacity: 1, y: 0 }}
           exit={{ scale: 0.8, opacity: 0 }}
           transition={{ type: 'spring', stiffness: 260, damping: 22 }}
-          className="w-full max-w-xs bg-dark-800 rounded-3xl border border-white/10 p-6 shadow-2xl text-center"
+          className="w-full max-w-xs glass-strong rounded-3xl p-6 shadow-2xl shadow-black/60 text-center relative"
           onClick={e => e.stopPropagation()}
         >
-          <button onClick={() => setVisible(false)} className="absolute top-4 right-4 text-gray-600 hover:text-white">
+          <button onClick={() => setVisible(false)} className="absolute top-4 right-4 text-gray-500 hover:text-white hover:bg-white/5 p-1.5 -m-1 rounded-lg transition-colors">
             <FiX size={18} />
           </button>
 
@@ -104,7 +104,7 @@ export default function DailyReward() {
           <button
             onClick={handleClaim}
             disabled={claiming || claimed}
-            className="btn-primary w-full flex items-center justify-center gap-2 disabled:opacity-60"
+            className="btn-primary w-full flex items-center justify-center gap-2 disabled:opacity-60 shadow-glow hover:shadow-glow-lg"
           >
             {claimed
               ? '✓ Reclamado'

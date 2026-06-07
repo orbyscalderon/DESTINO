@@ -46,26 +46,29 @@ export default function BlockReportModal({ userId, userName, onClose, onBlocked 
   };
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center p-4 bg-black/60" onClick={onClose}>
+    <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center p-4 glass-strong" onClick={onClose}>
       <motion.div
-        initial={{ opacity: 0, y: 40 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: 40 }}
-        className="w-full max-w-sm bg-dark-800 rounded-2xl border border-white/10 overflow-hidden"
+        initial={{ opacity: 0, y: 40, scale: 0.97 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: 40, scale: 0.97 }}
+        transition={{ type: 'spring', damping: 26, stiffness: 280 }}
+        className="w-full max-w-sm glass-strong rounded-2xl overflow-hidden shadow-2xl shadow-black/60"
         onClick={e => e.stopPropagation()}
       >
         {view === 'menu' ? (
           <>
             <div className="flex items-center justify-between p-4 border-b border-white/5">
               <p className="font-semibold text-white">{userName}</p>
-              <button onClick={onClose} className="text-gray-400 hover:text-white" aria-label="Cerrar"><FiX /></button>
+              <button onClick={onClose} className="text-gray-400 hover:text-white hover:bg-white/5 p-1.5 -m-1 rounded-lg transition-colors" aria-label="Cerrar"><FiX /></button>
             </div>
             <div className="p-2">
               <button
                 onClick={() => setView('report')}
-                className="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-white/5 transition-colors text-left"
+                className="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-white/5 transition-colors text-left active:scale-[0.98]"
               >
-                <FiFlag className="text-yellow-400" size={18} />
+                <div className="w-9 h-9 rounded-lg bg-yellow-500/15 flex items-center justify-center shrink-0">
+                  <FiFlag className="text-yellow-400" size={16} />
+                </div>
                 <div>
                   <p className="text-sm font-medium text-white">Reportar</p>
                   <p className="text-xs text-gray-500">Notificar comportamiento inapropiado</p>
@@ -74,9 +77,11 @@ export default function BlockReportModal({ userId, userName, onClose, onBlocked 
               <button
                 onClick={handleBlock}
                 disabled={loading}
-                className="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-white/5 transition-colors text-left"
+                className="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-white/5 transition-colors text-left active:scale-[0.98]"
               >
-                <FiSlash className="text-brand-500" size={18} />
+                <div className="w-9 h-9 rounded-lg bg-brand-500/15 flex items-center justify-center shrink-0">
+                  <FiSlash className="text-brand-500" size={16} />
+                </div>
                 <div>
                   <p className="text-sm font-medium text-brand-400">Bloquear</p>
                   <p className="text-xs text-gray-500">No verás más a esta persona</p>
@@ -87,7 +92,7 @@ export default function BlockReportModal({ userId, userName, onClose, onBlocked 
         ) : (
           <>
             <div className="flex items-center gap-3 p-4 border-b border-white/5">
-              <button onClick={() => setView('menu')} className="text-gray-400 hover:text-white"><FiX size={16} /></button>
+              <button onClick={() => setView('menu')} className="text-gray-400 hover:text-white hover:bg-white/5 p-1.5 -m-1 rounded-lg transition-colors"><FiX size={16} /></button>
               <p className="font-semibold text-white">Reportar a {userName}</p>
             </div>
             <div className="p-4 space-y-2">
@@ -95,10 +100,10 @@ export default function BlockReportModal({ userId, userName, onClose, onBlocked 
                 <button
                   key={r.value}
                   onClick={() => setReason(r.value)}
-                  className={`w-full text-left px-4 py-3 rounded-xl text-sm transition-colors border ${
+                  className={`w-full text-left px-4 py-3 rounded-xl text-sm transition-all duration-200 ease-out-expo border active:scale-[0.98] ${
                     reason === r.value
-                      ? 'border-brand-500 bg-brand-500/10 text-white'
-                      : 'border-white/5 bg-dark-700 text-gray-300 hover:bg-white/5'
+                      ? 'border-brand-500/60 bg-brand-500/15 text-white shadow-glow-sm'
+                      : 'border-white/10 bg-white/5 text-gray-300 hover:bg-white/10 hover:border-white/20'
                   }`}
                 >
                   {r.label}
@@ -107,7 +112,7 @@ export default function BlockReportModal({ userId, userName, onClose, onBlocked 
               <button
                 onClick={handleReport}
                 disabled={!reason || loading}
-                className="btn-primary w-full mt-2"
+                className="btn-primary w-full mt-2 shadow-glow"
               >
                 Enviar reporte
               </button>

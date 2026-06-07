@@ -70,7 +70,7 @@ export default function AgeVerificationModal({ onVerified, onClose }) {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+        className="fixed inset-0 z-50 flex items-center justify-center p-4 glass-strong"
         onClick={e => { if (e.target === e.currentTarget) handleDecline(); }}
       >
         <motion.div
@@ -82,12 +82,13 @@ export default function AgeVerificationModal({ onVerified, onClose }) {
           initial={{ scale: 0.9, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.9, opacity: 0 }}
-          className="relative w-full max-w-sm bg-dark-800 border border-white/10 rounded-2xl p-6 text-center shadow-2xl"
+          transition={{ type: 'spring', damping: 24, stiffness: 280 }}
+          className="relative w-full max-w-sm glass-strong rounded-3xl p-6 text-center shadow-2xl shadow-black/60"
         >
           <button
             onClick={handleDecline}
             aria-label="Cerrar"
-            className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500 rounded-lg p-1"
+            className="absolute top-4 right-4 text-gray-500 hover:text-white hover:bg-white/5 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500/60 rounded-lg p-1.5"
           >
             <FiX size={18} />
           </button>

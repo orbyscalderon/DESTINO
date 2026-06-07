@@ -74,20 +74,20 @@ export default function FirstTimeTour({ skipFor }) {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[60] bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-4"
+        className="fixed inset-0 z-[60] glass-strong flex items-end sm:items-center justify-center p-4"
         onClick={finish}
       >
         <motion.div
-          initial={{ y: 40, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          exit={{ y: 40, opacity: 0 }}
-          transition={{ type: 'spring', damping: 30, stiffness: 280 }}
-          className="card p-6 w-full max-w-sm relative"
+          initial={{ y: 40, opacity: 0, scale: 0.97 }}
+          animate={{ y: 0, opacity: 1, scale: 1 }}
+          exit={{ y: 40, opacity: 0, scale: 0.97 }}
+          transition={{ type: 'spring', damping: 28, stiffness: 280 }}
+          className="glass-strong rounded-3xl p-6 w-full max-w-sm relative shadow-2xl shadow-black/60"
           onClick={(e) => e.stopPropagation()}
         >
           <button
             onClick={finish}
-            className="absolute top-3 right-3 text-gray-500 hover:text-white transition-colors"
+            className="absolute top-3 right-3 text-gray-500 hover:text-white hover:bg-white/5 p-1.5 -m-1 rounded-lg transition-colors"
             aria-label="Cerrar tutorial"
           >
             <FiX size={18} />
@@ -106,8 +106,8 @@ export default function FirstTimeTour({ skipFor }) {
           </div>
 
           {/* Ícono grande */}
-          <div className={`w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br ${current.color} flex items-center justify-center`}>
-            <Icon size={28} className="text-white" />
+          <div className={`w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br ${current.color} flex items-center justify-center shadow-lg`}>
+            <Icon size={28} className="text-white drop-shadow-md" />
           </div>
 
           {/* Texto */}

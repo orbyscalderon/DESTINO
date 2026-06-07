@@ -35,18 +35,18 @@ export default function TutorialOverlay({ onDone }) {
   const isLast = step === STEPS.length - 1;
 
   return (
-    <div className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-4">
+    <div className="fixed inset-0 z-[9999] glass-strong flex items-end sm:items-center justify-center p-4">
       <motion.div
         key={step}
         initial={{ opacity: 0, y: 30, scale: 0.96 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: 20 }}
         transition={{ type: 'spring', stiffness: 300, damping: 28 }}
-        className="w-full max-w-sm bg-dark-800 rounded-3xl border border-white/10 p-7 shadow-2xl relative"
+        className="w-full max-w-sm glass-strong rounded-3xl p-7 shadow-2xl shadow-black/60 relative"
       >
         <button
           onClick={onDone}
-          className="absolute top-4 right-4 w-8 h-8 rounded-full bg-dark-700 flex items-center justify-center text-gray-500 hover:text-gray-300 transition-colors"
+          className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-gray-500 hover:text-white hover:bg-white/10 transition-colors"
          aria-label="Cerrar">
           <FiX size={15} />
         </button>

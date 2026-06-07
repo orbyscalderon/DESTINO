@@ -908,12 +908,12 @@ export default function ChatWindow({ matchId, otherUser }) {
             initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
             className="overflow-hidden shrink-0"
           >
-            <div className="flex items-center gap-2 px-4 py-2 bg-dark-800 border-t border-white/5">
+            <div className="flex items-center gap-2 px-4 py-2 bg-dark-900/60 backdrop-blur-xl border-t border-white/5">
               <div className="flex-1 border-l-2 border-brand-500 pl-2 min-w-0">
                 <p className="text-brand-400 text-[10px] font-semibold">{replyTo.senderName}</p>
                 <p className="text-gray-400 text-xs truncate">{replyTo.content}</p>
               </div>
-              <button onClick={() => setReplyTo(null)} className="text-gray-500 hover:text-white shrink-0">
+              <button onClick={() => setReplyTo(null)} className="text-gray-500 hover:text-white hover:bg-white/5 p-1 -m-1 rounded transition-colors shrink-0">
                 <FiX size={14} />
               </button>
             </div>
@@ -926,7 +926,7 @@ export default function ChatWindow({ matchId, otherUser }) {
         <div className="flex gap-2">
           <button type="button" onClick={handleOpenGif}
             disabled={!isPremiumPlus && remaining <= 0}
-            className={`w-10 h-10 shrink-0 rounded-xl flex items-center justify-center text-xs font-black transition-colors disabled:opacity-40 ${showGifPanel ? 'bg-brand-500 text-white' : 'bg-dark-700 text-gray-400 hover:text-brand-400 hover:bg-dark-600'}`}
+            className={`w-10 h-10 shrink-0 rounded-xl flex items-center justify-center text-xs font-black transition-all duration-200 ease-out-expo active:scale-90 disabled:opacity-40 ${showGifPanel ? 'bg-gradient-to-br from-brand-500 to-brand-600 text-white shadow-glow-sm' : 'bg-white/5 border border-white/10 text-gray-400 hover:text-brand-400 hover:bg-white/10 hover:border-white/20'}`}
             title="GIF"
           >
             GIF
@@ -934,7 +934,7 @@ export default function ChatWindow({ matchId, otherUser }) {
 
           <button type="button" onClick={() => imageInputRef.current?.click()}
             disabled={sendingImage || (!isPremiumPlus && remaining <= 0)}
-            className="w-10 h-10 shrink-0 rounded-xl bg-dark-700 flex items-center justify-center text-gray-400 hover:text-brand-400 hover:bg-dark-600 transition-colors disabled:opacity-40"
+            className="w-10 h-10 shrink-0 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-gray-400 hover:text-brand-400 hover:bg-white/10 hover:border-white/20 transition-all duration-200 ease-out-expo active:scale-90 disabled:opacity-40"
             title="Enviar foto"
           >
             {sendingImage
@@ -946,7 +946,7 @@ export default function ChatWindow({ matchId, otherUser }) {
 
           <button type="button" onClick={() => videoInputRef.current?.click()}
             disabled={sendingVideo || (!isPremiumPlus && remaining <= 0)}
-            className="w-10 h-10 shrink-0 rounded-xl bg-dark-700 flex items-center justify-center text-gray-400 hover:text-brand-400 hover:bg-dark-600 transition-colors disabled:opacity-40"
+            className="w-10 h-10 shrink-0 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-gray-400 hover:text-brand-400 hover:bg-white/10 hover:border-white/20 transition-all duration-200 ease-out-expo active:scale-90 disabled:opacity-40"
             title="Enviar video"
           >
             {sendingVideo
@@ -958,7 +958,7 @@ export default function ChatWindow({ matchId, otherUser }) {
 
           {profile?.is_creator && (
             <button type="button" onClick={() => ppvFileRef.current?.click()}
-              className="w-10 h-10 shrink-0 rounded-xl bg-brand-500/20 flex items-center justify-center text-brand-400 hover:bg-brand-500/30 transition-colors"
+              className="w-10 h-10 shrink-0 rounded-xl bg-brand-500/20 border border-brand-500/30 flex items-center justify-center text-brand-400 hover:bg-brand-500/30 hover:border-brand-500/50 transition-all duration-200 ease-out-expo active:scale-90"
               title="Enviar contenido PPV"
             >
               <FiZap size={16} />
@@ -986,7 +986,7 @@ export default function ChatWindow({ matchId, otherUser }) {
               {!text.trim() ? (
                 <button type="button" onClick={startRecording}
                   disabled={sendingVoice || (!isPremiumPlus && remaining <= 0)}
-                  className="w-10 h-10 shrink-0 rounded-xl bg-dark-700 flex items-center justify-center text-gray-400 hover:text-brand-400 hover:bg-dark-600 transition-colors disabled:opacity-40"
+                  className="w-10 h-10 shrink-0 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-gray-400 hover:text-brand-400 hover:bg-white/10 hover:border-white/20 transition-all duration-200 ease-out-expo active:scale-90 disabled:opacity-40"
                   title="Grabar mensaje de voz"
                 >
                   {sendingVoice ? <div className="w-4 h-4 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" /> : <FiMic size={16} />}
@@ -994,7 +994,7 @@ export default function ChatWindow({ matchId, otherUser }) {
               ) : (
                 <button type="submit"
                   disabled={!text.trim() || sending || (!isPremiumPlus && remaining <= 0)}
-                  className="btn-primary px-4 py-2.5"
+                  className="btn-primary px-4 py-2.5 shadow-glow"
                 >
                   {!isPremiumPlus && remaining <= 0 ? <FiLock /> : <FiSend />}
                 </button>
@@ -1011,7 +1011,7 @@ export default function ChatWindow({ matchId, otherUser }) {
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 40 }}
-            className="absolute inset-x-0 bottom-[72px] z-40 bg-dark-800 border-t border-white/10 p-3 rounded-t-2xl"
+            className="absolute inset-x-0 bottom-[72px] z-40 glass-strong p-3 rounded-t-2xl shadow-2xl shadow-black/40"
             style={{ maxHeight: 260 }}
           >
             <div className="relative mb-2">
@@ -1049,11 +1049,11 @@ export default function ChatWindow({ matchId, otherUser }) {
       <AnimatePresence>
         {showPPVPanel && (
           <motion.div initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 40 }}
-            className="absolute inset-x-0 bottom-0 z-40 bg-dark-800 border-t border-white/10 p-4 rounded-t-2xl"
+            className="absolute inset-x-0 bottom-0 z-40 glass-strong p-4 rounded-t-2xl shadow-2xl shadow-black/40"
           >
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-white font-semibold flex items-center gap-2"><FiZap className="text-brand-400" size={16} /> Contenido PPV de pago</h3>
-              <button onClick={() => { setShowPPVPanel(false); setPpvFile(null); if (ppvPreview) URL.revokeObjectURL(ppvPreview); setPpvPreview(null); }} className="text-gray-500 hover:text-white"><FiX size={18} /></button>
+              <button onClick={() => { setShowPPVPanel(false); setPpvFile(null); if (ppvPreview) URL.revokeObjectURL(ppvPreview); setPpvPreview(null); }} className="text-gray-500 hover:text-white hover:bg-white/5 p-1.5 -m-1 rounded-lg transition-colors"><FiX size={18} /></button>
             </div>
             {ppvPreview && (
               <div className="mb-3 rounded-xl overflow-hidden max-h-40">

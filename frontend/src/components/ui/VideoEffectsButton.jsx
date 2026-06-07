@@ -49,8 +49,9 @@ export default function VideoEffectsButton({ value, onChange, className = '' }) 
       <AnimatePresence>
         {open && (
           <motion.div
-            initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 4 }}
-            className="absolute bottom-full mb-2 right-0 z-50 bg-dark-800 border border-white/10 rounded-2xl p-1.5 shadow-2xl min-w-[200px]"
+            initial={{ opacity: 0, y: 4, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 4, scale: 0.95 }}
+            transition={{ duration: 0.15, ease: [0.19, 1, 0.22, 1] }}
+            className="absolute bottom-full mb-2 right-0 z-50 glass-strong rounded-2xl p-1.5 shadow-2xl shadow-black/60 min-w-[200px]"
           >
             <p className="text-[9px] text-gray-500 uppercase font-bold px-2 py-1">Efecto de cámara</p>
             {VIDEO_EFFECTS.map(e => (

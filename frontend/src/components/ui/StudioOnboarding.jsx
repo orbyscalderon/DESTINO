@@ -64,7 +64,7 @@ export default function StudioOnboarding() {
       {open && (
         <motion.div
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[90] bg-black/85 backdrop-blur-sm flex items-center justify-center p-4"
+          className="fixed inset-0 z-[90] glass-strong flex items-center justify-center p-4"
           onClick={finish}
         >
           <motion.div
@@ -107,14 +107,14 @@ export default function StudioOnboarding() {
               {step > 0 && (
                 <button
                   onClick={() => setStep(s => s - 1)}
-                  className="flex-1 bg-white/15 hover:bg-white/25 text-white font-bold py-2.5 rounded-xl flex items-center justify-center gap-1 transition-colors"
+                  className="flex-1 bg-white/15 hover:bg-white/25 text-white font-bold py-2.5 rounded-xl flex items-center justify-center gap-1 transition-all duration-200 ease-out-expo active:scale-95"
                 >
                   <FiArrowLeft size={14} /> Atrás
                 </button>
               )}
               <button
                 onClick={() => isLast ? finish() : setStep(s => s + 1)}
-                className="flex-1 bg-white text-brand-700 font-black py-2.5 rounded-xl flex items-center justify-center gap-1 hover:brightness-110 transition-all"
+                className="flex-1 bg-white text-brand-700 font-black py-2.5 rounded-xl flex items-center justify-center gap-1 hover:bg-white/95 hover:-translate-y-0.5 active:scale-95 transition-all duration-200 ease-out-expo shadow-lg shadow-black/40"
                 autoFocus
               >
                 {isLast ? '¡Listo!' : <>Siguiente <FiArrowRight size={14} /></>}

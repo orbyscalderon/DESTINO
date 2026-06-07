@@ -75,10 +75,11 @@ export default function TierPicker({
           <button
             key={tier.id}
             onClick={() => onSelect(tier)}
-            className="w-full rounded-xl p-4 text-left transition-all relative border-2"
+            className="w-full rounded-xl p-4 text-left transition-all duration-200 ease-out-expo relative border-2 hover:-translate-y-0.5 active:scale-[0.99]"
             style={{
               borderColor: isSel ? tier.badge_color : `${tier.badge_color}55`,
               backgroundColor: `${tier.badge_color}${isSel ? '20' : '10'}`,
+              boxShadow: isSel ? `0 0 24px ${tier.badge_color}50` : 'none',
             }}
           >
             {isSel && (

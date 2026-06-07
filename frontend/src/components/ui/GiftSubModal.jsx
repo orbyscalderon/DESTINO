@@ -107,15 +107,15 @@ export default function GiftSubModal({ creatorId, creatorName, onClose, onSucces
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: '100%', opacity: 0 }}
           transition={{ type: 'spring', damping: 28, stiffness: 280 }}
-          className="bg-dark-900 w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl max-h-[90vh] overflow-y-auto"
+          className="glass-strong w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl max-h-[90vh] overflow-y-auto shadow-2xl shadow-black/60"
           onClick={e => e.stopPropagation()}
         >
-          <div className="sticky top-0 bg-dark-900 px-5 py-4 border-b border-dark-700 flex items-center justify-between">
+          <div className="sticky top-0 bg-dark-900/70 backdrop-blur-xl px-5 py-4 border-b border-white/5 flex items-center justify-between z-10">
             <div className="flex items-center gap-2">
               <FiGift className="text-pink-400" size={20} />
               <h3 className="text-white font-bold">Regalar suscripción</h3>
             </div>
-            <button onClick={onClose} className="text-gray-400 hover:text-white" aria-label="Cerrar">
+            <button onClick={onClose} className="text-gray-400 hover:text-white hover:bg-white/5 p-1.5 -m-1 rounded-lg transition-colors" aria-label="Cerrar">
               <FiX size={20} />
             </button>
           </div>
@@ -130,23 +130,23 @@ export default function GiftSubModal({ creatorId, creatorName, onClose, onSucces
               <p className="text-xs text-gray-400 mb-2">1. ¿Para quién?</p>
 
               {/* Toggle Específico / Aleatorio */}
-              <div className="grid grid-cols-2 gap-2 mb-3 bg-dark-800 rounded-xl p-1">
+              <div className="grid grid-cols-2 gap-2 mb-3 bg-white/5 border border-white/10 rounded-xl p-1">
                 <button
                   onClick={() => setMode('specific')}
-                  className={`flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium transition-colors ${
+                  className={`flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium transition-all duration-200 ease-out-expo active:scale-95 ${
                     mode === 'specific'
-                      ? 'bg-brand-500 text-white shadow-lg shadow-brand-500/20'
-                      : 'text-gray-400 hover:text-gray-200'
+                      ? 'bg-gradient-to-r from-brand-500 to-brand-600 text-white shadow-glow-sm'
+                      : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'
                   }`}
                 >
                   <FiUser size={12} /> Elegir persona
                 </button>
                 <button
                   onClick={() => { setMode('random'); setRecipient(null); setRecipientQuery(''); }}
-                  className={`flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium transition-colors ${
+                  className={`flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium transition-all duration-200 ease-out-expo active:scale-95 ${
                     mode === 'random'
-                      ? 'bg-brand-500 text-white shadow-lg shadow-brand-500/20'
-                      : 'text-gray-400 hover:text-gray-200'
+                      ? 'bg-gradient-to-r from-brand-500 to-brand-600 text-white shadow-glow-sm'
+                      : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'
                   }`}
                 >
                   <FiShuffle size={12} /> Aleatorio 🎲
