@@ -67,14 +67,14 @@ export default function GiftPanel({ showId, hostId, coinBalance, onClose, onGift
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: 6, scale: 0.97 }}
         transition={{ duration: 0.14 }}
-        className="absolute bottom-[80px] right-14 z-40 w-72 max-h-[60vh] bg-dark-800 rounded-2xl border border-white/10 shadow-2xl overflow-hidden flex flex-col"
+        className="absolute bottom-[80px] right-14 z-40 w-72 max-h-[60vh] glass-strong rounded-2xl shadow-2xl shadow-black/60 overflow-hidden flex flex-col"
       >
-        <div className="flex items-center justify-between px-3 py-2.5 border-b border-white/5 shrink-0">
+        <div className="flex items-center justify-between px-3 py-2.5 border-b border-white/5 shrink-0 bg-dark-900/40">
           <div>
             <span className="text-white font-bold text-sm">Regalos</span>
-            <span className="text-yellow-400 text-[10px] ml-2">⚡ {balance.toLocaleString()}</span>
+            <span className="text-yellow-400 text-[10px] ml-2 font-bold">⚡ {balance.toLocaleString()}</span>
           </div>
-          <button onClick={onClose} className="text-gray-500 hover:text-white" aria-label="Cerrar"><FiX size={14} /></button>
+          <button onClick={onClose} className="text-gray-500 hover:text-white hover:bg-white/5 p-1 -m-1 rounded-lg transition-colors" aria-label="Cerrar"><FiX size={14} /></button>
         </div>
 
         <div className="overflow-y-auto flex-1 p-3 space-y-2">

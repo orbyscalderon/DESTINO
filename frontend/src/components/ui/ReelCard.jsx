@@ -274,35 +274,35 @@ function ReelCard({
         </Link>
 
         {/* Like */}
-        <button onClick={doLike} className="flex flex-col items-center gap-1 min-w-[44px]" aria-label="Me gusta">
+        <button onClick={doLike} className="flex flex-col items-center gap-1 min-w-[44px] transition-transform duration-150 ease-out-back active:scale-90 hover:scale-105 drop-shadow-lg" aria-label="Me gusta">
           <FiHeart
-            className={liked ? 'text-pink-500 fill-current' : 'text-white'}
+            className={liked ? 'text-pink-500 fill-current drop-shadow-[0_0_8px_rgba(236,72,153,0.6)]' : 'text-white'}
             size={28}
           />
-          <span className="text-white text-[11px] font-semibold tabular-nums">{formatCount(likes)}</span>
+          <span className="text-white text-[11px] font-semibold tabular-nums drop-shadow-md">{formatCount(likes)}</span>
         </button>
 
-        {/* Comments (placeholder — abre TODO) */}
+        {/* Comments */}
         <button
           onClick={() => onOpenComments?.(reel.id)}
-          className="flex flex-col items-center gap-1 min-w-[44px]"
+          className="flex flex-col items-center gap-1 min-w-[44px] transition-transform duration-150 ease-out-back active:scale-90 hover:scale-105 drop-shadow-lg"
           aria-label="Comentarios"
         >
           <FiMessageCircle className="text-white" size={28} />
-          <span className="text-white text-[11px] font-semibold tabular-nums">{formatCount(comments)}</span>
+          <span className="text-white text-[11px] font-semibold tabular-nums drop-shadow-md">{formatCount(comments)}</span>
         </button>
 
         {/* Save (bookmark) */}
-        <button onClick={doSave} className="flex flex-col items-center gap-1 min-w-[44px]" aria-label={saved ? 'Quitar de guardados' : 'Guardar'}>
+        <button onClick={doSave} className="flex flex-col items-center gap-1 min-w-[44px] transition-transform duration-150 ease-out-back active:scale-90 hover:scale-105 drop-shadow-lg" aria-label={saved ? 'Quitar de guardados' : 'Guardar'}>
           <FiBookmark
-            className={saved ? 'text-yellow-400 fill-current' : 'text-white'}
+            className={saved ? 'text-yellow-400 fill-current drop-shadow-[0_0_8px_rgba(234,179,8,0.6)]' : 'text-white'}
             size={26}
           />
-          <span className="text-white text-[11px] font-semibold">{saved ? 'Guardado' : 'Guardar'}</span>
+          <span className="text-white text-[11px] font-semibold drop-shadow-md">{saved ? 'Guardado' : 'Guardar'}</span>
         </button>
 
         {/* Share */}
-        <button onClick={handleShare} className="flex flex-col items-center gap-1 min-w-[44px]" aria-label="Compartir">
+        <button onClick={handleShare} className="flex flex-col items-center gap-1 min-w-[44px] transition-transform duration-150 ease-out-back active:scale-90 hover:scale-105 drop-shadow-lg" aria-label="Compartir">
           <FiShare2 className="text-white" size={26} />
         </button>
 

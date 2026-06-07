@@ -121,13 +121,13 @@ export default function SwipeCard({ profile, onLike, onDislike, onSuperLike, isP
 
         {/* Swipe indicators */}
         <motion.div
-          className="absolute top-8 left-8 bg-green-500 text-white font-black text-2xl px-4 py-2 rounded-xl border-4 border-green-400 rotate-[-15deg] pointer-events-none"
+          className="absolute top-8 left-8 bg-green-500 text-white font-black text-2xl px-4 py-2 rounded-xl border-4 border-green-400 rotate-[-15deg] pointer-events-none shadow-[0_0_30px_rgba(34,197,94,0.6)]"
           style={{ opacity: likeOpacity }}
         >
           LIKE
         </motion.div>
         <motion.div
-          className="absolute top-8 right-8 bg-brand-500 text-white font-black text-2xl px-4 py-2 rounded-xl border-4 border-brand-400 rotate-[15deg] pointer-events-none"
+          className="absolute top-8 right-8 bg-brand-500 text-white font-black text-2xl px-4 py-2 rounded-xl border-4 border-brand-400 rotate-[15deg] pointer-events-none shadow-glow-lg"
           style={{ opacity: dislikeOpacity }}
         >
           NOPE
@@ -211,8 +211,10 @@ export default function SwipeCard({ profile, onLike, onDislike, onSuperLike, isP
       <div className="flex justify-center items-center gap-4 mt-6">
         <button
           onClick={triggerDislike}
-          className="w-16 h-16 rounded-full bg-dark-700 border border-white/10 flex items-center justify-center
-                     text-brand-500 text-2xl transition-all hover:bg-brand-500 hover:text-white hover:scale-110 active:scale-95"
+          className="w-16 h-16 rounded-full bg-dark-700/80 backdrop-blur-sm border border-white/10 flex items-center justify-center
+                     text-brand-500 text-2xl transition-all duration-200 ease-out-expo
+                     hover:bg-brand-500 hover:text-white hover:scale-110 hover:shadow-glow hover:border-brand-400
+                     active:scale-95"
          aria-label="Cerrar">
           <FiX />
         </button>
@@ -221,9 +223,9 @@ export default function SwipeCard({ profile, onLike, onDislike, onSuperLike, isP
         <button
           onClick={isPremium ? triggerSuperLike : undefined}
           title={isPremium ? 'Super Like' : 'Super Like (Premium)'}
-          className={`w-12 h-12 rounded-full border flex items-center justify-center text-xl transition-all active:scale-95 ${
+          className={`w-12 h-12 rounded-full border flex items-center justify-center text-xl transition-all duration-200 ease-out-expo active:scale-95 ${
             isPremium
-              ? 'bg-dark-700 border-blue-500/30 text-blue-400 hover:bg-blue-500 hover:text-white hover:scale-110'
+              ? 'bg-dark-700/80 backdrop-blur-sm border-blue-500/30 text-blue-400 hover:bg-blue-500 hover:text-white hover:scale-110 hover:shadow-[0_0_24px_rgba(59,130,246,0.5)] hover:border-blue-400'
               : 'bg-dark-800 border-white/5 text-gray-700 cursor-not-allowed'
           }`}
          aria-label="Super like">
@@ -232,8 +234,10 @@ export default function SwipeCard({ profile, onLike, onDislike, onSuperLike, isP
 
         <button
           onClick={triggerLike}
-          className="w-16 h-16 rounded-full bg-dark-700 border border-white/10 flex items-center justify-center
-                     text-green-500 text-2xl transition-all hover:bg-green-500 hover:text-white hover:scale-110 active:scale-95"
+          className="w-16 h-16 rounded-full bg-dark-700/80 backdrop-blur-sm border border-white/10 flex items-center justify-center
+                     text-green-500 text-2xl transition-all duration-200 ease-out-expo
+                     hover:bg-green-500 hover:text-white hover:scale-110 hover:shadow-[0_0_28px_rgba(34,197,94,0.55)] hover:border-green-400
+                     active:scale-95"
          aria-label="Me gusta">
           <FiHeart />
         </button>

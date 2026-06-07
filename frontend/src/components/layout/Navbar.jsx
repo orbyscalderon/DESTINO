@@ -100,7 +100,7 @@ export default function Navbar() {
     }`;
 
   const mobileLink = ({ isActive }) =>
-    `flex flex-col items-center gap-1 px-3 py-1.5 rounded-xl transition-all ${
+    `relative flex flex-col items-center gap-1 px-3 py-1.5 rounded-xl transition-all duration-200 ease-out-expo ${
       isActive ? 'text-brand-500' : 'text-gray-500 hover:text-gray-300'
     }`;
 
@@ -273,7 +273,7 @@ export default function Navbar() {
       </aside>
 
       {/* ── MOBILE BOTTOM BAR ─────────────────────────────────── */}
-      <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-dark-800/95 backdrop-blur-md border-t border-white/5">
+      <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 glass border-t border-white/10">
         <div className="flex items-center justify-around px-1 py-2 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))]">
 
           {/* Items fijos (5 con el "+" en el centro) */}
@@ -287,9 +287,9 @@ export default function Navbar() {
                   key="create"
                   onClick={() => setShowCreateMenu(true)}
                   aria-label="Crear"
-                  className="flex flex-col items-center gap-1 px-3 py-1 -mt-3 transition-transform active:scale-95"
+                  className="flex flex-col items-center gap-1 px-3 py-1 -mt-3 transition-transform duration-200 ease-out-expo active:scale-90 hover:-translate-y-0.5"
                 >
-                  <span className="w-11 h-11 rounded-2xl bg-gradient-to-br from-brand-500 to-pink-500 flex items-center justify-center shadow-lg shadow-brand-500/40">
+                  <span className="w-11 h-11 rounded-2xl bg-gradient-to-br from-brand-500 to-accent-500 flex items-center justify-center shadow-glow hover:shadow-glow-lg transition-shadow duration-200">
                     <FiPlus className="text-white" size={22} />
                   </span>
                   <span className="text-[10px] font-medium text-gray-400">{label}</span>
@@ -298,17 +298,25 @@ export default function Navbar() {
             }
 
             const count = badge === 'chat' ? unreadTotal : 0;
+            const isActive = location.pathname.startsWith(to);
             return (
               <NavLink key={to} to={to} className={mobileLink}>
                 <span className="relative">
                   <Icon size={22} />
                   {count > 0 && (
-                    <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 bg-brand-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-0.5">
+                    <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 bg-brand-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-0.5 shadow-glow-sm">
                       {count > 99 ? '99+' : count}
                     </span>
                   )}
                 </span>
                 <span className="text-[10px] font-medium">{label}</span>
+                {isActive && (
+                  <motion.span
+                    layoutId="mobile-nav-indicator"
+                    className="absolute -bottom-1 w-1 h-1 rounded-full bg-brand-500 shadow-glow-sm"
+                    transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                  />
+                )}
               </NavLink>
             );
           })}

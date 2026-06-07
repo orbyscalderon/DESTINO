@@ -53,7 +53,7 @@ export default function PremiumModal({ onClose, requiredTier = 'premium' }) {
           transition={{ type: 'spring', damping: 20 }}
           className="card w-full max-w-sm p-6 relative"
         >
-          <button onClick={onClose} className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors" aria-label="Cerrar">
+          <button onClick={onClose} className="absolute top-4 right-4 text-gray-500 hover:text-white hover:bg-white/5 p-1.5 -m-1 rounded-lg transition-colors" aria-label="Cerrar">
             <FiX size={20} />
           </button>
 
@@ -88,7 +88,11 @@ export default function PremiumModal({ onClose, requiredTier = 'premium' }) {
 
           <button
             onClick={() => { onClose(); navigate('/premium'); }}
-            className={`w-full py-3 rounded-xl font-bold text-sm transition-colors ${isVip ? 'bg-yellow-500 hover:bg-yellow-400 text-black' : 'btn-primary'}`}
+            className={`w-full py-3 rounded-xl font-bold text-sm transition-all duration-200 ease-out-expo active:scale-95 ${
+              isVip
+                ? 'bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-yellow-300 hover:to-yellow-400 text-black shadow-[0_0_24px_rgba(234,179,8,0.45)] hover:shadow-[0_0_32px_rgba(234,179,8,0.6)] hover:-translate-y-0.5'
+                : 'btn-primary'
+            }`}
           >
             Ver planes {plan.emoji}
           </button>

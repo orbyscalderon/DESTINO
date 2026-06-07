@@ -174,14 +174,14 @@ export default function BattleOverlay({ battleId, viewerSide = 'viewer', onEnded
         >
           <button
             onClick={() => handleTip(1, 10)}
-            className="flex-1 min-w-0 bg-pink-500/90 hover:bg-pink-500 backdrop-blur-md text-white font-bold py-2 rounded-xl text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-lg truncate"
+            className="flex-1 min-w-0 bg-gradient-to-r from-pink-500 to-pink-600 hover:from-pink-400 hover:to-pink-500 backdrop-blur-md text-white font-bold py-2 rounded-xl text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-[0_0_20px_rgba(236,72,153,0.5)] hover:shadow-[0_0_28px_rgba(236,72,153,0.7)] hover:-translate-y-0.5 active:scale-95 transition-all duration-200 ease-out-expo truncate"
           >
             <FiZap size={13} className="shrink-0" />
             <span className="truncate">Apoyar a {battle.host1?.full_name?.split(' ')[0] || 'Host 1'} · 10🪙</span>
           </button>
           <button
             onClick={() => handleTip(2, 10)}
-            className="flex-1 min-w-0 bg-blue-500/90 hover:bg-blue-500 backdrop-blur-md text-white font-bold py-2 rounded-xl text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-lg truncate"
+            className="flex-1 min-w-0 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-400 hover:to-cyan-400 backdrop-blur-md text-white font-bold py-2 rounded-xl text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-[0_0_20px_rgba(6,182,212,0.5)] hover:shadow-[0_0_28px_rgba(6,182,212,0.7)] hover:-translate-y-0.5 active:scale-95 transition-all duration-200 ease-out-expo truncate"
           >
             <FiZap size={13} className="shrink-0" />
             <span className="truncate">Apoyar a {battle.host2?.full_name?.split(' ')[0] || 'Host 2'} · 10🪙</span>
@@ -245,14 +245,14 @@ export default function BattleOverlay({ battleId, viewerSide = 'viewer', onEnded
                     }
                   }}
                   disabled={rematchSending}
-                  className="w-full bg-gradient-to-r from-pink-500 to-pink-600 hover:brightness-110 text-white font-black px-6 py-3 rounded-xl mb-2 disabled:opacity-60 flex items-center justify-center gap-2"
+                  className="w-full bg-gradient-to-r from-pink-500 to-pink-600 hover:from-pink-400 hover:to-pink-500 text-white font-black px-6 py-3 rounded-xl mb-2 disabled:opacity-60 flex items-center justify-center gap-2 shadow-[0_0_24px_rgba(236,72,153,0.5)] hover:shadow-[0_0_32px_rgba(236,72,153,0.7)] hover:-translate-y-0.5 active:scale-95 transition-all duration-200 ease-out-expo"
                 >
                   {rematchSending ? '…' : '🔁 Pedir revancha'}
                 </button>
               )}
               <button
                 onClick={() => setShowWinner(null)}
-                className="bg-white/95 text-orange-600 font-black px-6 py-2.5 rounded-xl hover:brightness-110 w-full"
+                className="bg-white/95 text-orange-600 font-black px-6 py-2.5 rounded-xl hover:bg-white hover:-translate-y-0.5 active:scale-95 w-full transition-all duration-200 ease-out-expo shadow-lg"
               >
                 Continuar
               </button>

@@ -35,15 +35,15 @@ export default function TipModal({ userId, userName, onClose, onSent }) {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-end justify-center p-0"
+        className="fixed inset-0 z-50 glass-strong flex items-end justify-center p-0"
         onClick={onClose}
       >
         <motion.div
-          initial={{ y: '100%' }}
-          animate={{ y: 0 }}
-          exit={{ y: '100%' }}
+          initial={{ y: '100%', opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          exit={{ y: '100%', opacity: 0 }}
           transition={{ type: 'spring', damping: 30, stiffness: 400 }}
-          className="w-full max-w-md bg-dark-800 border-t border-white/10 rounded-t-3xl p-6 space-y-5"
+          className="w-full max-w-md glass-strong rounded-t-3xl p-6 space-y-5 shadow-2xl shadow-black/60"
           onClick={e => e.stopPropagation()}
         >
           <div className="flex items-center justify-between">
@@ -51,7 +51,7 @@ export default function TipModal({ userId, userName, onClose, onSent }) {
               <h3 className="text-white font-bold text-lg">Enviar propina</h3>
               <p className="text-gray-500 text-sm">a {userName}</p>
             </div>
-            <button onClick={onClose} className="w-8 h-8 rounded-full bg-dark-700 flex items-center justify-center text-gray-400 hover:text-white" aria-label="Cerrar">
+            <button onClick={onClose} className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 transition-colors" aria-label="Cerrar">
               <FiX size={15} />
             </button>
           </div>
@@ -62,10 +62,10 @@ export default function TipModal({ userId, userName, onClose, onSent }) {
               <button
                 key={p}
                 onClick={() => setAmount(p)}
-                className={`py-2.5 rounded-xl text-sm font-bold transition-all ${
+                className={`py-2.5 rounded-xl text-sm font-bold transition-all duration-200 ease-out-expo active:scale-95 ${
                   amount === p
-                    ? 'bg-brand-500 text-white scale-105 shadow-lg shadow-brand-500/30'
-                    : 'bg-dark-700 text-gray-400 hover:bg-dark-600 hover:text-white'
+                    ? 'bg-gradient-to-r from-brand-500 to-brand-600 text-white scale-105 shadow-glow'
+                    : 'bg-white/5 border border-white/10 text-gray-400 hover:bg-white/10 hover:text-white hover:border-white/20'
                 }`}
               >
                 {p}

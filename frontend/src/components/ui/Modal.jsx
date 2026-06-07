@@ -94,16 +94,16 @@ export default function Modal({
             aria-modal="true"
             aria-labelledby={title ? 'modal-title' : undefined}
             aria-describedby={description ? 'modal-desc' : undefined}
-            initial={{ y: '100%', opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: '100%', opacity: 0 }}
+            initial={{ y: '100%', opacity: 0, scale: 0.98 }}
+            animate={{ y: 0, opacity: 1, scale: 1 }}
+            exit={{ y: '100%', opacity: 0, scale: 0.98 }}
             transition={{ type: 'spring', damping: 28, stiffness: 280 }}
-            className={`bg-dark-900 w-full ${SIZES[size]} rounded-t-2xl sm:rounded-2xl max-h-[90vh] overflow-y-auto outline-none ${className}`}
+            className={`glass-strong w-full ${SIZES[size]} rounded-t-3xl sm:rounded-3xl max-h-[90vh] overflow-y-auto outline-none shadow-2xl shadow-black/60 ${className}`}
             onClick={e => e.stopPropagation()}
             tabIndex={-1}
           >
             {(title || showCloseButton) && (
-              <div className="sticky top-0 bg-dark-900 px-5 py-4 border-b border-dark-700 flex items-center justify-between z-10">
+              <div className="sticky top-0 bg-dark-900/70 backdrop-blur-xl px-5 py-4 border-b border-white/5 flex items-center justify-between z-10">
                 {title && (
                   <h3 id="modal-title" className="text-white font-bold">
                     {title}
@@ -113,7 +113,7 @@ export default function Modal({
                   <button
                     onClick={onClose}
                     aria-label="Cerrar"
-                    className="text-gray-400 hover:text-white p-1 -m-1 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 ml-auto"
+                    className="text-gray-400 hover:text-white hover:bg-white/5 p-1.5 -m-1 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500/60 ml-auto"
                   >
                     <FiX size={20} />
                   </button>

@@ -68,17 +68,17 @@ export function ConfirmProvider({ children }) {
             <div className="flex gap-2 mt-5">
               <button
                 onClick={() => handleClose(false)}
-                className="flex-1 py-2.5 rounded-xl bg-dark-700 text-gray-300 hover:bg-dark-600 font-medium text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500"
+                className="flex-1 py-2.5 rounded-xl bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10 hover:border-white/20 font-medium text-sm transition-all duration-200 ease-out-expo focus:outline-none focus:ring-2 focus:ring-brand-500/60 active:scale-95"
               >
                 {state.cancelLabel || 'Cancelar'}
               </button>
               <button
                 onClick={() => handleClose(true)}
                 autoFocus
-                className={`flex-1 py-2.5 rounded-xl font-bold text-sm transition-colors focus:outline-none focus:ring-2 ${
+                className={`flex-1 py-2.5 rounded-xl font-bold text-sm transition-all duration-200 ease-out-expo focus:outline-none focus:ring-2 active:scale-95 ${
                   state.destructive
-                    ? 'bg-red-500 hover:bg-red-400 text-white focus:ring-red-500'
-                    : 'bg-brand-500 hover:bg-brand-400 text-white focus:ring-brand-500'
+                    ? 'bg-gradient-to-r from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 text-white shadow-[0_0_20px_rgba(239,68,68,0.4)] hover:shadow-[0_0_28px_rgba(239,68,68,0.55)] hover:-translate-y-0.5 focus:ring-red-500/60'
+                    : 'bg-gradient-to-r from-brand-500 to-brand-600 hover:from-brand-400 hover:to-brand-500 text-white shadow-glow-sm hover:shadow-glow hover:-translate-y-0.5 focus:ring-brand-500/60'
                 }`}
               >
                 {state.confirmLabel || 'Confirmar'}
