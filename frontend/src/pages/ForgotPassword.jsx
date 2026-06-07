@@ -31,9 +31,10 @@ export default function ForgotPassword() {
 
   if (sent) {
     return (
-      <div className="min-h-screen bg-dark-900 flex items-center justify-center p-4">
-        <div className="max-w-md w-full text-center space-y-6">
-          <div className="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center mx-auto">
+      <div className="min-h-screen bg-dark-900 hero-mesh flex items-center justify-center p-4 relative overflow-hidden">
+        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-72 h-72 bg-green-500/10 rounded-full blur-3xl pointer-events-none animate-float" />
+        <div className="max-w-md w-full text-center space-y-6 relative z-10">
+          <div className="w-20 h-20 bg-green-500/20 border-2 border-green-500/30 rounded-full flex items-center justify-center mx-auto shadow-[0_0_30px_rgba(34,197,94,0.4)]">
             <FiCheckCircle className="w-10 h-10 text-green-400" />
           </div>
           <div className="space-y-2">
@@ -45,7 +46,7 @@ export default function ForgotPassword() {
           <p className="text-sm text-gray-500">
             <button
               onClick={() => setSent(false)}
-              className="text-brand-400 hover:underline"
+              className="text-brand-400 hover:text-brand-300 hover:underline transition-colors"
             >
               {t('common.retry')}
             </button>
@@ -59,10 +60,11 @@ export default function ForgotPassword() {
   }
 
   return (
-    <div className="min-h-screen bg-dark-900 flex items-center justify-center p-4">
-      <div className="max-w-md w-full space-y-8">
+    <div className="min-h-screen bg-dark-900 hero-mesh flex items-center justify-center p-4 relative overflow-hidden">
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-72 h-72 bg-brand-500/10 rounded-full blur-3xl pointer-events-none animate-float" />
+      <div className="max-w-md w-full space-y-8 relative z-10">
         <div className="text-center space-y-2">
-          <div className="w-16 h-16 bg-brand-500/20 rounded-full flex items-center justify-center mx-auto">
+          <div className="w-16 h-16 bg-brand-500/20 border-2 border-brand-500/30 rounded-full flex items-center justify-center mx-auto shadow-glow-sm">
             <FiMail className="w-8 h-8 text-brand-400" />
           </div>
           <h1 className="text-2xl font-bold text-white">{t('auth.forgot_password')}</h1>
@@ -78,14 +80,14 @@ export default function ForgotPassword() {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="tu@email.com"
               required
-              className="w-full bg-dark-800 border border-dark-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-brand-500 transition-colors"
+              className="input-field"
             />
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-white font-semibold py-3 rounded-xl transition-colors"
+            className="btn-primary w-full shadow-glow hover:shadow-glow-lg"
           >
             {loading ? t('common.loading') : t('auth.send_reset_link')}
           </button>

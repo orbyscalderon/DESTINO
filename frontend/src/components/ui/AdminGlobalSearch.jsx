@@ -67,7 +67,7 @@ export default function AdminGlobalSearch() {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="flex items-center gap-2 bg-dark-800 hover:bg-dark-700 border border-white/5 rounded-xl px-3 py-2 text-xs text-gray-400 transition-colors w-full max-w-xs"
+        className="flex items-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-xl px-3 py-2 text-xs text-gray-400 transition-all duration-200 ease-out-expo w-full max-w-xs"
         aria-label="Buscar globalmente"
       >
         <FiSearch size={13} />
@@ -77,11 +77,11 @@ export default function AdminGlobalSearch() {
 
       {open && (
         <div
-          className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm pt-16 px-4"
+          className="fixed inset-0 z-50 glass-strong pt-16 px-4"
           onClick={close}
         >
           <div
-            className="max-w-2xl mx-auto bg-dark-900 border border-white/10 rounded-2xl overflow-hidden shadow-2xl"
+            className="max-w-2xl mx-auto glass-strong rounded-3xl overflow-hidden shadow-2xl shadow-black/60"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center gap-3 p-3 border-b border-white/10">
@@ -97,7 +97,7 @@ export default function AdminGlobalSearch() {
               {loading && (
                 <div className="w-4 h-4 border-2 border-brand-500 border-t-transparent rounded-full animate-spin shrink-0" />
               )}
-              <button onClick={close} className="text-gray-500 hover:text-white" aria-label="Cerrar">
+              <button onClick={close} className="text-gray-500 hover:text-white hover:bg-white/5 p-1.5 -m-1 rounded-lg transition-colors" aria-label="Cerrar">
                 <FiX size={16} />
               </button>
             </div>

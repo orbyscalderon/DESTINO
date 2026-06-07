@@ -78,7 +78,7 @@ export default function AdminAuditLog() {
         <button
           onClick={exportCsv}
           disabled={downloading}
-          className="text-xs bg-dark-800 hover:bg-dark-700 text-gray-300 px-3 py-1.5 rounded-lg flex items-center gap-1.5 disabled:opacity-50"
+          className="text-xs bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-gray-300 px-3 py-1.5 rounded-lg flex items-center gap-1.5 disabled:opacity-50 transition-all duration-200 ease-out-expo active:scale-95"
         >
           <FiDownload size={12} /> {downloading ? 'Exportando…' : 'Export CSV'}
         </button>
@@ -90,10 +90,10 @@ export default function AdminAuditLog() {
           <button
             key={f.key || 'all'}
             onClick={() => setFilter(f.key)}
-            className={`text-[11px] px-2.5 py-1 rounded-full font-medium transition-colors shrink-0 ${
+            className={`text-[11px] px-2.5 py-1 rounded-full font-medium transition-all duration-200 ease-out-expo shrink-0 active:scale-95 ${
               filter === f.key
-                ? 'bg-brand-500 text-white'
-                : 'bg-dark-800 text-gray-400 hover:text-gray-200'
+                ? 'bg-gradient-to-r from-brand-500 to-brand-600 text-white shadow-glow-sm'
+                : 'bg-white/5 border border-white/10 text-gray-400 hover:text-gray-200 hover:bg-white/10'
             }`}
           >
             {f.label}

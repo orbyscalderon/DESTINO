@@ -29,11 +29,11 @@ export default function AdvancedStats() {
         <select
           value={days}
           onChange={e => setDays(parseInt(e.target.value))}
-          className="bg-dark-700 border border-white/10 text-white text-xs rounded-lg px-2 py-1 outline-none"
+          className="bg-white/5 border border-white/10 hover:border-white/20 text-white text-xs rounded-lg px-2 py-1 outline-none transition-colors focus:border-brand-500/40"
         >
-          <option value={7}>Últimos 7 días</option>
-          <option value={30}>Últimos 30 días</option>
-          <option value={90}>Últimos 90 días</option>
+          <option value={7} className="bg-dark-700 text-white">Últimos 7 días</option>
+          <option value={30} className="bg-dark-700 text-white">Últimos 30 días</option>
+          <option value={90} className="bg-dark-700 text-white">Últimos 90 días</option>
         </select>
       </div>
 

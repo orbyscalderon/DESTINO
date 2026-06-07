@@ -27,9 +27,10 @@ export default function VerifyEmail() {
   };
 
   return (
-    <div className="min-h-screen bg-dark-900 flex items-center justify-center p-4">
-      <div className="max-w-md w-full text-center space-y-6">
-        <div className="w-20 h-20 bg-brand-500/20 rounded-full flex items-center justify-center mx-auto">
+    <div className="min-h-screen bg-dark-900 hero-mesh flex items-center justify-center p-4 relative overflow-hidden">
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-72 h-72 bg-brand-500/10 rounded-full blur-3xl pointer-events-none animate-float" />
+      <div className="max-w-md w-full text-center space-y-6 relative z-10">
+        <div className="w-20 h-20 bg-brand-500/20 border-2 border-brand-500/30 rounded-full flex items-center justify-center mx-auto shadow-glow animate-float">
           <FiMail className="w-10 h-10 text-brand-400" />
         </div>
 
@@ -42,7 +43,7 @@ export default function VerifyEmail() {
           </p>
         </div>
 
-        <div className="bg-dark-800 rounded-xl p-4 text-left space-y-2">
+        <div className="card p-4 text-left space-y-2">
           <p className="text-sm text-gray-400">¿No lo encuentras?</p>
           <ul className="text-sm text-gray-500 list-disc list-inside space-y-1">
             <li>Revisa la carpeta de spam o correo no deseado</li>
@@ -55,7 +56,7 @@ export default function VerifyEmail() {
           <button
             onClick={handleResend}
             disabled={sending || sent}
-            className="w-full flex items-center justify-center gap-2 bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-white font-semibold py-3 rounded-xl transition-colors"
+            className="btn-primary w-full shadow-glow hover:shadow-glow-lg disabled:opacity-50"
           >
             <FiRefreshCw className={sending ? 'animate-spin' : ''} />
             {sent ? 'Email enviado' : sending ? 'Enviando...' : 'Reenviar email'}

@@ -95,7 +95,8 @@ export default function BecomeCreator() {
   );
 
   return (
-    <div className="min-h-screen px-4 pt-8 pb-28 lg:pb-8 max-w-2xl mx-auto">
+    <div className="min-h-screen hero-mesh px-4 pt-8 pb-28 lg:pb-8 max-w-2xl mx-auto relative overflow-hidden">
+      <div className="absolute top-12 left-1/2 -translate-x-1/2 w-72 h-72 bg-brand-500/10 rounded-full blur-3xl pointer-events-none animate-float -z-10" />
       {step !== 'setup' && (
         <button
           onClick={() => step === 'choose' ? navigate(-1) : setStep('choose')}

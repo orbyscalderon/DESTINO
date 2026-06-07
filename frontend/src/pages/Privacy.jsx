@@ -6,9 +6,10 @@ const LAST_UPDATED = '19 de mayo de 2026';
 
 export default function Privacy() {
   return (
-    <div className="min-h-screen bg-dark-900 px-5 py-8 lg:px-16 lg:py-12">
-      <div className="max-w-3xl mx-auto">
-        <Link to="/" className="inline-flex items-center gap-2 text-gray-400 hover:text-white mb-8 transition-colors">
+    <div className="min-h-screen bg-dark-900 hero-mesh px-5 py-8 lg:px-16 lg:py-12 relative overflow-hidden">
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-96 h-96 bg-brand-500/8 rounded-full blur-3xl pointer-events-none animate-float" />
+      <div className="max-w-3xl mx-auto relative z-10">
+        <Link to="/" className="inline-flex items-center gap-2 text-gray-400 hover:text-white hover:bg-white/5 px-2 py-1 -ml-2 rounded-lg mb-8 transition-colors">
           <FiArrowLeft size={16} /> Volver
         </Link>
 

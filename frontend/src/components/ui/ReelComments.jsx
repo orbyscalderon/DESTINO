@@ -237,7 +237,7 @@ export default function ReelComments({ reelId, reelOwnerId, onClose, onCommentAd
             {/* Header */}
             <div className="px-4 py-3 border-b border-white/5 flex items-center justify-between shrink-0">
               <h3 className="text-white font-bold">Comentarios</h3>
-              <button onClick={onClose} aria-label="Cerrar" className="text-gray-400 hover:text-white p-1 -m-1">
+              <button onClick={onClose} aria-label="Cerrar" className="text-gray-400 hover:text-white hover:bg-white/5 p-1.5 -m-1 rounded-lg transition-colors">
                 <FiX size={20} />
               </button>
             </div>
@@ -300,11 +300,11 @@ export default function ReelComments({ reelId, reelOwnerId, onClose, onCommentAd
             {/* Input */}
             <div className="border-t border-white/5 shrink-0">
               {replyTo && (
-                <div className="px-4 py-2 bg-dark-800 flex items-center justify-between text-xs">
+                <div className="px-4 py-2 bg-dark-900/60 backdrop-blur-xl flex items-center justify-between text-xs">
                   <span className="text-gray-400">
                     Respondiendo a <strong className="text-brand-400">@{replyTo.full_name}</strong>
                   </span>
-                  <button onClick={() => setReplyTo(null)} aria-label="Cancelar respuesta" className="text-gray-500 hover:text-white">
+                  <button onClick={() => setReplyTo(null)} aria-label="Cancelar respuesta" className="text-gray-500 hover:text-white hover:bg-white/5 p-1 -m-1 rounded transition-colors">
                     <FiX size={14} />
                   </button>
                 </div>
@@ -317,13 +317,13 @@ export default function ReelComments({ reelId, reelOwnerId, onClose, onCommentAd
                   onChange={e => setText(e.target.value)}
                   placeholder={replyTo ? `Responder a @${replyTo.full_name}...` : 'Agrega un comentario...'}
                   maxLength={500}
-                  className="flex-1 bg-dark-800 rounded-full px-4 py-2 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-500/40"
+                  className="flex-1 bg-white/5 border border-white/10 hover:border-white/20 rounded-full px-4 py-2 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-500/40 focus:border-brand-500/40 transition-colors"
                 />
                 <button
                   type="submit"
                   disabled={!text.trim() || sending}
                   aria-label="Enviar comentario"
-                  className="w-10 h-10 rounded-full bg-brand-500 hover:bg-brand-400 text-white flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="w-10 h-10 rounded-full bg-gradient-to-br from-brand-500 to-brand-600 hover:from-brand-400 hover:to-brand-500 text-white flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed shadow-glow-sm hover:shadow-glow active:scale-90 transition-all duration-200 ease-out-expo"
                 >
                   {sending
                     ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -357,7 +357,7 @@ export default function ReelComments({ reelId, reelOwnerId, onClose, onCommentAd
             initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
             transition={{ type: 'spring', damping: 28, stiffness: 280 }}
             onClick={e => e.stopPropagation()}
-            className="bg-dark-900 w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl h-[85vh] sm:h-[70vh] flex flex-col"
+            className="glass-strong w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl h-[85vh] sm:h-[70vh] flex flex-col shadow-2xl shadow-black/60"
           >
             {body}
           </motion.div>

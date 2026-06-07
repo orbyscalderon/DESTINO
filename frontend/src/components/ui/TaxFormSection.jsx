@@ -113,12 +113,12 @@ export default function TaxFormSection() {
 
       <button
         onClick={() => setShowForm(true)}
-        className={`w-full text-sm py-2 rounded-lg font-medium transition-colors ${
+        className={`w-full text-sm py-2.5 rounded-lg font-medium transition-all duration-200 ease-out-expo active:scale-95 ${
           isExpired
-            ? 'bg-red-500 hover:bg-red-600 text-white'
+            ? 'bg-gradient-to-r from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 text-white shadow-[0_0_20px_rgba(239,68,68,0.4)] hover:shadow-[0_0_28px_rgba(239,68,68,0.55)] hover:-translate-y-0.5'
             : isValid
-              ? 'bg-white/5 hover:bg-white/10 text-gray-300 border border-white/10'
-              : 'bg-brand-500 hover:bg-brand-600 text-white'
+              ? 'bg-white/5 hover:bg-white/10 text-gray-300 border border-white/10 hover:border-white/20'
+              : 'bg-gradient-to-r from-brand-500 to-brand-600 hover:from-brand-400 hover:to-brand-500 text-white shadow-glow-sm hover:shadow-glow hover:-translate-y-0.5'
         }`}
       >
         {isExpired ? 'Renovar formulario' : isValid ? 'Actualizar datos' : 'Firmar formulario'}

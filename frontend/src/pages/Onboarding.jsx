@@ -108,8 +108,10 @@ export default function Onboarding() {
   );
 
   return (
-    <div className="min-h-screen bg-dark-900 flex items-center justify-center px-6">
-      <motion.div className="w-full max-w-sm">
+    <div className="min-h-screen bg-dark-900 hero-mesh flex items-center justify-center px-6 relative overflow-hidden">
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-72 h-72 bg-brand-500/10 rounded-full blur-3xl pointer-events-none animate-float" />
+      <div className="absolute bottom-1/4 right-1/4 w-48 h-48 bg-accent-500/8 rounded-full blur-3xl pointer-events-none animate-float" style={{ animationDelay: '1.2s' }} />
+      <motion.div className="w-full max-w-sm relative z-10">
 
         {/* Indicador de pasos */}
         <div className="mb-6">
@@ -117,7 +119,7 @@ export default function Onboarding() {
             {STEP_LABELS.map((_, i) => (
               <div
                 key={i}
-                className={`h-1 flex-1 rounded-full transition-colors duration-500 ${i <= step ? 'bg-brand-500' : 'bg-dark-700'}`}
+                className={`h-1 flex-1 rounded-full transition-all duration-500 ${i <= step ? 'bg-gradient-to-r from-brand-500 to-accent-500 shadow-glow-sm' : 'bg-white/10'}`}
               />
             ))}
           </div>
@@ -198,10 +200,10 @@ export default function Onboarding() {
                         key={g}
                         type="button"
                         onClick={() => setForm(f => ({ ...f, gender: g }))}
-                        className={`py-3 rounded-xl text-sm font-medium transition-all ${
+                        className={`py-3 rounded-xl text-sm font-medium transition-all duration-200 ease-out-expo active:scale-95 ${
                           form.gender === g
-                            ? 'bg-brand-500 text-white'
-                            : 'bg-dark-700 text-gray-400 hover:bg-dark-600'
+                            ? 'bg-gradient-to-r from-brand-500 to-brand-600 text-white shadow-glow-sm'
+                            : 'bg-white/5 border border-white/10 text-gray-400 hover:bg-white/10 hover:border-white/20'
                         }`}
                       >
                         {g === 'male' ? 'Hombre' : g === 'female' ? 'Mujer' : 'Otro'}
@@ -212,7 +214,7 @@ export default function Onboarding() {
               </div>
 
               <div className="flex gap-3 mt-6">
-                <button onClick={() => setStep(0)} className="w-10 h-10 rounded-xl bg-dark-700 flex items-center justify-center text-gray-400 hover:text-white shrink-0">
+                <button onClick={() => setStep(0)} className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 hover:border-white/20 transition-all duration-200 ease-out-expo active:scale-95 shrink-0">
                   <FiChevronLeft />
                 </button>
                 <button onClick={goNext} className="btn-primary flex-1 flex items-center justify-center gap-2">
@@ -307,13 +309,13 @@ export default function Onboarding() {
               </div>
 
               <div className="flex gap-3">
-                <button onClick={() => setStep(1)} className="w-10 h-10 rounded-xl bg-dark-700 flex items-center justify-center text-gray-400 hover:text-white shrink-0">
+                <button onClick={() => setStep(1)} className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 hover:border-white/20 transition-all duration-200 ease-out-expo active:scale-95 shrink-0">
                   <FiChevronLeft />
                 </button>
                 <button onClick={() => setStep(3)} className="btn-secondary flex-1 py-2.5 text-sm">
                   Omitir
                 </button>
-                <button onClick={() => setStep(3)} className="btn-primary flex-1 py-2.5 text-sm flex items-center justify-center gap-2">
+                <button onClick={() => setStep(3)} className="btn-primary flex-1 py-2.5 text-sm flex items-center justify-center gap-2 shadow-glow">
                   Continuar <FiChevronRight />
                 </button>
               </div>
@@ -336,10 +338,10 @@ export default function Onboarding() {
               <p className="text-gray-600 text-xs mt-1 text-right">{form.bio.length}/300</p>
 
               <div className="flex gap-3 mt-6">
-                <button onClick={() => setStep(2)} className="w-10 h-10 rounded-xl bg-dark-700 flex items-center justify-center text-gray-400 hover:text-white shrink-0">
+                <button onClick={() => setStep(2)} className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 hover:border-white/20 transition-all duration-200 ease-out-expo active:scale-95 shrink-0">
                   <FiChevronLeft />
                 </button>
-                <button onClick={() => setStep(4)} className="btn-primary flex-1 flex items-center justify-center gap-2">
+                <button onClick={() => setStep(4)} className="btn-primary flex-1 flex items-center justify-center gap-2 shadow-glow">
                   Continuar <FiChevronRight />
                 </button>
               </div>
@@ -366,10 +368,10 @@ export default function Onboarding() {
                           ? f.interests.filter(t => t !== tag)
                           : f.interests.length < 8 ? [...f.interests, tag] : f.interests,
                       }))}
-                      className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
+                      className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-200 ease-out-expo active:scale-95 ${
                         selected
-                          ? 'bg-brand-500 text-white'
-                          : 'bg-dark-700 text-gray-400 hover:bg-dark-600'
+                          ? 'bg-gradient-to-r from-brand-500 to-brand-600 text-white shadow-glow-sm'
+                          : 'bg-white/5 border border-white/10 text-gray-400 hover:bg-white/10 hover:border-white/20'
                       }`}
                     >
                       {tag}
@@ -380,10 +382,10 @@ export default function Onboarding() {
               <p className="text-gray-600 text-xs mb-4 text-right">{form.interests.length}/8 seleccionados</p>
 
               <div className="flex gap-3">
-                <button onClick={() => setStep(3)} className="w-10 h-10 rounded-xl bg-dark-700 flex items-center justify-center text-gray-400 hover:text-white shrink-0">
+                <button onClick={() => setStep(3)} className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 hover:border-white/20 transition-all duration-200 ease-out-expo active:scale-95 shrink-0">
                   <FiChevronLeft />
                 </button>
-                <button onClick={handleFinish} disabled={loading} className="btn-primary flex-1">
+                <button onClick={handleFinish} disabled={loading} className="btn-primary flex-1 shadow-glow hover:shadow-glow-lg">
                   {loading ? 'Guardando...' : '¡Empezar a conectar!'}
                 </button>
               </div>

@@ -76,7 +76,7 @@ export default function CreatorContentTabs({
   return (
     <div className="space-y-4">
       {/* Tabs sticky */}
-      <div className="sticky top-0 z-20 -mx-5 px-5 py-2 bg-dark-900/95 backdrop-blur-md border-b border-white/5 lg:static lg:bg-transparent lg:border-0 lg:p-0 lg:mx-0">
+      <div className="sticky top-0 z-20 -mx-5 px-5 py-2 glass border-b border-white/5 lg:static lg:bg-transparent lg:backdrop-blur-none lg:border-0 lg:p-0 lg:mx-0">
         <div className="flex gap-1 overflow-x-auto scrollbar-none">
           {tabs.map(t => {
             const Icon = t.icon;
@@ -85,17 +85,17 @@ export default function CreatorContentTabs({
               <button
                 key={t.id}
                 onClick={() => setActive(t.id)}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition-all duration-200 ease-out-expo active:scale-95 ${
                   isActive
-                    ? 'bg-brand-500 text-white shadow-lg shadow-brand-500/20'
-                    : 'bg-dark-700 text-gray-400 hover:bg-dark-600 hover:text-gray-200'
+                    ? 'bg-gradient-to-r from-brand-500 to-brand-600 text-white shadow-glow-sm'
+                    : 'bg-white/5 border border-white/10 text-gray-400 hover:bg-white/10 hover:text-gray-200'
                 }`}
               >
                 <Icon size={13} />
                 {t.label}
                 {t.count > 0 && (
                   <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
-                    isActive ? 'bg-white/20' : 'bg-dark-800'
+                    isActive ? 'bg-white/20' : 'bg-dark-900/40'
                   }`}>
                     {t.count}
                   </span>
@@ -202,7 +202,7 @@ function PostCard({ post, subscribed, onSubscribe }) {
             {!subscribed && onSubscribe && (
               <button
                 onClick={onSubscribe}
-                className="mt-2 bg-gradient-to-r from-brand-500 to-pink-500 text-white text-sm font-bold px-5 py-2 rounded-full hover:brightness-110 transition-all"
+                className="mt-2 bg-gradient-to-r from-brand-500 to-accent-500 hover:from-brand-400 hover:to-accent-400 text-white text-sm font-bold px-5 py-2 rounded-full transition-all duration-200 ease-out-expo shadow-glow hover:shadow-glow-lg hover:-translate-y-0.5 active:scale-95"
               >
                 Suscribirse
               </button>
@@ -264,7 +264,7 @@ function PaidPhotoCard({ photo, onBuy, buying }) {
               <button
                 onClick={() => onBuy?.(photo)}
                 disabled={buying}
-                className="mt-1 bg-brand-500 hover:bg-brand-400 text-white font-bold px-6 py-2.5 rounded-full transition-colors disabled:opacity-60 shadow-lg shadow-brand-500/30"
+                className="mt-1 bg-gradient-to-r from-brand-500 to-brand-600 hover:from-brand-400 hover:to-brand-500 text-white font-bold px-6 py-2.5 rounded-full transition-all duration-200 ease-out-expo disabled:opacity-60 shadow-glow hover:shadow-glow-lg hover:-translate-y-0.5 active:scale-95"
               >
                 {buying ? 'Procesando...' : `Desbloquear · $${photo.price}`}
               </button>
@@ -315,7 +315,7 @@ function VideoCard({ video, onBuy, buying }) {
               <button
                 onClick={() => onBuy?.(video)}
                 disabled={buying}
-                className="bg-brand-500 hover:bg-brand-400 text-white font-bold px-6 py-2 rounded-full transition-colors disabled:opacity-60 flex items-center gap-2 shadow-lg shadow-brand-500/30"
+                className="bg-gradient-to-r from-brand-500 to-brand-600 hover:from-brand-400 hover:to-brand-500 text-white font-bold px-6 py-2 rounded-full transition-all duration-200 ease-out-expo disabled:opacity-60 flex items-center gap-2 shadow-glow hover:shadow-glow-lg hover:-translate-y-0.5 active:scale-95"
               >
                 <FiZap size={14} />
                 {buying ? 'Procesando...' : `${video.price} coins`}
