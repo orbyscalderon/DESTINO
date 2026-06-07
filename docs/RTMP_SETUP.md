@@ -1,90 +1,230 @@
-# RTMP Relay setup guide
+# RTMP setup — Destino TV
 
-El feature de RTMP (`/api/shows/:id/rtmp/enable`) permite que creators usen OBS Studio en vez del navegador para streamear sus shows. Mejor calidad, overlays, multi-track audio.
+Este doc cubre cómo activar RTMP (stream desde OBS Studio) en tu app, **alineado con tu plan de migración de infra**: hoy LiveKit Cloud → mañana LiveKit self-hosted en Vultr.
 
-El backend está implementado en [`backend/src/controllers/rtmpController.js`](../backend/src/controllers/rtmpController.js). Llama a LiveKit Ingress API (`createIngress(RTMP_INPUT, ...)`) que devuelve `streamKey` + `url`. El frontend de creator copia esos valores a OBS.
+El código del backend ([`backend/src/controllers/rtmpController.js`](../backend/src/controllers/rtmpController.js)) es **agnostic** — usa las mismas env vars que ya tienes para LiveKit y se autoadapta cuando migres a self-hosted.
 
-**El controller funciona SIEMPRE que tengas un provider de Ingress configurado.** Sin uno, devuelve `503 RTMP_UNAVAILABLE`. Aquí están las 3 opciones realistas, ordenadas por facilidad/costo.
+---
 
-## Opción 1 — LiveKit Cloud (recomendado para empezar)
+## FASE 1 — Activar HOY con LiveKit Cloud
 
-LiveKit Cloud tiene Ingress incluido en cualquier plan. Es el camino más fácil porque tu app ya usa LiveKit Cloud (probablemente).
+Tu `.env` actual ya tiene las credenciales:
 
-**Setup:**
-1. Login en [cloud.livekit.io](https://cloud.livekit.io)
-2. Tu proyecto ya tiene API key + secret (los que están en `LIVEKIT_API_KEY` / `LIVEKIT_API_SECRET` de tu backend env)
-3. Ve a *Settings → Ingress* en el dashboard → activa "RTMP ingress"
-4. Verifica que `LIVEKIT_API_URL` en tu env apunta a tu instance (algo como `wss://destino-xyz.livekit.cloud`). Ese mismo host se usa para Ingress.
-5. Reinicia el backend.
-
-**Costo:** Ingress está incluido en el bandwidth de tu plan LiveKit Cloud. No hay surcharge.
-
-**Verificar:**
-```bash
-curl -X POST https://api.destino.tv/api/shows/SHOW_ID/rtmp/enable \
-  -H "Authorization: Bearer YOUR_TOKEN"
-# Debería devolver { stream_key, ingress_url, instructions: {...} }
+```
+LIVEKIT_URL=wss://destino-e7a9u6cp.livekit.cloud
+LIVEKIT_API_KEY=APIa7PgfiPTmLhr
+LIVEKIT_API_SECRET=K7Cm5OsSJnLhkNlwdHqDYYdbt5i7If0kmfAWpUW7w0m
 ```
 
-## Opción 2 — LiveKit self-hosted (control total)
+Eso es lo único que necesita el `rtmpController.js`. **No hay env vars nuevas que añadir.**
 
-Si tienes el servidor LiveKit corriendo en Vultr/AWS/GCP, el ingress es un servicio aparte (`livekit-server` + `livekit-ingress`).
+### Pasos para activar RTMP en LiveKit Cloud
 
-**Setup:**
-1. Instalar el LiveKit Ingress: [docs.livekit.io/ingress/deploy](https://docs.livekit.io/realtime/ingress/deploy/)
-2. Tu `livekit-ingress.yaml`:
-   ```yaml
-   api_key: tu-api-key
-   api_secret: tu-api-secret
-   ws_url: ws://localhost:7880   # tu livekit-server
-   redis:
-     address: redis:6379
-   rtmp_base_url: rtmp://0.0.0.0:1935/x   # OBS publica aquí
-   ```
-3. Exponer puerto `1935` TCP en tu firewall/load balancer
-4. En el backend env:
-   ```
-   LIVEKIT_API_URL=wss://livekit.destino.tv
-   LIVEKIT_API_KEY=tu-api-key
-   LIVEKIT_API_SECRET=tu-api-secret
-   ```
+1. Login en [cloud.livekit.io](https://cloud.livekit.io)
+2. Selecciona tu proyecto **destino-e7a9u6cp**
+3. Menú izquierdo → **Settings** → **Ingress**
+4. Activa **"RTMP ingress enabled"**
+5. (No hay paso 5 — ya está)
 
-**Costo:** El servidor (~$10-30/mes en Vultr) + bandwidth. Para >100 streams concurrentes, sale más barato que LiveKit Cloud.
+### Verificar que funciona
 
-## Opción 3 — Cloudflare Stream Live Inputs (alternativa)
+Una vez activado en el dashboard, prueba desde tu propio show:
 
-Si no usas LiveKit en absoluto, [Cloudflare Stream](https://www.cloudflare.com/products/cloudflare-stream/) tiene Live Inputs por $5/mes + uso. Pero necesitarías reescribir el `rtmpController.js` para usar su API en vez de LiveKit Ingress. NO está implementado hoy.
+1. Crea un show (cualquier creator)
+2. Entra a ShowStudio
+3. Scrolleá hasta el panel "Advanced" → "Stream con OBS (RTMP)"
+4. Click **"Activar"**
+5. Si todo funciona, verás:
+   - `Server URL: rtmps://destino-e7a9u6cp.livekit.cloud:443/x` (algo similar)
+   - `Stream key: APIxxx-yyy-zzz...`
+6. Si devuelve `503 RTMP_UNAVAILABLE` → el ingress no está activado en cloud.livekit.io. Volver al paso 3.
 
-## Cómo probar que funciona
+### Costo en Cloud
 
-Una vez con un provider configurado:
+LiveKit Cloud cobra por bandwidth + participant-minutes. Un RTMP ingress cuenta como **1 participant más** en la sala, igual que cualquier viewer publicador. El bandwidth lo sigue cobrando por el output (lo que ven los viewers), no por el ingress.
 
-1. **Activar RTMP**: en ShowStudio del creator, panel "Advanced" → toggle "Activar". Aparecen `Server URL` y `Stream key`.
+En tu plan de migración mencionas que esto se vuelve caro a escala — RTMP no cambia el cálculo, sigue siendo lo mismo $0.006/participante/min.
 
-2. **Configurar OBS**:
-   - Settings → Stream
+---
+
+## FASE 2 — Migrar a self-hosted en Vultr (futuro)
+
+Cuando ejecutes tu plan de migración a Vultr para LiveKit, RTMP necesita un servicio adicional: **livekit-ingress** (proceso separado del `livekit-server`).
+
+### Servicios que correrán en cada VPS Vultr
+
+Por cada región (LATAM, US, EU, etc) tendrás 3 procesos:
+
+| Servicio | Puerto | Función |
+|---|---|---|
+| `livekit-server` | 7880 (TCP/WS), 7882 (UDP) | Media SFU |
+| `livekit-ingress` | 1935 (RTMP), 8080 (HTTP API) | Recibe RTMP de OBS, lo convierte a participant |
+| `redis` | 6379 | Comm interna entre server e ingress |
+
+### Setup paso a paso (per región — repetir 3-5 veces)
+
+Tomando como ejemplo `livekit-sp.destino.app` (LATAM, Vultr São Paulo):
+
+#### 1. VPS Vultr — Ubuntu 22.04, mínimo 2 vCPU / 4GB RAM
+
+```bash
+# Instalar Docker + docker compose
+curl -fsSL https://get.docker.com | sh
+apt install -y docker-compose-plugin
+```
+
+#### 2. `docker-compose.yml`
+
+```yaml
+version: '3.8'
+services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    networks: [livekit]
+
+  livekit:
+    image: livekit/livekit-server:latest
+    restart: unless-stopped
+    network_mode: host  # necesita acceso directo a UDP
+    volumes:
+      - ./livekit.yaml:/etc/livekit.yaml
+    command: --config /etc/livekit.yaml
+
+  ingress:
+    image: livekit/ingress:latest
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - ./ingress.yaml:/etc/ingress.yaml
+    command: --config /etc/ingress.yaml
+    depends_on: [redis]
+
+networks:
+  livekit:
+```
+
+#### 3. `livekit.yaml`
+
+```yaml
+port: 7880
+rtc:
+  tcp_port: 7881
+  udp_port: 7882
+  use_external_ip: true
+keys:
+  APIlatamSP: secretLatamSP   # tus credenciales — guardar para .env
+redis:
+  address: 127.0.0.1:6379
+```
+
+#### 4. `ingress.yaml`
+
+```yaml
+api_key: APIlatamSP
+api_secret: secretLatamSP
+ws_url: ws://127.0.0.1:7880
+redis:
+  address: 127.0.0.1:6379
+rtmp_base_url: rtmp://livekit-sp.destino.app:1935/x   # public DNS de este VPS
+```
+
+#### 5. DNS + firewall
+
+- DNS A record: `livekit-sp.destino.app` → IP del VPS
+- Firewall: abrir puertos `7880/tcp`, `7881/tcp`, `7882/udp`, `1935/tcp`
+- Para HTTPS/RTMPS: caddy/nginx delante en `443` apuntando a `7880`
+
+#### 6. Levantar
+
+```bash
+docker compose up -d
+docker compose logs -f
+```
+
+#### 7. Backend `.env` — descomentar las líneas regionales
+
+```env
+# LATAM
+LIVEKIT_URL_LATAM=wss://livekit-sp.destino.app
+LIVEKIT_KEY_LATAM=APIlatamSP
+LIVEKIT_SECRET_LATAM=secretLatamSP
+
+# (repetir para US, EUROPA, ASIA, OCEANIA según fases)
+```
+
+Reiniciar el backend en Railway. El código del `rtmpController.js` **autoadapta** — cuando un creator con `country=BR` active RTMP, el ingress se crea en `livekit-sp.destino.app`. Un creator con `country=US` se va a `livekit-la.destino.app`. Etc.
+
+El fallback a `LIVEKIT_URL` (Cloud) sigue activo durante la transición — si una región todavía no está deployada, se va a Cloud.
+
+### Costo self-hosted
+
+- Vultr **High Frequency 4GB** ≈ $24/mes por región
+- 3 regiones (LATAM + US + EU) = ~$72/mes fijo
+- Bandwidth: Vultr da 4TB/mes incluidos en cada plan; pasado eso ~$0.01/GB
+- A diferencia de Cloud: **NO cobra por participante**, solo bandwidth
+
+Para 100 shows concurrentes con ~50 viewers cada uno = breakeven aprox a $80/mes vs >$500/mes en Cloud.
+
+---
+
+## OBS Studio — config para el creator
+
+Una vez que el backend devuelve `stream_key + ingress_url`, el creator configura OBS así:
+
+1. **Settings → Stream**
    - Service: `Custom...`
-   - Server: pega el URL
-   - Stream Key: pega el key (botón del ojo para mostrar)
-   - Settings → Output: bitrate `4500-6000 kbps`, keyframe interval `2s`, x264 preset `veryfast`, profile `main`
-   - Apply
+   - Server: pega el `Server URL` que copió
+   - Stream Key: pega el `Stream Key` que copió
 
-3. **Start Streaming** en OBS. En 5-10s deberías aparecer como participant en el room del show, y los viewers te ven igual que si usaras la cámara del browser.
+2. **Settings → Output**
+   - Output Mode: `Advanced`
+   - Encoder: `NVENC H.264` (GPU NVIDIA) o `x264` (CPU)
+   - Rate Control: `CBR`
+   - Bitrate: `4500-6000 kbps`
+   - Keyframe Interval: `2s`
+   - Profile: `main`
+   - Preset: `Quality` (NVENC) o `veryfast` (x264)
 
-4. **Desactivar**: el botón "Detener" llama `disableRtmp`, que revoca el ingress en LiveKit. El key queda inválido.
+3. **Settings → Video**
+   - Output (Scaled) Resolution: `1920x1080`
+   - FPS: `30` (60 si banda lo permite)
+
+4. **Settings → Audio**
+   - Sample Rate: `48000 Hz`
+   - Channels: `Stereo`
+
+5. **Start Streaming**
+
+En 5-10 segundos el host aparece en la sala. Los viewers lo ven igual que si hubiera usado la cámara del browser.
+
+---
 
 ## Troubleshooting
 
-| Síntoma | Causa probable | Fix |
+| Síntoma | Causa | Fix |
 |---|---|---|
-| `503 RTMP_UNAVAILABLE` | Faltan `LIVEKIT_API_*` env vars | Configurar en Railway/Vercel |
-| `502 no se pudo crear el ingress` | Tu proyecto LiveKit Cloud no tiene Ingress activado | Settings → Ingress → enable |
-| OBS dice "Failed to connect" | Stream key viejo (regenerado) o URL mala | Detener + Activar en la app, copiar de nuevo |
-| Stream conecta pero no se ve | Bitrate muy alto para tu red | Bajar a 3000 kbps |
-| Audio desync | Sample rate diferente al de LiveKit | OBS → Settings → Audio → Sample rate 48000 Hz |
+| `503 RTMP_UNAVAILABLE` | Faltan env vars `LIVEKIT_*` | Verificar Railway env |
+| `502 No se pudo crear el ingress` | Ingress no activado en LiveKit Cloud / livekit-ingress no corre | Cloud: activar en dashboard. Self-hosted: `docker compose logs ingress` |
+| OBS "Failed to connect" | Stream key viejo | "Detener" + "Activar" otra vez |
+| Stream conecta pero pixela mucho | Bitrate muy alto para banda del creator | Bajar a 3000 kbps |
+| Audio desync | Sample rate ≠ 48000 | Cambiar OBS → Settings → Audio → 48000 Hz |
+| `livekit-sp.destino.app` no resuelve | DNS no propagó | `dig livekit-sp.destino.app` — esperar 15min |
+| Self-hosted: ingress no conecta a server | `ws_url` mal | En `ingress.yaml` usar `ws://127.0.0.1:7880` (no `wss://`) |
 
-## Seguridad
+---
 
-- El `stream_key` es un secret. Si se expone (screenshot público, leak en discord), regenera: el creator hace "Detener" + "Activar" en la app, lo cual genera un key nuevo.
-- El RTMP puerto 1935 es plaintext. Para shows premium considera RTMPS (puerto 1936) — requiere cert TLS en el ingress.
-- El backend solo permite que el `host_id` del show active/desactive su propio RTMP (check en `rtmpController.js:36-37`).
+## Seguridad de stream keys
+
+- Cada `stream_key` es un secret. Si se filtra (screenshot público, leak en discord), regenerá: el creator hace "Detener" + "Activar" en la app → genera un key nuevo, el viejo deja de funcionar.
+- El RTMP plaintext (puerto 1935) es vulnerable a sniffing. Para shows pagos / adult considerá RTMPS (1936 con TLS).
+- El backend valida que solo `host_id === userId` puede activar/desactivar RTMP del show ([rtmpController.js:36-37](../backend/src/controllers/rtmpController.js#L36-L37)).
+- En self-hosted: agregá rate limit en nginx por IP origen, para que un atacante no abuse del endpoint `enableRtmp` brute-forceando stream keys.
+
+---
+
+## TL;DR
+
+- **Hoy:** activá Ingress en `cloud.livekit.io → Settings → Ingress`. Sin código nuevo. Funciona.
+- **Cuando migres a Vultr:** instalá `livekit-ingress` paralelo al server en cada VPS, descomenta `LIVEKIT_URL_LATAM/US/EUROPA/...` en `.env`. El código del controller no cambia.
+- **El `rtmpController.js` es agnostic** — usa el mismo patrón multi-región que `videoProvider.js`.
