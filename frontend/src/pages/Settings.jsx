@@ -836,6 +836,12 @@ export default function Settings() {
           <Link to="/help" className="hover:text-brand-400 transition-colors">Centro de ayuda</Link>
           <Link to="/terms" className="hover:text-brand-400 transition-colors">Términos</Link>
           <Link to="/privacy" className="hover:text-brand-400 transition-colors">Privacidad</Link>
+          <Link to="/privacy/preferences" className="hover:text-brand-400 transition-colors">Preferencias</Link>
+          <Link to="/privacy/moderation-decisions" className="hover:text-brand-400 transition-colors">Mis decisiones</Link>
+          <Link to="/privacy/ccpa" className="hover:text-brand-400 transition-colors">Do Not Sell</Link>
+          <Link to="/compliance" className="hover:text-brand-400 transition-colors">Compliance</Link>
+          <Link to="/dmca" className="hover:text-brand-400 transition-colors">DMCA</Link>
+          <Link to="/dsa-notice" className="hover:text-brand-400 transition-colors">DSA</Link>
           <a href={`mailto:${SUPPORT_EMAIL}`} className="hover:text-brand-400 transition-colors">{SUPPORT_EMAIL}</a>
         </div>
         <p className="text-center text-gray-700 text-xs mt-2">Destino TV v1.0.0</p>

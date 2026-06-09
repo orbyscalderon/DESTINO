@@ -506,6 +506,24 @@ export const processContent = async (req, res) => {
 
     if (error) throw error;
 
+    // v69: registrar Statement of Reasons (DSA Art. 17)
+    if (post?.user_id && status === 'rejected') {
+      import('./moderationDecisionController.js').then(({ logModerationDecision }) =>
+        logModerationDecision({
+          content_type: 'post',
+          content_id: postId,
+          affected_user_id: post.user_id,
+          decision: 'removed',
+          decision_method: 'human',
+          decided_by: req.user.id,
+          reason_category: 'tos_violation',
+          reason_detail: notes || 'Contenido rechazado por moderación',
+          tos_clause: 'Términos §3 (Conducta prohibida)',
+          source: 'admin_initiative',
+        }).catch(() => {})
+      ).catch(() => {});
+    }
+
     if (post?.user_id) {
       const { createNotification } = await import('./inAppNotifController.js');
       const title = status === 'published' ? '✅ Contenido aprobado' : '❌ Contenido rechazado';

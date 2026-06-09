@@ -145,6 +145,24 @@ export const processDMCA = async (req, res) => {
             { url: '/help#dmca' }
           ).catch(() => {});
 
+          // v69: Statement of Reasons (DSA Art. 17)
+          import('./moderationDecisionController.js').then(({ logModerationDecision }) =>
+            logModerationDecision({
+              content_type: dmca.content_type,
+              content_id: dmca.content_id,
+              affected_user_id: dmca.reported_user_id,
+              decision: banned ? 'account_banned' : 'removed',
+              decision_method: 'human',
+              decided_by: req.user.id,
+              reason_category: 'copyright',
+              reason_detail: `Reclamo DMCA aceptado: ${dmca.copyright_owner} alegó copyright sobre tu contenido.`,
+              legal_basis: '17 U.S.C. § 512(c) DMCA',
+              tos_clause: 'Términos §12 (DMCA + propiedad intelectual)',
+              source: 'dmca_notice',
+              source_reference_id: dmca.id,
+            }).catch(() => {})
+          ).catch(() => {});
+
           import('../lib/emailNotifier.js').then(({ notifyUser }) =>
             notifyUser(dmca.reported_user_id, 'dmca', {
               strikeCount: strikes,

@@ -75,6 +75,18 @@ const SavedReels      = lazy(() => import('./pages/SavedReels.jsx'));
 const Stickers        = lazy(() => import('./pages/Stickers.jsx'));
 const Conversations   = lazy(() => import('./pages/Conversations.jsx'));
 const ConversationChat = lazy(() => import('./pages/ConversationChat.jsx'));
+const Compliance         = lazy(() => import('./pages/Compliance.jsx'));
+const Page2257           = lazy(() => import('./pages/Page2257.jsx'));
+const TransparencyReport = lazy(() => import('./pages/TransparencyReport.jsx'));
+const PrivacyPreferences = lazy(() => import('./pages/PrivacyPreferences.jsx'));
+const CCPAOptOut         = lazy(() => import('./pages/CCPAOptOut.jsx'));
+const DSANotice          = lazy(() => import('./pages/DSANotice.jsx'));
+const CreatorWelcomeMessage = lazy(() => import('./pages/CreatorWelcomeMessage.jsx'));
+const CreatorMassDM      = lazy(() => import('./pages/CreatorMassDM.jsx'));
+const Subprocessors      = lazy(() => import('./pages/Subprocessors.jsx'));
+const Cookies            = lazy(() => import('./pages/Cookies.jsx'));
+const ProcessingActivities = lazy(() => import('./pages/ProcessingActivities.jsx'));
+const MyModerationDecisions = lazy(() => import('./pages/MyModerationDecisions.jsx'));
 
 const PageLoader = () => (
   <div className="min-h-screen flex items-center justify-center bg-dark-900">
@@ -356,6 +368,14 @@ export default function App() {
         <Route path="/terms" element={<Terms />} />
         <Route path="/help" element={<Help />} />
         <Route path="/dmca" element={<DMCA />} />
+        <Route path="/2257" element={<Page2257 />} />
+        <Route path="/compliance" element={<Compliance />} />
+        <Route path="/transparency" element={<TransparencyReport />} />
+        <Route path="/privacy/ccpa" element={<CCPAOptOut />} />
+        <Route path="/privacy/subprocessors" element={<Subprocessors />} />
+        <Route path="/privacy/cookies" element={<Cookies />} />
+        <Route path="/privacy/processing" element={<ProcessingActivities />} />
+        <Route path="/dsa-notice" element={<DSANotice />} />
         <Route path="/support" element={<Support />} />
         <Route path="/403" element={<Error403 />} />
         <Route path="/500" element={<Error500 />} />
@@ -401,6 +421,10 @@ export default function App() {
           <Route path="/stickers" element={<Stickers />} />
           <Route path="/conversations" element={<Conversations />} />
           <Route path="/conversations/:id" element={<ConversationChat />} />
+          <Route path="/privacy/preferences" element={<PrivacyPreferences />} />
+          <Route path="/privacy/moderation-decisions" element={<MyModerationDecisions />} />
+          <Route path="/creator/welcome-message" element={<CreatorWelcomeMessage />} />
+          <Route path="/creator/mass-dm" element={<CreatorMassDM />} />
         </Route>
 
         {/* 404 */}

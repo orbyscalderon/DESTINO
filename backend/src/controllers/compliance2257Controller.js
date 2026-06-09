@@ -63,6 +63,13 @@ export const submit2257 = async (req, res) => {
       return res.status(400).json({ error: 'Documento de ID requerido' });
     }
 
+    // Custodian de records leído desde compliance_config (editable sin redeploy)
+    const { data: custodianCfg } = await supabase
+      .from('compliance_config')
+      .select('value')
+      .eq('key', 'custodian_name')
+      .maybeSingle();
+
     await supabase.from('video_2257_records').insert({
       video_id,
       uploaded_by: req.user.id,
@@ -72,7 +79,7 @@ export const submit2257 = async (req, res) => {
       performer_id_document_url: idDocUrl,
       consent_signed_at: new Date().toISOString(),
       produced_at: produced_at || new Date().toISOString().slice(0, 10),
-      custodian_name: 'Destino TV Records Custodian',
+      custodian_name: custodianCfg?.value || 'Pendiente de designación',
     });
 
     // Marcar el video como con records completos

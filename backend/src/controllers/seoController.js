@@ -29,10 +29,18 @@ export const sitemapXml = async (req, res) => {
       { loc: `${APP_URL}/`,         changefreq: 'daily',   priority: 1.0 },
       { loc: `${APP_URL}/#/login`,    changefreq: 'monthly', priority: 0.5 },
       { loc: `${APP_URL}/#/register`, changefreq: 'monthly', priority: 0.6 },
-      { loc: `${APP_URL}/#/privacy`,  changefreq: 'yearly',  priority: 0.3 },
-      { loc: `${APP_URL}/#/terms`,    changefreq: 'yearly',  priority: 0.3 },
-      { loc: `${APP_URL}/#/help`,     changefreq: 'monthly', priority: 0.4 },
-      { loc: `${APP_URL}/#/dmca`,     changefreq: 'yearly',  priority: 0.2 },
+      { loc: `${APP_URL}/#/privacy`,      changefreq: 'yearly',    priority: 0.3 },
+      { loc: `${APP_URL}/#/terms`,        changefreq: 'yearly',    priority: 0.3 },
+      { loc: `${APP_URL}/#/help`,         changefreq: 'monthly',   priority: 0.4 },
+      { loc: `${APP_URL}/#/dmca`,         changefreq: 'yearly',    priority: 0.2 },
+      { loc: `${APP_URL}/#/2257`,         changefreq: 'yearly',    priority: 0.2 },
+      { loc: `${APP_URL}/#/compliance`,   changefreq: 'yearly',    priority: 0.2 },
+      { loc: `${APP_URL}/#/transparency`, changefreq: 'quarterly', priority: 0.3 },
+      { loc: `${APP_URL}/#/privacy/ccpa`,           changefreq: 'yearly',    priority: 0.2 },
+      { loc: `${APP_URL}/#/dsa-notice`,             changefreq: 'yearly',    priority: 0.2 },
+      { loc: `${APP_URL}/#/privacy/subprocessors`,  changefreq: 'monthly',   priority: 0.2 },
+      { loc: `${APP_URL}/#/privacy/cookies`,        changefreq: 'monthly',   priority: 0.2 },
+      { loc: `${APP_URL}/#/privacy/processing`,     changefreq: 'monthly',   priority: 0.2 },
     ];
 
     const profileUrls = (creators || []).map(c => ({

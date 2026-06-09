@@ -20,7 +20,16 @@ export default function Terms() {
 
           <section>
             <h2 className="text-xl font-bold text-white mb-3">1. Aceptación</h2>
-            <p>Al crear una cuenta o usar Destino TV, aceptas estos Términos de Servicio. Si no estás de acuerdo, no uses la aplicación. Debes tener al menos 18 años para usar Destino TV.</p>
+            <p>
+              "Destino TV" es la marca comercial bajo la cual <strong className="text-white">OC Moon Group LLC</strong>,
+              sociedad de responsabilidad limitada constituida en Estados Unidos ("nosotros", "nuestro", el "Operador"),
+              presta los servicios descritos en estos términos.
+            </p>
+            <p className="mt-2">
+              Al crear una cuenta o usar Destino TV, aceptas estos Términos de Servicio y celebras un contrato
+              vinculante con OC Moon Group LLC. Si no estás de acuerdo, no uses la aplicación. Debes tener al menos
+              18 años para usar Destino TV.
+            </p>
           </section>
 
           <section>
@@ -83,18 +92,62 @@ export default function Terms() {
           </section>
 
           <section>
-            <h2 className="text-xl font-bold text-white mb-3">10. Modificaciones</h2>
+            <h2 className="text-xl font-bold text-white mb-3">10. Ley aplicable y jurisdicción</h2>
+            <p>Estos Términos se rigen por las leyes de México. Cualquier disputa derivada del uso de Destino TV
+            será resuelta mediante arbitraje vinculante en CDMX, México, conforme al Reglamento de Arbitraje de la
+            Cámara Nacional de Comercio. Si el arbitraje no es aplicable por ley, las partes se someten a la
+            jurisdicción de los tribunales competentes de CDMX.</p>
+            <p className="mt-2">
+              Los usuarios pueden tener derechos adicionales bajo la ley de su jurisdicción. Donde la ley local
+              prohíba la renuncia a derechos del consumidor, estos términos se interpretarán dejando dichos
+              derechos intactos.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-xl font-bold text-white mb-3">11. Geo-restricción</h2>
+            <p>
+              Destino TV no está disponible actualmente en todos los países. Ciertas funciones (especialmente
+              contenido adulto) están geo-bloqueadas en jurisdicciones con requisitos legales específicos.
+              El acceso desde dichas jurisdicciones es restringido a nivel de aplicación.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-xl font-bold text-white mb-3">12. Notificaciones DMCA</h2>
+            <p>
+              Destino TV respeta los derechos de propiedad intelectual. Si crees que tu obra ha sido reproducida
+              de manera que constituya infracción de copyright, envía una notificación conforme a 17 U.S.C. § 512(c)
+              vía <Link to="/dmca" className="text-brand-400 hover:underline">/dmca</Link>. Tres strikes DMCA confirmados
+              resultan en bloqueo permanente de la cuenta.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-xl font-bold text-white mb-3">13. Modificaciones</h2>
             <p>Podemos actualizar estos términos. Te notificaremos mediante un aviso en la app con al menos 7 días de antelación para cambios materiales. El uso continuado tras la notificación implica aceptación.</p>
           </section>
 
           <section>
-            <h2 className="text-xl font-bold text-white mb-3">11. Contacto</h2>
-            <p>Para cualquier consulta: <a href={`mailto:${SUPPORT_EMAIL}`} className="text-brand-400 hover:underline">{SUPPORT_EMAIL}</a></p>
+            <h2 className="text-xl font-bold text-white mb-3">14. Contacto</h2>
+            <ul className="list-disc list-inside space-y-1.5">
+              <li>Soporte general: <a href={`mailto:${SUPPORT_EMAIL}`} className="text-brand-400 hover:underline">{SUPPORT_EMAIL}</a></li>
+              <li>Legal: <a href="mailto:legal@destino.app" className="text-brand-400 hover:underline">legal@destino.app</a></li>
+              <li>DMCA: <a href="mailto:dmca@destino.app" className="text-brand-400 hover:underline">dmca@destino.app</a></li>
+              <li>Privacidad / DPO: <a href="mailto:dpo@destino.app" className="text-brand-400 hover:underline">dpo@destino.app</a></li>
+            </ul>
+            <p className="mt-3 text-sm">
+              Información completa de entidad legal y agentes designados en <Link to="/compliance" className="text-brand-400 hover:underline">/compliance</Link>.
+            </p>
           </section>
         </div>
 
-        <div className="mt-12 pt-6 border-t border-white/5 flex gap-4 text-sm text-gray-500">
-          <Link to="/privacy" className="hover:text-brand-400 transition-colors">Política de Privacidad</Link>
+        <div className="mt-12 pt-6 border-t border-white/5 flex gap-4 text-sm text-gray-500 flex-wrap">
+          <Link to="/privacy"      className="hover:text-brand-400 transition-colors">Política de Privacidad</Link>
+          <Link to="/dmca"         className="hover:text-brand-400 transition-colors">DMCA</Link>
+          <Link to="/2257"         className="hover:text-brand-400 transition-colors">2257</Link>
+          <Link to="/compliance"   className="hover:text-brand-400 transition-colors">Compliance</Link>
+          <Link to="/transparency" className="hover:text-brand-400 transition-colors">Transparency</Link>
           <Link to="/" className="hover:text-brand-400 transition-colors">Inicio</Link>
         </div>
       </div>

@@ -206,11 +206,29 @@ export default function Landing() {
       {/* Stat: bloque pequeño de número + label para el hero */}
       {/* (componente abajo) */}
       <footer className="py-8 px-6 border-t border-white/5 text-center">
-        <p className="text-gray-600 text-xs">
-          © {new Date().getFullYear()} Destino TV ·{' '}
-          <Link to="/privacy" className="hover:text-gray-400 transition-colors">Privacidad</Link>
-          {' · '}
-          <Link to="/terms" className="hover:text-gray-400 transition-colors">Términos</Link>
+        <p className="text-gray-600 text-xs mb-1">
+          © {new Date().getFullYear()} <strong className="text-gray-500">OC Moon Group LLC</strong> — operating as Destino TV
+        </p>
+        <p className="text-gray-600 text-xs flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
+          <Link to="/privacy"               className="hover:text-gray-400 transition-colors">Privacidad</Link>
+          <span>·</span>
+          <Link to="/terms"                 className="hover:text-gray-400 transition-colors">Términos</Link>
+          <span>·</span>
+          <Link to="/dmca"                  className="hover:text-gray-400 transition-colors">DMCA</Link>
+          <span>·</span>
+          <Link to="/dsa-notice"            className="hover:text-gray-400 transition-colors">DSA Notice</Link>
+          <span>·</span>
+          <Link to="/2257"                  className="hover:text-gray-400 transition-colors">2257</Link>
+          <span>·</span>
+          <Link to="/privacy/ccpa"          className="hover:text-gray-400 transition-colors">Do Not Sell</Link>
+          <span>·</span>
+          <Link to="/privacy/subprocessors" className="hover:text-gray-400 transition-colors">Subprocessors</Link>
+          <span>·</span>
+          <Link to="/privacy/cookies"       className="hover:text-gray-400 transition-colors">Cookies</Link>
+          <span>·</span>
+          <Link to="/compliance"            className="hover:text-gray-400 transition-colors">Compliance</Link>
+          <span>·</span>
+          <Link to="/transparency"          className="hover:text-gray-400 transition-colors">Transparency</Link>
         </p>
       </footer>
     </div>

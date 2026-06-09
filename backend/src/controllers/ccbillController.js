@@ -233,6 +233,11 @@ export const handleCCBillWebhook = async (req, res) => {
           title: '¡Nuevo suscriptor!',
           body: `Vía CCBill · $${amountUsd.toFixed(2)}`,
         }).catch(() => {});
+
+        // v68 welcome message automation
+        import('./welcomeMessageController.js').then(({ sendWelcomeMessageOnSubscribe }) =>
+          sendWelcomeMessageOnSubscribe(creatorId, subscriberId).catch(() => {})
+        ).catch(() => {});
         break;
       }
 

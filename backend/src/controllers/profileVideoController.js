@@ -64,6 +64,32 @@ export const uploadProfileVideo = async (req, res) => {
       .single();
 
     if (error) throw error;
+
+    // v69: si es adult, encolar watermark job server-side (FFmpeg burn-in)
+    if (isAdult && video?.id) {
+      try {
+        const { data: prof } = await supabase
+          .from('profiles')
+          .select('full_name, username')
+          .eq('id', userId)
+          .maybeSingle();
+        const wmText = `@${prof?.username || prof?.full_name || 'user'} · ${userId.replace(/-/g, '').slice(0, 6).toUpperCase()}`;
+        const { data: job } = await supabase.from('watermark_jobs').insert({
+          source_video_id: video.id,
+          source_url: url,
+          watermark_text: wmText,
+          priority: 5,
+        }).select('id').single();
+        if (job?.id) {
+          await supabase.from('profile_videos')
+            .update({ watermark_job_id: job.id })
+            .eq('id', video.id);
+        }
+      } catch (err) {
+        console.error('[watermark enqueue]', err.message);
+      }
+    }
+
     res.status(201).json({ video });
   } catch (err) {
     console.error('uploadProfileVideo error:', err.message);

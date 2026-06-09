@@ -600,6 +600,11 @@ export const confirmCreatorSubscription = async (req, res) => {
 
     await upsertCreatorEarnings(creatorId, earningsUSD);
 
+    // v68: welcome message automation
+    import('./welcomeMessageController.js').then(({ sendWelcomeMessageOnSubscribe }) =>
+      sendWelcomeMessageOnSubscribe(creatorId, subscriberId).catch(() => {})
+    ).catch(() => {});
+
     const { data: sub } = await supabase.from('profiles').select('full_name').eq('id', subscriberId).single();
     createNotification(creatorId, 'subscription', '¡Nuevo suscriptor!', `${sub?.full_name} se suscribió a tu contenido`, { subscriber_id: subscriberId });
 

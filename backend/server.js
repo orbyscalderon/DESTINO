@@ -67,6 +67,14 @@ import userMutesRoutes from './src/routes/userMutes.js';
 import aiAssistantRoutes from './src/routes/aiAssistant.js';
 import stickerRoutes from './src/routes/stickers.js';
 import conversationsRoutes from './src/routes/conversations.js';
+import consentsRoutes from './src/routes/consents.js';
+import trustedFlaggersRoutes from './src/routes/trustedFlaggers.js';
+import transparencyRoutes from './src/routes/transparency.js';
+import complianceRoutes from './src/routes/compliance.js';
+import dsaRoutes from './src/routes/dsa.js';
+import creatorAutomationRoutes from './src/routes/creatorAutomation.js';
+import watermarkRoutes from './src/routes/watermark.js';
+import privacyDisclosureRoutes from './src/routes/privacyDisclosure.js';
 import { supabase } from './src/lib/supabase.js';
 
 const app = express();
@@ -268,6 +276,22 @@ app.use('/api/user-mutes',     userMutesRoutes);
 app.use('/api/ai',             aiAssistantRoutes);
 app.use('/api/stickers',       stickerRoutes);
 app.use('/api/conversations',  conversationsRoutes);
+
+// v67 compliance: granular consent, DSA trusted flaggers, transparency reports,
+// legal entity config (DPO/DMCA agent/2257 custodian)
+app.use('/api/consents',         consentsRoutes);
+app.use('/api/trusted-flaggers', trustedFlaggersRoutes);
+app.use('/api/transparency',     transparencyRoutes);
+app.use('/api/compliance',       complianceRoutes);
+
+// v68 compliance v2: DSA Notice & Action, creator automation, watermark queue
+app.use('/api/dsa-notice',       dsaRoutes);
+app.use('/api/creator-auto',     creatorAutomationRoutes);
+app.use('/api/watermark',        watermarkRoutes);
+
+// v69 compliance v3: subprocessors, Art. 30 records, cookies inventory,
+// breach notification, Statement of Reasons (DSA Art. 17)
+app.use('/api/privacy',          privacyDisclosureRoutes);
 
 // Embed público de video adulto (iframe) — NO requiere auth pero geo-blocked
 app.get('/embed/v/:id', async (req, res, next) => {

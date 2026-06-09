@@ -242,7 +242,27 @@ export default function Register() {
             </div>
           )}
 
-          <button type="submit" disabled={loading} className="btn-primary w-full shadow-glow hover:shadow-glow-lg">
+          <label className="flex items-start gap-3 mb-2 cursor-pointer text-xs text-gray-400">
+            <input
+              type="checkbox"
+              checked={form.ageConfirmed || false}
+              onChange={(e) => setForm(f => ({ ...f, ageConfirmed: e.target.checked }))}
+              className="mt-0.5 w-4 h-4 accent-brand-500 shrink-0"
+              required
+            />
+            <span>
+              Confirmo que tengo <strong className="text-white">18 años o más</strong> y acepto los{' '}
+              <a href="#/terms" className="text-brand-400 hover:underline">Términos</a>,{' '}
+              <a href="#/privacy" className="text-brand-400 hover:underline">Privacidad</a>{' '}
+              y reconozco que esta plataforma está destinada exclusivamente a adultos.
+            </span>
+          </label>
+
+          <button
+            type="submit"
+            disabled={loading || !form.ageConfirmed}
+            className="btn-primary w-full shadow-glow hover:shadow-glow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+          >
             {loading ? t('auth.creating') : t('auth.create')}
           </button>
         </form>

@@ -625,6 +625,96 @@ async function v64MaintCron() {
   ]);
 }
 
+// v68 — alertar 2257 records próximos a expirar (30 días antes de los 7 años)
+async function alert2257Expiration() {
+  try {
+    const in30Days = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+    const now = new Date().toISOString();
+    const { data: expiring } = await supabase
+      .from('video_2257_records')
+      .select('id, video_id, uploaded_by, performer_legal_name, expires_at')
+      .gte('expires_at', now)
+      .lte('expires_at', in30Days)
+      .is('archived_at', null)
+      .limit(100);
+
+    for (const r of expiring || []) {
+      console.warn(`[2257] Record ${r.id} (video ${r.video_id}) expira ${r.expires_at}`);
+      createNotification(
+        r.uploaded_by,
+        'compliance_2257_expiring',
+        '⏰ 2257 record próximo a expirar',
+        `El record de "${r.performer_legal_name}" expira el ${new Date(r.expires_at).toLocaleDateString('es')}. Después de esa fecha el contenido será archivado automáticamente.`,
+        { record_id: r.id, video_id: r.video_id }
+      ).catch(() => {});
+    }
+  } catch (err) {
+    console.error('[alert2257Expiration]', err.message);
+  }
+}
+
+// v68/v69 — archivar records vencidos (>7 años): snapshot encriptado a B2/Storage + archive_url
+async function archive2257Expired() {
+  try {
+    const now = new Date().toISOString();
+    const { data: expired } = await supabase
+      .from('video_2257_records')
+      .select('*')
+      .lte('expires_at', now)
+      .is('archived_at', null)
+      .limit(50);
+
+    if (!expired?.length) return;
+
+    const { uploadFile } = await import('./storageProvider.js').catch(() => ({ uploadFile: null }));
+
+    for (const r of expired) {
+      try {
+        let archiveUrl = null;
+        if (uploadFile) {
+          const snapshot = JSON.stringify({
+            archived_at: now,
+            record: {
+              id: r.id, video_id: r.video_id,
+              performer_legal_name: r.performer_legal_name,
+              performer_dob: r.performer_dob,
+              performer_id_type: r.performer_id_type,
+              performer_id_document_url: r.performer_id_document_url,
+              consent_signed_at: r.consent_signed_at,
+              produced_at: r.produced_at,
+              custodian_name: r.custodian_name,
+            },
+            note: 'Archived per 18 USC 2257 retention policy after 7 years',
+          }, null, 2);
+          const archivePath = `2257-archive/${r.id}-${Date.now()}.json`;
+          archiveUrl = await uploadFile(archivePath, Buffer.from(snapshot, 'utf-8'), 'application/json').catch(() => null);
+        }
+
+        await supabase.from('video_2257_records').update({
+          archived_at: now,
+          archive_url: archiveUrl,
+        }).eq('id', r.id);
+
+        if (r.video_id) {
+          await supabase.from('profile_videos').update({ is_hidden: true }).eq('id', r.video_id);
+        }
+        console.log(`[2257] Archived record ${r.id} → ${archiveUrl || 'no-storage'}`);
+      } catch (err) {
+        console.error(`[archive2257 record ${r.id}]`, err.message);
+      }
+    }
+  } catch (err) {
+    console.error('[archive2257Expired]', err.message);
+  }
+}
+
+async function v68ComplianceCron() {
+  await Promise.allSettled([
+    alert2257Expiration(),
+    archive2257Expired(),
+  ]);
+}
+
 export function startCleanupJob() {
   cleanStaleVideoSessions();
   setInterval(cleanStaleVideoSessions, CLEANUP_INTERVAL_MS);
@@ -665,5 +755,9 @@ export function startCleanupJob() {
   v64MaintCron();
   setInterval(v64MaintCron, V64_MAINT_INTERVAL_MS);
 
-  console.log('🧹 Cleanup job iniciado (sesiones 30s, shows 5min, v6 10min, scheduled 1min, mantenimiento 1h, renovaciones 6h, payouts 24h)');
+  // v68 compliance: 2257 expiration alerts + archive (corre 1 vez al día)
+  v68ComplianceCron();
+  setInterval(v68ComplianceCron, 24 * 60 * 60 * 1000);
+
+  console.log('🧹 Cleanup job iniciado (sesiones 30s, shows 5min, v6 10min, scheduled 1min, mantenimiento 1h, renovaciones 6h, payouts 24h, compliance 24h)');
 }

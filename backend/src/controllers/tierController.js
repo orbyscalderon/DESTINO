@@ -338,6 +338,11 @@ export const giftSubscription = async (req, res) => {
       }).catch(() => {});
     }).catch(() => {});
 
+    // v69: welcome message automation (también para gift subs)
+    import('./welcomeMessageController.js').then(({ sendWelcomeMessageOnSubscribe }) =>
+      sendWelcomeMessageOnSubscribe(creatorId, resolvedRecipientId).catch(() => {})
+    ).catch(() => {});
+
     res.json({
       success: true,
       coins_spent: coinsCost,
