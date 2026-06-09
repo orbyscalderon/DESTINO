@@ -75,6 +75,7 @@ import dsaRoutes from './src/routes/dsa.js';
 import creatorAutomationRoutes from './src/routes/creatorAutomation.js';
 import watermarkRoutes from './src/routes/watermark.js';
 import privacyDisclosureRoutes from './src/routes/privacyDisclosure.js';
+import creatorMonetizationRoutes from './src/routes/creatorMonetization.js';
 import { supabase } from './src/lib/supabase.js';
 
 const app = express();
@@ -292,6 +293,12 @@ app.use('/api/watermark',        watermarkRoutes);
 // v69 compliance v3: subprocessors, Art. 30 records, cookies inventory,
 // breach notification, Statement of Reasons (DSA Art. 17)
 app.use('/api/privacy',          privacyDisclosureRoutes);
+
+// v70 adult monetization stack — 14 features:
+// sexting/DM paywall, content vault, photo collections, scheduled posts,
+// promo codes, geo-block per content, spy mode, skip queue, auto-reply,
+// AI persona, fan loyalty badges, VR/360 video metadata
+app.use('/api/creator-monetization', creatorMonetizationRoutes);
 
 // Embed público de video adulto (iframe) — NO requiere auth pero geo-blocked
 app.get('/embed/v/:id', async (req, res, next) => {

@@ -83,6 +83,17 @@ const CCPAOptOut         = lazy(() => import('./pages/CCPAOptOut.jsx'));
 const DSANotice          = lazy(() => import('./pages/DSANotice.jsx'));
 const CreatorWelcomeMessage = lazy(() => import('./pages/CreatorWelcomeMessage.jsx'));
 const CreatorMassDM      = lazy(() => import('./pages/CreatorMassDM.jsx'));
+const CreatorMonetizationHub = lazy(() => import('./pages/CreatorMonetizationHub.jsx'));
+const CreatorVault       = lazy(() => import('./pages/CreatorVault.jsx'));
+const CreatorCollections = lazy(() => import('./pages/CreatorCollections.jsx'));
+const CreatorDMPricing   = lazy(() => import('./pages/CreatorDMPricing.jsx'));
+const CreatorPromoCodes  = lazy(() => import('./pages/CreatorPromoCodes.jsx'));
+const CreatorAIPersona   = lazy(() => import('./pages/CreatorAIPersona.jsx'));
+const CreatorAutoReply   = lazy(() => import('./pages/CreatorAutoReply.jsx'));
+const CreatorTopFans     = lazy(() => import('./pages/CreatorTopFans.jsx'));
+const CreatorScheduled   = lazy(() => import('./pages/CreatorScheduled.jsx'));
+const CreatorGeoBlock    = lazy(() => import('./pages/CreatorGeoBlock.jsx'));
+const PhotoCollectionView = lazy(() => import('./pages/PhotoCollectionView.jsx'));
 const Subprocessors      = lazy(() => import('./pages/Subprocessors.jsx'));
 const Cookies            = lazy(() => import('./pages/Cookies.jsx'));
 const ProcessingActivities = lazy(() => import('./pages/ProcessingActivities.jsx'));
@@ -425,6 +436,17 @@ export default function App() {
           <Route path="/privacy/moderation-decisions" element={<MyModerationDecisions />} />
           <Route path="/creator/welcome-message" element={<CreatorWelcomeMessage />} />
           <Route path="/creator/mass-dm" element={<CreatorMassDM />} />
+          <Route path="/creator/monetization" element={<CreatorMonetizationHub />} />
+          <Route path="/creator/vault" element={<CreatorVault />} />
+          <Route path="/creator/collections" element={<CreatorCollections />} />
+          <Route path="/creator/dm-pricing" element={<CreatorDMPricing />} />
+          <Route path="/creator/promo-codes" element={<CreatorPromoCodes />} />
+          <Route path="/creator/ai-persona" element={<CreatorAIPersona />} />
+          <Route path="/creator/auto-reply" element={<CreatorAutoReply />} />
+          <Route path="/creator/top-fans" element={<CreatorTopFans />} />
+          <Route path="/creator/scheduled" element={<CreatorScheduled />} />
+          <Route path="/creator/geo-block" element={<CreatorGeoBlock />} />
+          <Route path="/c/collection/:id" element={<PhotoCollectionView />} />
         </Route>
 
         {/* 404 */}

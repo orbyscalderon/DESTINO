@@ -759,5 +759,11 @@ export function startCleanupJob() {
   v68ComplianceCron();
   setInterval(v68ComplianceCron, 24 * 60 * 60 * 1000);
 
-  console.log('🧹 Cleanup job iniciado (sesiones 30s, shows 5min, v6 10min, scheduled 1min, mantenimiento 1h, renovaciones 6h, payouts 24h, compliance 24h)');
+  // v70: publicar posts/reels programados (cada 2 min)
+  import('../controllers/scheduledContentController.js').then(({ publishDueScheduledContent }) => {
+    publishDueScheduledContent();
+    setInterval(publishDueScheduledContent, 2 * 60 * 1000);
+  }).catch(() => {});
+
+  console.log('🧹 Cleanup job iniciado (sesiones 30s, shows 5min, v6 10min, scheduled 1min, mantenimiento 1h, renovaciones 6h, payouts 24h, compliance 24h, scheduled-content 2min)');
 }

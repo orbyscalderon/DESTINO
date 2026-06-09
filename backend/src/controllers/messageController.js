@@ -249,6 +249,7 @@ export const sendMessage = async (req, res) => {
     // Verificar permisos sobre target
     let disappearMinutes = null;
     let recipientIds = [];
+    let dmPaywallCharged = false;
     if (targetMatch) {
       const { data: match } = await supabase
         .from('matches').select('user1_id, user2_id, is_match, disappear_minutes')
@@ -258,6 +259,21 @@ export const sendMessage = async (req, res) => {
       }
       disappearMinutes = match.disappear_minutes;
       recipientIds = [match.user1_id === userId ? match.user2_id : match.user1_id];
+
+      // v70: cobrar DM paywall/sexting si el receptor lo tiene activo
+      const receiverId = recipientIds[0];
+      const { chargeDmIfRequired } = await import('./dmPricingController.js');
+      const chargeResult = await chargeDmIfRequired({
+        payerId: userId, receiverId, matchId: targetMatch, messageId: null,
+      });
+      if (chargeResult.error === 'insufficient_coins') {
+        return res.status(402).json({
+          error: 'Coins insuficientes para enviar DM',
+          required_coins: chargeResult.price,
+          code: 'DM_PAYWALL',
+        });
+      }
+      dmPaywallCharged = chargeResult.charged === true;
     } else {
       const { data: membership } = await supabase
         .from('conversation_members')
