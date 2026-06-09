@@ -523,6 +523,11 @@ export const unlockPPV = async (req, res) => {
     await addCoins(msg.sender_id, Math.round(coins * CREATOR_CUT), 'ppv_received', messageId);
     await upsertCreatorEarnings(msg.sender_id, earningsUSD);
 
+    // v71: fan_stats para badges loyalty
+    import('./creatorAdvancedController.js').then(({ incrementFanStats }) =>
+      incrementFanStats({ fanId: buyerId, creatorId: msg.sender_id, coins, kind: 'ppv' }).catch(() => {})
+    ).catch(() => {});
+
     const { data: buyer } = await supabase.from('profiles').select('full_name').eq('id', buyerId).single();
     createNotification(
       msg.sender_id,

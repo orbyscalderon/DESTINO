@@ -153,6 +153,11 @@ export const purchaseCollection = async (req, res) => {
     });
     await supabase.from('photo_collections').update({ purchases_count: (col.purchases_count || 0) + 1 }).eq('id', id);
 
+    // v71: fan_stats
+    import('./creatorAdvancedController.js').then(({ incrementFanStats }) =>
+      incrementFanStats({ fanId: buyerId, creatorId: col.creator_id, coins: col.price_coins, kind: 'ppv' }).catch(() => {})
+    ).catch(() => {});
+
     res.status(201).json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });

@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import rateLimit from 'express-rate-limit';
 import { authMiddleware } from '../middleware/auth.js';
 import {
   getMyDmPricing, upsertMyDmPricing, checkDmPricingForFan,
@@ -31,6 +32,20 @@ import {
 const router = Router();
 router.use(authMiddleware);
 
+// Rate limits específicos por endpoint sensible
+const uploadLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, max: 50,
+  message: { error: 'Demasiadas subidas al vault por hora' },
+});
+const purchaseLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, max: 20,
+  message: { error: 'Demasiadas compras por hora' },
+});
+const redeemLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, max: 30,
+  message: { error: 'Demasiados intentos de código por hora — intenta más tarde' },
+});
+
 // DM pricing
 router.get('/dm-pricing',                getMyDmPricing);
 router.put('/dm-pricing',                upsertMyDmPricing);
@@ -38,7 +53,7 @@ router.get('/dm-pricing/:creatorId/check', checkDmPricingForFan);
 
 // Vault
 router.get('/vault',           listMyVault);
-router.post('/vault',          uploadVaultItemMiddleware, createVaultItem);
+router.post('/vault',          uploadLimiter, uploadVaultItemMiddleware, createVaultItem);
 router.delete('/vault/:id',    deleteVaultItem);
 router.post('/vault/:id/use',  markUsed);
 
@@ -48,7 +63,7 @@ router.get('/collections/c/:id',         getCollection);
 router.post('/collections',              createCollection);
 router.post('/collections/:id/items',    addItem);
 router.patch('/collections/:id',         updateCollection);
-router.post('/collections/:id/purchase', purchaseCollection);
+router.post('/collections/:id/purchase', purchaseLimiter, purchaseCollection);
 
 // Auto-reply + quick replies
 router.get('/auto-reply',           getMyAutoReply);
@@ -73,7 +88,7 @@ router.post('/shows/:showId/skip-queue',       payToSkipQueue);
 // Promo codes
 router.post('/promo-codes',            createPromo);
 router.get('/promo-codes/mine',        listMyPromos);
-router.post('/promo-codes/redeem',     redeemPromo);
+router.post('/promo-codes/redeem',     redeemLimiter, redeemPromo);
 router.patch('/promo-codes/:id',       togglePromo);
 
 // Geo-block per content

@@ -300,6 +300,22 @@ app.use('/api/privacy',          privacyDisclosureRoutes);
 // AI persona, fan loyalty badges, VR/360 video metadata
 app.use('/api/creator-monetization', creatorMonetizationRoutes);
 
+// v71: health check para Railway/uptime monitors
+app.get('/healthz', async (req, res) => {
+  try {
+    const { error } = await supabase.from('compliance_config').select('key').limit(1);
+    if (error) throw error;
+    res.json({
+      status: 'ok',
+      version: 'v71',
+      uptime_sec: Math.floor(process.uptime()),
+      timestamp: new Date().toISOString(),
+    });
+  } catch (err) {
+    res.status(503).json({ status: 'degraded', error: err.message });
+  }
+});
+
 // Embed público de video adulto (iframe) — NO requiere auth pero geo-blocked
 app.get('/embed/v/:id', async (req, res, next) => {
   try {

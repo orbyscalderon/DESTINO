@@ -41,6 +41,33 @@ export const createVaultItem = async (req, res) => {
 
     if (!url) return res.status(400).json({ error: 'Se requiere archivo o url' });
 
+    // v71: moderar con Sightengine antes de guardar en vault
+    if (type === 'photo' || type === 'video' || type === 'gif') {
+      try {
+        const { moderateImage } = await import('../lib/moderation.js');
+        const { data: prof } = await supabase
+          .from('profiles').select('is_adult_creator').eq('id', req.user.id).single();
+        const mod = await moderateImage(url, { allowAdult: !!prof?.is_adult_creator });
+        if (!mod.ok) {
+          // Borrar el archivo subido si moderación lo rechaza
+          if (storagePath) {
+            const { deleteFile } = await import('../lib/storageProvider.js');
+            await deleteFile([storagePath]).catch(() => {});
+          }
+          return res.status(422).json({
+            error: `Contenido rechazado por moderación automática: ${mod.reason || 'no permitido'}`,
+            code: 'MODERATION_REJECTED',
+          });
+        }
+        // Si Sightengine detectó adulto pero el creator está verificado, marcar is_adult
+        if (mod.isAdult) {
+          req.body.is_adult = true;
+        }
+      } catch (err) {
+        console.error('[vault moderation]', err.message);
+      }
+    }
+
     const tagArr = typeof tags === 'string' ? tags.split(',').map(t => t.trim()).filter(Boolean) : (tags || []);
 
     const { data, error } = await supabase.from('creator_vault_items').insert({
@@ -48,7 +75,7 @@ export const createVaultItem = async (req, res) => {
       title: title?.trim() || null,
       description: description?.trim() || null,
       url, storage_path: storagePath, size_bytes: sizeBytes,
-      is_adult: is_adult === 'true' || is_adult === true,
+      is_adult: req.body.is_adult === 'true' || req.body.is_adult === true,
       tags: tagArr,
     }).select().single();
 

@@ -113,33 +113,42 @@ export const getMyFanStatsWith = async (req, res) => {
 };
 
 // Helper interno — actualizar fan_stats al gastar coins. Llamar desde tip/PPV/sub.
+// Usa RPC atómica increment_fan_stats (v71). Si la RPC no existe, fallback al
+// upsert no-atómico que tenía antes.
 export async function incrementFanStats({ fanId, creatorId, coins, kind }) {
+  if (!fanId || !creatorId || fanId === creatorId) return;
   try {
-    const { data: existing } = await supabase.from('fan_stats')
-      .select('*').eq('fan_id', fanId).eq('creator_id', creatorId).maybeSingle();
-
-    const patch = {
-      fan_id: fanId, creator_id: creatorId,
-      total_spent_coins: (existing?.total_spent_coins || 0) + coins,
-      tips_count: (existing?.tips_count || 0) + (kind === 'tip' ? 1 : 0),
-      ppv_purchases: (existing?.ppv_purchases || 0) + (kind === 'ppv' ? 1 : 0),
-      subscription_months: (existing?.subscription_months || 0) + (kind === 'sub' ? 1 : 0),
-      last_interaction_at: new Date().toISOString(),
-    };
-
-    // Calcular badges nuevos
-    const newBadges = new Set(existing?.badges || []);
-    if (patch.total_spent_coins >= 100)   newBadges.add('bronze_supporter');
-    if (patch.total_spent_coins >= 1000)  newBadges.add('silver_supporter');
-    if (patch.total_spent_coins >= 10000) newBadges.add('gold_supporter');
-    if (patch.total_spent_coins >= 50000) newBadges.add('diamond_supporter');
-    if (patch.subscription_months >= 6)   newBadges.add('loyal_6m');
-    if (patch.subscription_months >= 12)  newBadges.add('anniversary_1y');
-    patch.badges = Array.from(newBadges);
-
-    await supabase.from('fan_stats').upsert(patch, { onConflict: 'fan_id,creator_id' });
+    const { error } = await supabase.rpc('increment_fan_stats', {
+      p_fan_id: fanId, p_creator_id: creatorId,
+      p_coins: parseInt(coins) || 0, p_kind: kind,
+    });
+    if (error) throw error;
   } catch (err) {
-    console.error('[incrementFanStats]', err.message);
+    // Fallback no-atómico si la RPC todavía no se aplicó
+    console.warn('[incrementFanStats] RPC failed, falling back:', err.message);
+    try {
+      const { data: existing } = await supabase.from('fan_stats')
+        .select('*').eq('fan_id', fanId).eq('creator_id', creatorId).maybeSingle();
+      const patch = {
+        fan_id: fanId, creator_id: creatorId,
+        total_spent_coins: (existing?.total_spent_coins || 0) + coins,
+        tips_count: (existing?.tips_count || 0) + (kind === 'tip' ? 1 : 0),
+        ppv_purchases: (existing?.ppv_purchases || 0) + (kind === 'ppv' ? 1 : 0),
+        subscription_months: (existing?.subscription_months || 0) + (kind === 'sub' ? 1 : 0),
+        last_interaction_at: new Date().toISOString(),
+      };
+      const newBadges = new Set(existing?.badges || []);
+      if (patch.total_spent_coins >= 100)   newBadges.add('bronze_supporter');
+      if (patch.total_spent_coins >= 1000)  newBadges.add('silver_supporter');
+      if (patch.total_spent_coins >= 10000) newBadges.add('gold_supporter');
+      if (patch.total_spent_coins >= 50000) newBadges.add('diamond_supporter');
+      if (patch.subscription_months >= 6)   newBadges.add('loyal_6m');
+      if (patch.subscription_months >= 12)  newBadges.add('anniversary_1y');
+      patch.badges = Array.from(newBadges);
+      await supabase.from('fan_stats').upsert(patch, { onConflict: 'fan_id,creator_id' });
+    } catch (err2) {
+      console.error('[incrementFanStats fallback]', err2.message);
+    }
   }
 }
 

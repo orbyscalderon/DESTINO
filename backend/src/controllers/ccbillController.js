@@ -238,6 +238,12 @@ export const handleCCBillWebhook = async (req, res) => {
         import('./welcomeMessageController.js').then(({ sendWelcomeMessageOnSubscribe }) =>
           sendWelcomeMessageOnSubscribe(creatorId, subscriberId).catch(() => {})
         ).catch(() => {});
+
+        // v71: fan_stats
+        const coinsEquiv = Math.round(amountUsd * 100);
+        import('./creatorAdvancedController.js').then(({ incrementFanStats }) =>
+          incrementFanStats({ fanId: subscriberId, creatorId, coins: coinsEquiv, kind: 'sub' }).catch(() => {})
+        ).catch(() => {});
         break;
       }
 

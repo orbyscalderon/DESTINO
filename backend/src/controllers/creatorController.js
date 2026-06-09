@@ -605,6 +605,12 @@ export const confirmCreatorSubscription = async (req, res) => {
       sendWelcomeMessageOnSubscribe(creatorId, subscriberId).catch(() => {})
     ).catch(() => {});
 
+    // v71: fan_stats para badges loyalty
+    const coinsEquivalent = Math.round(amountPaid * 100);  // $1 ~= 100 coins
+    import('./creatorAdvancedController.js').then(({ incrementFanStats }) =>
+      incrementFanStats({ fanId: subscriberId, creatorId, coins: coinsEquivalent, kind: 'sub' }).catch(() => {})
+    ).catch(() => {});
+
     const { data: sub } = await supabase.from('profiles').select('full_name').eq('id', subscriberId).single();
     createNotification(creatorId, 'subscription', '¡Nuevo suscriptor!', `${sub?.full_name} se suscribió a tu contenido`, { subscriber_id: subscriberId });
 

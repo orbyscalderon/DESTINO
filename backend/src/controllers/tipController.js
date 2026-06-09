@@ -69,6 +69,11 @@ export const sendTip = async (req, res) => {
       message: message?.trim()?.substring(0, 200) || null,
     });
 
+    // v71: incrementar fan_stats (auto-badges loyalty)
+    import('./creatorAdvancedController.js').then(({ incrementFanStats }) =>
+      incrementFanStats({ fanId: fromId, creatorId: toId, coins, kind: 'tip' }).catch(() => {})
+    ).catch(() => {});
+
     // Notify recipient (in-app)
     const { data: sender } = await supabase.from('profiles').select('full_name').eq('id', fromId).single();
     const tipMsg = message?.trim() ? `"${message.trim().substring(0, 60)}"` : '';

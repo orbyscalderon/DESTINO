@@ -202,6 +202,79 @@ export default function ShowAdvancedPanel({ showId }) {
           </motion.div>
         )}
       </div>
+
+      {/* v70: Spy mode (paid spectator de private sessions) */}
+      <SpyModePanel showId={showId} />
+    </div>
+  );
+}
+
+// Panel sub-componente para activar/desactivar spy mode + precio
+function SpyModePanel({ showId }) {
+  const [enabled, setEnabled] = useState(false);
+  const [price, setPrice] = useState(50);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!showId) return;
+    api.get(`/api/shows/${showId}`).then(r => {
+      const s = r.data?.show;
+      if (s) {
+        setEnabled(!!s.spy_mode_enabled);
+        if (s.spy_mode_price_coins) setPrice(s.spy_mode_price_coins);
+      }
+    }).catch(() => {});
+  }, [showId]);
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      await api.patch(`/api/creator-monetization/shows/${showId}/spy-mode`, {
+        enabled, price_coins: enabled ? price : null,
+      });
+      toast.success('Spy mode actualizado');
+    } catch {
+      toast.error('Error');
+    } finally { setSaving(false); }
+  };
+
+  return (
+    <div className="card p-4">
+      <div className="flex items-center justify-between mb-2 gap-2">
+        <div className="flex items-center gap-2">
+          <FiVideo size={14} className={enabled ? 'text-amber-400' : 'text-gray-500'} />
+          <h3 className="text-sm font-bold text-white">Spy mode (private)</h3>
+        </div>
+        <button
+          onClick={() => setEnabled(!enabled)}
+          className={`px-3 py-1 rounded-full text-xs font-bold ${
+            enabled
+              ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
+              : 'bg-white/5 text-gray-500 border border-white/10'
+          }`}
+        >
+          {enabled ? 'ON' : 'OFF'}
+        </button>
+      </div>
+      <p className="text-xs text-gray-500 mb-3">
+        Cuando estés en private show, viewers pueden "spy" pagando coins (ven el video, no el chat).
+      </p>
+      {enabled && (
+        <div className="flex gap-2">
+          <input
+            type="number" min="1" value={price}
+            onChange={(e) => setPrice(parseInt(e.target.value) || 0)}
+            className="flex-1 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white text-xs"
+            placeholder="Precio coins"
+          />
+          <button
+            onClick={save} disabled={saving}
+            className="px-3 py-1.5 rounded-lg bg-brand-500 text-white text-xs font-bold disabled:opacity-50"
+          >
+            {saving ? '…' : 'Guardar'}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

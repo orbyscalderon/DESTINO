@@ -285,17 +285,32 @@ export default function ChatWindow({ matchId, otherUser }) {
     sendTypingSignal();
   };
 
+  // v70: expandir quick replies `/shortcut` → mensaje completo
+  const expandQuickReplies = async (rawText) => {
+    const m = rawText.trim().match(/^\/(\w+)$/);
+    if (!m) return rawText;
+    try {
+      const r = await api.get('/api/creator-monetization/quick-replies');
+      const found = (r.data?.replies || []).find(q => q.shortcut.toLowerCase() === `/${m[1]}`.toLowerCase());
+      return found?.message || rawText;
+    } catch {
+      return rawText;
+    }
+  };
+
   const sendMessage = async (e) => {
     e.preventDefault();
     if (!text.trim() || sending) return;
 
     if (!isPremiumPlus && remaining <= 0) { setShowPremiumModal(true); return; }
 
+    const expandedText = await expandQuickReplies(text.trim());
+
     const payload = {
       matchId,
       content: replyTo
-        ? `> ${replyTo.senderName}: ${replyTo.content.substring(0, 80)}${replyTo.content.length > 80 ? '…' : ''}\n${text.trim()}`
-        : text.trim(),
+        ? `> ${replyTo.senderName}: ${replyTo.content.substring(0, 80)}${replyTo.content.length > 80 ? '…' : ''}\n${expandedText}`
+        : expandedText,
       ...(scheduledFor ? { scheduled_for: scheduledFor } : {}),
     };
 
@@ -311,7 +326,10 @@ export default function ChatWindow({ matchId, otherUser }) {
       }
       setScheduledFor(null);
     } catch (err) {
-      if (err.response?.data?.code === 'MESSAGE_LIMIT_REACHED') setShowPremiumModal(true);
+      // v70: DM paywall — insufficient coins
+      if (err.response?.data?.code === 'DM_PAYWALL') {
+        toast.error(`Necesitas ${err.response.data.required_coins} coins para enviar DM a este creator`);
+      } else if (err.response?.data?.code === 'MESSAGE_LIMIT_REACHED') setShowPremiumModal(true);
       else if (err.response?.data?.error) toast.error(err.response.data.error);
     } finally {
       setSending(false);

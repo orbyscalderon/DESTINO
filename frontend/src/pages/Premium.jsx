@@ -9,6 +9,7 @@ import { useAuthStore } from '../store/authStore.js';
 import { useTranslation } from 'react-i18next';
 import api from '../lib/api.js';
 import toast from 'react-hot-toast';
+import PromoCodeInput from '../components/ui/PromoCodeInput.jsx';
 
 const PLANS = [
   {
@@ -106,10 +107,15 @@ export default function Premium() {
     } catch {}
   };
 
+  const [promo, setPromo] = useState(null);
+
   const handleSubscribe = async (plan) => {
     setLoading(plan);
     try {
-      const { data } = await api.post('/api/payments/create-checkout', { plan });
+      const { data } = await api.post('/api/payments/create-checkout', {
+        plan,
+        promo_code: promo?.code || null,
+      });
       window.location.href = data.url;
     } catch (err) {
       toast.error(err.response?.data?.error || 'Error al procesar pago');
@@ -238,6 +244,10 @@ export default function Premium() {
           <p className="text-gray-400 text-sm font-semibold uppercase tracking-widest mb-2">{t('premium.subtitle_plans')}</p>
           <h1 className="text-3xl lg:text-5xl font-black gradient-text mb-3">{t('premium.title')}</h1>
           <p className="text-gray-500 text-sm">{t('premium.subtitle_terms')}</p>
+
+          <div className="max-w-sm mx-auto mt-6">
+            <PromoCodeInput type="subscription" onRedeem={(p) => setPromo(p ? { code: p.code, ...p } : null)} />
+          </div>
         </motion.div>
 
         <motion.div
