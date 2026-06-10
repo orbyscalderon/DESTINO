@@ -88,6 +88,14 @@ export const uploadProfileVideo = async (req, res) => {
       } catch (err) {
         console.error('[watermark enqueue]', err.message);
       }
+
+      // v73: encolar Whisper captions + sprite thumbnails (gated por feature flags
+      // en el worker, NO acá — el worker chequea antes de procesar)
+      try {
+        const { enqueueProcessingJob } = await import('./videoProcessingController.js');
+        enqueueProcessingJob({ video_id: video.id, source_url: url, kind: 'whisper_captions' }).catch(() => {});
+        enqueueProcessingJob({ video_id: video.id, source_url: url, kind: 'sprite_thumbnails' }).catch(() => {});
+      } catch {}
     }
 
     res.status(201).json({ video });

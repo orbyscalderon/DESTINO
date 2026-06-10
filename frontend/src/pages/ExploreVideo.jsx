@@ -10,6 +10,9 @@ import toast from 'react-hot-toast';
 import VerifiedBadge from '../components/ui/VerifiedBadge.jsx';
 import AgeGate, { isAgeVerified } from '../components/ui/AgeGate.jsx';
 import VRVideoPlayer from '../components/ui/VRVideoPlayer.jsx';
+import AdultVideoPlayer from '../components/ui/AdultVideoPlayer.jsx';
+import VideoCommentsSection from '../components/ui/VideoCommentsSection.jsx';
+import TipModal from '../components/ui/TipModal.jsx';
 
 function fmtDuration(seconds) {
   if (!seconds) return '0:00';
@@ -40,6 +43,9 @@ export default function ExploreVideo() {
   const [showPlaylistMenu, setShowPlaylistMenu] = useState(false);
   const [playlists, setPlaylists] = useState([]);
   const [ageOk, setAgeOk]       = useState(isAgeVerified());
+  const [captions, setCaptions] = useState([]);
+  const [costars, setCostars]   = useState([]);
+  const [showTip, setShowTip]   = useState(false);
 
   const videoRef = useRef(null);
   const viewReportedRef = useRef(false);
@@ -68,6 +74,13 @@ export default function ExploreVideo() {
   useEffect(() => {
     if (!ageOk) return;
     load();
+  }, [id, ageOk]);
+
+  // v73: cargar captions + co-stars del video
+  useEffect(() => {
+    if (!ageOk || !id) return;
+    api.get(`/api/adult-video/captions/${id}`).then(r => setCaptions(r.data?.captions || [])).catch(() => {});
+    api.get(`/api/adult-video/costars/by-video/${id}`).then(r => setCostars(r.data?.costars || [])).catch(() => {});
   }, [id, ageOk]);
 
   // Reportar vista cuando el usuario lleva 5 segundos viendo
@@ -143,26 +156,15 @@ export default function ExploreVideo() {
   return (
     <div className="min-h-screen pb-24 bg-dark-900">
       <div className="max-w-5xl mx-auto">
-        {/* Player — VR si is_vr, sino video normal */}
+        {/* v73: Player — AdultVideoPlayer con speed/PiP/loop/sprite/skip-intro/floating-tip */}
         <div className="bg-black relative">
           <div className="aspect-video">
-            {video.is_vr ? (
-              <VRVideoPlayer
-                url={video.url}
-                format={video.vr_format || 'mono_360'}
-                poster={video.thumbnail_url}
-              />
-            ) : (
-              <video
-                ref={videoRef}
-                src={video.url}
-                poster={video.thumbnail_url}
-                controls
-                autoPlay
-                playsInline
-                className="w-full h-full"
-              />
-            )}
+            <AdultVideoPlayer
+              video={video}
+              captions={captions}
+              onTipClick={video.user_id ? () => setShowTip(true) : undefined}
+              autoPlay
+            />
           </div>
           <button onClick={() => navigate(-1)}
             className="absolute top-3 left-3 z-10 bg-black/60 backdrop-blur-sm rounded-xl px-2.5 py-1.5 text-white">
@@ -334,6 +336,37 @@ export default function ExploreVideo() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* v73: Co-stars + Comments section */}
+      <div className="max-w-5xl mx-auto px-4 mt-6 space-y-8">
+        {costars.length > 0 && (
+          <div>
+            <h2 className="text-white font-bold text-sm mb-3">Con</h2>
+            <div className="flex gap-3 flex-wrap">
+              {costars.map(cs => (
+                <Link key={cs.user?.id} to={`/profile/${cs.user?.id}`}
+                  className="flex items-center gap-2 p-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition">
+                  {cs.user?.avatar_url && <img src={cs.user.avatar_url} className="w-8 h-8 rounded-full object-cover" alt="" />}
+                  <div>
+                    <p className="text-sm text-white font-bold">{cs.user?.full_name}</p>
+                    {cs.user?.is_verified && <span className="text-[10px] text-brand-400">✓ Verified</span>}
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+        <VideoCommentsSection videoId={video.id} videoOwnerId={video.user_id} />
+      </div>
+
+      {showTip && video.user_id && (
+        <TipModal
+          userId={video.user_id}
+          userName={video.user?.full_name || 'creator'}
+          onClose={() => setShowTip(false)}
+          onSent={() => setShowTip(false)}
+        />
+      )}
     </div>
   );
 }

@@ -94,6 +94,10 @@ const CreatorTopFans     = lazy(() => import('./pages/CreatorTopFans.jsx'));
 const CreatorScheduled   = lazy(() => import('./pages/CreatorScheduled.jsx'));
 const CreatorGeoBlock    = lazy(() => import('./pages/CreatorGeoBlock.jsx'));
 const PhotoCollectionView = lazy(() => import('./pages/PhotoCollectionView.jsx'));
+const CreatorVideoSeries = lazy(() => import('./pages/CreatorVideoSeries.jsx'));
+const VideoSeriesView    = lazy(() => import('./pages/VideoSeriesView.jsx'));
+const CreatorCostars     = lazy(() => import('./pages/CreatorCostars.jsx'));
+const ContinueWatching   = lazy(() => import('./pages/ContinueWatching.jsx'));
 const Subprocessors      = lazy(() => import('./pages/Subprocessors.jsx'));
 const Cookies            = lazy(() => import('./pages/Cookies.jsx'));
 const ProcessingActivities = lazy(() => import('./pages/ProcessingActivities.jsx'));
@@ -447,6 +451,10 @@ export default function App() {
           <Route path="/creator/scheduled" element={<CreatorScheduled />} />
           <Route path="/creator/geo-block" element={<CreatorGeoBlock />} />
           <Route path="/c/collection/:id" element={<PhotoCollectionView />} />
+          <Route path="/creator/video-series" element={<CreatorVideoSeries />} />
+          <Route path="/series/:id" element={<VideoSeriesView />} />
+          <Route path="/creator/costars" element={<CreatorCostars />} />
+          <Route path="/continue-watching" element={<ContinueWatching />} />
         </Route>
 
         {/* 404 */}

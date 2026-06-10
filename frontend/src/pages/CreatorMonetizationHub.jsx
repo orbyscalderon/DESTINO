@@ -1,9 +1,11 @@
 import { Link } from 'react-router-dom';
-import { FiArrowLeft, FiArchive, FiImage, FiMessageSquare, FiTag, FiGlobe, FiClock, FiCpu, FiHeart, FiCalendar, FiZap } from 'react-icons/fi';
+import { FiArrowLeft, FiArchive, FiImage, FiMessageSquare, FiTag, FiGlobe, FiClock, FiCpu, FiHeart, FiCalendar, FiZap, FiFilm, FiUserPlus } from 'react-icons/fi';
 
 const SECTIONS = [
   { to: '/creator/vault',         icon: FiArchive,     title: 'Vault',           desc: 'Tu biblioteca privada de contenido reusable' },
   { to: '/creator/collections',   icon: FiImage,       title: 'Photo Collections', desc: 'Sets de fotos pagas — vender N fotos como un único PPV' },
+  { to: '/creator/video-series',  icon: FiFilm,        title: 'Video Series',    desc: 'Agrupa N videos como serie vendible (paga o gratis)' },
+  { to: '/creator/costars',       icon: FiUserPlus,    title: 'Co-stars',        desc: 'Invitaciones para aparecer en videos de otros creators (con % de revenue)' },
   { to: '/creator/dm-pricing',    icon: FiMessageSquare, title: 'DM Pricing',    desc: 'Cobrar por DM recibido (paywall) o por mensaje (sexting)' },
   { to: '/creator/promo-codes',   icon: FiTag,         title: 'Promo Codes',     desc: 'Descuentos para suscripciones y collections' },
   { to: '/creator/geo-block',     icon: FiGlobe,       title: 'Geo Block',       desc: 'Bloquear contenidos en países específicos' },

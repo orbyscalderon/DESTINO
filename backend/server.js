@@ -76,6 +76,7 @@ import creatorAutomationRoutes from './src/routes/creatorAutomation.js';
 import watermarkRoutes from './src/routes/watermark.js';
 import privacyDisclosureRoutes from './src/routes/privacyDisclosure.js';
 import creatorMonetizationRoutes from './src/routes/creatorMonetization.js';
+import adultVideoRoutes from './src/routes/adultVideo.js';
 import { supabase } from './src/lib/supabase.js';
 
 const app = express();
@@ -299,6 +300,11 @@ app.use('/api/privacy',          privacyDisclosureRoutes);
 // promo codes, geo-block per content, spy mode, skip queue, auto-reply,
 // AI persona, fan loyalty badges, VR/360 video metadata
 app.use('/api/creator-monetization', creatorMonetizationRoutes);
+
+// v73 adult video v2 — 10 features:
+// watch history, comments, series/collections, co-stars, scheduled premiere,
+// captions (Whisper), sprite thumbnails, skip intro markers
+app.use('/api/adult-video', adultVideoRoutes);
 
 // v71: health check para Railway/uptime monitors
 app.get('/healthz', async (req, res) => {

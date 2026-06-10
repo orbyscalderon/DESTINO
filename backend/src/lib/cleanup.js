@@ -770,5 +770,10 @@ export function startCleanupJob() {
     setInterval(() => runCreatorAutomationTick().catch(err => console.error('[creator-auto]', err.message)), 5 * 60 * 1000);
   }).catch(() => {});
 
+  // v73: video processing (Whisper captions + sprite thumbnails). Gated por flags.
+  import('../workers/videoProcessingWorker.js').then(({ runVideoProcessingTick }) => {
+    setInterval(() => runVideoProcessingTick().catch(err => console.error('[video-processing]', err.message)), 5 * 60 * 1000);
+  }).catch(() => {});
+
   console.log('🧹 Cleanup job iniciado (sesiones 30s, shows 5min, v6 10min, scheduled 1min, mantenimiento 1h, renovaciones 6h, payouts 24h, compliance 24h, scheduled-content 2min, creator-auto 5min)');
 }
