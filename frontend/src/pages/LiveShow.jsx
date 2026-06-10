@@ -12,6 +12,7 @@ import {
 import GiftPanel from '../components/ui/GiftPanel.jsx';
 import AgeVerificationModal from '../components/ui/AgeVerificationModal.jsx';
 import DraggableTipGoal from '../components/ui/DraggableTipGoal.jsx';
+import ShowViewerControls from '../components/ui/ShowViewerControls.jsx';
 import BigGiftAnimation, { useGiftAnimationQueue } from '../components/ui/BigGiftAnimation.jsx';
 import CaptionOverlay from '../components/ui/CaptionOverlay.jsx';
 import { useCaptionsViewer } from '../lib/useLiveCaptions.js';
@@ -2613,6 +2614,19 @@ export default function LiveShow() {
                 }
               }}
             />
+          )}
+
+          {/* v70: Spy + Skip queue controls cuando soy viewer y hay private activa */}
+          {role === 'viewer' && (privateSession || show?.spy_mode_enabled) && (
+            <div className="absolute top-24 left-3 right-3 z-20 max-w-xs mx-auto">
+              <ShowViewerControls
+                showId={id}
+                spyEnabled={!!show?.spy_mode_enabled}
+                spyPrice={show?.spy_mode_price_coins || 0}
+                inPrivate={!!privateSession}
+                queueAhead={0}
+              />
+            </div>
           )}
 
           {/* PIP de mi propia cámara cuando estoy en CAM2CAM exclusivo */}

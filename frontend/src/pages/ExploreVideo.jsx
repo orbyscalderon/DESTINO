@@ -9,6 +9,7 @@ import api from '../lib/api.js';
 import toast from 'react-hot-toast';
 import VerifiedBadge from '../components/ui/VerifiedBadge.jsx';
 import AgeGate, { isAgeVerified } from '../components/ui/AgeGate.jsx';
+import VRVideoPlayer from '../components/ui/VRVideoPlayer.jsx';
 
 function fmtDuration(seconds) {
   if (!seconds) return '0:00';
@@ -142,18 +143,26 @@ export default function ExploreVideo() {
   return (
     <div className="min-h-screen pb-24 bg-dark-900">
       <div className="max-w-5xl mx-auto">
-        {/* Player */}
+        {/* Player — VR si is_vr, sino video normal */}
         <div className="bg-black relative">
           <div className="aspect-video">
-            <video
-              ref={videoRef}
-              src={video.url}
-              poster={video.thumbnail_url}
-              controls
-              autoPlay
-              playsInline
-              className="w-full h-full"
-            />
+            {video.is_vr ? (
+              <VRVideoPlayer
+                url={video.url}
+                format={video.vr_format || 'mono_360'}
+                poster={video.thumbnail_url}
+              />
+            ) : (
+              <video
+                ref={videoRef}
+                src={video.url}
+                poster={video.thumbnail_url}
+                controls
+                autoPlay
+                playsInline
+                className="w-full h-full"
+              />
+            )}
           </div>
           <button onClick={() => navigate(-1)}
             className="absolute top-3 left-3 z-10 bg-black/60 backdrop-blur-sm rounded-xl px-2.5 py-1.5 text-white">

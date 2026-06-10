@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { FiX, FiZap } from 'react-icons/fi';
 import api from '../../lib/api.js';
 import toast from 'react-hot-toast';
+import PromoCodeInput from './PromoCodeInput.jsx';
 
 const PRESETS = [10, 25, 50, 100, 200];
 
@@ -10,12 +11,24 @@ export default function TipModal({ userId, userName, onClose, onSent }) {
   const [amount, setAmount] = useState(25);
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
+  const [promo, setPromo] = useState(null);
+
+  // v70: cálculo de cantidad final aplicando promo (si type='tip' y matchea)
+  const finalAmount = (() => {
+    if (!promo || promo.type !== 'tip') return amount;
+    if (promo.discount_pct) return Math.max(1, Math.round(amount * (1 - promo.discount_pct / 100)));
+    if (promo.discount_coins) return Math.max(1, amount - promo.discount_coins);
+    return amount;
+  })();
 
   const handleSend = async () => {
     setSending(true);
     try {
-      const { data } = await api.post(`/api/tips/${userId}`, { amount, message });
-      toast.success(`¡Propina de ${amount} monedas enviada!`);
+      const { data } = await api.post(`/api/tips/${userId}`, {
+        amount: finalAmount, message,
+        ...(promo ? { promo_code: promo.code } : {}),
+      });
+      toast.success(`¡Propina de ${finalAmount} monedas enviada!`);
       onSent?.(data.coins_remaining);
       onClose();
     } catch (err) {
@@ -97,20 +110,28 @@ export default function TipModal({ userId, userName, onClose, onSent }) {
             className="input-field text-sm resize-none"
           />
 
+          {/* v70: Promo code opcional */}
+          <PromoCodeInput type="tip" onRedeem={setPromo} />
+
           <div className="flex items-center justify-between text-xs text-gray-500">
-            <span>≈ ${(amount * 0.05).toFixed(2)} USD</span>
+            <span>≈ ${(finalAmount * 0.05).toFixed(2)} USD</span>
             <span>{message.length}/200</span>
           </div>
 
           <button
             onClick={handleSend}
-            disabled={sending || amount < 1}
+            disabled={sending || finalAmount < 1}
             className="btn-primary w-full disabled:opacity-60 flex items-center justify-center gap-2"
           >
             {sending ? (
               <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
             ) : (
-              <><FiZap size={16} /> Enviar {amount} monedas</>
+              <>
+                <FiZap size={16} /> Enviar {finalAmount} monedas
+                {promo && finalAmount !== amount && (
+                  <span className="text-xs opacity-70 line-through ml-1">{amount}</span>
+                )}
+              </>
             )}
           </button>
         </motion.div>

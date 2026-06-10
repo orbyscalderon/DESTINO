@@ -106,6 +106,7 @@ export const getVideoDetail = async (req, res) => {
         id, title, description, url, thumbnail_url, duration_seconds,
         views_count, rating_up, rating_down, rating_score, adult_category,
         published_at, embed_enabled, is_paid, price, user_id,
+        is_vr, vr_format, resolution_w, resolution_h,
         user:profiles!user_id(id, full_name, avatar_url, is_verified, is_adult_creator)
       `)
       .eq('id', id)

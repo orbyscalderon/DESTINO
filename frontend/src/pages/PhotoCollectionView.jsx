@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { FiArrowLeft, FiLock, FiCheck } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import api from '../lib/api.js';
+import PromoCodeInput from '../components/ui/PromoCodeInput.jsx';
 
 export default function PhotoCollectionView() {
   const { id } = useParams();
@@ -11,6 +12,16 @@ export default function PhotoCollectionView() {
   const [locked, setLocked] = useState(true);
   const [loading, setLoading] = useState(true);
   const [buying, setBuying] = useState(false);
+  const [promo, setPromo] = useState(null);
+
+  const finalPrice = (() => {
+    if (!collection) return 0;
+    if (!promo || promo.type !== 'collection') return collection.price_coins;
+    if (promo.applies_to_id && promo.applies_to_id !== collection.id) return collection.price_coins;
+    if (promo.discount_pct) return Math.max(0, Math.round(collection.price_coins * (1 - promo.discount_pct / 100)));
+    if (promo.discount_coins) return Math.max(0, collection.price_coins - promo.discount_coins);
+    return collection.price_coins;
+  })();
 
   const load = async () => {
     try {
@@ -26,7 +37,9 @@ export default function PhotoCollectionView() {
   const buy = async () => {
     setBuying(true);
     try {
-      await api.post(`/api/creator-monetization/collections/${id}/purchase`);
+      await api.post(`/api/creator-monetization/collections/${id}/purchase`, {
+        ...(promo ? { promo_code: promo.code } : {}),
+      });
       toast.success('Compra exitosa');
       load();
     } catch (err) {
@@ -70,7 +83,14 @@ export default function PhotoCollectionView() {
               {locked ? (
                 <button onClick={buy} disabled={buying}
                   className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-brand-500 to-brand-600 text-white font-bold disabled:opacity-50">
-                  {buying ? 'Procesando…' : `Comprar por ${collection.price_coins} coins`}
+                  {buying ? 'Procesando…' : (
+                    <>
+                      Comprar por {finalPrice} coins
+                      {promo && finalPrice !== collection.price_coins && (
+                        <span className="ml-2 text-xs opacity-70 line-through">{collection.price_coins}</span>
+                      )}
+                    </>
+                  )}
                 </button>
               ) : (
                 <span className="inline-flex items-center gap-1 text-emerald-400 text-sm font-bold">
@@ -78,6 +98,11 @@ export default function PhotoCollectionView() {
                 </span>
               )}
             </div>
+            {locked && (
+              <div className="mt-4">
+                <PromoCodeInput type="collection" onRedeem={setPromo} />
+              </div>
+            )}
           </div>
         </div>
 

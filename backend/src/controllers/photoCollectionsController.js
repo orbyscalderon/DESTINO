@@ -122,13 +122,15 @@ export const updateCollection = async (req, res) => {
 };
 
 // POST /api/photo-collections/:id/purchase
+// Body opcional: { promo_code }
 export const purchaseCollection = async (req, res) => {
   try {
     const buyerId = req.user.id;
     const { id } = req.params;
+    const { promo_code } = req.body || {};
 
     const { data: col } = await supabase.from('photo_collections')
-      .select('id, creator_id, price_coins, is_published').eq('id', id).maybeSingle();
+      .select('id, creator_id, price_coins, is_published, purchases_count').eq('id', id).maybeSingle();
     if (!col || !col.is_published) return res.status(404).json({ error: 'Collection no disponible' });
     if (col.creator_id === buyerId) return res.status(400).json({ error: 'No puedes comprar tu propia collection' });
 
@@ -137,25 +139,48 @@ export const purchaseCollection = async (req, res) => {
       .select('id').eq('collection_id', id).eq('buyer_id', buyerId).maybeSingle();
     if (existing) return res.status(409).json({ error: 'Ya compraste esta collection' });
 
+    // v70: validar y aplicar promo_code si viene
+    let priceToCharge = col.price_coins;
+    if (promo_code) {
+      const code = String(promo_code).trim().toUpperCase();
+      const { data: promo } = await supabase.from('promo_codes')
+        .select('id, type, discount_pct, discount_coins, applies_to_id, expires_at, max_uses, uses_count, active, creator_id')
+        .eq('code', code).eq('active', true).maybeSingle();
+      const validPromo = promo
+        && promo.type === 'collection'
+        && (!promo.expires_at || new Date(promo.expires_at) > new Date())
+        && (!promo.max_uses || promo.uses_count < promo.max_uses)
+        && (!promo.applies_to_id || promo.applies_to_id === id);
+      if (validPromo) {
+        // Confirmar que el user lo redimió
+        const { data: redemption } = await supabase.from('promo_redemptions')
+          .select('id').eq('promo_id', promo.id).eq('user_id', buyerId).maybeSingle();
+        if (redemption) {
+          if (promo.discount_pct) priceToCharge = Math.max(0, Math.round(col.price_coins * (1 - promo.discount_pct / 100)));
+          else if (promo.discount_coins) priceToCharge = Math.max(0, col.price_coins - promo.discount_coins);
+        }
+      }
+    }
+
     // Verificar balance
     const { data: bal } = await supabase.from('profiles').select('coins_balance').eq('id', buyerId).single();
-    if (!bal || bal.coins_balance < col.price_coins) {
-      return res.status(402).json({ error: 'Coins insuficientes', price: col.price_coins });
+    if (!bal || bal.coins_balance < priceToCharge) {
+      return res.status(402).json({ error: 'Coins insuficientes', price: priceToCharge });
     }
 
     // Cobrar
-    await supabase.from('profiles').update({ coins_balance: bal.coins_balance - col.price_coins }).eq('id', buyerId);
+    await supabase.from('profiles').update({ coins_balance: bal.coins_balance - priceToCharge }).eq('id', buyerId);
     const { data: cb } = await supabase.from('profiles').select('coins_balance').eq('id', col.creator_id).single();
-    await supabase.from('profiles').update({ coins_balance: (cb?.coins_balance || 0) + col.price_coins }).eq('id', col.creator_id);
+    await supabase.from('profiles').update({ coins_balance: (cb?.coins_balance || 0) + priceToCharge }).eq('id', col.creator_id);
 
     await supabase.from('photo_collection_purchases').insert({
-      collection_id: id, buyer_id: buyerId, price_paid: col.price_coins,
+      collection_id: id, buyer_id: buyerId, price_paid: priceToCharge,
     });
     await supabase.from('photo_collections').update({ purchases_count: (col.purchases_count || 0) + 1 }).eq('id', id);
 
-    // v71: fan_stats
+    // v71: fan_stats (con precio efectivamente pagado, no el original)
     import('./creatorAdvancedController.js').then(({ incrementFanStats }) =>
-      incrementFanStats({ fanId: buyerId, creatorId: col.creator_id, coins: col.price_coins, kind: 'ppv' }).catch(() => {})
+      incrementFanStats({ fanId: buyerId, creatorId: col.creator_id, coins: priceToCharge, kind: 'ppv' }).catch(() => {})
     ).catch(() => {});
 
     res.status(201).json({ success: true });
