@@ -391,13 +391,14 @@ export const getShow = async (req, res) => {
         id, title, description, show_type, ticket_price, status,
         cover_url, scheduled_at, started_at, ended_at, category,
         private_rate, exclusive_rate, min_private_minutes,
+        spy_mode_enabled, spy_mode_price_coins,
         host:profiles!host_id(id, full_name, avatar_url, is_verified, creator_bio)
       `)
       .eq('id', id)
       .single();
 
-    // Fallback si las columnas de show privado aún no existen en la BD
-    if (error?.message?.includes('private_rate') || error?.message?.includes('column')) {
+    // Fallback si columnas de show privado o spy mode aún no existen en la BD
+    if (error?.message?.includes('private_rate') || error?.message?.includes('spy_mode') || error?.message?.includes('column')) {
       ({ data: show, error } = await supabase
         .from('live_shows')
         .select(`
