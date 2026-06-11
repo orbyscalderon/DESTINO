@@ -324,10 +324,13 @@ export default function App() {
 
   if (!initialized) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-dark-900">
-        <div className="text-center space-y-4">
-          <div className="text-5xl">💕</div>
+      <div className="min-h-screen flex items-center justify-center bg-dark-900 hero-mesh relative overflow-hidden">
+        <div className="glow-orb glow-orb-brand top-1/4 left-1/4 w-80 h-80" />
+        <div className="glow-orb glow-orb-accent bottom-1/4 right-1/4 w-72 h-72" style={{ animationDelay: '1s' }} />
+        <div className="text-center space-y-4 relative z-10">
+          <div className="text-6xl animate-float drop-shadow-[0_8px_24px_rgba(244,63,94,0.4)]">💕</div>
           <div className="w-10 h-10 border-2 border-brand-500 border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="text-xs text-gray-500 font-mono tracking-wider uppercase">Cargando…</p>
         </div>
       </div>
     );
@@ -344,30 +347,40 @@ export default function App() {
       {user && <CoHostInviteModal />}
       <Toaster
         position="top-center"
+        gutter={10}
         toastOptions={{
-          duration: 3000,
+          duration: 3200,
+          className: 'toast-custom',
           style: {
-            background: 'rgba(17, 17, 24, 0.85)',
+            background: 'rgba(10, 10, 15, 0.88)',
             color: '#fff',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
-            borderRadius: '14px',
-            backdropFilter: 'blur(20px)',
-            WebkitBackdropFilter: 'blur(20px)',
-            padding: '12px 16px',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+            borderRadius: '16px',
+            backdropFilter: 'blur(24px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+            padding: '14px 18px',
             fontSize: '14px',
             fontWeight: 500,
-            boxShadow: '0 10px 30px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(244, 63, 94, 0.05)',
+            letterSpacing: '-0.005em',
+            boxShadow: '0 16px 40px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(244, 63, 94, 0.08), inset 0 1px 0 rgba(255,255,255,0.06)',
           },
           success: {
-            iconTheme: { primary: '#22c55e', secondary: '#fff' },
-            style: { boxShadow: '0 10px 30px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(34, 197, 94, 0.15)' },
+            iconTheme: { primary: '#34d399', secondary: '#0a0a0f' },
+            style: {
+              boxShadow: '0 16px 40px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(52, 211, 153, 0.22), 0 0 24px rgba(52, 211, 153, 0.15), inset 0 1px 0 rgba(255,255,255,0.06)',
+            },
           },
           error: {
-            iconTheme: { primary: '#ef4444', secondary: '#fff' },
-            style: { boxShadow: '0 10px 30px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(239, 68, 68, 0.15)' },
+            iconTheme: { primary: '#fb7185', secondary: '#0a0a0f' },
+            style: {
+              boxShadow: '0 16px 40px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(251, 113, 133, 0.22), 0 0 24px rgba(251, 113, 133, 0.15), inset 0 1px 0 rgba(255,255,255,0.06)',
+            },
           },
           loading: {
-            iconTheme: { primary: '#f43f5e', secondary: '#fff' },
+            iconTheme: { primary: '#f43f5e', secondary: '#0a0a0f' },
+            style: {
+              boxShadow: '0 16px 40px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(244, 63, 94, 0.22), 0 0 24px rgba(244, 63, 94, 0.15), inset 0 1px 0 rgba(255,255,255,0.06)',
+            },
           },
         }}
       />

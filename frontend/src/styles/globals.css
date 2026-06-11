@@ -304,6 +304,47 @@
     @apply skeleton h-3 rounded;
   }
 
+  /* ── Tactile button — micro-press + magnetic hover ─────────── */
+  .btn-tactile {
+    @apply transition-all duration-150 ease-out-expo
+           active:scale-[0.97] active:brightness-90
+           hover:brightness-110;
+    will-change: transform, filter;
+  }
+
+  /* ── Card breathing — idle scale loop muy sutil ────────────── */
+  .card-breathe {
+    animation: cardBreathe 4s ease-in-out infinite;
+    will-change: transform;
+  }
+
+  /* ── Presence dot (online users) ────────────────────────────
+     Verde con halo pulsante. Usar como hijo absoluto de avatar:
+       <div className="relative">
+         <img ... />
+         <span className="presence-dot" />
+       </div>
+  */
+  .presence-dot {
+    @apply absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-400
+           ring-2 ring-dark-900;
+  }
+  .presence-dot::after {
+    content: '';
+    @apply absolute inset-0 rounded-full bg-emerald-400 animate-ping;
+    animation-duration: 2.2s;
+  }
+
+  /* ── Live dot (red, para EN VIVO) ──────────────────────────── */
+  .live-dot {
+    @apply relative inline-block w-2 h-2 rounded-full bg-red-500 mr-1.5;
+  }
+  .live-dot::after {
+    content: '';
+    @apply absolute inset-0 rounded-full bg-red-500 animate-ping;
+    animation-duration: 1.6s;
+  }
+
   /* ── Pill badge con tint brand sutil ───────────────────────── */
   .pill-brand {
     @apply inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider
@@ -337,6 +378,26 @@
 @keyframes gradientShift {
   0%, 100% { background-position: 0% 50%; }
   50%      { background-position: 100% 50%; }
+}
+
+/* Idle breathing para cards/iconos importantes — muy sutil para no marear */
+@keyframes cardBreathe {
+  0%, 100% { transform: scale(1);     }
+  50%      { transform: scale(1.012); }
+}
+
+/* Scroll reveal — el contenido aparece desde abajo al entrar viewport.
+   Aplicar con la utility .reveal-on-scroll (usa IntersectionObserver vía
+   useScrollReveal hook). */
+.reveal-on-scroll {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.6s cubic-bezier(0.19, 1, 0.22, 1),
+              transform 0.6s cubic-bezier(0.19, 1, 0.22, 1);
+}
+.reveal-on-scroll.revealed {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 /* Light mode: invert (hack visual, no afecta media) */

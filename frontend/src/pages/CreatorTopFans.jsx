@@ -4,6 +4,7 @@ import { FiHeart } from 'react-icons/fi';
 import api from '../lib/api.js';
 import PageShell from '../components/layout/PageShell.jsx';
 import EmptyState from '../components/ui/EmptyState.jsx';
+import AnimatedCounter from '../components/ui/AnimatedCounter.jsx';
 
 const BADGE_META = {
   bronze_supporter:   { emoji: '🥉', label: 'Bronze',   color: 'text-amber-600 border-amber-600/30 bg-amber-600/5' },
@@ -116,7 +117,7 @@ export default function CreatorTopFans() {
                 <div className="text-right shrink-0">
                   <p className={`text-lg font-black tabular-nums
                                 ${i < 3 ? 'gradient-text' : 'text-white'}`}>
-                    {f.total_spent_coins.toLocaleString('es')}
+                    <AnimatedCounter value={f.total_spent_coins} duration={1400 + i * 100} />
                   </p>
                   <p className="text-[10px] text-gray-500 uppercase tracking-wider">coins</p>
                 </div>

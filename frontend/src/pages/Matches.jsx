@@ -257,11 +257,13 @@ function MatchCard({ m, i, onNavigate }) {
       <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
 
       {m.other.is_online && (
-        <span className="absolute top-2 right-2 w-3 h-3 bg-green-400 rounded-full border-2 border-dark-900" />
+        <span className="absolute top-2 right-2">
+          <span className="presence-dot lg !relative w-3 h-3" />
+        </span>
       )}
 
       {isNew(m.created_at) && (
-        <span className="absolute top-2 left-2 bg-brand-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">NUEVO</span>
+        <span className="absolute top-2 left-2 pill-brand">NUEVO</span>
       )}
 
       {countdown && (

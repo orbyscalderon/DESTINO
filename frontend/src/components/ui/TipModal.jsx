@@ -4,6 +4,7 @@ import { FiX, FiZap } from 'react-icons/fi';
 import api from '../../lib/api.js';
 import toast from 'react-hot-toast';
 import PromoCodeInput from './PromoCodeInput.jsx';
+import SuccessConfetti from './SuccessConfetti.jsx';
 
 const PRESETS = [10, 25, 50, 100, 200];
 
@@ -12,6 +13,7 @@ export default function TipModal({ userId, userName, onClose, onSent }) {
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [promo, setPromo] = useState(null);
+  const [celebrate, setCelebrate] = useState(false);
 
   // v70: cálculo de cantidad final aplicando promo (si type='tip' y matchea)
   const finalAmount = (() => {
@@ -28,9 +30,11 @@ export default function TipModal({ userId, userName, onClose, onSent }) {
         amount: finalAmount, message,
         ...(promo ? { promo_code: promo.code } : {}),
       });
-      toast.success(`¡Propina de ${finalAmount} monedas enviada!`);
+      toast.success(`¡Propina de ${finalAmount} monedas enviada! 💕`);
+      setCelebrate(true);
       onSent?.(data.coins_remaining);
-      onClose();
+      // Esperar a que termine el burst antes de cerrar
+      setTimeout(() => onClose(), 900);
     } catch (err) {
       if (err.response?.data?.code === 'INSUFFICIENT_COINS') {
         toast.error('Monedas insuficientes — recarga en la sección Monedas');
@@ -44,6 +48,7 @@ export default function TipModal({ userId, userName, onClose, onSent }) {
 
   return (
     <AnimatePresence>
+      <SuccessConfetti show={celebrate} />
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
