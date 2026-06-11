@@ -110,8 +110,9 @@ export default function Login() {
 
   return (
     <div className="min-h-screen flex items-center justify-center px-6 bg-dark-900 hero-mesh relative overflow-hidden">
-      {/* Glow orb decorativo */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-72 h-72 bg-brand-500/10 rounded-full blur-3xl pointer-events-none animate-float" />
+      {/* Glow orbs decorativos animados */}
+      <div className="glow-orb glow-orb-brand top-[15%] left-1/2 -translate-x-1/2 w-[420px] h-[420px]" />
+      <div className="glow-orb glow-orb-accent bottom-[10%] right-[15%] w-[320px] h-[320px]" style={{ animationDelay: '1.2s' }} />
 
       <motion.div
         initial={{ opacity: 0, y: 30 }}
@@ -124,7 +125,7 @@ export default function Login() {
             initial={{ scale: 0.5, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ delay: 0.1, type: 'spring', stiffness: 200, damping: 12 }}
-            className="text-5xl mb-4 inline-block"
+            className="text-5xl mb-4 inline-block animate-float drop-shadow-[0_8px_24px_rgba(244,63,94,0.4)]"
           >
             💕
           </motion.div>

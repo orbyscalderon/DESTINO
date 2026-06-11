@@ -196,7 +196,7 @@ export default function Landing() {
           </motion.div>
           <h3 className="text-2xl font-bold mb-2">{t('landing.premium_cta_title')}</h3>
           <p className="text-gray-400 text-sm mb-6">{t('landing.premium_cta_desc')}</p>
-          <Link to="/register" className="btn-primary w-full block text-center">
+          <Link to="/register" className="btn-cta w-full text-center btn-tactile card-breathe">
             {t('landing.try_free')}
           </Link>
         </motion.div>
