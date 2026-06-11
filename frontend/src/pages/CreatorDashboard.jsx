@@ -26,6 +26,7 @@ import TaxFormSection from '../components/ui/TaxFormSection.jsx';
 import RecurringShowsManager from '../components/ui/RecurringShowsManager.jsx';
 import AffiliateProgramSection from '../components/ui/AffiliateProgramSection.jsx';
 import ChatModeratorsManager from '../components/ui/ChatModeratorsManager.jsx';
+import AnimatedCounter from '../components/ui/AnimatedCounter.jsx';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 
 /* ── Helpers ─────────────────────────────────────────────── */
@@ -566,20 +567,22 @@ export default function CreatorDashboard() {
                   </div>
                 )}
 
-                {/* Stats grid */}
+                {/* Stats grid — AnimatedCounter v2 */}
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                   {[
-                    { label: 'Total ganado',  value: fmtK(data?.earnings?.total_earned),      color: 'text-purple-400', bg: 'bg-purple-500/10 border-purple-500/20', icon: FiTrendingUp },
-                    { label: 'Disponible',    value: fmtK(data?.earnings?.available_balance),  color: 'text-green-400',  bg: 'bg-green-500/10 border-green-500/20',   icon: FiDollarSign },
-                    { label: 'Pendiente',     value: fmtK(data?.earnings?.pending_balance),    color: 'text-blue-400',   bg: 'bg-blue-500/10 border-blue-500/20',     icon: FiClock },
-                    { label: 'Retirado',      value: fmtK(data?.earnings?.total_paid_out),     color: 'text-pink-400',   bg: 'bg-pink-500/10 border-pink-500/20',     icon: FiArrowUpRight },
-                  ].map(s => (
-                    <div key={s.label} className={`rounded-2xl border p-4 ${s.bg}`}>
+                    { label: 'Total ganado',  rawValue: parseFloat(data?.earnings?.total_earned || 0),      color: 'text-purple-400', bg: 'bg-purple-500/10 border-purple-500/20', icon: FiTrendingUp },
+                    { label: 'Disponible',    rawValue: parseFloat(data?.earnings?.available_balance || 0), color: 'text-green-400',  bg: 'bg-green-500/10 border-green-500/20',   icon: FiDollarSign },
+                    { label: 'Pendiente',     rawValue: parseFloat(data?.earnings?.pending_balance || 0),   color: 'text-blue-400',   bg: 'bg-blue-500/10 border-blue-500/20',     icon: FiClock },
+                    { label: 'Retirado',      rawValue: parseFloat(data?.earnings?.total_paid_out || 0),    color: 'text-pink-400',   bg: 'bg-pink-500/10 border-pink-500/20',     icon: FiArrowUpRight },
+                  ].map((s, idx) => (
+                    <div key={s.label} className={`rounded-2xl border p-4 ${s.bg} transition-colors duration-300 hover:brightness-110`}>
                       <div className="flex items-center justify-between mb-1">
                         <p className="text-gray-500 text-xs">{s.label}</p>
                         <s.icon size={13} className={s.color} />
                       </div>
-                      <p className={`text-xl font-black ${s.color}`}>{s.value}</p>
+                      <p className={`text-xl font-black ${s.color}`}>
+                        <AnimatedCounter value={s.rawValue} duration={1200 + idx * 120} format={fmtK} />
+                      </p>
                     </div>
                   ))}
                 </div>

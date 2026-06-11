@@ -304,7 +304,7 @@ export default function Premium() {
                   <button
                     onClick={() => handleSubscribe(plan.key)}
                     disabled={!!loading}
-                    className={`w-full py-3 text-sm font-semibold ${c.btn} disabled:opacity-50`}
+                    className={`w-full py-3 text-sm font-semibold ${c.btn} btn-tactile disabled:opacity-50 ${plan.featured ? 'card-breathe' : ''}`}
                   >
                     {loading === plan.key
                       ? 'Redirigiendo...'

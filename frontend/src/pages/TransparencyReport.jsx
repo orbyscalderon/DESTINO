@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { FiArrowLeft, FiBarChart2 } from 'react-icons/fi';
 import api from '../lib/api.js';
+import AnimatedCounter from '../components/ui/AnimatedCounter.jsx';
 
 export default function TransparencyReport() {
   const [reports, setReports] = useState([]);
@@ -99,9 +100,11 @@ function ReportCard({ r }) {
 
 function Stat({ label, value }) {
   return (
-    <div className="bg-white/[0.02] border border-white/5 rounded-xl p-4">
+    <div className="bg-white/[0.02] border border-white/5 rounded-xl p-4 transition-colors duration-300 hover:bg-white/[0.04] hover:border-brand-500/20">
       <p className="text-xs text-gray-500 mb-1">{label}</p>
-      <p className="text-2xl font-black text-white font-mono">{(value || 0).toLocaleString('es')}</p>
+      <p className="text-2xl font-black text-white font-mono">
+        <AnimatedCounter value={value || 0} duration={1400} />
+      </p>
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { FiArrowLeft, FiLock, FiCheck } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import api from '../lib/api.js';
 import PromoCodeInput from '../components/ui/PromoCodeInput.jsx';
+import SuccessConfetti from '../components/ui/SuccessConfetti.jsx';
 
 export default function PhotoCollectionView() {
   const { id } = useParams();
@@ -13,6 +14,7 @@ export default function PhotoCollectionView() {
   const [loading, setLoading] = useState(true);
   const [buying, setBuying] = useState(false);
   const [promo, setPromo] = useState(null);
+  const [celebrate, setCelebrate] = useState(false);
 
   const finalPrice = (() => {
     if (!collection) return 0;
@@ -40,7 +42,8 @@ export default function PhotoCollectionView() {
       await api.post(`/api/creator-monetization/collections/${id}/purchase`, {
         ...(promo ? { promo_code: promo.code } : {}),
       });
-      toast.success('Compra exitosa');
+      toast.success('¡Colección desbloqueada! ✨');
+      setCelebrate(true);
       load();
     } catch (err) {
       toast.error(err?.response?.data?.error || 'Error');
@@ -55,6 +58,7 @@ export default function PhotoCollectionView() {
 
   return (
     <div className="min-h-screen bg-dark-900 hero-mesh px-5 py-8 lg:px-16 lg:py-12">
+      <SuccessConfetti show={celebrate} onDone={() => setCelebrate(false)} />
       <div className="max-w-3xl mx-auto">
         <Link to="/" className="inline-flex items-center gap-2 text-gray-400 mb-8">
           <FiArrowLeft size={16} /> Volver
