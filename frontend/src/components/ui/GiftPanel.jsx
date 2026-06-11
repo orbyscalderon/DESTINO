@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { FiX } from 'react-icons/fi';
 import api from '../../lib/api.js';
 import toast from 'react-hot-toast';
+import SuccessConfetti from './SuccessConfetti.jsx';
 
 const DEFAULT_GIFTS = [
   { type: 'rose',    emoji: '🌹', label: 'Rosa',     coins: 10  },
@@ -14,6 +15,7 @@ const DEFAULT_GIFTS = [
 export default function GiftPanel({ showId, hostId, coinBalance, onClose, onGiftSent }) {
   const [sending, setSending] = useState(null);
   const [customGifts, setCustomGifts] = useState([]);
+  const [celebrate, setCelebrate] = useState(false);
   const balance = Number(coinBalance) || 0;
 
   useEffect(() => {
@@ -46,7 +48,8 @@ export default function GiftPanel({ showId, hostId, coinBalance, onClose, onGift
       const { data } = await api.post(`/api/shows/${showId}/gift`, { gift_type: gift.type });
       onGiftSent?.(gift.type, gift.emoji || '🎁', data?.new_balance);
       toast.success(`${gift.emoji || '🎁'} ${gift.label} enviado`);
-      onClose();
+      setCelebrate(true);
+      setTimeout(() => onClose(), 900);
     } catch (err) {
       if (err.response?.data?.code === 'INSUFFICIENT_COINS') {
         toast.error('Coins insuficientes — recarga en la sección Coins');
@@ -60,6 +63,7 @@ export default function GiftPanel({ showId, hostId, coinBalance, onClose, onGift
 
   return (
     <>
+      <SuccessConfetti show={celebrate} onDone={() => setCelebrate(false)} />
       <div className="absolute inset-0 z-30" onClick={onClose} />
 
       <motion.div

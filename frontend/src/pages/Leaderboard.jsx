@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { FiTrendingUp, FiZap } from 'react-icons/fi';
 import VerifiedBadge from '../components/ui/VerifiedBadge.jsx';
+import AnimatedCounter from '../components/ui/AnimatedCounter.jsx';
 import api from '../lib/api.js';
 
 const MEDAL = ['🥇', '🥈', '🥉'];
@@ -91,7 +92,7 @@ export default function Leaderboard() {
                   <div className="flex items-center gap-1 justify-end">
                     <FiZap size={12} className="text-yellow-400" />
                     <span className={`font-black text-yellow-400 ${i === 0 ? 'text-lg' : 'text-sm'}`}>
-                      {creator.total_coins?.toLocaleString()}
+                      <AnimatedCounter value={creator.total_coins || 0} duration={1200 + i * 80} />
                     </span>
                   </div>
                   <p className="text-[10px] text-gray-600">coins</p>

@@ -8,6 +8,7 @@ import {
 import { useAuthStore } from '../store/authStore.js';
 import api from '../lib/api.js';
 import toast from 'react-hot-toast';
+import SuccessConfetti from '../components/ui/SuccessConfetti.jsx';
 
 const normalBenefits = [
   { icon: FiVideo, title: 'Shows en vivo', desc: 'Transmite en directo y cobra entrada o propinas en coins.' },
@@ -47,6 +48,7 @@ export default function BecomeCreator() {
   }, [isCreator]);
   const [step, setStep] = useState(initialStep);
   const [creatorType, setCreatorType] = useState(isAdultCreator ? 'adult' : 'normal');
+  const [celebrate, setCelebrate] = useState(false);
 
   // Aceptaciones
   const [acceptedGeneral, setAcceptedGeneral] = useState(false);
@@ -64,8 +66,9 @@ export default function BecomeCreator() {
 
       await api.post('/api/creator/register', body);
       await fetchProfile(user.id);
+      setCelebrate(true);
       setStep('setup');
-      toast.success(type === 'adult' ? 'Cuenta de creador adulto activada' : 'Cuenta de creador activada');
+      toast.success(type === 'adult' ? '🎉 ¡Cuenta de creador adulto activada!' : '🎉 ¡Cuenta de creador activada!');
     } catch (err) {
       toast.error(err.response?.data?.error || err.message || 'Error al activar la cuenta');
     } finally {
@@ -96,6 +99,7 @@ export default function BecomeCreator() {
 
   return (
     <div className="min-h-screen hero-mesh px-4 pt-8 pb-28 lg:pb-8 max-w-2xl mx-auto relative overflow-hidden">
+      <SuccessConfetti show={celebrate} onDone={() => setCelebrate(false)} count={50} />
       <div className="absolute top-12 left-1/2 -translate-x-1/2 w-72 h-72 bg-brand-500/10 rounded-full blur-3xl pointer-events-none animate-float -z-10" />
       {step !== 'setup' && (
         <button

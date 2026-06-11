@@ -13,6 +13,7 @@ import GiftPanel from '../components/ui/GiftPanel.jsx';
 import AgeVerificationModal from '../components/ui/AgeVerificationModal.jsx';
 import DraggableTipGoal from '../components/ui/DraggableTipGoal.jsx';
 import ShowViewerControls from '../components/ui/ShowViewerControls.jsx';
+import AnimatedCounter from '../components/ui/AnimatedCounter.jsx';
 import BigGiftAnimation, { useGiftAnimationQueue } from '../components/ui/BigGiftAnimation.jsx';
 import CaptionOverlay from '../components/ui/CaptionOverlay.jsx';
 import { useCaptionsViewer } from '../lib/useLiveCaptions.js';
@@ -2721,7 +2722,7 @@ export default function LiveShow() {
               )}
               <div className="bg-black/50 backdrop-blur-sm rounded-xl px-3 py-2 flex items-center gap-1">
                 <FiUsers size={12} className="text-gray-300" />
-                <span className="text-gray-300 text-sm">{viewerCount}</span>
+                <span className="text-gray-300 text-sm"><AnimatedCounter value={viewerCount} duration={600} /></span>
               </div>
             </div>
           </div>

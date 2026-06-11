@@ -57,16 +57,21 @@ export default function Chat() {
 
         {match?.other && (
           <>
-            <img
-              src={match.other.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(match.other.full_name)}&size=80&background=1a1a2e&color=f43f5e`}
-              alt={match.other.full_name}
-              className="w-10 h-10 rounded-full object-cover"
-            />
+            <div className="relative shrink-0">
+              <img
+                src={match.other.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(match.other.full_name)}&size=80&background=1a1a2e&color=f43f5e`}
+                alt={match.other.full_name}
+                className="w-10 h-10 rounded-full object-cover ring-2 ring-white/5"
+              />
+              {match.other.last_active && (Date.now() - new Date(match.other.last_active).getTime()) / 60000 < 5 && (
+                <span className="presence-dot" />
+              )}
+            </div>
             <div className="flex-1 min-w-0">
               <p className="font-semibold text-white text-sm truncate">{match.other.full_name}</p>
               {match.other.last_active && (() => {
                 const diffMin = (Date.now() - new Date(match.other.last_active).getTime()) / 60000;
-                if (diffMin < 5) return <p className="text-green-400 text-xs">En línea</p>;
+                if (diffMin < 5) return <p className="text-emerald-400 text-xs">En línea</p>;
                 if (diffMin < 60) return <p className="text-gray-500 text-xs">Hace {Math.floor(diffMin)} min</p>;
                 if (diffMin < 1440) return <p className="text-gray-500 text-xs">Hace {Math.floor(diffMin / 60)}h</p>;
                 return <p className="text-gray-500 text-xs">Hace {Math.floor(diffMin / 1440)}d</p>;
