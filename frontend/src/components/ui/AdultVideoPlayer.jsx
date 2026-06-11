@@ -252,23 +252,32 @@ export default function AdultVideoPlayer({ video, captions = [], onTipClick, aut
         </button>
       )}
 
-      {/* Floating tip button */}
+      {/* Floating tip button — bouncy entrance + idle pulse */}
       {onTipClick && (
         <button
           onClick={onTipClick}
-          className="absolute top-4 right-4 z-20 p-3 rounded-full bg-gradient-to-br from-brand-500 to-accent-500 text-white shadow-glow-lg hover:scale-110 transition-transform"
+          className="absolute top-4 right-4 z-20 p-3 rounded-full
+                     bg-gradient-to-br from-brand-500 to-accent-500 text-white
+                     shadow-glow-lg
+                     hover:scale-110 hover:rotate-6 hover:shadow-glow
+                     active:scale-95
+                     transition-all duration-300 ease-out-back
+                     animate-glow-pulse"
           aria-label="Enviar tip"
+          title="Enviar tip al creator"
         >
-          <FiZap size={18} />
+          <FiZap size={18} className="drop-shadow-[0_2px_4px_rgba(0,0,0,0.4)]" />
         </button>
       )}
 
       {/* Controls overlay */}
       <div className={`absolute inset-x-0 bottom-0 z-10 transition-opacity duration-300 bg-gradient-to-t from-black/90 to-transparent pt-12 ${controlsVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-        {/* Progress bar */}
+        {/* Progress bar — más alta + grow on hover + scrubber dot + chapter markers */}
         <div className="px-4 mb-2 relative">
           <div
-            className="h-1.5 bg-white/20 rounded-full cursor-pointer relative group/bar"
+            className="h-1 bg-white/15 rounded-full cursor-pointer relative group/bar
+                       transition-all duration-200 ease-out-expo
+                       hover:h-2"
             onMouseMove={onProgressMouseMove}
             onMouseLeave={() => setHoverTime(null)}
             onClick={(e) => {
@@ -277,22 +286,50 @@ export default function AdultVideoPlayer({ video, captions = [], onTipClick, aut
               seek(x * duration);
             }}
           >
-            <div className="h-full rounded-full bg-brand-500" style={{ width: `${(currentTime / duration) * 100 || 0}%` }} />
+            {/* Buffered / total — opcional, placeholder */}
+            <div className="absolute inset-y-0 left-0 bg-white/10 rounded-full pointer-events-none"
+                 style={{ width: `${(hoverTime != null ? hoverPos : 0)}%`, transition: 'width 100ms ease-out' }} />
+
+            {/* Played */}
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-brand-500 to-accent-500 shadow-glow-sm pointer-events-none"
+              style={{ width: `${(currentTime / duration) * 100 || 0}%` }}
+            />
+
+            {/* Scrubber dot */}
+            <div
+              className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-white shadow-glow
+                         opacity-0 group-hover/bar:opacity-100 transition-opacity duration-200 pointer-events-none"
+              style={{ left: `${(currentTime / duration) * 100 || 0}%` }}
+            />
+
+            {/* Chapter markers */}
             {video.intro_end_sec && (
-              <div className="absolute top-0 bottom-0 w-0.5 bg-yellow-400/60" style={{ left: `${(video.intro_end_sec / duration) * 100}%` }} title="Fin de intro" />
+              <div
+                className="absolute top-0 bottom-0 w-0.5 bg-yellow-400/80 pointer-events-none"
+                style={{ left: `${(video.intro_end_sec / duration) * 100}%` }}
+                title="Fin de intro"
+              />
             )}
             {video.credits_start_sec && (
-              <div className="absolute top-0 bottom-0 w-0.5 bg-yellow-400/60" style={{ left: `${(video.credits_start_sec / duration) * 100}%` }} title="Inicio créditos" />
+              <div
+                className="absolute top-0 bottom-0 w-0.5 bg-yellow-400/80 pointer-events-none"
+                style={{ left: `${(video.credits_start_sec / duration) * 100}%` }}
+                title="Inicio créditos"
+              />
             )}
           </div>
-          {/* Sprite preview */}
+
+          {/* Sprite preview con glow brand + label tabular */}
           {spriteHoverStyle && hoverTime != null && (
             <div
-              className="absolute bottom-6 -translate-x-1/2 pointer-events-none border-2 border-white/30 rounded-md overflow-hidden bg-black"
+              className="absolute bottom-7 -translate-x-1/2 pointer-events-none
+                         rounded-lg overflow-hidden bg-black
+                         border border-brand-500/30 shadow-glow"
               style={{ left: `${hoverPos}%` }}
             >
               <div style={spriteHoverStyle} />
-              <div className="text-[10px] text-white text-center font-mono py-0.5 bg-black/80">
+              <div className="text-[10px] text-white text-center font-mono tabular-nums py-1 bg-gradient-to-t from-black to-black/60">
                 {fmtTime(hoverTime)}
               </div>
             </div>

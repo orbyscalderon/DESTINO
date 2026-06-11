@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { FiArrowLeft, FiMessageSquare } from 'react-icons/fi';
+import { FiMessageSquare, FiDollarSign, FiTrendingUp, FiUsers } from 'react-icons/fi';
+import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import api from '../lib/api.js';
+import PageShell from '../components/layout/PageShell.jsx';
+import Toggle from '../components/ui/Toggle.jsx';
 
 export default function CreatorDMPricing() {
   const [form, setForm] = useState({
@@ -35,91 +37,139 @@ export default function CreatorDMPricing() {
       });
       toast.success('DM pricing guardado');
     } catch {
-      toast.error('Error');
+      toast.error('Error al guardar');
     } finally { setSaving(false); }
   };
 
   return (
-    <div className="min-h-screen bg-dark-900 hero-mesh px-5 py-8 lg:px-16 lg:py-12">
-      <div className="max-w-xl mx-auto">
-        <Link to="/creator/monetization" className="inline-flex items-center gap-2 text-gray-400 mb-8">
-          <FiArrowLeft size={16} /> Volver
-        </Link>
-
-        <div className="flex items-center gap-3 mb-2">
-          <FiMessageSquare className="text-brand-400" size={24} />
-          <h1 className="text-3xl font-black gradient-text">DM Pricing</h1>
+    <PageShell
+      icon={FiMessageSquare}
+      title="DM Pricing"
+      subtitle="Cobrá a tus fans por enviarte DMs. Top creators de OnlyFans hacen el 60% de su revenue acá."
+      backTo="/creator/monetization"
+      maxWidth="xl"
+    >
+      {/* Stat ribbon arriba para anclar la sección */}
+      <motion.div
+        initial={{ opacity: 0, y: -8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1, duration: 0.4, ease: [0.19, 1, 0.22, 1] }}
+        className="card-form mb-5 flex items-center gap-4"
+      >
+        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-brand-500/20 to-accent-500/20 border border-brand-500/30 flex items-center justify-center shrink-0">
+          <FiTrendingUp className="text-brand-400" size={22} />
         </div>
-        <p className="text-gray-500 text-sm mb-8">
-          Cobrá a tus fans por enviarte DMs. Top creators OnlyFans hacen el 60% de revenue acá.
-        </p>
+        <div>
+          <p className="text-white font-bold leading-tight">Maximizá ingresos por chat</p>
+          <p className="text-xs text-gray-400 mt-0.5">Combiná paywall + sexting + exenciones por tier</p>
+        </div>
+      </motion.div>
 
-        <div className="space-y-4">
-          <div className="glass-strong rounded-2xl p-5 border border-white/5">
-            <label className="flex items-center justify-between gap-3 mb-3">
-              <div>
-                <p className="font-bold text-white">Paywall</p>
-                <p className="text-xs text-gray-400 mt-1">Fan paga X coins para enviarte UN mensaje (one-time por sesión)</p>
-              </div>
-              <Toggle on={form.paywall_enabled} onChange={() => setForm(s => ({ ...s, paywall_enabled: !s.paywall_enabled }))} />
-            </label>
-            {form.paywall_enabled && (
-              <input type="number" min="0" value={form.paywall_price_coins}
-                onChange={(e) => setForm(s => ({ ...s, paywall_price_coins: parseInt(e.target.value) || 0 }))}
-                placeholder="Precio en coins" className="w-full px-3 py-2 rounded-lg bg-white/[0.03] border border-white/10 text-white text-sm" />
-            )}
-          </div>
+      <div className="space-y-4">
+        {/* Paywall */}
+        <PricingCard
+          icon={FiDollarSign}
+          title="Paywall"
+          desc="Fan paga X coins para enviarte UN mensaje (one-time por sesión)"
+          on={form.paywall_enabled}
+          onToggle={() => setForm(s => ({ ...s, paywall_enabled: !s.paywall_enabled }))}
+        >
+          {form.paywall_enabled && (
+            <input
+              type="number" min="0" value={form.paywall_price_coins}
+              onChange={(e) => setForm(s => ({ ...s, paywall_price_coins: parseInt(e.target.value) || 0 }))}
+              placeholder="Precio en coins"
+              className="input-sm mt-3"
+            />
+          )}
+        </PricingCard>
 
-          <div className="glass-strong rounded-2xl p-5 border border-white/5">
-            <label className="flex items-center justify-between gap-3 mb-3">
-              <div>
-                <p className="font-bold text-white">Sexting (pay-per-message)</p>
-                <p className="text-xs text-gray-400 mt-1">CADA mensaje del fan te cuesta X coins. Mientras conversen, fan paga por cada msg.</p>
-              </div>
-              <Toggle on={form.sexting_enabled} onChange={() => setForm(s => ({ ...s, sexting_enabled: !s.sexting_enabled }))} />
-            </label>
-            {form.sexting_enabled && (
-              <input type="number" min="0" value={form.sexting_price_coins}
-                onChange={(e) => setForm(s => ({ ...s, sexting_price_coins: parseInt(e.target.value) || 0 }))}
-                placeholder="Precio por mensaje" className="w-full px-3 py-2 rounded-lg bg-white/[0.03] border border-white/10 text-white text-sm" />
-            )}
-          </div>
+        {/* Sexting */}
+        <PricingCard
+          icon={FiMessageSquare}
+          title="Sexting (pay-per-message)"
+          desc="CADA mensaje del fan te cuesta X coins. Mientras conversan, fan paga por cada msg."
+          on={form.sexting_enabled}
+          onToggle={() => setForm(s => ({ ...s, sexting_enabled: !s.sexting_enabled }))}
+        >
+          {form.sexting_enabled && (
+            <input
+              type="number" min="0" value={form.sexting_price_coins}
+              onChange={(e) => setForm(s => ({ ...s, sexting_price_coins: parseInt(e.target.value) || 0 }))}
+              placeholder="Precio por mensaje"
+              className="input-sm mt-3"
+            />
+          )}
+        </PricingCard>
 
-          <div className="glass-strong rounded-2xl p-5 border border-white/5 space-y-3">
+        {/* Exenciones */}
+        <div className="card-form space-y-3">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+              <FiUsers className="text-emerald-400" size={16} />
+            </div>
             <p className="font-bold text-white">Exenciones</p>
-            <label className="flex items-center gap-2 text-sm text-gray-300">
-              <input type="checkbox" checked={form.exempt_active_subs}
-                onChange={(e) => setForm(s => ({ ...s, exempt_active_subs: e.target.checked }))}
-                className="accent-brand-500" />
-              Subs activos no pagan
-            </label>
-            {form.exempt_active_subs && (
-              <select value={form.exempt_tier_min}
-                onChange={(e) => setForm(s => ({ ...s, exempt_tier_min: e.target.value }))}
-                className="w-full px-3 py-2 rounded-lg bg-white/[0.03] border border-white/10 text-white text-sm">
-                <option value="">Todos los subs exentos</option>
-                <option value="1">Solo Tier 1+</option>
-                <option value="2">Solo Tier 2+</option>
-                <option value="3">Solo Tier 3</option>
-              </select>
-            )}
           </div>
 
-          <button onClick={save} disabled={saving}
-            className="w-full px-5 py-3 rounded-xl bg-gradient-to-r from-brand-500 to-brand-600 text-white font-bold disabled:opacity-50">
-            {saving ? 'Guardando…' : 'Guardar'}
-          </button>
+          <label className="flex items-center gap-3 text-sm text-gray-300 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={form.exempt_active_subs}
+              onChange={(e) => setForm(s => ({ ...s, exempt_active_subs: e.target.checked }))}
+              className="w-4 h-4 accent-brand-500"
+            />
+            <span>Subs activos no pagan</span>
+          </label>
+
+          {form.exempt_active_subs && (
+            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}>
+              <select
+                value={form.exempt_tier_min}
+                onChange={(e) => setForm(s => ({ ...s, exempt_tier_min: e.target.value }))}
+                className="select-sm"
+              >
+                <option value="" className="bg-dark-800">Todos los subs exentos</option>
+                <option value="1" className="bg-dark-800">Solo Tier 1+</option>
+                <option value="2" className="bg-dark-800">Solo Tier 2+</option>
+                <option value="3" className="bg-dark-800">Solo Tier 3</option>
+              </select>
+            </motion.div>
+          )}
         </div>
+
+        <button
+          onClick={save}
+          disabled={saving}
+          className="btn-primary w-full mt-2"
+        >
+          {saving ? (
+            <>
+              <span className="w-4 h-4 border-2 border-white/70 border-t-transparent rounded-full animate-spin" />
+              Guardando…
+            </>
+          ) : 'Guardar configuración'}
+        </button>
       </div>
-    </div>
+    </PageShell>
   );
 }
 
-function Toggle({ on, onChange }) {
+function PricingCard({ icon: Icon, title, desc, on, onToggle, children }) {
   return (
-    <button type="button" onClick={onChange} role="switch" aria-checked={on}
-      className={`relative w-12 h-7 rounded-full transition-colors shrink-0 ${on ? 'bg-brand-500' : 'bg-white/10'}`}>
-      <span className={`absolute top-1 left-1 w-5 h-5 rounded-full bg-white shadow transition-transform ${on ? 'translate-x-5' : ''}`} />
-    </button>
+    <div className={`card-form transition-all duration-300 ${on ? 'border-brand-500/30 shadow-glow-sm' : ''}`}>
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex gap-3 min-w-0 flex-1">
+          <div className={`p-2 rounded-lg shrink-0 transition-colors duration-300 ${on ? 'bg-brand-500/15 border border-brand-500/30 text-brand-300' : 'bg-white/5 border border-white/10 text-gray-500'}`}>
+            <Icon size={16} />
+          </div>
+          <div className="min-w-0">
+            <p className="font-bold text-white">{title}</p>
+            <p className="text-xs text-gray-400 mt-1 leading-relaxed">{desc}</p>
+          </div>
+        </div>
+        <Toggle on={on} onChange={onToggle} ariaLabel={`Activar ${title}`} />
+      </div>
+      {children}
+    </div>
   );
 }

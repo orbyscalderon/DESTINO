@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { FiArrowLeft, FiTag, FiPlus, FiCopy } from 'react-icons/fi';
+import { motion, AnimatePresence } from 'framer-motion';
+import { FiTag, FiPlus, FiCopy } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import api from '../lib/api.js';
+import PageShell from '../components/layout/PageShell.jsx';
+import EmptyState from '../components/ui/EmptyState.jsx';
 
 export default function CreatorPromoCodes() {
   const [promos, setPromos] = useState([]);
@@ -11,11 +13,15 @@ export default function CreatorPromoCodes() {
     code: '', type: 'subscription', discount_pct: '', discount_coins: '',
     max_uses: '', expires_at: '',
   });
+  const [creating, setCreating] = useState(false);
 
-  const load = () => api.get('/api/creator-monetization/promo-codes/mine').then(r => setPromos(r.data?.promos || []));
+  const load = () => api.get('/api/creator-monetization/promo-codes/mine')
+    .then(r => setPromos(r.data?.promos || []));
   useEffect(() => { load(); }, []);
 
   const create = async () => {
+    if (!form.code.trim()) return toast.error('Código requerido');
+    setCreating(true);
     try {
       await api.post('/api/creator-monetization/promo-codes', {
         ...form,
@@ -24,11 +30,12 @@ export default function CreatorPromoCodes() {
         max_uses: form.max_uses || null,
         expires_at: form.expires_at || null,
       });
-      toast.success('Promo creado');
+      toast.success('Código creado ✨');
       setForm({ code: '', type: 'subscription', discount_pct: '', discount_coins: '', max_uses: '', expires_at: '' });
       setShow(false);
       load();
     } catch (err) { toast.error(err?.response?.data?.error || 'Error'); }
+    finally { setCreating(false); }
   };
 
   const toggle = async (id, active) => {
@@ -36,79 +43,128 @@ export default function CreatorPromoCodes() {
     load();
   };
 
+  const newBtn = (
+    <button onClick={() => setShow(s => !s)} className="btn-primary text-sm py-2 px-4">
+      <FiPlus size={14} /> Nuevo código
+    </button>
+  );
+
   return (
-    <div className="min-h-screen bg-dark-900 hero-mesh px-5 py-8 lg:px-16 lg:py-12">
-      <div className="max-w-2xl mx-auto">
-        <Link to="/creator/monetization" className="inline-flex items-center gap-2 text-gray-400 mb-8">
-          <FiArrowLeft size={16} /> Volver
-        </Link>
-
-        <div className="flex items-start justify-between mb-6">
-          <div>
-            <h1 className="text-3xl font-black gradient-text flex items-center gap-2"><FiTag /> Promo Codes</h1>
-            <p className="text-gray-500 text-sm mt-1">Descuentos para tus subscripciones y collections</p>
-          </div>
-          <button onClick={() => setShow(s => !s)} className="px-4 py-2 rounded-xl bg-brand-500 text-white text-sm font-bold flex items-center gap-2">
-            <FiPlus size={14} /> Nuevo
-          </button>
-        </div>
-
+    <PageShell
+      icon={FiTag}
+      title="Promo Codes"
+      subtitle="Descuentos para tus suscripciones, collections y tips. Solo válidos hasta canje único por usuario."
+      backTo="/creator/monetization"
+      maxWidth="2xl"
+      actions={newBtn}
+    >
+      <AnimatePresence>
         {show && (
-          <div className="glass-strong rounded-2xl p-5 border border-white/5 mb-6 space-y-3">
-            <input value={form.code} onChange={(e) => setForm(f => ({ ...f, code: e.target.value.toUpperCase() }))}
-              placeholder="CÓDIGO (ej. BLACKFRIDAY50)"
-              className="w-full px-3 py-2 rounded-lg bg-white/[0.03] border border-white/10 text-white text-sm font-mono" />
-            <select value={form.type} onChange={(e) => setForm(f => ({ ...f, type: e.target.value }))}
-              className="w-full px-3 py-2 rounded-lg bg-white/[0.03] border border-white/10 text-white text-sm">
-              <option value="subscription">Subscripción</option>
-              <option value="collection">Photo Collection</option>
-              <option value="tip">Tip</option>
-            </select>
-            <div className="grid grid-cols-2 gap-3">
-              <input type="number" min="1" max="100" value={form.discount_pct}
-                onChange={(e) => setForm(f => ({ ...f, discount_pct: e.target.value }))}
-                placeholder="% descuento"
-                className="px-3 py-2 rounded-lg bg-white/[0.03] border border-white/10 text-white text-sm" />
-              <input type="number" min="0" value={form.discount_coins}
-                onChange={(e) => setForm(f => ({ ...f, discount_coins: e.target.value }))}
-                placeholder="o coins fijos"
-                className="px-3 py-2 rounded-lg bg-white/[0.03] border border-white/10 text-white text-sm" />
-            </div>
-            <input type="number" min="1" value={form.max_uses}
-              onChange={(e) => setForm(f => ({ ...f, max_uses: e.target.value }))}
-              placeholder="Máx. usos (opcional)"
-              className="w-full px-3 py-2 rounded-lg bg-white/[0.03] border border-white/10 text-white text-sm" />
-            <input type="datetime-local" value={form.expires_at}
-              onChange={(e) => setForm(f => ({ ...f, expires_at: e.target.value }))}
-              className="w-full px-3 py-2 rounded-lg bg-white/[0.03] border border-white/10 text-white text-sm" />
-            <button onClick={create} className="w-full px-4 py-2 rounded-lg bg-brand-500 text-white font-bold text-sm">
-              Crear código
-            </button>
-          </div>
-        )}
-
-        <div className="space-y-2">
-          {promos.map(p => (
-            <div key={p.id} className="glass-strong rounded-xl p-4 border border-white/5 flex items-center justify-between gap-3">
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <code className="text-brand-400 font-bold font-mono">{p.code}</code>
-                  <button onClick={() => { navigator.clipboard.writeText(p.code); toast.success('Copiado'); }}
-                    className="text-gray-500 hover:text-white"><FiCopy size={12} /></button>
-                </div>
-                <p className="text-xs text-gray-500 mt-1">
-                  {p.discount_pct ? `${p.discount_pct}% off` : `${p.discount_coins} coins off`} · {p.type} · {p.uses_count}/{p.max_uses || '∞'} usos
-                </p>
+          <motion.div
+            initial={{ opacity: 0, height: 0, marginBottom: 0 }}
+            animate={{ opacity: 1, height: 'auto', marginBottom: 24 }}
+            exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+            transition={{ duration: 0.3, ease: [0.19, 1, 0.22, 1] }}
+            className="overflow-hidden"
+          >
+            <div className="card-form space-y-3">
+              <input
+                value={form.code}
+                onChange={(e) => setForm(f => ({ ...f, code: e.target.value.toUpperCase() }))}
+                placeholder="CÓDIGO (ej. BLACKFRIDAY50)"
+                className="input-sm font-mono uppercase tracking-wider"
+              />
+              <select
+                value={form.type}
+                onChange={(e) => setForm(f => ({ ...f, type: e.target.value }))}
+                className="select-sm"
+              >
+                <option value="subscription" className="bg-dark-800">Subscripción</option>
+                <option value="collection"   className="bg-dark-800">Photo Collection</option>
+                <option value="tip"          className="bg-dark-800">Tip</option>
+              </select>
+              <div className="grid grid-cols-2 gap-3">
+                <input type="number" min="1" max="100"
+                  value={form.discount_pct}
+                  onChange={(e) => setForm(f => ({ ...f, discount_pct: e.target.value }))}
+                  placeholder="% descuento"
+                  className="input-sm tabular-nums" />
+                <input type="number" min="0"
+                  value={form.discount_coins}
+                  onChange={(e) => setForm(f => ({ ...f, discount_coins: e.target.value }))}
+                  placeholder="o coins fijos"
+                  className="input-sm tabular-nums" />
               </div>
-              <button onClick={() => toggle(p.id, p.active)}
-                className={`px-3 py-1 rounded-full text-xs font-bold ${p.active ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30' : 'bg-gray-500/10 text-gray-500 border border-gray-500/30'}`}>
-                {p.active ? 'Activo' : 'Inactivo'}
+              <input type="number" min="1"
+                value={form.max_uses}
+                onChange={(e) => setForm(f => ({ ...f, max_uses: e.target.value }))}
+                placeholder="Máx. usos (opcional)"
+                className="input-sm tabular-nums" />
+              <input type="datetime-local"
+                value={form.expires_at}
+                onChange={(e) => setForm(f => ({ ...f, expires_at: e.target.value }))}
+                className="input-sm" />
+              <button onClick={create} disabled={creating} className="btn-primary w-full">
+                {creating ? 'Creando…' : 'Crear código'}
               </button>
             </div>
-          ))}
-          {promos.length === 0 && <p className="text-center py-12 text-gray-500">Sin códigos creados</p>}
-        </div>
-      </div>
-    </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {promos.length === 0 ? (
+        <EmptyState
+          emoji="🎟️"
+          title="Sin códigos creados"
+          desc="Creá tu primer promo para hacer ofertas — primer mes 50% off, drops, eventos…"
+        />
+      ) : (
+        <motion.div
+          layout
+          initial="hidden"
+          animate="show"
+          variants={{ hidden: {}, show: { transition: { staggerChildren: 0.05 } } }}
+          className="space-y-2"
+        >
+          <AnimatePresence>
+            {promos.map(p => (
+              <motion.div
+                key={p.id}
+                layout
+                variants={{
+                  hidden: { opacity: 0, y: 8 },
+                  show:   { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 260, damping: 22 } },
+                }}
+                className="card-interactive p-4 flex items-center justify-between gap-3"
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <code className="text-brand-400 font-bold font-mono text-base tracking-wide">{p.code}</code>
+                    <button
+                      onClick={() => { navigator.clipboard?.writeText(p.code); toast.success('Copiado'); }}
+                      className="text-gray-500 hover:text-white p-1 -m-1 transition-colors"
+                      aria-label="Copiar"
+                    >
+                      <FiCopy size={12} />
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    <span className="text-gray-300 font-bold">{p.discount_pct ? `${p.discount_pct}% off` : `${p.discount_coins} coins off`}</span>
+                    {' · '}{p.type}
+                    {' · '}<span className="tabular-nums">{p.uses_count}/{p.max_uses || '∞'}</span> usos
+                  </p>
+                </div>
+                <button
+                  onClick={() => toggle(p.id, p.active)}
+                  className={p.active ? 'pill-emerald hover:scale-105 transition-transform' : 'chip hover:scale-105 transition-transform'}
+                >
+                  {p.active ? 'Activo' : 'Inactivo'}
+                </button>
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </motion.div>
+      )}
+    </PageShell>
   );
 }

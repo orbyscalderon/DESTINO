@@ -1,20 +1,14 @@
 import { useState } from 'react';
-import { FiEye, FiSkipForward } from 'react-icons/fi';
+import { motion, AnimatePresence } from 'framer-motion';
+import { FiEye, FiSkipForward, FiX } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import api from '../../lib/api.js';
 
 // Controles del viewer durante un live show con private session activa:
-//   - Spy: paga coins para ver el private show (sin ver el chat) — si el host
+//   - Spy: paga coins para ver el private show (sin ver chat) — si el host
 //     activó spy_mode_enabled.
-//   - Skip queue: paga coins para saltarse la fila de private requests
-//     pendientes.
-//
-// Props:
-//   showId
-//   spyEnabled, spyPrice    — del show.spy_mode_enabled / spy_mode_price_coins
-//   inPrivate               — boolean: si hay private session activa en este show
-//   onSpyStarted?           — callback al confirmar spy session
-//   queueAhead              — cuántos viewers están delante en la queue (si aplica)
+//   - Skip queue: paga coins para saltarse la fila de private requests.
+
 export default function ShowViewerControls({
   showId, spyEnabled, spyPrice, inPrivate, onSpyStarted, queueAhead = 0,
 }) {
@@ -46,64 +40,88 @@ export default function ShowViewerControls({
     } finally { setBusy(false); }
   };
 
-  // Si no hay nada por mostrar, no renderizar
   if (!inPrivate && queueAhead === 0) return null;
 
   return (
-    <div className="flex flex-col gap-2 p-3 bg-black/40 backdrop-blur rounded-2xl border border-white/10">
+    <motion.div
+      initial={{ opacity: 0, y: -8, scale: 0.95 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ type: 'spring', stiffness: 280, damping: 22 }}
+      className="flex flex-col gap-2 p-2.5 glass-strong rounded-2xl shadow-glow-sm"
+    >
+      {/* Spy mode button */}
       {inPrivate && spyEnabled && (
         <button
           onClick={startSpy}
           disabled={busy}
-          className="flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-300 hover:bg-amber-500/25 transition disabled:opacity-50"
+          className="flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl
+                     bg-amber-500/10 border border-amber-500/30 text-amber-200
+                     hover:bg-amber-500/20 hover:border-amber-500/50 hover:-translate-y-0.5
+                     transition-all duration-200 ease-out-expo
+                     active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <span className="flex items-center gap-2 text-sm font-bold">
             <FiEye size={14} /> Spy mode
           </span>
-          <span className="text-xs font-mono">
+          <span className="text-xs font-mono tabular-nums px-2 py-0.5 rounded-md bg-amber-500/15 border border-amber-500/30">
             {spyPrice} coins
           </span>
         </button>
       )}
 
+      {/* Skip queue */}
       {queueAhead > 0 && (
-        <>
+        <AnimatePresence mode="wait" initial={false}>
           {!showSkip ? (
-            <button
+            <motion.button
+              key="closed"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
               onClick={() => setShowSkip(true)}
-              className="flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl bg-brand-500/15 border border-brand-500/30 text-brand-300 hover:bg-brand-500/25 transition"
+              className="flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl
+                         bg-brand-500/10 border border-brand-500/30 text-brand-200
+                         hover:bg-brand-500/20 hover:border-brand-500/50 hover:-translate-y-0.5
+                         transition-all duration-200 ease-out-expo"
             >
               <span className="flex items-center gap-2 text-sm font-bold">
                 <FiSkipForward size={14} /> Saltar fila
               </span>
-              <span className="text-xs text-brand-400">
+              <span className="text-xs tabular-nums text-brand-300">
                 {queueAhead} delante
               </span>
-            </button>
+            </motion.button>
           ) : (
-            <div className="flex gap-2">
+            <motion.div
+              key="open"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="flex gap-2"
+            >
               <input
                 type="number" min="1" value={skipBid}
                 onChange={(e) => setSkipBid(parseInt(e.target.value) || 0)}
-                className="flex-1 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm font-mono"
+                className="input-sm tabular-nums flex-1"
                 placeholder="coins"
               />
               <button
                 onClick={paySkip} disabled={busy}
-                className="px-4 py-2 rounded-lg bg-brand-500 text-white text-sm font-bold disabled:opacity-50"
+                className="btn-primary text-xs py-2 px-3"
               >
                 {busy ? '…' : 'Pagar'}
               </button>
               <button
                 onClick={() => setShowSkip(false)}
-                className="px-3 py-2 rounded-lg bg-white/5 text-gray-400 text-sm"
+                className="btn-ghost text-xs py-2 px-2"
+                aria-label="Cancelar"
               >
-                X
+                <FiX size={14} />
               </button>
-            </div>
+            </motion.div>
           )}
-        </>
+        </AnimatePresence>
       )}
-    </div>
+    </motion.div>
   );
 }
