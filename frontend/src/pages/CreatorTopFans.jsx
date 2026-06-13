@@ -6,6 +6,7 @@ import PageShell from '../components/layout/PageShell.jsx';
 import EmptyState from '../components/ui/EmptyState.jsx';
 import AnimatedCounter from '../components/ui/AnimatedCounter.jsx';
 import { EmptyHeart } from '../components/ui/illustrations/index.js';
+import { SkeletonStatRow, SkeletonList } from '../components/ui/skeletons/index.jsx';
 
 const BADGE_META = {
   bronze_supporter:   { emoji: '🥉', label: 'Bronze',   color: 'text-amber-600 border-amber-600/30 bg-amber-600/5' },
@@ -37,16 +38,7 @@ export default function CreatorTopFans() {
     >
       {loading ? (
         <div className="space-y-2">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="skeleton-card flex items-center gap-3">
-              <div className="skeleton w-10 h-10 rounded-full" />
-              <div className="flex-1 space-y-2">
-                <div className="skeleton-line w-1/3" />
-                <div className="skeleton-line w-2/3" />
-              </div>
-              <div className="skeleton w-16 h-6 rounded" />
-            </div>
-          ))}
+          <SkeletonList count={6} Component={SkeletonStatRow} />
         </div>
       ) : fans.length === 0 ? (
         <EmptyState

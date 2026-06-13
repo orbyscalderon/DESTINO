@@ -6,6 +6,7 @@ import api from '../lib/api.js';
 import PageShell from '../components/layout/PageShell.jsx';
 import EmptyState from '../components/ui/EmptyState.jsx';
 import { EmptyInbox } from '../components/ui/illustrations/index.js';
+import { SkeletonVideoCard, SkeletonList } from '../components/ui/skeletons/index.jsx';
 
 export default function ContinueWatching() {
   const [items, setItems] = useState([]);
@@ -38,15 +39,7 @@ export default function ContinueWatching() {
     >
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="skeleton-card p-0 overflow-hidden">
-              <div className="skeleton aspect-video w-full" />
-              <div className="p-3 space-y-2">
-                <div className="skeleton-line w-3/4" />
-                <div className="skeleton-line w-1/3" />
-              </div>
-            </div>
-          ))}
+          <SkeletonList count={6} Component={SkeletonVideoCard} />
         </div>
       ) : items.length === 0 ? (
         <EmptyState

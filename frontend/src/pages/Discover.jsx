@@ -178,17 +178,23 @@ export default function Discover() {
   const hasActiveFilters = activeFilters.gender !== 'all' || activeFilters.minAge || activeFilters.maxAge || activeFilters.maxDistance || activeFilters.lookingFor
     || activeFilters.country || activeFilters.language || activeFilters.interests?.length > 0;
 
+  // v: OPTIMISTIC UPDATES — el feed reacciona INSTANT, antes del server.
+  // Si falla, restauramos. Hace que swipe se sienta nativo y sin lag.
   const handleLike = async (targetId) => {
     if (!profile?.is_premium && likesRemaining !== null && likesRemaining <= 0) {
       setShowPremiumModal(true);
       return;
     }
     const swiped = feed.find(p => p.id === targetId);
+    // OPTIMISTIC: quitar del feed inmediatamente
+    setLastSwiped({ profile: swiped, action: 'like' });
+    removeFromFeed(targetId);
+    const prevRemaining = likesRemaining;
+    if (likesRemaining !== null) setLikesRemaining(r => Math.max(0, (r || 0) - 1));
+    trackAction();
+
     try {
-      trackAction();
       const { data } = await api.post('/api/matches/like', { targetUserId: targetId });
-      setLastSwiped({ profile: swiped, action: 'like' });
-      removeFromFeed(targetId);
       if (data.isMatch) {
         setMatchData({ ...swiped, matchId: data.matchId, myAvatar: profile?.avatar_url });
       }
@@ -196,6 +202,10 @@ export default function Discover() {
         setLikesRemaining(data.remainingLikes);
       }
     } catch (err) {
+      // ROLLBACK: restaurar feed + likesRemaining
+      setFeed(f => [swiped, ...f]);
+      if (prevRemaining !== null) setLikesRemaining(prevRemaining);
+      setLastSwiped(null);
       if (err.response?.data?.code === 'LIKE_LIMIT_REACHED') {
         setLikesRemaining(0);
         setShowPremiumModal(true);
@@ -208,13 +218,17 @@ export default function Discover() {
   const handleSuperLike = async (targetId) => {
     if (!profile?.is_premium) { setShowPremiumModal(true); return; }
     const swiped = feed.find(p => p.id === targetId);
+    // OPTIMISTIC
+    setLastSwiped({ profile: swiped, action: 'superlike' });
+    removeFromFeed(targetId);
+
     try {
       const { data } = await api.post('/api/matches/like', { targetUserId: targetId, isSuperLike: true });
-      setLastSwiped({ profile: swiped, action: 'superlike' });
-      removeFromFeed(targetId);
       if (data.isMatch) setMatchData({ ...swiped, matchId: data.matchId, myAvatar: profile?.avatar_url });
       toast.success('⭐ Super Like enviado');
     } catch (err) {
+      setFeed(f => [swiped, ...f]);
+      setLastSwiped(null);
       if (err.response?.data?.code === 'PREMIUM_REQUIRED') setShowPremiumModal(true);
       else toast.error('Error al enviar Super Like');
     }
@@ -222,11 +236,16 @@ export default function Discover() {
 
   const handleDislike = async (targetId) => {
     const swiped = feed.find(p => p.id === targetId);
+    // OPTIMISTIC
+    setLastSwiped({ profile: swiped, action: 'dislike' });
+    removeFromFeed(targetId);
     try {
       await api.post('/api/matches/dislike', { targetUserId: targetId });
-      setLastSwiped({ profile: swiped, action: 'dislike' });
-      removeFromFeed(targetId);
-    } catch {}
+    } catch {
+      // Si falla dislike, restauramos silenciosamente — sin toast (UX expectation)
+      setFeed(f => [swiped, ...f]);
+      setLastSwiped(null);
+    }
   };
 
   const handleUndo = async () => {
