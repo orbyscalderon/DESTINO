@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { FiArrowLeft } from 'react-icons/fi';
+import { FiFileText } from 'react-icons/fi';
 import api from '../lib/api.js';
+import PageShell from '../components/layout/PageShell.jsx';
 
 export default function Page2257() {
   const [cfg, setCfg] = useState(null);
@@ -11,17 +12,14 @@ export default function Page2257() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-dark-900 hero-mesh px-5 py-8 lg:px-16 lg:py-12 relative overflow-hidden">
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-96 h-96 bg-brand-500/8 rounded-full blur-3xl pointer-events-none animate-float" />
-
-      <div className="max-w-3xl mx-auto relative z-10">
-        <Link to="/compliance" className="inline-flex items-center gap-2 text-gray-400 hover:text-white hover:bg-white/5 px-2 py-1 -ml-2 rounded-lg mb-8 transition-colors">
-          <FiArrowLeft size={16} /> Volver
-        </Link>
-
-        <h1 className="text-3xl font-black gradient-text mb-2">18 U.S.C. § 2257 Statement</h1>
-        <p className="text-gray-500 text-sm mb-10">Record-Keeping Requirements Compliance Statement</p>
-
+    <PageShell
+      icon={FiFileText}
+      title="18 U.S.C. § 2257 Statement"
+      subtitle="Record-Keeping Requirements Compliance Statement."
+      backTo="/compliance"
+      backLabel="Volver a Compliance"
+      maxWidth="3xl"
+    >
         <div className="space-y-8 text-gray-300 leading-relaxed">
 
           <section>
@@ -117,7 +115,6 @@ export default function Page2257() {
           <Link to="/terms"      className="hover:text-brand-400 transition-colors">Términos</Link>
           <Link to="/privacy"    className="hover:text-brand-400 transition-colors">Privacidad</Link>
         </div>
-      </div>
-    </div>
+    </PageShell>
   );
 }

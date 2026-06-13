@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { FiArrowLeft, FiAlertCircle, FiCheck } from 'react-icons/fi';
+import { FiAlertCircle, FiCheck, FiCopy } from 'react-icons/fi';
 import api from '../lib/api.js';
 import toast from 'react-hot-toast';
+import PageShell from '../components/layout/PageShell.jsx';
 
 export default function DMCA() {
   const [form, setForm] = useState({
@@ -64,12 +65,13 @@ export default function DMCA() {
   }
 
   return (
-    <div className="min-h-screen px-4 pt-8 pb-28 max-w-2xl mx-auto">
-      <div className="flex items-center gap-3 mb-6">
-        <Link to="/" className="text-gray-400 hover:text-white"><FiArrowLeft size={20} /></Link>
-        <h1 className="text-2xl font-black gradient-text">Notificación DMCA</h1>
-      </div>
-
+    <PageShell
+      icon={FiCopy}
+      title="Notificación DMCA"
+      subtitle="Reporta una infracción de derechos de autor bajo 17 U.S.C. § 512(c)(3)."
+      backTo="/"
+      maxWidth="2xl"
+    >
       <div className="card p-4 mb-6 border-yellow-500/30 bg-yellow-500/5">
         <div className="flex gap-3">
           <FiAlertCircle className="text-yellow-400 shrink-0 mt-0.5" size={18} />
@@ -163,6 +165,6 @@ export default function DMCA() {
           implicar responsabilidad civil. Procesamos cada notificación dentro de 7 días hábiles.
         </p>
       </form>
-    </div>
+    </PageShell>
   );
 }

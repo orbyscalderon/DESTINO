@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { FiArrowLeft } from 'react-icons/fi';
+import { FiPieChart } from 'react-icons/fi';
 import api from '../lib/api.js';
+import PageShell from '../components/layout/PageShell.jsx';
 
 const CAT_LABELS = {
   essential:    { label: 'Esenciales',      color: 'emerald' },
@@ -38,18 +39,14 @@ export default function Cookies() {
   }, {});
 
   return (
-    <div className="min-h-screen bg-dark-900 hero-mesh px-5 py-8 lg:px-16 lg:py-12 relative overflow-hidden">
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-96 h-96 bg-brand-500/8 rounded-full blur-3xl pointer-events-none animate-float" />
-
-      <div className="max-w-4xl mx-auto relative z-10">
-        <Link to="/privacy" className="inline-flex items-center gap-2 text-gray-400 hover:text-white hover:bg-white/5 px-2 py-1 -ml-2 rounded-lg mb-8 transition-colors">
-          <FiArrowLeft size={16} /> Volver
-        </Link>
-
-        <h1 className="text-3xl font-black gradient-text mb-2">Inventario de Cookies</h1>
-        <p className="text-gray-500 text-sm mb-2">
-          Lista exhaustiva de cookies y similares que Destino TV puede usar
-        </p>
+    <PageShell
+      icon={FiPieChart}
+      title="Inventario de Cookies"
+      subtitle="Lista exhaustiva de cookies y similares que Destino TV puede usar."
+      backTo="/privacy"
+      backLabel="Volver a Privacidad"
+      maxWidth="4xl"
+    >
         <p className="text-xs text-gray-600 mb-8">
           ePrivacy Directive — Para gestionar consentimiento granular:{' '}
           <Link to="/privacy/preferences" className="text-brand-400 hover:underline">Preferencias de privacidad</Link>
@@ -108,7 +105,6 @@ export default function Cookies() {
           <Link to="/privacy/subprocessors" className="hover:text-brand-400 transition-colors">Subprocesadores</Link>
           <Link to="/privacy/preferences" className="hover:text-brand-400 transition-colors">Preferencias</Link>
         </div>
-      </div>
-    </div>
+    </PageShell>
   );
 }
