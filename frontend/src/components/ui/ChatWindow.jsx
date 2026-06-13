@@ -143,7 +143,22 @@ export default function ChatWindow({ matchId, otherUser }) {
       .channel(`match-${matchId}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `match_id=eq.${matchId}` },
         (payload) => {
-          setMessages(prev => [...prev, payload.new]);
+          setMessages(prev => {
+            // Dedup contra optimistic: si hay un placeholder propio reciente con
+            // mismo content, lo reemplazamos en lugar de agregar duplicado.
+            if (payload.new.sender_id === user?.id) {
+              const optIdx = prev.findIndex(m => m.__optimistic
+                && m.sender_id === payload.new.sender_id
+                && m.content === payload.new.content
+              );
+              if (optIdx !== -1) {
+                const next = [...prev];
+                next[optIdx] = payload.new;
+                return next;
+              }
+            }
+            return [...prev, payload.new];
+          });
           if (autoTranslate && payload.new.sender_id !== user?.id && payload.new.content) {
             translateMessage(payload.new.id, payload.new.content);
           }
@@ -314,19 +329,48 @@ export default function ChatWindow({ matchId, otherUser }) {
       ...(scheduledFor ? { scheduled_for: scheduledFor } : {}),
     };
 
-    setSending(true);
+    // OPTIMISTIC: limpiar input y mostrar mensaje placeholder inmediatamente.
+    // El realtime echo del server eventualmente reemplaza el placeholder.
+    // Si falla, restauramos el texto.
+    const originalText = text;
+    const originalReply = replyTo;
+    const tempId = `__opt-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    const optimisticMsg = {
+      id: tempId,
+      __optimistic: true,
+      match_id: matchId,
+      sender_id: user?.id,
+      content: payload.content,
+      type: 'text',
+      created_at: new Date().toISOString(),
+      is_read: false,
+    };
+    setText('');
     setReplyTo(null);
+    if (!scheduledFor) setMessages(prev => [...prev, optimisticMsg]);
+    setSending(true);
+
     try {
       const res = await api.post('/api/messages', payload);
-      setText('');
       if (res.data?.scheduled) {
+        // No echo en scheduled — solo toast
+        setMessages(prev => prev.filter(m => m.id !== tempId));
         toast.success('Mensaje programado');
       } else if (!isPremiumPlus) {
         decrementRemaining();
       }
       setScheduledFor(null);
+      // El realtime INSERT echo va a agregar el mensaje real. Dedup:
+      // si en 8s no llegó, quitamos el optimistic (asumimos pérdida).
+      setTimeout(() => {
+        setMessages(prev => prev.filter(m => m.id !== tempId));
+      }, 8000);
     } catch (err) {
-      // v70: DM paywall — insufficient coins
+      // ROLLBACK: restaurar texto y quitar el placeholder
+      setText(originalText);
+      setReplyTo(originalReply);
+      setMessages(prev => prev.filter(m => m.id !== tempId));
+
       if (err.response?.data?.code === 'DM_PAYWALL') {
         toast.error(`Necesitas ${err.response.data.required_coins} coins para enviar DM a este creator`);
       } else if (err.response?.data?.code === 'MESSAGE_LIMIT_REACHED') setShowPremiumModal(true);

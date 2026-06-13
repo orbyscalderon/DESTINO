@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { FiMessageCircle, FiX } from 'react-icons/fi';
+import { playSuccess } from '../../lib/sounds.js';
 
 // Partículas de confetti generadas una sola vez
 const PARTICLES = Array.from({ length: 28 }, (_, i) => ({
@@ -43,8 +44,9 @@ export default function MatchNotification({ match, onClose }) {
   const audioRef = useRef(null);
 
   useEffect(() => {
-    // Vibración en móvil
+    // Vibración en móvil + sound opt-in
     if (navigator.vibrate) navigator.vibrate([100, 50, 100, 50, 200]);
+    playSuccess();
   }, []);
 
   if (!match) return null;

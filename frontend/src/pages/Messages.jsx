@@ -10,6 +10,7 @@ import { useChatStore } from '../store/chatStore.js';
 import VerifiedBadge from '../components/ui/VerifiedBadge.jsx';
 import { useSwipeNavigation } from '../lib/useSwipeNavigation.js';
 import { useTranslation } from 'react-i18next';
+import { usePullToRefresh, PullIndicator } from '../lib/usePullToRefresh.jsx';
 
 function formatTime(dateStr) {
   if (!dateStr) return '';
@@ -68,6 +69,9 @@ export default function Messages() {
 
   useEffect(() => { loadData(); }, []);
 
+  // Pull-to-refresh — mobile feel nativo
+  const ptr = usePullToRefresh({ onRefresh: loadData });
+
   useEffect(() => {
     if (!user?.id) return;
     const channel = supabase
@@ -93,7 +97,11 @@ export default function Messages() {
   );
 
   return (
-    <div className="min-h-screen px-4 pt-8 pb-24 lg:px-10 lg:pt-10 relative">
+    <div
+      {...ptr.bind}
+      className="min-h-screen px-4 pt-8 pb-24 lg:px-10 lg:pt-10 relative"
+    >
+      <PullIndicator progress={ptr.progress} refreshing={ptr.refreshing} />
       <div className="absolute top-12 right-0 w-64 h-64 bg-brand-500/6 rounded-full blur-3xl pointer-events-none animate-float" />
       <div className="max-w-2xl mx-auto">
 

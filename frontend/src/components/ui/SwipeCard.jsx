@@ -3,6 +3,7 @@ import { motion, useMotionValue, useTransform } from 'framer-motion';
 import { FiHeart, FiX, FiStar, FiPlay, FiMapPin } from 'react-icons/fi';
 import VerifiedBadge from './VerifiedBadge.jsx';
 import { hapticImpact, hapticNotification } from '../../lib/haptics.js';
+import { playWhoosh, playPop } from '../../lib/sounds.js';
 import { formatDistance } from '../../lib/geolocation.js';
 
 export default function SwipeCard({ profile, onLike, onDislike, onSuperLike, isPremium, isOnline, compatibilityPct }) {
@@ -44,18 +45,21 @@ export default function SwipeCard({ profile, onLike, onDislike, onSuperLike, isP
 
   const triggerLike = () => {
     hapticNotification('Success');
+    playPop();
     setDecision('like');
     setTimeout(() => onLike(profile.id), 400);
   };
 
   const triggerDislike = () => {
     hapticImpact('Light');
+    playWhoosh();
     setDecision('dislike');
     setTimeout(() => onDislike(profile.id), 400);
   };
 
   const triggerSuperLike = () => {
     hapticNotification('Success');
+    playPop();
     setDecision('superlike');
     setTimeout(() => onSuperLike(profile.id), 400);
   };

@@ -4,6 +4,7 @@ import { FiX } from 'react-icons/fi';
 import api from '../../lib/api.js';
 import toast from 'react-hot-toast';
 import SuccessConfetti from './SuccessConfetti.jsx';
+import { playDing } from '../../lib/sounds.js';
 
 const DEFAULT_GIFTS = [
   { type: 'rose',    emoji: '🌹', label: 'Rosa',     coins: 10  },
@@ -48,6 +49,7 @@ export default function GiftPanel({ showId, hostId, coinBalance, onClose, onGift
       const { data } = await api.post(`/api/shows/${showId}/gift`, { gift_type: gift.type });
       onGiftSent?.(gift.type, gift.emoji || '🎁', data?.new_balance);
       toast.success(`${gift.emoji || '🎁'} ${gift.label} enviado`);
+      playDing();
       setCelebrate(true);
       setTimeout(() => onClose(), 900);
     } catch (err) {

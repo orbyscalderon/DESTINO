@@ -18,6 +18,7 @@ import { showBanner, hideBanner, showRewardedAd } from '../lib/admob.js';
 import { useAds } from '../hooks/useAds.js';
 import { compressImage } from '../lib/imageCompressor.js';
 import toast from 'react-hot-toast';
+import { usePullToRefresh, PullIndicator } from '../lib/usePullToRefresh.jsx';
 
 const DEFAULT_FILTERS = { gender: 'all', minAge: '', maxAge: '', country: '', language: '', interests: [], maxDistance: '', lookingFor: '' };
 
@@ -62,6 +63,9 @@ export default function Discover() {
   const storyFileRef = useRef(null);
   const [topMatch, setTopMatch] = useState(null);
   const [showTutorial, setShowTutorial] = useState(() => !localStorage.getItem('Destino TV_tutorial_done'));
+
+  // Pull-to-refresh — recarga feed + stories
+  const ptr = usePullToRefresh({ onRefresh: async () => { await loadFeed(activeFilters); loadStories(); } });
 
   useEffect(() => {
     loadFeed(activeFilters);
@@ -341,7 +345,8 @@ export default function Discover() {
   );
 
   return (
-    <div className="min-h-screen px-4 pt-8 pb-28 lg:pb-6 lg:px-10 lg:pt-10 relative">
+    <div {...ptr.bind} className="min-h-screen px-4 pt-8 pb-28 lg:pb-6 lg:px-10 lg:pt-10 relative">
+      <PullIndicator progress={ptr.progress} refreshing={ptr.refreshing} />
       {/* Glow orb sutil de fondo — da depth sin distraer del swipe */}
       <div className="absolute top-0 right-1/4 w-72 h-72 bg-brand-500/5 rounded-full blur-3xl pointer-events-none animate-float" />
 

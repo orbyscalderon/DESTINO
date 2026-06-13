@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { FiArrowLeft, FiTrash2, FiLock, FiBell, FiBellOff, FiShield, FiEye, FiEyeOff, FiGift, FiCopy, FiCheck, FiUserX, FiChevronDown, FiChevronUp, FiSun, FiMoon, FiDownload, FiPause, FiPlay, FiWifiOff, FiGlobe, FiKey } from 'react-icons/fi';
 import { QRCodeSVG } from 'qrcode.react';
 import AccountDeletionSection from '../components/ui/AccountDeletionSection.jsx';
+import SoundsToggle from '../components/ui/SoundsToggle.jsx';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../store/authStore.js';
 import { useThemeStore } from '../store/themeStore.js';
@@ -440,6 +441,9 @@ export default function Settings() {
 
           {/* Notificaciones push */}
           <PushNotificationsToggle />
+
+          {/* Sonidos opt-in (swipe whoosh, match pop, tip ding) */}
+          <SoundsToggle />
 
           {/* Verificación en 2 pasos (TOTP) */}
           <TwoFactorSection />

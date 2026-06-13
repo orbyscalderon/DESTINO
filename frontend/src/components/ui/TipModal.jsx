@@ -5,6 +5,7 @@ import api from '../../lib/api.js';
 import toast from 'react-hot-toast';
 import PromoCodeInput from './PromoCodeInput.jsx';
 import SuccessConfetti from './SuccessConfetti.jsx';
+import { playDing } from '../../lib/sounds.js';
 
 const PRESETS = [10, 25, 50, 100, 200];
 
@@ -31,6 +32,7 @@ export default function TipModal({ userId, userName, onClose, onSent }) {
         ...(promo ? { promo_code: promo.code } : {}),
       });
       toast.success(`¡Propina de ${finalAmount} monedas enviada! 💕`);
+      playDing();
       setCelebrate(true);
       onSent?.(data.coins_remaining);
       // Esperar a que termine el burst antes de cerrar
