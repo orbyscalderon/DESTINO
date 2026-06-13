@@ -380,6 +380,12 @@
   50%      { background-position: 100% 50%; }
 }
 
+/* Story progress bar — width 0→100% lineal, pausable via animation-play-state */
+@keyframes story-progress {
+  from { width: 0%;   }
+  to   { width: 100%; }
+}
+
 /* Idle breathing para cards/iconos importantes — muy sutil para no marear */
 @keyframes cardBreathe {
   0%, 100% { transform: scale(1);     }
