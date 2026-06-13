@@ -2,6 +2,14 @@
 
 ## 🟢 Implementadas (recientes)
 
+- ✅ Stories tier-1 (controller + viewer + ring + reply + viewers list + tier-1 polish: pause/resume real, swipe-down-close, mute toggle, preload, keyboard nav)
+- ✅ Optimistic chat send con tempId + rollback + dedup realtime
+- ✅ Pull-to-refresh nativo-feeling (Discover + Messages)
+- ✅ Sounds opt-in (whoosh/pop en swipe, success en match, ding en tip/gift) + SoundsToggle en Settings
+- ✅ Empty states con SVG illustrations custom (EmptyHeart, EmptyVault, EmptyInbox, EmptySearch, EmptyCoins)
+- ✅ LazyImage con blur-up effect (cableado en Messages, Matches, SavedReels)
+- ✅ PageShell pattern (9 páginas v67-v73)
+- ✅ Aliveness utilities (AnimatedCounter, PresenceDot, SuccessConfetti, PageTransition)
 - ✅ Broadcast realtime para battle/cohost/revancha invites
 - ✅ Detección de viewer desconectado en privado/exclusivo via LiveKit
 - ✅ Header viewer con avatar + Seguir + ⭐ VIP suscribirse
@@ -48,25 +56,26 @@ Supabase Auth soporta MFA TOTP nativamente desde v2.39. Pasos:
 
 Tiempo estimado: 1 día. Recomendado para creators con ingresos > $500/mes.
 
-## 🟠 Stories del host
+## 🟠 PageShell sweep — 67 páginas restantes
 
-Modelo:
-- Tabla `stories(id, user_id, media_url, media_type, expires_at, is_paid,
-  price)` con TTL 24h.
-- Reusar storage/Bunny CDN.
+Solo 9 de 76 páginas usan `PageShell` (12% cobertura). Pendiente aplicar
+el pattern v67-v73 en alto tráfico:
 
-Backend:
-- POST `/api/stories` — sube media + duración
-- GET `/api/stories/feed` — stories de creators que sigo
-- POST `/api/stories/:id/view` — marca como vista + cobra si is_paid
+- Reels, Chat, Conversations, ShowStudio, CreatorDashboard
+- AdultCreators, Profile, UserProfile, Home, Matches, Notifications, Premium
+- Achievements, Referrals, Leaderboard, Coins, Stickers, Search, Explore
+- Páginas legales (low priority): Terms, Privacy, DSA, DMCA, 2257, etc.
 
-Frontend:
-- Componente `StoryRing` en feed con avatar circulado en rosa.
-- `StoryViewer` full-screen tipo Instagram con timer.
-- Subir desde botón ➕ del navbar mobile (CreateMenuSheet).
+## 🟠 Stories creator UI tier-2
 
-Tiempo: 3-4 días. Alta complejidad por scrubber, swipe entre stories,
-prefetch siguiente.
+El viewer está pulido. Falta el creator flow tier-1:
+- Caption text input antes de publicar
+- Stickers/emojis overlay
+- Música/audio attach
+- Link CTA opcional
+- Cover frame selector para videos
+
+Tiempo: 2-3 días.
 
 ## 🔵 Sin priorizar (tu lo dirás)
 

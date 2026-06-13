@@ -7,6 +7,9 @@ import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../store/authStore.js';
 import VerifiedBadge from '../components/ui/VerifiedBadge.jsx';
+import EmptyState from '../components/ui/EmptyState.jsx';
+import { EmptyHeart } from '../components/ui/illustrations/index.js';
+import LazyImage from '../components/ui/LazyImage.jsx';
 
 function isNew(dateStr) {
   if (!dateStr) return false;
@@ -193,11 +196,11 @@ export default function Matches() {
             {!profile?.is_premium ? (
               <LikesPremiumGate count={likes.length} />
             ) : likes.length === 0 ? (
-              <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="text-center py-20">
-                <div className="text-5xl mb-3">💛</div>
-                <p className="text-gray-400">Nadie te ha dado like aún</p>
-                <p className="text-gray-600 text-sm mt-1">¡Sigue siendo tú mismo!</p>
-              </motion.div>
+              <EmptyState
+                illustration={<EmptyHeart size={120} />}
+                title="Nadie te ha dado like aún"
+                desc="¡Sigue siendo tú mismo!"
+              />
             ) : (
               <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
                 {likes.map((like, i) => (
@@ -212,16 +215,16 @@ export default function Matches() {
         {tab === 'sent' && (
           <div>
             {sent.length === 0 ? (
-              <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="text-center py-20">
-                <div className="text-5xl mb-3">
-                  <FiSend className="inline text-gray-600" size={48} />
-                </div>
-                <p className="text-gray-400 mt-3">Aún no has enviado ningún like</p>
-                <p className="text-gray-600 text-sm mt-1">¡Ve a Descubrir y empieza a explorar!</p>
-                <Link to="/discover" className="btn-primary px-8 py-3 text-sm mt-6 inline-block">
-                  Ir a Descubrir
-                </Link>
-              </motion.div>
+              <EmptyState
+                emoji="💌"
+                title="Aún no has enviado ningún like"
+                desc="¡Ve a Descubrir y empieza a explorar!"
+                action={
+                  <Link to="/discover" className="btn-primary px-8 py-3 text-sm inline-block">
+                    Ir a Descubrir
+                  </Link>
+                }
+              />
             ) : (
               <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
                 {sent.map((item, i) => (
@@ -249,10 +252,10 @@ function MatchCard({ m, i, onNavigate }) {
       onClick={onNavigate}
       className="relative rounded-2xl overflow-hidden aspect-square group"
     >
-      <img
+      <LazyImage
         src={m.other.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(m.other.full_name || '?')}&size=300&background=1a1a2e&color=f43f5e`}
         alt={m.other.full_name}
-        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+        className="w-full h-full group-hover:scale-105 transition-transform duration-300"
       />
       <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
 
@@ -325,10 +328,10 @@ function SentLikeCard({ item, i }) {
     >
       <div className="relative inline-block mb-3">
         <div className="w-20 h-20 rounded-full overflow-hidden mx-auto ring-2 ring-transparent group-hover:ring-brand-500/30 transition-all">
-          <img
+          <LazyImage
             src={item.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.full_name || '?')}&size=120&background=1a1a2e&color=f43f5e`}
             alt={item.full_name}
-            className="w-full h-full object-cover"
+            className="w-full h-full"
           />
         </div>
         {item.is_verified && <VerifiedBadge size={20} overlay />}
@@ -365,10 +368,10 @@ function LikeCard({ like, i, onLikeBack }) {
     >
       <div className="relative inline-block mb-3">
         <div className="w-20 h-20 rounded-full overflow-hidden mx-auto ring-2 ring-transparent group-hover:ring-brand-500/30 transition-all">
-          <img
+          <LazyImage
             src={like.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(like.full_name || '?')}&size=120&background=1a1a2e&color=f43f5e`}
             alt={like.full_name}
-            className="w-full h-full object-cover"
+            className="w-full h-full"
           />
         </div>
         {like.is_verified && <VerifiedBadge size={20} overlay />}

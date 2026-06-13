@@ -3,6 +3,9 @@ import { Link, useNavigate } from 'react-router-dom';
 import { FiArrowLeft, FiBookmark, FiHeart, FiPlay } from 'react-icons/fi';
 import api from '../lib/api.js';
 import toast from 'react-hot-toast';
+import EmptyState from '../components/ui/EmptyState.jsx';
+import { EmptyVault } from '../components/ui/illustrations/index.js';
+import LazyImage from '../components/ui/LazyImage.jsx';
 
 // Reels guardados por el usuario (bookmarks).
 export default function SavedReels() {
@@ -43,21 +46,19 @@ export default function SavedReels() {
             <div className="w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
           </div>
         ) : reels.length === 0 ? (
-          <div className="text-center py-16 text-gray-400">
-            <div className="inline-block animate-float mb-3">
-              <FiBookmark className="text-gray-700" size={40} />
-            </div>
-            <h2 className="text-white font-bold mb-1">Sin reels guardados</h2>
-            <p className="text-sm mb-5 max-w-xs mx-auto">
-              Toca el 🔖 en cualquier reel para guardarlo y verlo después.
-            </p>
-            <button
-              onClick={() => navigate('/reels')}
-              className="btn-primary px-5 py-2.5 text-sm shadow-glow hover:shadow-glow-lg"
-            >
-              Ir al feed
-            </button>
-          </div>
+          <EmptyState
+            illustration={<EmptyVault size={120} />}
+            title="Sin reels guardados"
+            desc="Toca el 🔖 en cualquier reel para guardarlo y verlo después."
+            action={
+              <button
+                onClick={() => navigate('/reels')}
+                className="btn-primary px-5 py-2.5 text-sm shadow-glow hover:shadow-glow-lg"
+              >
+                Ir al feed
+              </button>
+            }
+          />
         ) : (
           <div className="grid grid-cols-3 gap-1.5">
             {reels.map(reel => (
@@ -67,11 +68,10 @@ export default function SavedReels() {
                 className="relative aspect-[9/16] rounded-xl overflow-hidden bg-dark-700 group"
               >
                 {reel.thumbnail_url ? (
-                  <img
+                  <LazyImage
                     src={reel.thumbnail_url}
                     alt={reel.caption?.substring(0, 80) || 'Reel'}
-                    className="w-full h-full object-cover"
-                    loading="lazy"
+                    className="w-full h-full"
                   />
                 ) : (
                   <video

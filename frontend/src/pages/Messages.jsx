@@ -11,6 +11,9 @@ import VerifiedBadge from '../components/ui/VerifiedBadge.jsx';
 import { useSwipeNavigation } from '../lib/useSwipeNavigation.js';
 import { useTranslation } from 'react-i18next';
 import { usePullToRefresh, PullIndicator } from '../lib/usePullToRefresh.jsx';
+import EmptyState from '../components/ui/EmptyState.jsx';
+import { EmptyInbox, EmptySearch } from '../components/ui/illustrations/index.js';
+import LazyImage from '../components/ui/LazyImage.jsx';
 
 function formatTime(dateStr) {
   if (!dateStr) return '';
@@ -165,39 +168,22 @@ export default function Messages() {
 
         {/* Lista de conversaciones */}
         {matches.length === 0 ? (
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex flex-col items-center text-center pt-20"
-          >
-            <div className="inline-block animate-float mb-4">
-              <FiMessageCircle className="text-gray-700" size={48} />
-            </div>
-            <h2 className="text-white font-bold text-lg mb-1">{t('messages_page.no_messages')}</h2>
-            <p className="text-gray-500 text-sm mb-6 max-w-xs">
-              Haz match con alguien en Descubrir y empieza a chatear
-            </p>
-            <button
-              onClick={() => navigate('/discover')}
-              className="btn-primary px-8 py-3 text-sm"
-            >
-              Ir a Descubrir
-            </button>
-          </motion.div>
+          <EmptyState
+            illustration={<EmptyInbox size={120} />}
+            title={t('messages_page.no_messages')}
+            desc="Haz match con alguien en Descubrir y empieza a chatear"
+            action={
+              <button onClick={() => navigate('/discover')} className="btn-primary px-8 py-3 text-sm">
+                Ir a Descubrir
+              </button>
+            }
+          />
         ) : displayMatches.length === 0 ? (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-16">
-            {search ? (
-              <>
-                <div className="text-4xl mb-3">🔍</div>
-                <p className="text-gray-400">Sin resultados para "{search}"</p>
-              </>
-            ) : (
-              <>
-                <div className="text-4xl mb-3">✅</div>
-                <p className="text-gray-400">Sin mensajes sin leer</p>
-              </>
-            )}
-          </motion.div>
+          <EmptyState
+            illustration={search ? <EmptySearch size={100} /> : undefined}
+            emoji={search ? undefined : '✅'}
+            title={search ? `Sin resultados para "${search}"` : 'Sin mensajes sin leer'}
+          />
         ) : (
           <div className="flex flex-col">
             {displayMatches.map((match, i) => (
@@ -241,10 +227,10 @@ function MatchRow({ match, i, myId, onOpen }) {
           <div className={`w-14 h-14 rounded-full overflow-hidden ring-2 transition-all ${
             match.unread_count > 0 ? 'ring-brand-500/40' : 'ring-transparent group-hover:ring-white/10'
           }`}>
-            <img
+            <LazyImage
               src={match.other.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(match.other.full_name || '?')}&size=120&background=1a1a2e&color=f43f5e`}
               alt={match.other.full_name}
-              className="w-full h-full object-cover"
+              className="w-full h-full"
             />
           </div>
           {online && <span className="presence-dot w-3 h-3" />}

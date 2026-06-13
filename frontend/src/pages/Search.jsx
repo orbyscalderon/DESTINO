@@ -7,6 +7,8 @@ import { countryByCode, COUNTRIES } from '../lib/geodata.js';
 import api from '../lib/api.js';
 import VerifiedBadge from '../components/ui/VerifiedBadge.jsx';
 import { useTranslation } from 'react-i18next';
+import EmptyState from '../components/ui/EmptyState.jsx';
+import { EmptySearch } from '../components/ui/illustrations/index.js';
 
 const RANK_BADGE = [
   'bg-yellow-400 text-black',   // #1 oro
@@ -307,19 +309,20 @@ const QUICK_INTERESTS = ['🎵 Música', '✈️ Viajes', '💪 Fitness', '🎮 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="text-center py-12"
           >
-            <p className="text-4xl mb-3">🔍</p>
-            <p className="text-white font-semibold mb-1">Sin resultados para "{query}"</p>
-            <p className="text-gray-500 text-sm mb-4">Prueba con otro nombre o ajusta los filtros</p>
-            {hasActiveFilters && (
-              <button
-                onClick={() => { applyFilters({ gender: 'all', minAge: '', maxAge: '', country: '', creatorOnly: false, interests: [] }); }}
-                className="text-brand-400 text-sm hover:text-brand-300 transition-colors"
-              >
-                Limpiar filtros
-              </button>
-            )}
+            <EmptyState
+              illustration={<EmptySearch size={120} />}
+              title={`Sin resultados para "${query}"`}
+              desc="Prueba con otro nombre o ajusta los filtros"
+              action={hasActiveFilters ? (
+                <button
+                  onClick={() => { applyFilters({ gender: 'all', minAge: '', maxAge: '', country: '', creatorOnly: false, interests: [] }); }}
+                  className="text-brand-400 text-sm hover:text-brand-300 transition-colors"
+                >
+                  Limpiar filtros
+                </button>
+              ) : null}
+            />
           </motion.div>
         )}
 

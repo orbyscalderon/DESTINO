@@ -5,6 +5,8 @@ import { FiBell, FiArrowLeft, FiCheck, FiZap, FiHeart, FiMessageCircle, FiVideo,
 import api from '../lib/api.js';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
+import EmptyState from '../components/ui/EmptyState.jsx';
+import { EmptyInbox } from '../components/ui/illustrations/index.js';
 
 const TYPE_CONFIG = {
   tip:                 { icon: FiZap,           color: 'text-yellow-400', bg: 'bg-yellow-500/10' },
@@ -152,13 +154,11 @@ export default function Notifications() {
 
       {/* Lista */}
       {notifications.length === 0 ? (
-        <div className="text-center py-20">
-          <div className="inline-block animate-float">
-            <FiBell size={48} className="text-gray-700" />
-          </div>
-          <p className="text-gray-400 font-medium mt-4">{t('notifications.empty')}</p>
-          <p className="text-gray-600 text-sm mt-1">Aquí verás tus propinas, matches y más</p>
-        </div>
+        <EmptyState
+          illustration={<EmptyInbox size={120} />}
+          title={t('notifications.empty')}
+          desc="Aquí verás tus propinas, matches y más"
+        />
       ) : (
         <AnimatePresence initial={false}>
           <div className="space-y-2">

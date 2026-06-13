@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { FiArrowLeft, FiAward, FiLock } from 'react-icons/fi';
 import api from '../lib/api.js';
 import toast from 'react-hot-toast';
+import EmptyState from '../components/ui/EmptyState.jsx';
 
 const RARITY_STYLES = {
   common:    { color: 'text-gray-400',    bg: 'bg-gray-500/10',   border: 'border-gray-500/20' },
@@ -119,7 +120,7 @@ export default function Achievements() {
       {/* Grid */}
       <div className="space-y-2">
         {filtered.length === 0 && (
-          <div className="card p-8 text-center text-gray-500 text-sm">Sin logros en esta categoría</div>
+          <EmptyState emoji="🏆" title="Sin logros en esta categoría" />
         )}
         {filtered.map(a => {
           const style = RARITY_STYLES[a.rarity] || RARITY_STYLES.common;
