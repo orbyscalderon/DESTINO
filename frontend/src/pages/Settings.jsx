@@ -45,13 +45,6 @@ export default function Settings() {
   const [unblocking, setUnblocking] = useState(null);
   const [notifPrefs, setNotifPrefs] = useState(DEFAULT_PREFS);
   const [showNotifPrefs, setShowNotifPrefs] = useState(false);
-  // 2FA
-  const [mfaFactors, setMfaFactors] = useState([]);
-  const [mfaEnrolling, setMfaEnrolling] = useState(false);
-  const [mfaQr, setMfaQr] = useState(null);       // { qr_code, factorId }
-  const [mfaCode, setMfaCode] = useState('');
-  const [mfaVerifying, setMfaVerifying] = useState(false);
-  const [mfaUnenrolling, setMfaUnenrolling] = useState(false);
   // Appeals
   const [appeals, setAppeals] = useState([]);
   const [loadingAppeals, setLoadingAppeals] = useState(false);
@@ -62,10 +55,6 @@ export default function Settings() {
   useEffect(() => {
     api.get('/api/referrals/code')
       .then(({ data }) => setReferralData(data))
-      .catch(() => {});
-
-    supabase.auth.mfa.listFactors()
-      .then(({ data }) => setMfaFactors(data?.totp || []))
       .catch(() => {});
 
     api.get('/api/notifications/prefs')
@@ -238,51 +227,6 @@ export default function Settings() {
       toast.error('Error al cambiar notificaciones');
     } finally {
       setTogglingNotif(false);
-    }
-  };
-
-  const handleMfaEnroll = async () => {
-    setMfaEnrolling(true);
-    try {
-      const { data, error } = await supabase.auth.mfa.enroll({ factorType: 'totp', issuer: 'Destino TV', friendlyName: 'Authenticator' });
-      if (error) throw error;
-      setMfaQr({ qr_code: data.totp.qr_code, factorId: data.id, secret: data.totp.secret });
-    } catch (err) {
-      toast.error(err.message || 'Error al configurar 2FA');
-    } finally {
-      setMfaEnrolling(false);
-    }
-  };
-
-  const handleMfaVerify = async () => {
-    if (!mfaCode.trim() || !mfaQr) return;
-    setMfaVerifying(true);
-    try {
-      const { error } = await supabase.auth.mfa.challengeAndVerify({ factorId: mfaQr.factorId, code: mfaCode });
-      if (error) throw error;
-      setMfaFactors(prev => [...prev, { id: mfaQr.factorId, status: 'verified', friendly_name: 'Authenticator' }]);
-      setMfaQr(null);
-      setMfaCode('');
-      toast.success('Verificación en dos pasos activada');
-    } catch (err) {
-      toast.error(err.message || 'Código incorrecto');
-    } finally {
-      setMfaVerifying(false);
-    }
-  };
-
-  const handleMfaUnenroll = async (factorId) => {
-    if (!confirm('¿Desactivar verificación en dos pasos?')) return;
-    setMfaUnenrolling(true);
-    try {
-      const { error } = await supabase.auth.mfa.unenroll({ factorId });
-      if (error) throw error;
-      setMfaFactors(prev => prev.filter(f => f.id !== factorId));
-      toast.success('2FA desactivado');
-    } catch (err) {
-      toast.error(err.message || 'Error al desactivar 2FA');
-    } finally {
-      setMfaUnenrolling(false);
     }
   };
 
@@ -531,59 +475,6 @@ export default function Settings() {
                 <p className="text-xs text-gray-500">Gestiona tu plan Premium</p>
               </div>
             </Link>
-          </div>
-
-          {/* 2FA */}
-          <div className="card p-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <FiShield className="text-green-400" size={16} />
-                <p className="text-sm font-semibold text-white">Verificación en 2 pasos (2FA)</p>
-              </div>
-              {mfaFactors.some(f => f.status === 'verified') ? (
-                <span className="text-xs text-green-400 bg-green-400/10 px-2 py-0.5 rounded-full">Activo</span>
-              ) : (
-                <span className="text-xs text-gray-500 bg-dark-700 px-2 py-0.5 rounded-full">Inactivo</span>
-              )}
-            </div>
-            <p className="text-xs text-gray-500">Añade una capa extra de seguridad con una app autenticadora (Google Authenticator, Authy, etc.)</p>
-
-            {mfaFactors.some(f => f.status === 'verified') ? (
-              <button
-                onClick={() => handleMfaUnenroll(mfaFactors.find(f => f.status === 'verified').id)}
-                disabled={mfaUnenrolling}
-                className="text-sm text-red-400 hover:text-red-300 transition-colors disabled:opacity-50"
-              >
-                {mfaUnenrolling ? 'Desactivando...' : 'Desactivar 2FA'}
-              </button>
-            ) : mfaQr ? (
-              <div className="space-y-3">
-                <p className="text-xs text-gray-400">Escanea con tu app autenticadora:</p>
-                <img src={mfaQr.qr_code} alt="QR 2FA" className="w-36 h-36 rounded-xl bg-white p-1.5 mx-auto" data-no-invert />
-                <p className="text-[10px] text-gray-600 text-center break-all">O ingresa: {mfaQr.secret}</p>
-                <div className="flex gap-2">
-                  <input
-                    className="input-field text-sm py-2 flex-1 text-center tracking-[0.3em]"
-                    placeholder="000000"
-                    maxLength={6}
-                    value={mfaCode}
-                    onChange={e => setMfaCode(e.target.value.replace(/\D/g, ''))}
-                  />
-                  <button onClick={handleMfaVerify} disabled={mfaVerifying || mfaCode.length !== 6}
-                    className="btn-primary px-4 py-2 text-sm disabled:opacity-50">
-                    {mfaVerifying ? '...' : 'Verificar'}
-                  </button>
-                </div>
-                <button onClick={() => setMfaQr(null)} className="text-xs text-gray-600 hover:text-gray-400 w-full text-center">
-                  Cancelar
-                </button>
-              </div>
-            ) : (
-              <button onClick={handleMfaEnroll} disabled={mfaEnrolling}
-                className="btn-primary text-sm w-full py-2 disabled:opacity-50">
-                {mfaEnrolling ? 'Configurando...' : 'Activar 2FA'}
-              </button>
-            )}
           </div>
 
           {/* Sección Referidos */}
