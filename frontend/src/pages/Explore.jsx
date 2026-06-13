@@ -3,11 +3,14 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   FiArrowLeft, FiSearch, FiClock, FiEye, FiThumbsUp,
-  FiTrendingUp, FiZap, FiStar, FiVideo, FiChevronRight, FiX,
+  FiTrendingUp, FiZap, FiStar, FiVideo, FiChevronRight, FiX, FiMoreVertical,
+  FiBookmark, FiFlag, FiShare2, FiPlus,
 } from 'react-icons/fi';
 import api from '../lib/api.js';
 import toast from 'react-hot-toast';
 import AgeGate, { isAgeVerified } from '../components/ui/AgeGate.jsx';
+import VerifiedBadge from '../components/ui/VerifiedBadge.jsx';
+import LazyImage from '../components/ui/LazyImage.jsx';
 
 const SORT_TABS = [
   { id: 'trending', label: 'Trending',  icon: FiTrendingUp },
@@ -41,61 +44,135 @@ function fmtViews(n) {
   return String(n);
 }
 
-function VideoCard({ video }) {
+function VideoCard({ video, onBookmark, onReport, onShare }) {
   const [hover, setHover] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const ratingPct = video.rating_up + video.rating_down > 0
     ? Math.round((video.rating_up / (video.rating_up + video.rating_down)) * 100)
     : null;
+  const placeholder = video.thumbnail_blur_url || video.thumbnail_tiny_url;
 
   return (
-    <Link
-      to={`/explore/v/${video.id}`}
-      className="group block"
+    <div
+      className="group relative"
       onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
+      onMouseLeave={() => { setHover(false); setMenuOpen(false); }}
     >
-      <div className="relative aspect-video bg-dark-800 rounded-xl overflow-hidden">
-        {hover && video.url ? (
-          <video
-            src={video.url}
-            autoPlay muted playsInline loop
-            className="w-full h-full object-cover"
-          />
-        ) : (
-          <img
-            src={video.thumbnail_url || video.url}
-            alt={video.title}
-            loading="lazy"
-            className="w-full h-full object-cover"
-          />
-        )}
-        <span className="absolute bottom-1.5 right-1.5 bg-black/80 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
-          {fmtDuration(video.duration_seconds)}
-        </span>
-        {ratingPct !== null && (
-          <span className="absolute top-1.5 right-1.5 bg-black/70 text-white text-[10px] font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5">
-            <FiThumbsUp size={9} /> {ratingPct}%
+      <Link to={`/explore/v/${video.id}`} className="block">
+        <div className="relative aspect-video bg-dark-800 rounded-lg overflow-hidden ring-1 ring-white/5 group-hover:ring-brand-500/40 transition-all duration-200">
+          {hover && video.url ? (
+            <video
+              src={video.url}
+              autoPlay muted playsInline loop
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <LazyImage
+              src={video.thumbnail_url || video.url}
+              placeholder={placeholder}
+              alt={video.title}
+              className="w-full h-full"
+            />
+          )}
+          {/* Hover gradient overlay (lifts info chips) */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none" />
+
+          {/* Duration — bottom right (PH-style) */}
+          <span className="absolute bottom-2 right-2 bg-black/85 text-white text-[11px] font-bold px-1.5 py-0.5 rounded leading-none">
+            {fmtDuration(video.duration_seconds)}
           </span>
-        )}
-        {video.is_paid && (
-          <span className="absolute top-1.5 left-1.5 bg-brand-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded">
-            PPV
-          </span>
-        )}
-      </div>
-      <div className="mt-2">
-        <p className="text-white text-sm font-semibold line-clamp-2 group-hover:text-brand-400 transition-colors">
-          {video.title}
-        </p>
-        <p className="text-gray-500 text-xs mt-0.5 truncate">{video.user?.full_name}</p>
-        <div className="flex items-center gap-2 text-[10px] text-gray-600 mt-0.5">
-          <span className="flex items-center gap-0.5"><FiEye size={9} /> {fmtViews(video.views_count)}</span>
-          {video.tags?.[0] && (
-            <span className="text-brand-400">#{video.tags[0].slug}</span>
+
+          {/* Rating — top right */}
+          {ratingPct !== null && (
+            <span className={`absolute top-2 right-2 backdrop-blur-md text-white text-[10px] font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5 ${
+              ratingPct >= 80 ? 'bg-green-600/85' : ratingPct >= 50 ? 'bg-black/70' : 'bg-red-600/85'
+            }`}>
+              <FiThumbsUp size={9} /> {ratingPct}%
+            </span>
+          )}
+
+          {/* PPV badge — top left */}
+          {video.is_paid && (
+            <span className="absolute top-2 left-2 bg-gradient-to-br from-brand-500 to-brand-600 text-white text-[10px] font-black px-2 py-0.5 rounded shadow-glow-sm">
+              PPV
+            </span>
+          )}
+
+          {/* HD badge — bottom left when applicable */}
+          {video.is_hd && (
+            <span className="absolute bottom-2 left-2 bg-white/15 backdrop-blur-md text-white text-[9px] font-black px-1.5 py-0.5 rounded">
+              HD
+            </span>
+          )}
+        </div>
+      </Link>
+
+      {/* Info row */}
+      <div className="mt-2 flex items-start gap-2">
+        <div className="flex-1 min-w-0">
+          <Link to={`/explore/v/${video.id}`}>
+            <p className="text-white text-[13px] font-semibold leading-snug line-clamp-2 group-hover:text-brand-300 transition-colors">
+              {video.title}
+            </p>
+          </Link>
+          <div className="flex items-center gap-1 mt-1 text-[11px] text-gray-400 min-w-0">
+            {video.user?.id ? (
+              <Link
+                to={`/profile/${video.user.id}`}
+                className="hover:text-brand-300 truncate flex items-center gap-1 transition-colors"
+              >
+                {video.user.full_name}
+                {video.user.is_verified && <VerifiedBadge size={11} />}
+              </Link>
+            ) : (
+              <span className="truncate">{video.user?.full_name}</span>
+            )}
+            <span className="text-gray-600 shrink-0">·</span>
+            <span className="text-gray-500 shrink-0 flex items-center gap-0.5">
+              <FiEye size={9} /> {fmtViews(video.views_count)}
+            </span>
+          </div>
+        </div>
+
+        {/* 3-dot menu */}
+        <div className="relative shrink-0">
+          <button
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); setMenuOpen(o => !o); }}
+            className="p-1 -m-1 text-gray-500 hover:text-white opacity-60 group-hover:opacity-100 transition-opacity"
+            aria-label="Más opciones"
+          >
+            <FiMoreVertical size={14} />
+          </button>
+          {menuOpen && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: -4 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              className="absolute right-0 top-full mt-1 z-30 bg-dark-800 border border-white/10 rounded-xl shadow-2xl shadow-black/60 py-1 min-w-[150px]"
+            >
+              <button
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setMenuOpen(false); onBookmark?.(video); }}
+                className="w-full flex items-center gap-2 px-3 py-2 text-xs text-white hover:bg-white/5"
+              >
+                <FiBookmark size={12} /> Guardar
+              </button>
+              <button
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setMenuOpen(false); onShare?.(video); }}
+                className="w-full flex items-center gap-2 px-3 py-2 text-xs text-white hover:bg-white/5"
+              >
+                <FiShare2 size={12} /> Compartir
+              </button>
+              <div className="border-t border-white/5 my-1" />
+              <button
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setMenuOpen(false); onReport?.(video); }}
+                className="w-full flex items-center gap-2 px-3 py-2 text-xs text-red-400 hover:bg-red-500/10"
+              >
+                <FiFlag size={12} /> Reportar
+              </button>
+            </motion.div>
           )}
         </div>
       </div>
-    </Link>
+    </div>
   );
 }
 
@@ -173,6 +250,34 @@ export default function Explore() {
   const handleSearch = (e) => {
     e.preventDefault();
     updateParam('q', searchInput.trim());
+  };
+
+  const handleBookmark = async (video) => {
+    try {
+      await api.post(`/api/explore/videos/${video.id}/bookmark`);
+      toast.success('Video guardado');
+    } catch (err) {
+      const msg = err.response?.data?.error;
+      if (err.response?.status === 409) toast('Ya está en tus guardados', { icon: '✓' });
+      else toast.error(msg || 'No se pudo guardar');
+    }
+  };
+
+  const handleShare = async (video) => {
+    const url = `${window.location.origin}/#/explore/v/${video.id}`;
+    if (navigator.share) {
+      try { await navigator.share({ title: video.title, url }); }
+      catch {}
+    } else {
+      try {
+        await navigator.clipboard.writeText(url);
+        toast.success('Link copiado');
+      } catch { toast.error('No se pudo copiar'); }
+    }
+  };
+
+  const handleReport = (video) => {
+    navigate(`/explore/v/${video.id}?action=report`);
   };
 
   if (!ageOk) {
@@ -301,10 +406,40 @@ export default function Explore() {
       )}
 
       {/* Grid de videos */}
-      <div className="px-4 py-3 max-w-7xl mx-auto">
+      <div className="px-4 py-4 max-w-7xl mx-auto">
+        {/* Section header — PH-style "Vídeos porno calientes" */}
+        {videos.length > 0 && (
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="flex items-center gap-2 text-white font-black text-base sm:text-lg">
+              {tag ? (
+                <>Resultados <span className="text-brand-400">#{tag}</span></>
+              ) : q ? (
+                <>Resultados para "<span className="text-brand-400">{q}</span>"</>
+              ) : sort === 'trending' ? (
+                <>Trending ahora <span className="text-brand-400">🔥</span></>
+              ) : sort === 'new' ? (
+                <>Más nuevos <span className="text-brand-400">✨</span></>
+              ) : sort === 'top' ? (
+                <>Top rated <span className="text-yellow-400">⭐</span></>
+              ) : (
+                <>Más vistos <span className="text-brand-400">👁</span></>
+              )}
+            </h2>
+            <span className="text-[11px] text-gray-500 font-medium">
+              {videos.length} {hasMore && '+'} videos
+            </span>
+          </div>
+        )}
+
         {loading && videos.length === 0 ? (
-          <div className="text-center py-16">
-            <div className="w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin mx-auto" />
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
+            {[...Array(15)].map((_, i) => (
+              <div key={i}>
+                <div className="aspect-video bg-dark-800 rounded-lg animate-pulse" />
+                <div className="h-3.5 bg-dark-800 rounded-full mt-2 w-4/5 animate-pulse" />
+                <div className="h-3 bg-dark-800/60 rounded-full mt-1.5 w-2/3 animate-pulse" />
+              </div>
+            ))}
           </div>
         ) : videos.length === 0 ? (
           <div className="text-center py-16 text-gray-500 text-sm">
@@ -313,11 +448,19 @@ export default function Explore() {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
-              {videos.map(v => <VideoCard key={v.id} video={v} />)}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
+              {videos.map(v => (
+                <VideoCard
+                  key={v.id}
+                  video={v}
+                  onBookmark={handleBookmark}
+                  onShare={handleShare}
+                  onReport={handleReport}
+                />
+              ))}
             </div>
             {hasMore && (
-              <div className="text-center mt-6">
+              <div className="text-center mt-8">
                 <button
                   onClick={async () => {
                     const next = page + 1;
@@ -326,9 +469,9 @@ export default function Explore() {
                     await load(false);
                   }}
                   disabled={loading}
-                  className="btn-secondary px-6 disabled:opacity-50"
+                  className="btn-secondary px-8 py-2.5 disabled:opacity-50 font-bold"
                 >
-                  {loading ? 'Cargando…' : 'Cargar más'}
+                  {loading ? 'Cargando…' : 'Cargar más videos'}
                 </button>
               </div>
             )}
