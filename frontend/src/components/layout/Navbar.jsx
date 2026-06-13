@@ -95,12 +95,12 @@ export default function Navbar() {
   }, [location.pathname]);
 
   const sidebarLink = ({ isActive }) =>
-    `flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-medium ${
-      isActive ? 'bg-brand-500/15 text-brand-400' : 'text-gray-500 hover:text-gray-200 hover:bg-white/5'
+    `relative flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ease-out-expo text-sm font-medium ${
+      isActive ? 'bg-brand-500/15 text-brand-400 shadow-glow-sm' : 'text-gray-500 hover:text-gray-200 hover:bg-white/5 hover:translate-x-0.5'
     }`;
 
   const mobileLink = ({ isActive }) =>
-    `relative flex flex-col items-center gap-1 px-3 py-1.5 rounded-xl transition-all duration-200 ease-out-expo ${
+    `relative flex flex-col items-center gap-1 px-3 py-1.5 rounded-2xl transition-all duration-300 ease-out-expo ${
       isActive ? 'text-brand-500' : 'text-gray-500 hover:text-gray-300'
     }`;
 
@@ -301,7 +301,15 @@ export default function Navbar() {
             const isActive = location.pathname.startsWith(to);
             return (
               <NavLink key={to} to={to} className={mobileLink}>
-                <span className="relative">
+                {/* Pill active background — shared element transition entre tabs */}
+                {isActive && (
+                  <motion.span
+                    layoutId="mobile-nav-pill"
+                    className="absolute inset-0 rounded-2xl bg-gradient-to-b from-brand-500/15 to-brand-500/5 border border-brand-500/20"
+                    transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                  />
+                )}
+                <span className={`relative z-10 transition-transform duration-300 ease-out-back ${isActive ? 'scale-110' : 'scale-100'}`}>
                   <Icon size={22} />
                   {count > 0 && (
                     <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 bg-brand-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-0.5 shadow-glow-sm">
@@ -309,11 +317,11 @@ export default function Navbar() {
                     </span>
                   )}
                 </span>
-                <span className="text-[10px] font-medium">{label}</span>
+                <span className="relative z-10 text-[10px] font-medium">{label}</span>
                 {isActive && (
                   <motion.span
-                    layoutId="mobile-nav-indicator"
-                    className="absolute -bottom-1 w-1 h-1 rounded-full bg-brand-500 shadow-glow-sm"
+                    layoutId="mobile-nav-dot"
+                    className="absolute -bottom-0.5 w-1 h-1 rounded-full bg-brand-500 shadow-glow-sm z-10"
                     transition={{ type: 'spring', stiffness: 380, damping: 30 }}
                   />
                 )}

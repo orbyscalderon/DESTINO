@@ -511,7 +511,43 @@ export default function Discover() {
         {feed.length > 0 ? (
           <div className="lg:grid lg:grid-cols-2 lg:gap-10 lg:max-w-5xl lg:mx-auto lg:items-start">
 
-            <div>
+            <div className="relative">
+              {/* Card stack — siguientes 2 cards detrás para depth (Tinder-tier) */}
+              {feed[2] && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.85, y: 24 }}
+                  animate={{ opacity: 0.35, scale: 0.88, y: 18 }}
+                  transition={{ type: 'spring', stiffness: 200, damping: 24 }}
+                  className="absolute inset-0 pointer-events-none"
+                  style={{ zIndex: 1 }}
+                >
+                  <div className="w-full max-w-sm mx-auto aspect-[3/4] rounded-3xl overflow-hidden bg-dark-800 border border-white/5">
+                    <img
+                      src={feed[2].avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(feed[2].full_name || '?')}&size=400&background=1a1a2e&color=d946ef`}
+                      alt=""
+                      className="w-full h-full object-cover opacity-80"
+                    />
+                  </div>
+                </motion.div>
+              )}
+              {feed[1] && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9, y: 14 }}
+                  animate={{ opacity: 0.6, scale: 0.94, y: 9 }}
+                  transition={{ type: 'spring', stiffness: 200, damping: 24 }}
+                  className="absolute inset-0 pointer-events-none"
+                  style={{ zIndex: 2 }}
+                >
+                  <div className="w-full max-w-sm mx-auto aspect-[3/4] rounded-3xl overflow-hidden bg-dark-800 border border-white/10 shadow-xl">
+                    <img
+                      src={feed[1].avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(feed[1].full_name || '?')}&size=400&background=1a1a2e&color=f43f5e`}
+                      alt=""
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                </motion.div>
+              )}
+
               <motion.div
                 key={currentProfile.id}
                 initial={{ opacity: 0, scale: 0.95 }}
@@ -521,6 +557,8 @@ export default function Discover() {
                 onMouseLeave={() => clearTimeout(longPressTimerRef.current)}
                 onTouchStart={() => { longPressTimerRef.current = setTimeout(() => setPreviewProfile(currentProfile), 600); }}
                 onTouchEnd={() => clearTimeout(longPressTimerRef.current)}
+                className="relative"
+                style={{ zIndex: 3 }}
               >
                 <SwipeCard
                   profile={currentProfile}
