@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -10,6 +10,7 @@ import { useAuthStore } from '../store/authStore.js';
 import AgeGate, { isAgeVerified } from '../components/ui/AgeGate.jsx';
 import Explore from './Explore.jsx';
 import AdultCreators from './AdultCreators.jsx';
+import VideosMegamenu from '../components/ui/VideosMegamenu.jsx';
 
 // AdultHub — punto único de entrada al +18.
 // Estructura:
@@ -55,6 +56,25 @@ export default function AdultHub() {
   const [liveShows, setLiveShows] = useState([]);
   const [trending, setTrending] = useState(TRENDING_PILLS_FALLBACK);
   const [searchInput, setSearchInput] = useState('');
+
+  // Megamenu hover state (solo aplicado al tab Videos por ahora)
+  const [openMega, setOpenMega] = useState(null); // 'videos' | null
+  const megaCloseTimerRef = useRef(null);
+  const openMegamenu = (id) => {
+    if (megaCloseTimerRef.current) clearTimeout(megaCloseTimerRef.current);
+    setOpenMega(id);
+  };
+  const scheduleCloseMegamenu = () => {
+    if (megaCloseTimerRef.current) clearTimeout(megaCloseTimerRef.current);
+    megaCloseTimerRef.current = setTimeout(() => setOpenMega(null), 180);
+  };
+  const cancelCloseMegamenu = () => {
+    if (megaCloseTimerRef.current) clearTimeout(megaCloseTimerRef.current);
+  };
+  // Cleanup timer al desmontar
+  useEffect(() => () => {
+    if (megaCloseTimerRef.current) clearTimeout(megaCloseTimerRef.current);
+  }, []);
 
   // Cargar live shows (polling cada 60s para que se sienta vivo)
   useEffect(() => {
@@ -123,7 +143,7 @@ export default function AdultHub() {
   return (
     <div className="min-h-screen pb-24 bg-dark-900">
       {/* ── Top: search hero + tab nav (sticky) ──────────────────── */}
-      <div className="sticky top-0 z-30 bg-dark-900/95 backdrop-blur-md border-b border-white/5">
+      <div className="sticky top-0 z-30 bg-dark-900/95 backdrop-blur-md border-b border-white/5 relative">
         {/* Hero search (PH-style: barra ancha visible siempre) */}
         <div className="px-4 pt-4 pb-3 max-w-7xl mx-auto">
           <form onSubmit={goSearch} className="relative max-w-2xl">
@@ -154,12 +174,18 @@ export default function AdultHub() {
           {TABS.map(t => {
             const Icon = t.icon;
             const active = tab === t.id;
+            const hasMegamenu = t.id === 'videos';
             return (
               <button
                 key={t.id}
                 role="tab"
                 aria-selected={active}
+                aria-haspopup={hasMegamenu ? 'menu' : undefined}
+                aria-expanded={hasMegamenu ? openMega === t.id : undefined}
                 onClick={() => switchTab(t.id)}
+                onMouseEnter={hasMegamenu ? () => openMegamenu(t.id) : undefined}
+                onMouseLeave={hasMegamenu ? scheduleCloseMegamenu : undefined}
+                onFocus={hasMegamenu ? () => openMegamenu(t.id) : undefined}
                 className={`relative shrink-0 flex items-center gap-1.5 px-3 sm:px-4 py-3 text-[11px] sm:text-xs font-black uppercase tracking-wider transition-colors ${
                   active ? 'text-white' : 'text-gray-500 hover:text-gray-200'
                 } ${t.accent && !active ? 'text-red-400 hover:text-red-300' : ''}`}
@@ -182,6 +208,39 @@ export default function AdultHub() {
             );
           })}
         </nav>
+
+        {/* Megamenu hover panel (solo desktop) — pegado al fondo del nav */}
+        <AnimatePresence>
+          {openMega === 'videos' && (
+            <motion.div
+              key="videos-megamenu"
+              initial={{ opacity: 0, y: -4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.14 }}
+              onMouseEnter={cancelCloseMegamenu}
+              onMouseLeave={scheduleCloseMegamenu}
+              className="hidden lg:block absolute left-0 right-0 top-full z-40"
+            >
+              <VideosMegamenu
+                trendingFromHub={trending}
+                onSelectSort={(sortId) => {
+                  const p = new URLSearchParams(searchParams);
+                  p.set('tab', 'videos');
+                  p.set('sort', sortId);
+                  setSearchParams(p, { replace: true });
+                }}
+                onSelectTag={(tag) => {
+                  const p = new URLSearchParams(searchParams);
+                  p.set('tab', 'videos');
+                  p.set('tag', tag);
+                  setSearchParams(p, { replace: true });
+                }}
+                onClose={() => setOpenMega(null)}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* ── LIVE strip permanente (cuando no estás en Lives) ──── */}
