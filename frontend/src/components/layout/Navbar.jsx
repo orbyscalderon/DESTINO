@@ -33,8 +33,7 @@ const sidebarNavItems = [
   { to: '/search',      icon: FiSearch,        label: 'Buscar'       },
   { to: '/shows',       icon: FiFilm,          label: 'Shows en vivo'},
   { to: '/leaderboard', icon: FiTrendingUp,    label: 'Leaderboard'  },
-  { to: '/explore',     icon: FiFilm,          label: 'Videos 18+'   },
-  { to: '/adult',       icon: FiShield,        label: 'Creadoras 18+'},
+  { to: '/adult',       icon: FiShield,        label: 'Adulto 18+'   },
   { to: '/video',       icon: FiVideo,         label: 'Videollamadas'},
   { to: '/profile',     icon: FiUser,          label: 'Perfil'       },
 ];
@@ -131,8 +130,7 @@ export default function Navbar() {
       // En build iOS la sección entera está hidden (Apple Guideline 1.1.4).
       hidden: import.meta.env.VITE_IOS_BUILD === '1' || !(profile?.is_adult_creator || profile?.age_verified_at),
       items: [
-        { to: '/explore', icon: FiFilm,   label: 'Videos 18+' },
-        { to: '/adult',   icon: FiShield, label: 'Creadoras 18+' },
+        { to: '/adult', icon: FiShield, label: 'Adulto 18+' },
       ],
     },
     {
