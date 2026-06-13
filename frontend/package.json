@@ -14,7 +14,9 @@
     "test": "playwright test",
     "test:headed": "playwright test --headed",
     "test:ui": "playwright test --ui",
-    "test:local": "PLAYWRIGHT_BASE_URL=http://localhost:5173 playwright test"
+    "test:local": "PLAYWRIGHT_BASE_URL=http://localhost:5173 playwright test",
+    "test:unit": "vitest run",
+    "test:unit:watch": "vitest"
   },
   "dependencies": {
     "@capacitor-community/admob": "^7.2.0",
@@ -57,9 +59,11 @@
     "@types/react-dom": "^18.2.0",
     "@vitejs/plugin-react": "^4.2.1",
     "autoprefixer": "^10.4.17",
+    "jsdom": "^29.1.1",
     "postcss": "^8.4.33",
     "tailwindcss": "^3.4.1",
     "typescript": "^6.0.3",
-    "vite": "^5.0.11"
+    "vite": "^5.0.11",
+    "vitest": "^1.6.1"
   }
 }

@@ -1099,6 +1099,7 @@ export default function ChatWindow({ matchId, otherUser }) {
             disabled={!isPremiumPlus && remaining <= 0}
             className={`w-10 h-10 shrink-0 rounded-xl flex items-center justify-center text-xs font-black transition-all duration-200 ease-out-expo active:scale-90 disabled:opacity-40 ${showGifPanel ? 'bg-gradient-to-br from-brand-500 to-brand-600 text-white shadow-glow-sm' : 'bg-white/5 border border-white/10 text-gray-400 hover:text-brand-400 hover:bg-white/10 hover:border-white/20'}`}
             title="GIF"
+            aria-label="Enviar GIF"
           >
             GIF
           </button>
@@ -1107,6 +1108,7 @@ export default function ChatWindow({ matchId, otherUser }) {
             disabled={!isPremiumPlus && remaining <= 0}
             className={`w-10 h-10 shrink-0 rounded-xl flex items-center justify-center transition-all duration-200 ease-out-expo active:scale-90 disabled:opacity-40 ${showStickerPanel ? 'bg-gradient-to-br from-brand-500 to-brand-600 text-white shadow-glow-sm' : 'bg-white/5 border border-white/10 text-gray-400 hover:text-brand-400 hover:bg-white/10 hover:border-white/20'}`}
             title="Stickers"
+            aria-label="Enviar sticker"
           >
             <FiSmile size={16} />
           </button>
@@ -1115,6 +1117,7 @@ export default function ChatWindow({ matchId, otherUser }) {
             disabled={sendingImage || (!isPremiumPlus && remaining <= 0)}
             className="w-10 h-10 shrink-0 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-gray-400 hover:text-brand-400 hover:bg-white/10 hover:border-white/20 transition-all duration-200 ease-out-expo active:scale-90 disabled:opacity-40"
             title="Enviar foto"
+            aria-label="Enviar foto"
           >
             {sendingImage
               ? <div className="w-4 h-4 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
@@ -1127,6 +1130,7 @@ export default function ChatWindow({ matchId, otherUser }) {
             disabled={sendingVideo || (!isPremiumPlus && remaining <= 0)}
             className="w-10 h-10 shrink-0 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-gray-400 hover:text-brand-400 hover:bg-white/10 hover:border-white/20 transition-all duration-200 ease-out-expo active:scale-90 disabled:opacity-40"
             title="Enviar video"
+            aria-label="Enviar video"
           >
             {sendingVideo
               ? <div className="w-4 h-4 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
