@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { FiArrowLeft, FiCopy, FiGift, FiUsers, FiCheck, FiShare2 } from 'react-icons/fi';
+import { FiCopy, FiGift, FiUsers, FiCheck, FiShare2 } from 'react-icons/fi';
 import api from '../lib/api.js';
 import toast from 'react-hot-toast';
+import PageShell from '../components/layout/PageShell.jsx';
 
 export default function Referrals() {
   const [data, setData] = useState(null);
@@ -57,13 +57,14 @@ export default function Referrals() {
   );
 
   return (
-    <div className="min-h-screen px-4 pt-8 pb-28 max-w-lg mx-auto relative">
-      <div className="absolute top-12 right-0 w-64 h-64 bg-brand-500/6 rounded-full blur-3xl pointer-events-none animate-float -z-10" />
-      <div className="flex items-center gap-3 mb-6">
-        <Link to="/profile" className="text-gray-400 hover:text-white hover:bg-white/5 p-1.5 -m-1 rounded-lg transition-colors"><FiArrowLeft size={20} /></Link>
-        <h1 className="text-2xl lg:text-3xl font-black gradient-text">Invita y gana</h1>
-      </div>
-
+    <PageShell
+      icon={FiGift}
+      title="Invita y gana"
+      subtitle="50 coins por cada amigo que se una con tu código."
+      backTo="/profile"
+      backLabel="Volver al perfil"
+      maxWidth="xl"
+    >
       {/* Hero card */}
       <div className="card p-6 mb-6 text-center bg-gradient-to-br from-brand-500/15 to-accent-500/8 border-brand-500/30 shadow-glow-sm">
         <FiGift className="text-brand-400 mx-auto mb-3 drop-shadow-[0_0_8px_rgba(244,63,94,0.5)]" size={36} />
@@ -136,6 +137,6 @@ export default function Referrals() {
         </div>
         <p className="text-[10px] text-gray-600 mt-2">Solo puedes aplicar un código y por una sola vez</p>
       </div>
-    </div>
+    </PageShell>
   );
 }

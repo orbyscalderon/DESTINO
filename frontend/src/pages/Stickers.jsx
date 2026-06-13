@@ -1,14 +1,16 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { FiArrowLeft, FiCheck, FiZap, FiShoppingBag } from 'react-icons/fi';
+import { FiCheck, FiZap, FiShoppingBag } from 'react-icons/fi';
 import api from '../lib/api.js';
 import VerifiedBadge from '../components/ui/VerifiedBadge.jsx';
 import { useConfirm } from '../components/ui/ConfirmDialog.jsx';
 import toast from 'react-hot-toast';
+import PageShell from '../components/layout/PageShell.jsx';
+import EmptyState from '../components/ui/EmptyState.jsx';
+import LazyImage from '../components/ui/LazyImage.jsx';
 
 export default function Stickers() {
-  const navigate = useNavigate();
   const confirm = useConfirm();
   const [packs, setPacks] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -48,32 +50,18 @@ export default function Stickers() {
   };
 
   return (
-    <div className="min-h-screen px-4 pt-8 pb-28 max-w-5xl mx-auto relative">
-      <div className="absolute top-12 right-0 w-64 h-64 bg-brand-500/8 rounded-full blur-3xl pointer-events-none animate-float -z-10" />
-
-      <div className="flex items-center gap-3 mb-6">
-        <button onClick={() => navigate(-1)} className="text-gray-400 hover:text-white hover:bg-white/5 p-1.5 -m-1 rounded-lg transition-colors">
-          <FiArrowLeft size={20} />
-        </button>
-        <h1 className="text-2xl lg:text-3xl font-black gradient-text flex items-center gap-2">
-          <FiShoppingBag size={24} /> Stickers
-        </h1>
-      </div>
-
-      <p className="text-gray-400 text-sm mb-6 max-w-xl">
-        Packs comprables con coins. Una vez desbloqueados, los stickers están disponibles en todos tus chats.
-      </p>
-
+    <PageShell
+      icon={FiShoppingBag}
+      title="Stickers"
+      subtitle="Packs comprables con coins. Una vez desbloqueados, los stickers están disponibles en todos tus chats."
+      maxWidth="5xl"
+    >
       {loading ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
           {[...Array(8)].map((_, i) => <div key={i} className="skeleton aspect-[3/4] rounded-2xl" />)}
         </div>
       ) : packs.length === 0 ? (
-        <div className="card p-12 text-center">
-          <div className="text-5xl mb-4 animate-float inline-block">🎟️</div>
-          <p className="text-white font-bold mb-1">Sin packs disponibles aún</p>
-          <p className="text-gray-500 text-sm">Vuelve pronto.</p>
-        </div>
+        <EmptyState emoji="🎟️" title="Sin packs disponibles aún" desc="Vuelve pronto." />
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
           {packs.map((p, i) => (
@@ -88,7 +76,7 @@ export default function Stickers() {
             >
               <div className="aspect-square bg-gradient-to-br from-dark-700 to-dark-800 relative overflow-hidden">
                 {p.cover_url ? (
-                  <img src={p.cover_url} alt={p.name} className="w-full h-full object-cover" loading="lazy" />
+                  <LazyImage src={p.cover_url} alt={p.name} className="w-full h-full" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-5xl">🎟️</div>
                 )}
@@ -136,6 +124,6 @@ export default function Stickers() {
           ))}
         </div>
       )}
-    </div>
+    </PageShell>
   );
 }

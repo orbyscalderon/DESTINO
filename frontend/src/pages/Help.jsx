@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { FiArrowLeft, FiChevronDown, FiChevronUp, FiMail } from 'react-icons/fi';
+import { FiChevronDown, FiChevronUp, FiMail, FiHelpCircle } from 'react-icons/fi';
+import PageShell from '../components/layout/PageShell.jsx';
 
 const SUPPORT_EMAIL = import.meta.env.VITE_SUPPORT_EMAIL || 'soporte@destino.app';
 
@@ -139,16 +140,14 @@ function FAQItem({ q, a }) {
 
 export default function Help() {
   return (
-    <div className="min-h-screen bg-dark-900 hero-mesh px-5 py-8 lg:px-16 lg:py-12 relative overflow-hidden">
-      <div className="absolute top-12 left-1/2 -translate-x-1/2 w-72 h-72 bg-brand-500/10 rounded-full blur-3xl pointer-events-none animate-float" />
-      <div className="max-w-2xl mx-auto relative z-10">
-        <Link to="/settings" className="inline-flex items-center gap-2 text-gray-400 hover:text-white hover:bg-white/5 px-2 py-1 -ml-2 rounded-lg mb-8 transition-colors">
-          <FiArrowLeft size={16} /> Configuración
-        </Link>
-
-        <h1 className="text-3xl font-black gradient-text mb-2">Centro de Ayuda</h1>
-        <p className="text-gray-500 text-sm mb-10">Respuestas a las preguntas más frecuentes</p>
-
+    <PageShell
+      icon={FiHelpCircle}
+      title="Centro de Ayuda"
+      subtitle="Respuestas a las preguntas más frecuentes."
+      backTo="/settings"
+      backLabel="Configuración"
+      maxWidth="2xl"
+    >
         <div className="space-y-6">
           {FAQS.map(section => (
             <div key={section.category} className="card overflow-hidden">
@@ -182,7 +181,6 @@ export default function Help() {
           <Link to="/privacy" className="hover:text-brand-400 transition-colors">Política de Privacidad</Link>
           <Link to="/dmca" className="hover:text-brand-400 transition-colors">DMCA / Copyright</Link>
         </div>
-      </div>
-    </div>
+    </PageShell>
   );
 }

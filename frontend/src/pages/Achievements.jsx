@@ -5,6 +5,7 @@ import { FiArrowLeft, FiAward, FiLock } from 'react-icons/fi';
 import api from '../lib/api.js';
 import toast from 'react-hot-toast';
 import EmptyState from '../components/ui/EmptyState.jsx';
+import PageShell from '../components/layout/PageShell.jsx';
 
 const RARITY_STYLES = {
   common:    { color: 'text-gray-400',    bg: 'bg-gray-500/10',   border: 'border-gray-500/20' },
@@ -61,13 +62,14 @@ export default function Achievements() {
     : 0;
 
   return (
-    <div className="min-h-screen px-4 pt-8 pb-28 max-w-lg mx-auto relative">
-      <div className="absolute top-12 right-0 w-64 h-64 bg-yellow-500/6 rounded-full blur-3xl pointer-events-none animate-float -z-10" />
-      <div className="flex items-center gap-3 mb-6">
-        <Link to="/profile" className="text-gray-400 hover:text-white hover:bg-white/5 p-1.5 -m-1 rounded-lg transition-colors"><FiArrowLeft size={20} /></Link>
-        <h1 className="text-2xl lg:text-3xl font-black gradient-text">Logros</h1>
-      </div>
-
+    <PageShell
+      icon={FiAward}
+      title="Logros"
+      subtitle="Sube de nivel completando milestones."
+      backTo="/profile"
+      backLabel="Volver al perfil"
+      maxWidth="xl"
+    >
       {/* Nivel + XP bar */}
       <div className="card p-5 mb-4 bg-gradient-to-br from-brand-500/15 to-accent-500/8 border-brand-500/30 shadow-glow-sm">
         <div className="flex items-center justify-between mb-3">
@@ -161,6 +163,6 @@ export default function Achievements() {
           );
         })}
       </div>
-    </div>
+    </PageShell>
   );
 }

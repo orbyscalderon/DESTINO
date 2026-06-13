@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { FiArrowLeft, FiMail, FiCheck, FiClock } from 'react-icons/fi';
+import { Link } from 'react-router-dom';
+import { FiMail, FiCheck, FiClock, FiLifeBuoy } from 'react-icons/fi';
 import api from '../lib/api.js';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '../store/authStore.js';
+import PageShell from '../components/layout/PageShell.jsx';
 
 const CATEGORIES = [
   { value: 'account',  label: 'Mi cuenta' },
@@ -15,7 +16,6 @@ const CATEGORIES = [
 ];
 
 export default function Support() {
-  const navigate = useNavigate();
   const { profile, user } = useAuthStore();
   const [form, setForm] = useState({
     name: profile?.full_name || '',
@@ -77,14 +77,14 @@ export default function Support() {
   }
 
   return (
-    <div className="min-h-screen px-4 pt-8 pb-24 max-w-2xl mx-auto">
-      <div className="flex items-center gap-3 mb-6">
-        <button onClick={() => navigate(-1)} className="text-gray-400 hover:text-white">
-          <FiArrowLeft size={20} />
-        </button>
-        <h1 className="text-2xl font-black gradient-text">Soporte</h1>
-      </div>
-
+    <PageShell
+      icon={FiLifeBuoy}
+      title="Soporte"
+      subtitle="Escríbenos y te respondemos en máximo 48 horas hábiles."
+      backTo="/settings"
+      backLabel="Configuración"
+      maxWidth="2xl"
+    >
       <div className="card p-4 mb-5 flex items-center gap-3 bg-brand-500/5 border-brand-500/20">
         <FiMail className="text-brand-400 shrink-0" size={20} />
         <div className="flex-1 text-xs text-gray-300">
@@ -162,6 +162,6 @@ export default function Support() {
           </div>
         </div>
       )}
-    </div>
+    </PageShell>
   );
 }
