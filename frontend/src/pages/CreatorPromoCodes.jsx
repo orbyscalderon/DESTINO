@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import api from '../lib/api.js';
 import PageShell from '../components/layout/PageShell.jsx';
 import EmptyState from '../components/ui/EmptyState.jsx';
+import { EmptyCoins } from '../components/ui/illustrations/index.js';
 
 export default function CreatorPromoCodes() {
   const [promos, setPromos] = useState([]);
@@ -114,7 +115,7 @@ export default function CreatorPromoCodes() {
 
       {promos.length === 0 ? (
         <EmptyState
-          emoji="🎟️"
+          illustration={<EmptyCoins size={140} />}
           title="Sin códigos creados"
           desc="Creá tu primer promo para hacer ofertas — primer mes 50% off, drops, eventos…"
         />

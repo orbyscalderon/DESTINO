@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import api from '../lib/api.js';
 import PageShell from '../components/layout/PageShell.jsx';
 import EmptyState from '../components/ui/EmptyState.jsx';
+import { EmptyVault } from '../components/ui/illustrations/index.js';
 
 const TYPE_ICONS = { photo: FiImage, video: FiVideo, audio: FiMusic, text: FiFileText, gif: FiImage };
 const FILTERS = [
@@ -141,7 +142,7 @@ export default function CreatorVault() {
         </div>
       ) : items.length === 0 ? (
         <EmptyState
-          emoji="🗄️"
+          illustration={<EmptyVault size={140} />}
           title="Tu vault está vacío"
           desc="Subí tu primer ítem para empezar a reutilizar contenido en cualquier collection o mensaje."
         />

@@ -5,6 +5,7 @@ import { FiPlayCircle, FiTrash2 } from 'react-icons/fi';
 import api from '../lib/api.js';
 import PageShell from '../components/layout/PageShell.jsx';
 import EmptyState from '../components/ui/EmptyState.jsx';
+import { EmptyInbox } from '../components/ui/illustrations/index.js';
 
 export default function ContinueWatching() {
   const [items, setItems] = useState([]);
@@ -49,7 +50,7 @@ export default function ContinueWatching() {
         </div>
       ) : items.length === 0 ? (
         <EmptyState
-          emoji="🎬"
+          illustration={<EmptyInbox size={140} />}
           title="No hay videos en progreso"
           desc="Cuando empieces un video y lo pauses a la mitad, aparecerá acá para que lo retomes con un clic."
         />

@@ -82,7 +82,25 @@ export default defineConfig({
           // MediaPipe (face detection) — solo se necesita en VideoCall/Verify
           if (id.includes('@mediapipe')) return 'mediapipe';
 
-          // Resto de node_modules como vendor general
+          // Three.js — solo para VRVideoPlayer (lazy)
+          if (id.includes('node_modules/three/')) return 'three';
+
+          // React core — siempre necesario
+          if (id.match(/node_modules\/(react|react-dom|scheduler)\//)) return 'react';
+
+          // React Router — siempre necesario en app autenticada
+          if (id.includes('react-router')) return 'router';
+
+          // Capacitor — solo se usa en builds móviles, pero se carga en web también
+          if (id.includes('@capacitor')) return 'capacitor';
+
+          // React Query / axios / forms — comunes pero no react-core
+          if (id.includes('axios')) return 'http';
+
+          // Zustand (state) + react-hot-toast (toaster) — pequeños pero juntos
+          if (id.includes('zustand') || id.includes('react-hot-toast')) return 'state';
+
+          // Resto de node_modules como vendor general (ahora más pequeño)
           if (id.includes('node_modules')) return 'vendor';
         },
       },

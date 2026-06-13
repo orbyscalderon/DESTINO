@@ -5,6 +5,7 @@ import api from '../lib/api.js';
 import PageShell from '../components/layout/PageShell.jsx';
 import EmptyState from '../components/ui/EmptyState.jsx';
 import AnimatedCounter from '../components/ui/AnimatedCounter.jsx';
+import { EmptyHeart } from '../components/ui/illustrations/index.js';
 
 const BADGE_META = {
   bronze_supporter:   { emoji: '🥉', label: 'Bronze',   color: 'text-amber-600 border-amber-600/30 bg-amber-600/5' },
@@ -49,7 +50,7 @@ export default function CreatorTopFans() {
         </div>
       ) : fans.length === 0 ? (
         <EmptyState
-          emoji="💕"
+          illustration={<EmptyHeart size={140} />}
           title="Todavía no tenés fans pagantes"
           desc="Compartí tu perfil — apenas alguien envía un tip, hace una compra o se suscribe, aparece acá."
         />
