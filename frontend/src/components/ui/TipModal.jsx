@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 import PromoCodeInput from './PromoCodeInput.jsx';
 import SuccessConfetti from './SuccessConfetti.jsx';
 import { playDing } from '../../lib/sounds.js';
+import { useFocusTrap } from '../../lib/useFocusTrap.js';
 
 const PRESETS = [10, 25, 50, 100, 200];
 
@@ -15,6 +16,7 @@ export default function TipModal({ userId, userName, onClose, onSent }) {
   const [sending, setSending] = useState(false);
   const [promo, setPromo] = useState(null);
   const [celebrate, setCelebrate] = useState(false);
+  const trapRef = useFocusTrap(true, { onEscape: onClose });
 
   // v70: cálculo de cantidad final aplicando promo (si type='tip' y matchea)
   const finalAmount = (() => {
@@ -59,6 +61,10 @@ export default function TipModal({ userId, userName, onClose, onSent }) {
         onClick={onClose}
       >
         <motion.div
+          ref={trapRef}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="tip-modal-title"
           initial={{ y: '100%', opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: '100%', opacity: 0 }}
@@ -68,7 +74,7 @@ export default function TipModal({ userId, userName, onClose, onSent }) {
         >
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-white font-bold text-lg">Enviar propina</h3>
+              <h3 id="tip-modal-title" className="text-white font-bold text-lg">Enviar propina</h3>
               <p className="text-gray-500 text-sm">a {userName}</p>
             </div>
             <button onClick={onClose} className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 transition-colors" aria-label="Cerrar">

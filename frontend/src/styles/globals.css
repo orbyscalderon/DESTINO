@@ -417,6 +417,29 @@ html.light [data-no-invert] {
   filter: invert(1) hue-rotate(180deg);
 }
 
+/* Skip-to-content link a11y — invisible hasta recibir foco con keyboard.
+   Permite a usuarios de teclado/screen-reader saltar nav/banners y aterrizar
+   directo en el contenido principal. */
+.skip-to-content {
+  position: fixed;
+  top: -100px;
+  left: 1rem;
+  z-index: 100;
+  background: theme('colors.brand.500');
+  color: white;
+  padding: 0.625rem 1rem;
+  border-radius: 0.75rem;
+  font-weight: 700;
+  font-size: 0.875rem;
+  box-shadow: 0 8px 24px rgba(244, 63, 94, 0.4);
+  transition: top 0.2s ease-out;
+}
+.skip-to-content:focus {
+  top: 1rem;
+  outline: 2px solid white;
+  outline-offset: 2px;
+}
+
 /* Disable animations para users que prefieren reduced motion */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

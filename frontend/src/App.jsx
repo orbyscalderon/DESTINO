@@ -340,6 +340,8 @@ export default function App() {
     <HashRouter>
       <ErrorBoundary>
       <Suspense fallback={<PageLoader />}>
+      {/* Skip-link a11y — solo visible al recibir foco (keyboard nav) */}
+      <a href="#main-content" className="skip-to-content">Saltar al contenido</a>
       <OfflineBanner />
       <CookieBanner />
       {user && <OnboardingTour />}
@@ -348,8 +350,10 @@ export default function App() {
       <Toaster
         position="top-center"
         gutter={10}
+        containerAriaLabel="Notificaciones"
         toastOptions={{
           duration: 3200,
+          ariaProps: { role: 'status', 'aria-live': 'polite' },
           className: 'toast-custom',
           style: {
             background: 'rgba(10, 10, 15, 0.88)',
@@ -384,6 +388,7 @@ export default function App() {
           },
         }}
       />
+      <main id="main-content" tabIndex="-1">
       <Routes>
         {/* Rutas públicas */}
         <Route path="/" element={<Landing />} />
@@ -473,6 +478,7 @@ export default function App() {
         {/* 404 */}
         <Route path="*" element={<NotFound />} />
       </Routes>
+      </main>
       </Suspense>
       </ErrorBoundary>
     </HashRouter>

@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { FiMessageCircle, FiX } from 'react-icons/fi';
 import { playSuccess } from '../../lib/sounds.js';
+import { useFocusTrap } from '../../lib/useFocusTrap.js';
 
 // Partículas de confetti generadas una sola vez
 const PARTICLES = Array.from({ length: 28 }, (_, i) => ({
@@ -42,6 +43,7 @@ function Confetti() {
 export default function MatchNotification({ match, onClose }) {
   const navigate = useNavigate();
   const audioRef = useRef(null);
+  const trapRef = useFocusTrap(!!match, { onEscape: onClose });
 
   useEffect(() => {
     // Vibración en móvil + sound opt-in
@@ -54,6 +56,10 @@ export default function MatchNotification({ match, onClose }) {
   return (
     <AnimatePresence>
       <motion.div
+        ref={trapRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="match-notification-title"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
@@ -91,6 +97,7 @@ export default function MatchNotification({ match, onClose }) {
         </motion.div>
 
         <motion.h1
+          id="match-notification-title"
           initial={{ y: 30, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.35 }}
