@@ -176,7 +176,11 @@ function ShowCard({ show }) {
   );
 }
 
-export default function AdultCreators() {
+// Props:
+//   embedded — si true, NO renderiza AgeGate ni VIP-gate (asume que el
+//   padre los maneja, ej. AdultHub). Renderiza solo el shell de búsqueda +
+//   tabs + grids para uso dentro de un tab del hub.
+export default function AdultCreators({ embedded = false }) {
   const navigate = useNavigate();
   const { profile } = useAuthStore();
   const isVip = profile?.premium_tier === 'vip' || profile?.is_adult_creator;
@@ -275,7 +279,7 @@ export default function AdultCreators() {
       ? creators.filter(c => c.is_live || isOnline(c.last_active))
       : creators;
 
-  if (!isVip) {
+  if (!isVip && !embedded) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center px-6 text-center gap-4">
         <div className="text-5xl">👑</div>
@@ -293,14 +297,16 @@ export default function AdultCreators() {
     );
   }
 
-  if (!verified) return <AgeGate onVerified={() => setVerified(true)} />;
+  if (!verified && !embedded) return <AgeGate onVerified={() => setVerified(true)} />;
 
   const isFiltered = query || gender || country || onlineOnly || liveOnly;
 
   return (
-    <div className="min-h-screen pb-24 bg-dark-900">
-      {/* ── Header ─────────────────────────────────── */}
-      <div className="sticky top-0 z-20 bg-dark-900/95 backdrop-blur-md border-b border-white/5">
+    <div className={embedded ? '' : 'min-h-screen pb-24 bg-dark-900'}>
+      {/* ── Header — oculto en embedded, padre lo provee ─ */}
+      <div className={embedded
+        ? 'bg-dark-900/40 border-b border-white/5'
+        : 'sticky top-0 z-20 bg-dark-900/95 backdrop-blur-md border-b border-white/5'}>
         {/* Search + filter toggle */}
         <div className="flex items-center gap-2 px-4 pt-5 pb-2">
           <div className="flex-1 relative">

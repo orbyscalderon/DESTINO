@@ -176,7 +176,11 @@ function VideoCard({ video, onBookmark, onReport, onShare }) {
   );
 }
 
-export default function Explore() {
+// Props:
+//   embedded — si true, NO renderiza AgeGate ni el sticky header (asume que
+//   el contenedor padre los maneja, ej. AdultHub). Sirve para reutilizar la
+//   misma lógica de grid/filtros tanto como página standalone como tab.
+export default function Explore({ embedded = false }) {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -280,13 +284,14 @@ export default function Explore() {
     navigate(`/explore/v/${video.id}?action=report`);
   };
 
-  if (!ageOk) {
+  if (!ageOk && !embedded) {
     return <AgeGate onVerified={() => setAgeOk(true)} />;
   }
 
   return (
-    <div className="min-h-screen pb-24">
-      {/* Header */}
+    <div className={embedded ? '' : 'min-h-screen pb-24'}>
+      {/* Header — oculto en modo embedded (el padre lo provee) */}
+      {!embedded && (
       <div className="sticky top-0 z-30 bg-dark-900/95 backdrop-blur-md border-b border-white/5">
         <div className="px-4 pt-4 pb-2 max-w-7xl mx-auto flex items-center gap-3">
           <button onClick={() => navigate(-1)} className="text-gray-400 hover:text-white shrink-0">
@@ -354,6 +359,7 @@ export default function Explore() {
           </div>
         )}
       </div>
+      )}
 
       {/* Sidebar de categorías expandible */}
       {showSidebar && (

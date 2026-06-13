@@ -55,6 +55,9 @@ const IOS_BUILD = import.meta.env.VITE_IOS_BUILD === '1';
 const AdultCreators = IOS_BUILD
   ? lazy(() => import('./pages/NotFound.jsx'))
   : lazy(() => import('./pages/AdultCreators.jsx'));
+const AdultHub = IOS_BUILD
+  ? lazy(() => import('./pages/NotFound.jsx'))
+  : lazy(() => import('./pages/AdultHub.jsx'));
 const VideoRequests   = lazy(() => import('./pages/VideoRequests.jsx'));
 const Leaderboard     = lazy(() => import('./pages/Leaderboard.jsx'));
 const VerifyEmail     = lazy(() => import('./pages/VerifyEmail.jsx'));
@@ -437,13 +440,18 @@ export default function App() {
           <Route path="/search" element={<Search />} />
           <Route path="/notifications" element={<Notifications />} />
           <Route path="/call/:matchId" element={<VideoCall />} />
-          {!IOS_BUILD && <Route path="/adult" element={<AdultCreators />} />}
+          {/* /adult y /explore son aliases del hub unificado. /adult/legacy
+              y /explore/legacy quedan para acceso directo a las páginas
+              individuales si se necesita (e.g. linkear desde docs). */}
+          {!IOS_BUILD && <Route path="/adult" element={<AdultHub />} />}
+          {!IOS_BUILD && <Route path="/adult/legacy" element={<AdultCreators />} />}
           <Route path="/video-requests" element={<VideoRequests />} />
           <Route path="/leaderboard" element={<Leaderboard />} />
           <Route path="/referrals" element={<Referrals />} />
           <Route path="/achievements" element={<Achievements />} />
           <Route path="/cohost/:showId" element={<CoHostStage />} />
-          <Route path="/explore" element={<Explore />} />
+          {!IOS_BUILD && <Route path="/explore" element={<AdultHub />} />}
+          <Route path="/explore/legacy" element={<Explore />} />
           <Route path="/explore/v/:id" element={<ExploreVideo />} />
           <Route path="/explore/playlists" element={<Playlists />} />
           <Route path="/explore/playlists/:id" element={<Playlists />} />
