@@ -9,6 +9,7 @@ import MatchNotification from '../components/ui/MatchNotification.jsx';
 import PremiumModal from '../components/ui/PremiumModal.jsx';
 import StoryRing from '../components/ui/StoryRing.jsx';
 import StoryViewer from '../components/ui/StoryViewer.jsx';
+import StoryComposer from '../components/ui/StoryComposer.jsx';
 import { useTranslation } from 'react-i18next';
 import api from '../lib/api.js';
 import VerifiedBadge from '../components/ui/VerifiedBadge.jsx';
@@ -477,7 +478,7 @@ export default function Discover() {
           }
           return (
             <button
-              onClick={() => storyFileRef.current?.click()}
+              onClick={() => setShowAddStory(true)}
               className="flex flex-col items-center gap-1.5 shrink-0"
             >
               <div className="relative" style={{ width: 56, height: 56 }}>
@@ -881,6 +882,13 @@ export default function Discover() {
           isOwn={storyGroups[Math.min(openStoryIdx, storyGroups.length - 1)]?.user?.id === profile?.id}
           onClose={() => setOpenStoryIdx(null)}
           onNewStory={loadStories}
+        />
+      )}
+
+      {showAddStory && (
+        <StoryComposer
+          onClose={() => setShowAddStory(false)}
+          onPosted={loadStories}
         />
       )}
 

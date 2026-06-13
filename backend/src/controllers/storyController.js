@@ -43,6 +43,7 @@ export const listStories = async (req, res) => {
       .from('stories')
       .select(`
         id, media_url, media_type, is_adult, expires_at, views_count, created_at,
+        caption, cta_url, cta_label, cover_frame_s,
         user:profiles!user_id(id, full_name, avatar_url, is_verified)
       `)
       .in('user_id', Array.from(friendIds))
@@ -138,6 +139,20 @@ export const createStory = async (req, res) => {
 
     const expiresAt = new Date(Date.now() + STORY_EXPIRY_HOURS * 60 * 60 * 1000).toISOString();
 
+    // Caption + CTA opcionales — validados por DB constraints. Sanitizamos
+    // strings vacíos a NULL para no guardar "" como caption.
+    const captionRaw = (req.body.caption || '').trim();
+    const ctaUrlRaw  = (req.body.cta_url || '').trim();
+    const ctaLabelRaw = (req.body.cta_label || '').trim();
+    const coverFrameRaw = req.body.cover_frame_s;
+
+    const caption = captionRaw && captionRaw.length <= 280 ? captionRaw : null;
+    const ctaUrl  = ctaUrlRaw && /^https?:\/\//i.test(ctaUrlRaw) && ctaUrlRaw.length <= 500 ? ctaUrlRaw : null;
+    const ctaLabel = ctaUrl && ctaLabelRaw && ctaLabelRaw.length <= 30 ? ctaLabelRaw : null;
+    const coverFrameS = isVideo && coverFrameRaw != null && !isNaN(Number(coverFrameRaw))
+      ? Math.max(0, parseFloat(coverFrameRaw))
+      : null;
+
     const { data: story, error } = await supabase
       .from('stories')
       .insert({
@@ -146,6 +161,10 @@ export const createStory = async (req, res) => {
         media_type: isVideo ? 'video' : 'photo',
         is_adult: finalIsAdult,
         expires_at: expiresAt,
+        caption,
+        cta_url: ctaUrl,
+        cta_label: ctaLabel,
+        cover_frame_s: coverFrameS,
       })
       .select()
       .single();

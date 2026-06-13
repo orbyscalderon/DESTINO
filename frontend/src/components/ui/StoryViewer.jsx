@@ -269,6 +269,27 @@ export default function StoryViewer({ groups, initialGroupIndex = 0, onClose, on
           aria-label="Siguiente"
         />
 
+        {/* Caption + CTA overlay (data del story) */}
+        {currentStory.caption && (
+          <div className="absolute bottom-20 left-3 right-3 z-15 pointer-events-none">
+            <p className="text-white text-sm font-medium bg-black/55 backdrop-blur-sm rounded-xl px-3 py-2 inline-block whitespace-pre-wrap break-words max-w-[90%]">
+              {currentStory.caption}
+            </p>
+          </div>
+        )}
+        {currentStory.cta_url && (
+          <a
+            href={currentStory.cta_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
+            className="absolute bottom-16 left-3 right-3 z-20 bg-brand-500 hover:bg-brand-400 text-white rounded-full px-4 py-2.5 text-xs font-bold text-center shadow-glow transition-colors block"
+          >
+            {currentStory.cta_label || 'Ver más'} →
+          </a>
+        )}
+
         {/* Indicador visual de pause */}
         <AnimatePresence>
           {paused && (
