@@ -1,0 +1,44 @@
+name: Framer Watcher
+
+# Ejecuta el watcher diariamente a las 9am UTC (5am EST / 4am DR).
+# Manda email a orbys85@gmail.com si hay templates nuevos.
+# Commitea seen.json actualizado al repo para persistir estado.
+
+on:
+  schedule:
+    - cron: '0 9 * * *'   # diario 9am UTC
+  workflow_dispatch: {}    # permite trigger manual
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write       # para commitear seen.json
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run watcher
+        env:
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          WATCHER_NOTIFY_EMAIL: ${{ secrets.WATCHER_NOTIFY_EMAIL }}
+          WATCHER_FROM_EMAIL: ${{ secrets.WATCHER_FROM_EMAIL }}
+        run: |
+          cd tools/framer-watcher
+          node index.js --notify
+
+      - name: Commit seen.json if changed
+        run: |
+          git config user.name "framer-watcher-bot"
+          git config user.email "bot@destino.app"
+          cd tools/framer-watcher
+          if [[ -n "$(git status --porcelain seen.json)" ]]; then
+            git add seen.json
+            git commit -m "chore(framer-watcher): update seen.json [bot]"
+            git push
+          else
+            echo "No changes to seen.json"
+          fi

@@ -1,0 +1,296 @@
+{
+  "templates": {
+    "course-hub": {
+      "name": "CourseHub",
+      "author": "Danny Sapio",
+      "firstSeen": "2026-06-13T04:07:03.885Z"
+    },
+    "constio": {
+      "name": "Constio",
+      "author": "RedDevs",
+      "firstSeen": "2026-06-13T04:07:03.885Z"
+    },
+    "xtract": {
+      "name": "Xtract",
+      "author": "Kanishk Dubey",
+      "firstSeen": "2026-06-13T04:07:03.885Z"
+    },
+    "athletix": {
+      "name": "Athletix",
+      "author": "NutsDev",
+      "firstSeen": "2026-06-13T04:07:03.885Z"
+    },
+    "product-hub": {
+      "name": "ProductHub",
+      "author": "Danny Sapio",
+      "firstSeen": "2026-06-13T04:07:03.885Z"
+    },
+    "geniai": {
+      "name": "GeniAI",
+      "author": "Jitu Raut",
+      "firstSeen": "2026-06-13T04:07:03.885Z"
+    },
+    "meridian": {
+      "name": "Meridian",
+      "author": "Moyin",
+      "firstSeen": "2026-06-13T04:07:03.885Z"
+    },
+    "glamira": {
+      "name": "Glamira",
+      "author": "Eneso",
+      "firstSeen": "2026-06-13T04:07:03.885Z"
+    },
+    "limitless": {
+      "name": "Limitless",
+      "author": "Hamza Ehsan",
+      "firstSeen": "2026-06-13T04:07:03.885Z"
+    },
+    "verris": {
+      "name": "Verris",
+      "author": "Isaac",
+      "firstSeen": "2026-06-13T04:07:03.885Z"
+    },
+    "cryptix": {
+      "name": "Cryptix",
+      "author": "Arthur Duchesne",
+      "firstSeen": "2026-06-13T04:07:03.885Z"
+    },
+    "bernini": {
+      "name": "Bernini",
+      "author": "Sofiane Izabachene",
+      "firstSeen": "2026-06-13T04:07:03.885Z"
+    },
+    "civitas": {
+      "name": "Civitas",
+      "author": "Muzamal Hussain",
+      "firstSeen": "2026-06-13T04:07:03.885Z"
+    },
+    "fusion-ai": {
+      "name": "Fusion AI",
+      "author": "Amani Studio",
+      "firstSeen": "2026-06-13T04:07:03.885Z"
+    },
+    "majd": {
+      "name": "Majd",
+      "author": "Mejed Alkoutaini",
+      "firstSeen": "2026-06-13T04:07:03.885Z"
+    },
+    "scarlet": {
+      "name": "Scarlet",
+      "author": "Thaer Swailem",
+      "firstSeen": "2026-06-13T04:07:03.885Z"
+    },
+    "stratex": {
+      "name": "Stratex",
+      "author": "Muzamal Hussain",
+      "firstSeen": "2026-06-13T04:07:03.885Z"
+    },
+    "fluence": {
+      "name": "Fluence AI",
+      "author": "Amani Studio",
+      "firstSeen": "2026-06-13T04:07:03.885Z"
+    },
+    "draftr": {
+      "name": "Draftr",
+      "author": "Salim from Webestica",
+      "firstSeen": "2026-06-13T04:07:03.885Z"
+    },
+    "effica": {
+      "name": "Effica",
+      "author": "Anatolii Dmitrienko",
+      "firstSeen": "2026-06-13T04:07:03.885Z"
+    },
+    "message": {
+      "name": "Message",
+      "author": null,
+      "firstSeen": "2026-06-13T04:07:03.885Z"
+    },
+    "pawfect": {
+      "name": "Pawfect",
+      "author": null,
+      "firstSeen": "2026-06-13T04:07:03.885Z"
+    },
+    "vectura": {
+      "name": "Vectura",
+      "author": null,
+      "firstSeen": "2026-06-13T04:07:03.885Z"
+    },
+    "damas": {
+      "name": "Damas",
+      "author": null,
+      "firstSeen": "2026-06-13T04:07:03.885Z"
+    },
+    "portfolite": {
+      "name": "Portfolite",
+      "author": null,
+      "firstSeen": "2026-06-13T04:07:03.885Z"
+    },
+    "palmer": {
+      "name": "Palmer",
+      "author": null,
+      "firstSeen": "2026-06-13T04:07:03.885Z"
+    },
+    "pearl": {
+      "name": "Pearl",
+      "author": null,
+      "firstSeen": "2026-06-13T04:07:03.885Z"
+    },
+    "marceau": {
+      "name": "Marceau",
+      "author": null,
+      "firstSeen": "2026-06-13T04:07:03.885Z"
+    },
+    "nitro": {
+      "name": "Nitro",
+      "author": null,
+      "firstSeen": "2026-06-13T04:07:03.885Z"
+    },
+    "fabrica": {
+      "name": "Fabrica",
+      "author": null,
+      "firstSeen": "2026-06-13T04:07:03.885Z"
+    },
+    "perform": {
+      "name": "Perform",
+      "author": null,
+      "firstSeen": "2026-06-13T04:07:03.885Z"
+    },
+    "eizo": {
+      "name": "Eizo",
+      "author": null,
+      "firstSeen": "2026-06-13T04:07:03.885Z"
+    },
+    "designfast": {
+      "name": "Designfast",
+      "author": null,
+      "firstSeen": "2026-06-13T04:07:03.885Z"
+    },
+    "arpeggio": {
+      "name": "Arpeggio",
+      "author": null,
+      "firstSeen": "2026-06-13T04:07:03.885Z"
+    },
+    "handyman": {
+      "name": "Handyman",
+      "author": null,
+      "firstSeen": "2026-06-13T04:07:03.885Z"
+    },
+    "trvns": {
+      "name": "Trvns",
+      "author": null,
+      "firstSeen": "2026-06-13T04:07:03.885Z"
+    },
+    "velora": {
+      "name": "Velora",
+      "author": null,
+      "firstSeen": "2026-06-13T04:07:03.885Z"
+    },
+    "formix": {
+      "name": "Formix",
+      "author": null,
+      "firstSeen": "2026-06-13T04:07:03.885Z"
+    },
+    "hydra": {
+      "name": "Hydra",
+      "author": null,
+      "firstSeen": "2026-06-13T04:07:03.885Z"
+    },
+    "greenleaf": {
+      "name": "Greenleaf",
+      "author": null,
+      "firstSeen": "2026-06-13T04:07:03.885Z"
+    },
+    "ai-uni": {
+      "name": "Ai Uni",
+      "author": null,
+      "firstSeen": "2026-06-13T04:07:03.885Z"
+    },
+    "eventis": {
+      "name": "Eventis",
+      "author": null,
+      "firstSeen": "2026-06-13T04:07:03.885Z"
+    },
+    "sunergy": {
+      "name": "Sunergy",
+      "author": null,
+      "firstSeen": "2026-06-13T04:07:03.885Z"
+    },
+    "careon": {
+      "name": "Careon",
+      "author": null,
+      "firstSeen": "2026-06-13T04:07:03.885Z"
+    },
+    "elaraa": {
+      "name": "Elaraa",
+      "author": null,
+      "firstSeen": "2026-06-13T04:07:03.885Z"
+    },
+    "movilo": {
+      "name": "Movilo",
+      "author": null,
+      "firstSeen": "2026-06-13T04:07:03.885Z"
+    },
+    "keynote": {
+      "name": "Keynote",
+      "author": null,
+      "firstSeen": "2026-06-13T04:07:03.885Z"
+    },
+    "thinkforward": {
+      "name": "Thinkforward",
+      "author": null,
+      "firstSeen": "2026-06-13T04:07:03.885Z"
+    },
+    "vowsblooms": {
+      "name": "Vowsblooms",
+      "author": null,
+      "firstSeen": "2026-06-13T04:07:03.885Z"
+    },
+    "reunion": {
+      "name": "Reunion",
+      "author": null,
+      "firstSeen": "2026-06-13T04:07:03.885Z"
+    },
+    "eduvex": {
+      "name": "Eduvex",
+      "author": null,
+      "firstSeen": "2026-06-13T04:07:03.885Z"
+    },
+    "earthstudio": {
+      "name": "Earthstudio",
+      "author": null,
+      "firstSeen": "2026-06-13T04:07:03.885Z"
+    },
+    "ceremony": {
+      "name": "Ceremony",
+      "author": null,
+      "firstSeen": "2026-06-13T04:07:03.885Z"
+    },
+    "darling": {
+      "name": "Darling",
+      "author": null,
+      "firstSeen": "2026-06-13T04:07:03.885Z"
+    },
+    "kiddoz": {
+      "name": "Kiddoz",
+      "author": null,
+      "firstSeen": "2026-06-13T04:07:03.885Z"
+    },
+    "elevate": {
+      "name": "Elevate",
+      "author": null,
+      "firstSeen": "2026-06-13T04:07:03.885Z"
+    },
+    "gallereee": {
+      "name": "Gallereee",
+      "author": null,
+      "firstSeen": "2026-06-13T04:07:03.885Z"
+    },
+    "plumbing-contractor-local-service-template": {
+      "name": "Plumbing Contractor Local Service Template",
+      "author": null,
+      "firstSeen": "2026-06-13T04:07:03.885Z"
+    }
+  },
+  "firstSeen": "2026-06-13T04:07:03.885Z",
+  "lastChecked": "2026-06-13T04:07:03.885Z"
+}

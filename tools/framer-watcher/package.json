@@ -1,0 +1,16 @@
+{
+  "name": "framer-watcher",
+  "version": "1.0.0",
+  "description": "Polling watcher for new Framer marketplace templates with email notifications",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "check": "node index.js",
+    "check:notify": "node index.js --notify",
+    "check:json": "node index.js --json",
+    "reset": "node index.js --reset"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
