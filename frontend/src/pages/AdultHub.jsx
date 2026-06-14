@@ -687,6 +687,43 @@ function FotosTab() {
  * Importante: TODO el contacto pasa por chat interno (/chat/), no expone
  * teléfono/WhatsApp. Solo creators con is_adult_creator+age_verified_at.
  */
+// Constantes Fuck Now — fuera del componente para no recrearlas cada render
+const FUCKNOW_CITIES_BY_COUNTRY = {
+  do: ['Santo Domingo', 'Santiago', 'Punta Cana', 'La Romana', 'Puerto Plata', 'San Pedro de Macorís', 'San Cristóbal', 'Bávaro'],
+  mx: ['Ciudad de México', 'Guadalajara', 'Monterrey', 'Cancún', 'Tijuana', 'Puebla'],
+  ar: ['Buenos Aires', 'Córdoba', 'Rosario', 'Mendoza', 'La Plata'],
+  co: ['Bogotá', 'Medellín', 'Cali', 'Barranquilla', 'Cartagena'],
+  es: ['Madrid', 'Barcelona', 'Valencia', 'Sevilla', 'Málaga'],
+  ve: ['Caracas', 'Maracaibo', 'Valencia', 'Barquisimeto'],
+};
+const FUCKNOW_BODY_TYPES = [
+  { id: 'delgada',   label: 'Delgada'   },
+  { id: 'atletica',  label: 'Atlética'  },
+  { id: 'curvy',     label: 'Curvy'     },
+  { id: 'plus',      label: 'Plus'      },
+  { id: 'fitness',   label: 'Fitness'   },
+];
+const BODY_LABEL = FUCKNOW_BODY_TYPES.reduce((acc, b) => { acc[b.id] = b.label; return acc; }, {});
+const FUCKNOW_ETHNICITIES = [
+  { id: 'latina',    label: 'Latina'    },
+  { id: 'caucasica', label: 'Caucásica' },
+  { id: 'afro',      label: 'Afro'      },
+  { id: 'asiatica',  label: 'Asiática'  },
+  { id: 'mixta',     label: 'Mixta'     },
+];
+const FUCKNOW_LANGUAGES = [
+  { code: 'es', flag: '🇪🇸', label: 'Español'    },
+  { code: 'en', flag: '🇬🇧', label: 'Inglés'     },
+  { code: 'pt', flag: '🇧🇷', label: 'Portugués'  },
+  { code: 'fr', flag: '🇫🇷', label: 'Francés'    },
+];
+const FUCKNOW_SORTS = [
+  { id: 'recent',    label: 'Recientes'  },
+  { id: 'popular',   label: 'Populares'  },
+  { id: 'online',    label: 'En línea'   },
+  { id: 'new',       label: 'Nuevas'     },
+];
+
 function AhoraTab({ liveShows, onSwitchTab, profile }) {
   const userCountry = profile?.country || 'do';
   const [creators, setCreators] = useState([]);
@@ -696,39 +733,66 @@ function AhoraTab({ liveShows, onSwitchTab, profile }) {
   const [onlineOnly, setOnlineOnly] = useState(false);
   const [minAge, setMinAge] = useState(18);
   const [maxAge, setMaxAge] = useState(99);
+  const [bodyType, setBodyType] = useState('all');
+  const [ethnicity, setEthnicity] = useState('all');
+  const [languages, setLanguages] = useState(new Set());
+  const [minHeight, setMinHeight] = useState(0);
+  const [maxHeight, setMaxHeight] = useState(220);
+  const [sortBy, setSortBy] = useState('recent');
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
-  // Ciudades por país — RD primero ya que es donde está la mayoría del user base
-  const CITIES_BY_COUNTRY = {
-    do: ['Santo Domingo', 'Santiago', 'Punta Cana', 'La Romana', 'Puerto Plata', 'San Pedro de Macorís', 'San Cristóbal', 'Bávaro'],
-    mx: ['Ciudad de México', 'Guadalajara', 'Monterrey', 'Cancún', 'Tijuana', 'Puebla'],
-    ar: ['Buenos Aires', 'Córdoba', 'Rosario', 'Mendoza', 'La Plata'],
-    co: ['Bogotá', 'Medellín', 'Cali', 'Barranquilla', 'Cartagena'],
-    es: ['Madrid', 'Barcelona', 'Valencia', 'Sevilla', 'Málaga'],
-    ve: ['Caracas', 'Maracaibo', 'Valencia', 'Barquisimeto'],
-  };
-  const cityOptions = CITIES_BY_COUNTRY[userCountry?.toLowerCase()] || CITIES_BY_COUNTRY.do;
+  const cityOptions = FUCKNOW_CITIES_BY_COUNTRY[userCountry?.toLowerCase()] || FUCKNOW_CITIES_BY_COUNTRY.do;
 
   useEffect(() => {
     setLoading(true);
     const params = new URLSearchParams({
-      sort: 'recent',
+      sort: sortBy,
       adult: '1',
       limit: '60',
     });
     if (genderFilter !== 'all') params.set('gender', genderFilter);
-    if (onlineOnly) params.set('online', 'true');
+    if (onlineOnly || sortBy === 'online') params.set('online', 'true');
     if (city !== 'all') params.set('city', city);
     if (userCountry) params.set('country', userCountry);
+    if (bodyType !== 'all') params.set('body_type', bodyType);
+    if (ethnicity !== 'all') params.set('ethnicity', ethnicity);
+    if (languages.size > 0) params.set('languages', Array.from(languages).join(','));
     api.get(`/api/creator/discover?${params}`)
       .then(({ data }) => setCreators(data.creators || []))
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [genderFilter, onlineOnly, city, userCountry]);
+  }, [genderFilter, onlineOnly, city, userCountry, bodyType, ethnicity, languages, sortBy]);
+
+  const toggleLanguage = (code) => {
+    setLanguages(prev => {
+      const next = new Set(prev);
+      if (next.has(code)) next.delete(code);
+      else next.add(code);
+      return next;
+    });
+  };
+
+  const resetFilters = () => {
+    setCity('all'); setGenderFilter('all'); setOnlineOnly(false);
+    setMinAge(18); setMaxAge(99); setBodyType('all'); setEthnicity('all');
+    setLanguages(new Set()); setMinHeight(0); setMaxHeight(220); setSortBy('recent');
+  };
 
   const filtered = creators.filter(c => {
     if (c.age && (c.age < minAge || c.age > maxAge)) return false;
+    if (c.height_cm && (c.height_cm < minHeight || c.height_cm > maxHeight)) return false;
     return true;
   });
+
+  const activeFiltersCount =
+    (city !== 'all' ? 1 : 0) +
+    (genderFilter !== 'all' ? 1 : 0) +
+    (onlineOnly ? 1 : 0) +
+    (bodyType !== 'all' ? 1 : 0) +
+    (ethnicity !== 'all' ? 1 : 0) +
+    languages.size +
+    (minHeight > 0 || maxHeight < 220 ? 1 : 0) +
+    (minAge > 18 || maxAge < 99 ? 1 : 0);
 
   // Pick aleatorio — botón "Sorpréndeme"
   const surpriseMe = () => {
@@ -751,7 +815,7 @@ function AhoraTab({ liveShows, onSwitchTab, profile }) {
         </div>
       </div>
 
-      {/* Filtros: ciudad + género + edad + online */}
+      {/* Filtros básicos */}
       <div className="bg-dark-800/60 border border-white/5 rounded-2xl p-3 mb-4 space-y-3">
         <div className="flex items-center gap-2 flex-wrap">
           <label className="flex items-center gap-1.5 text-[10px] text-gray-400 uppercase font-bold tracking-wide shrink-0">
@@ -764,6 +828,17 @@ function AhoraTab({ liveShows, onSwitchTab, profile }) {
           >
             <option value="all">Todas las ciudades</option>
             {cityOptions.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+
+          <label className="flex items-center gap-1.5 text-[10px] text-gray-400 uppercase font-bold tracking-wide shrink-0 ml-2">
+            Ordenar
+          </label>
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            className="bg-dark-900 border border-white/10 text-white text-xs rounded-lg px-3 py-1.5 outline-none focus:border-orange-500/50"
+          >
+            {FUCKNOW_SORTS.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
           </select>
 
           <div className="flex items-center gap-1 ml-auto">
@@ -826,7 +901,120 @@ function AhoraTab({ liveShows, onSwitchTab, profile }) {
               className="w-12 bg-dark-900 border border-white/10 text-white text-xs rounded-md px-1.5 py-0.5 outline-none focus:border-orange-500/50 text-center"
             />
           </div>
+
+          <button
+            onClick={() => setShowAdvanced(v => !v)}
+            className="ml-auto text-[11px] font-bold text-orange-400 hover:text-orange-300 flex items-center gap-1"
+          >
+            {showAdvanced ? '− Menos' : '+ Más filtros'}
+            {!showAdvanced && activeFiltersCount > 2 && (
+              <span className="bg-orange-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full">
+                {activeFiltersCount}
+              </span>
+            )}
+          </button>
         </div>
+
+        {/* Filtros avanzados: cuerpo, etnia, idiomas, altura */}
+        <AnimatePresence>
+          {showAdvanced && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="overflow-hidden border-t border-white/5 pt-3 space-y-3"
+            >
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-[10px] text-gray-400 uppercase font-bold tracking-wide shrink-0">Cuerpo</span>
+                <button
+                  onClick={() => setBodyType('all')}
+                  className={`text-[11px] font-bold px-3 py-1 rounded-full transition-colors ${
+                    bodyType === 'all' ? 'bg-orange-500 text-white' : 'bg-dark-900 text-gray-400 hover:text-white border border-white/5'
+                  }`}
+                >Todos</button>
+                {FUCKNOW_BODY_TYPES.map(b => (
+                  <button
+                    key={b.id}
+                    onClick={() => setBodyType(b.id === bodyType ? 'all' : b.id)}
+                    className={`text-[11px] font-bold px-3 py-1 rounded-full transition-colors ${
+                      bodyType === b.id ? 'bg-orange-500 text-white' : 'bg-dark-900 text-gray-400 hover:text-white border border-white/5'
+                    }`}
+                  >
+                    {b.label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-[10px] text-gray-400 uppercase font-bold tracking-wide shrink-0">Etnia</span>
+                <button
+                  onClick={() => setEthnicity('all')}
+                  className={`text-[11px] font-bold px-3 py-1 rounded-full transition-colors ${
+                    ethnicity === 'all' ? 'bg-orange-500 text-white' : 'bg-dark-900 text-gray-400 hover:text-white border border-white/5'
+                  }`}
+                >Todas</button>
+                {FUCKNOW_ETHNICITIES.map(e => (
+                  <button
+                    key={e.id}
+                    onClick={() => setEthnicity(e.id === ethnicity ? 'all' : e.id)}
+                    className={`text-[11px] font-bold px-3 py-1 rounded-full transition-colors ${
+                      ethnicity === e.id ? 'bg-orange-500 text-white' : 'bg-dark-900 text-gray-400 hover:text-white border border-white/5'
+                    }`}
+                  >
+                    {e.label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-[10px] text-gray-400 uppercase font-bold tracking-wide shrink-0">Idiomas</span>
+                {FUCKNOW_LANGUAGES.map(l => {
+                  const active = languages.has(l.code);
+                  return (
+                    <button
+                      key={l.code}
+                      onClick={() => toggleLanguage(l.code)}
+                      className={`text-[11px] font-bold px-3 py-1 rounded-full transition-colors flex items-center gap-1 ${
+                        active ? 'bg-orange-500 text-white' : 'bg-dark-900 text-gray-400 hover:text-white border border-white/5'
+                      }`}
+                    >
+                      <span>{l.flag}</span> {l.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-[10px] text-gray-400 uppercase font-bold tracking-wide shrink-0">Altura (cm)</span>
+                <input
+                  type="number" min="0" max="220"
+                  value={minHeight}
+                  onChange={(e) => setMinHeight(Math.max(0, parseInt(e.target.value) || 0))}
+                  className="w-16 bg-dark-900 border border-white/10 text-white text-xs rounded-md px-1.5 py-0.5 outline-none focus:border-orange-500/50 text-center"
+                  placeholder="min"
+                />
+                <span className="text-gray-500 text-xs">—</span>
+                <input
+                  type="number" min="0" max="220"
+                  value={maxHeight}
+                  onChange={(e) => setMaxHeight(Math.min(220, parseInt(e.target.value) || 220))}
+                  className="w-16 bg-dark-900 border border-white/10 text-white text-xs rounded-md px-1.5 py-0.5 outline-none focus:border-orange-500/50 text-center"
+                  placeholder="max"
+                />
+                <span className="text-[10px] text-gray-500 italic">Sin definir si está vacío</span>
+
+                {activeFiltersCount > 0 && (
+                  <button
+                    onClick={resetFilters}
+                    className="ml-auto text-[11px] text-gray-400 hover:text-orange-300 font-bold"
+                  >
+                    Limpiar todo
+                  </button>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Stats */}
@@ -882,11 +1070,29 @@ function AhoraTab({ liveShows, onSwitchTab, profile }) {
 function FuckNowCard({ creator }) {
   const isOnline = creator.last_active && (Date.now() - new Date(creator.last_active).getTime() < 5 * 60 * 1000);
   const isLive = !!creator.is_live;
+
+  // Service tags — solo de plataforma, NO servicios físicos
   const services = [];
   if (creator.has_video_calls)    services.push('Video');
   if (creator.has_custom_content) services.push('Custom');
   if (creator.has_subscription)   services.push('Sub');
   if (creator.has_ppv)            services.push('PPV');
+
+  // Idiomas → banderas (max 3 para no saturar)
+  const langs = (creator.languages || []).slice(0, 3);
+  const flagFor = (code) => ({
+    es: '🇪🇸', en: '🇬🇧', pt: '🇧🇷', fr: '🇫🇷', it: '🇮🇹', de: '🇩🇪',
+  }[code] || '');
+
+  // Línea de detalles físicos (compact, solo si hay data)
+  const physicalLine = [
+    creator.age && `${creator.age}a`,
+    creator.height_cm && `${creator.height_cm}cm`,
+    creator.body_type && BODY_LABEL[creator.body_type],
+  ].filter(Boolean).join(' · ');
+
+  // Tarifa de suscripción mensual (platform-only)
+  const subPrice = creator.subscription_price || creator.creator_subscription_price;
 
   return (
     <Link
@@ -911,7 +1117,7 @@ function FuckNowCard({ creator }) {
 
       {/* Top badges */}
       <div className="absolute top-2 left-2 right-2 flex items-start justify-between">
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 flex-wrap">
           {isLive && (
             <span className="flex items-center gap-1 bg-red-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full uppercase">
               <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" /> LIVE
@@ -922,20 +1128,36 @@ function FuckNowCard({ creator }) {
               <span className="w-1.5 h-1.5 bg-white rounded-full" /> Online
             </span>
           )}
+          {subPrice > 0 && (
+            <span className="bg-orange-500/90 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full">
+              ${Math.round(subPrice)}/m
+            </span>
+          )}
         </div>
-        {creator.is_verified && (
-          <span className="bg-blue-500 rounded-full w-4 h-4 flex items-center justify-center ring-2 ring-dark-900" aria-label="Verificado">
-            <FiCheck size={9} className="text-white" strokeWidth={3} />
-          </span>
-        )}
+        <div className="flex items-center gap-1 flex-col items-end">
+          {creator.is_verified && (
+            <span className="bg-blue-500 rounded-full w-4 h-4 flex items-center justify-center ring-2 ring-dark-900" aria-label="Verificado">
+              <FiCheck size={9} className="text-white" strokeWidth={3} />
+            </span>
+          )}
+          {langs.length > 0 && (
+            <div className="flex gap-0.5 bg-black/50 rounded-full px-1 py-0.5 backdrop-blur-sm">
+              {langs.map(l => (
+                <span key={l} className="text-[10px] leading-none" title={l}>{flagFor(l)}</span>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Bottom info */}
       <div className="absolute bottom-0 left-0 right-0 p-2.5">
         <div className="flex items-baseline gap-1.5 mb-0.5">
           <p className="text-white font-black text-sm truncate">{creator.full_name}</p>
-          {creator.age && <span className="text-orange-300 text-xs font-bold">· {creator.age}</span>}
         </div>
+        {physicalLine && (
+          <p className="text-orange-300 text-[10px] font-bold truncate">{physicalLine}</p>
+        )}
         {(creator.city || creator.country) && (
           <p className="text-gray-300 text-[10px] flex items-center gap-1 truncate">
             <span className="text-orange-400">📍</span>
