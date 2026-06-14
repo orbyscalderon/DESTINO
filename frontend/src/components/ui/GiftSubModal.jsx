@@ -6,8 +6,11 @@ import api from '../../lib/api';
 import TierPicker from './TierPicker';
 
 // Modal para regalarle una suscripción a otro usuario.
-// Props: { creatorId, creatorName, onClose, onSuccess?, defaultRecipientId? }
-export default function GiftSubModal({ creatorId, creatorName, onClose, onSuccess, defaultRecipientId }) {
+// Props: { creatorId, creatorName, onClose, onSuccess?, defaultRecipientId?, initialTiers?, initialLegacyPrice? }
+// initialTiers/initialLegacyPrice: si el padre ya los cargó vía /api/creator/:id/profile,
+// los pasamos al TierPicker para evitar un refetch a /tiers que puede divergir
+// (algunos tiers visibles en /profile pero no en /tiers por filtros distintos).
+export default function GiftSubModal({ creatorId, creatorName, onClose, onSuccess, defaultRecipientId, initialTiers = null, initialLegacyPrice = null }) {
   const [selectedTier, setSelectedTier] = useState(null);
   const [mode, setMode] = useState('specific'); // 'specific' | 'random'
   const [recipientQuery, setRecipientQuery] = useState('');
@@ -216,6 +219,8 @@ export default function GiftSubModal({ creatorId, creatorName, onClose, onSucces
                 creatorId={creatorId}
                 selectedTierId={selectedTier?.id}
                 onSelect={(t) => setSelectedTier(t)}
+                initialTiers={initialTiers}
+                initialLegacyPrice={initialLegacyPrice}
               />
             </div>
 

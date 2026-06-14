@@ -1086,6 +1086,8 @@ export default function UserProfile() {
           <GiftSubModal
             creatorId={userId}
             creatorName={profile?.full_name}
+            initialTiers={creatorTiers}
+            initialLegacyPrice={creatorLegacyPrice}
             onClose={() => setShowGiftModal(false)}
             onSuccess={() => {/* opcional refresh */}}
           />
