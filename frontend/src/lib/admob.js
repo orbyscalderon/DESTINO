@@ -25,8 +25,10 @@ let BannerAdSize, BannerAdPosition, AdLoadInfo;
 async function loadPlugin() {
   if (!isNative() || AdMob) return;
   try {
-    // new Function evita que Vite analice el import en tiempo de build
-    const mod = await new Function('return import("@capacitor-community/admob")')();
+    // Sec audit #26: usamos /* @vite-ignore */ en vez de new Function() — es
+    // el comment estándar para skipear el static analysis de Vite, y NO viola
+    // CSP strict (new Function = unsafe-eval).
+    const mod = await import(/* @vite-ignore */ '@capacitor-community/admob');
     AdMob = mod.AdMob;
     BannerAdSize = mod.BannerAdSize;
     BannerAdPosition = mod.BannerAdPosition;

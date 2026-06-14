@@ -146,14 +146,15 @@ export const handleCCBillWebhook = async (req, res) => {
       return res.status(503).end();
     }
 
-    const payload = req.body || {};
-    const eventType = payload.eventType || payload.event_type;
-    const eventId   = payload.X_subscriptionId || payload.subscriptionId || `evt-${Date.now()}-${Math.random()}`;
+    // Sec audit #13: req.body es Buffer (raw) gracias a express.raw() en
+    // server.js. NO usar JSON.stringify(req.body) — eso re-serializa y
+    // puede reformatear, rompiendo HMAC. Verificamos con bytes originales
+    // y solo después parseamos a object.
+    const rawBody = Buffer.isBuffer(req.body) ? req.body
+                  : typeof req.body === 'string' ? Buffer.from(req.body, 'utf8')
+                  : Buffer.from(JSON.stringify(req.body), 'utf8');
 
-    // Verificar firma HMAC
-    // CCBill manda el header "X-CCBill-Signature" o similar dependiendo
-    // de la config. Adapta este check al formato real cuando configures la
-    // cuenta. Por ahora hacemos el shape genérico.
+    // Verificar firma HMAC sobre bytes originales
     const signature = req.headers['x-ccbill-signature'] || req.headers['ccbill-signature'];
     if (!signature) {
       console.warn('[CCBill webhook] firma ausente');
@@ -162,12 +163,39 @@ export const handleCCBillWebhook = async (req, res) => {
 
     const expected = crypto
       .createHmac('sha256', HMAC_SECRET)
-      .update(typeof req.body === 'string' ? req.body : JSON.stringify(req.body))
+      .update(rawBody)
       .digest('hex');
 
-    if (!crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(String(signature)))) {
+    const expectedBuf = Buffer.from(expected, 'utf8');
+    const sigBuf      = Buffer.from(String(signature), 'utf8');
+    if (expectedBuf.length !== sigBuf.length ||
+        !crypto.timingSafeEqual(expectedBuf, sigBuf)) {
       console.warn('[CCBill webhook] firma inválida');
       return res.status(401).end();
+    }
+
+    // Después de HMAC OK, parsear payload para acceder a campos
+    let payload;
+    try {
+      payload = JSON.parse(rawBody.toString('utf8'));
+    } catch {
+      // CCBill puede mandar form-urlencoded — fallback parse
+      const params = new URLSearchParams(rawBody.toString('utf8'));
+      payload = Object.fromEntries(params);
+    }
+    const eventType = payload.eventType || payload.event_type;
+    const eventId   = payload.X_subscriptionId || payload.subscriptionId || `evt-${Date.now()}-${Math.random()}`;
+
+    // Sec audit #34: replay protection — rechazar webhooks viejos.
+    // CCBill incluye timestamp; si el evento es de hace > 10 minutos,
+    // probable replay attack o relay malicioso.
+    const eventTs = payload.timestamp || payload.eventTimestamp;
+    if (eventTs) {
+      const eventTime = new Date(eventTs).getTime();
+      if (!isNaN(eventTime) && Math.abs(Date.now() - eventTime) > 10 * 60 * 1000) {
+        console.warn('[CCBill webhook] evento expirado/futuro, replay sospechoso:', eventTs);
+        return res.status(400).end();
+      }
     }
 
     // Idempotency

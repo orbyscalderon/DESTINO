@@ -87,19 +87,43 @@ const PORT = process.env.PORT || 3001;
 app.set('trust proxy', 1);
 
 // ── Security headers ──────────────────────────────────────────
+// Sec audit #9: CSP strict para API JSON. Cualquier intento de renderear
+// la respuesta como HTML queda bloqueado, sin scripts inline, sin frames.
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
-  contentSecurityPolicy: false, // API JSON pura — CSP se maneja en el frontend
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'none'"],
+      frameAncestors: ["'none'"],
+      baseUri: ["'none'"],
+    },
+  },
+  hsts: { maxAge: 31536000, includeSubDomains: true, preload: true },
 }));
 
 // ── CORS ──────────────────────────────────────────────────────
+// Sec audit #10: fail-closed cuando NODE_ENV no está bien seteado.
+// Antes: NODE_ENV !== 'production' abría CORS a TODO. Si Railway perdía
+// la var, todo abierto. Ahora exigimos NODE_ENV === 'development' explícito.
+const ALLOWED_NODE_ENVS = new Set(['production', 'development', 'test']);
+const NODE_ENV = ALLOWED_NODE_ENVS.has(process.env.NODE_ENV) ? process.env.NODE_ENV : 'production';
+const IS_PROD = NODE_ENV === 'production';
+const IS_DEV  = NODE_ENV === 'development';
+
 app.use(cors({
   origin: (origin, cb) => {
-    // En desarrollo permitir cualquier origen local (localhost, IPs de red)
-    if (!origin) return cb(null, true); // curl / server-to-server
-    if (process.env.NODE_ENV !== 'production') return cb(null, true);
-    const allowed = process.env.FRONTEND_URL || 'http://localhost:5173';
-    cb(origin === allowed ? null : new Error('CORS'), origin === allowed);
+    if (!origin) return cb(null, true); // curl / server-to-server / same-origin
+    if (IS_DEV) return cb(null, true);   // dev local: todos los origenes OK
+    // Prod: solo FRONTEND_URL + variantes opcionales (preview deploys, mobile WebView)
+    const allowed = [
+      process.env.FRONTEND_URL,
+      process.env.FRONTEND_URL_ALT,
+      'capacitor://localhost', // iOS/Android Capacitor WebView
+      'http://localhost',      // Android Capacitor WebView dev
+      'ionic://localhost',     // Legacy Ionic
+    ].filter(Boolean);
+    cb(allowed.includes(origin) ? null : new Error('CORS blocked: ' + origin),
+       allowed.includes(origin));
   },
   credentials: true,
 }));
@@ -221,8 +245,12 @@ app.use((req, res, next) => {
   next();
 });
 
-// ── Raw body para Stripe Webhook ──────────────────────────────
-app.use('/api/payments/webhook', express.raw({ type: 'application/json' }));
+// ── Raw body para Stripe + CCBill Webhooks ──────────────────────
+// Sec audit #13: HMAC verification necesita los bytes ORIGINALES del body.
+// express.json() reparsea y JSON.stringify() puede reformatar (espacios,
+// orden de keys), rompiendo la firma. Estos endpoints reciben raw Buffer.
+app.use('/api/payments/webhook',        express.raw({ type: 'application/json' }));
+app.use('/api/payments/ccbill/webhook', express.raw({ type: '*/*' }));
 
 // ── JSON parser ───────────────────────────────────────────────
 app.use(express.json({ limit: '1mb' }));

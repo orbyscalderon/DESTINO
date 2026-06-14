@@ -43,7 +43,8 @@ async function initWebPush() {
 // Sin esos, register() falla silenciosamente y caemos en web push si aplica.
 async function initNativePush() {
   try {
-    const { PushNotifications } = await new Function('return import("@capacitor/push-notifications")')();
+    // Sec audit #26: @vite-ignore en vez de new Function (CSP-safe)
+    const { PushNotifications } = await import(/* @vite-ignore */ '@capacitor/push-notifications');
     const perm = await PushNotifications.requestPermissions();
     if (perm.receive !== 'granted') return;
 

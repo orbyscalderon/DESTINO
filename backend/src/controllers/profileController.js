@@ -3,17 +3,33 @@ import { uploadFile, deleteFile } from '../lib/storageProvider.js';
 import { spendCoins, addCoins } from './coinController.js';
 import multer from 'multer';
 
-// Campos internos/financieros que solo debe ver el dueño del perfil
-const PRIVATE_FIELDS = [
-  'stripe_customer_id', 'stripe_subscription_id', 'stripe_account_id',
-  'stripe_account_status', 'coins_balance', 'is_admin', 'age_verified_at', 'is_incognito',
+// Sec audit #14: cambio de denylist (PRIVATE_FIELDS) a ALLOWLIST. Antes,
+// si se agregaba una columna sensible nueva al schema y se olvidaba
+// añadirla a PRIVATE_FIELDS, leak. Ahora solo se exponen explícitamente
+// las columnas listadas. Cualquier columna nueva queda oculta por default.
+const PUBLIC_FIELDS = [
+  'id', 'username', 'full_name', 'avatar_url', 'bio',
+  'age', 'gender', 'country', 'language', 'city',
+  'height', 'zodiac', 'interests', 'looking_for',
+  'is_verified', 'is_premium', 'premium_tier', 'is_creator', 'is_adult_creator',
+  'creator_subscription_price', 'creator_since',
+  'subscribers_count', 'followers_count', 'following_count', 'posts_count',
+  'profile_video_url', 'intro_video_url',
+  'last_active', 'is_online', 'created_at',
+  // Spotlight fields — el publisher acepta exponerlos al publicar
+  'fucknow_publisher', 'fucknow_bio', 'fucknow_looking_for',
+  'fucknow_intent', 'fucknow_city', 'fucknow_interests',
+  'fucknow_availability', 'fucknow_expires_at',
+  'height_cm', 'body_type', 'ethnicity', 'languages',
 ];
 
 function sanitizeForPublic(profile) {
   if (!profile) return profile;
-  const p = { ...profile };
-  PRIVATE_FIELDS.forEach(f => delete p[f]);
-  return p;
+  const out = {};
+  for (const f of PUBLIC_FIELDS) {
+    if (f in profile) out[f] = profile[f];
+  }
+  return out;
 }
 
 const ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];

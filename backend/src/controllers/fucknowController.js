@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase.js';
+import { logAdmin } from '../lib/auditLog.js';
 
 // Fuck Now Spotlight — publicación premium en el directorio /adult?tab=ahora
 //
@@ -75,6 +76,11 @@ async function logModeration(userId, field, value, outcome, ruleMatched = null) 
 // Duración del spotlight cuando se activa (días)
 const SPOTLIGHT_DAYS = 30;
 const SPOTLIGHT_PRICE_USD = parseFloat(process.env.SPOTLIGHT_PRICE_USD || '9.99');
+
+// Sec audit #21: cooldown anti-abuse. Si un user activa, cancela y reactiva
+// repetidamente, genera emails + carga + posible exploit. 6h entre publish
+// es suficiente para usar el sistema legítimamente sin permitir loops.
+const SPOTLIGHT_REACTIVATE_COOLDOWN_MS = 6 * 60 * 60 * 1000;
 
 // CCBill master account (no sub-account de creator) para cobros de
 // servicios de la plataforma (Spotlight, Boosts, etc).
@@ -209,12 +215,25 @@ export const publish = async (req, res) => {
     // Verificar si ya tiene spotlight activo — en ese caso solo actualiza
     const { data: cur } = await supabase
       .from('profiles')
-      .select('fucknow_publisher, fucknow_expires_at')
+      .select('fucknow_publisher, fucknow_expires_at, fucknow_published_at')
       .eq('id', userId)
       .single();
     const isAlreadyActive = !!cur?.fucknow_publisher
       && cur.fucknow_expires_at
       && new Date(cur.fucknow_expires_at).getTime() > Date.now();
+
+    // Sec audit #21: cooldown entre activations para prevenir abuse
+    if (!isAlreadyActive && cur?.fucknow_published_at) {
+      const lastActivation = new Date(cur.fucknow_published_at).getTime();
+      const elapsedMs = Date.now() - lastActivation;
+      if (elapsedMs < SPOTLIGHT_REACTIVATE_COOLDOWN_MS) {
+        const hoursLeft = Math.ceil((SPOTLIGHT_REACTIVATE_COOLDOWN_MS - elapsedMs) / (60 * 60 * 1000));
+        return res.status(429).json({
+          error: `Esperá ${hoursLeft}h antes de reactivar Spotlight.`,
+          code: 'COOLDOWN_ACTIVE',
+        });
+      }
+    }
 
     const now = new Date();
     // Sanitizar inputs antes de persist — siempre persiste datos
@@ -257,8 +276,18 @@ export const publish = async (req, res) => {
 
     // Caso primer publish — generar URL de checkout
     if (!isCCBillConfigured()) {
-      // Modo dev sin CCBill — activar gratis (warning en consola)
-      console.warn('[fucknow:publish] CCBill NO configurado, activando Spotlight gratis (dev mode)');
+      // Sec audit #3: bypass de pago requiere flag EXPLÍCITO. Antes
+      // dependía solo de !isCCBillConfigured() lo cual permitía que un
+      // deploy mal configurado en prod regalara Spotlight gratis.
+      // El flag FUCKNOW_DEV_BYPASS=1 solo se setea en local dev.
+      if (process.env.FUCKNOW_DEV_BYPASS !== '1') {
+        console.error('[fucknow:publish] CCBill no configurado en prod. Setear vars o FUCKNOW_DEV_BYPASS=1 (solo dev).');
+        return res.status(503).json({
+          error: 'Procesador de pago no disponible. Volvé más tarde.',
+          code: 'PAYMENT_UNAVAILABLE',
+        });
+      }
+      console.warn('[fucknow:publish] DEV BYPASS activo — Spotlight gratis (NO usar en prod)');
       const expiresAt = new Date(now.getTime() + SPOTLIGHT_DAYS * 86400 * 1000);
       await supabase.from('profiles').update({
         fucknow_publisher:    true,
@@ -448,17 +477,10 @@ export const getModerationRules = async (req, res) => {
 };
 
 // ── GET /api/fucknow/admin/moderation-queue ────────────────────────────
-// Admin-only. Devuelve los últimos N intentos de publish + filtrar por
-// outcome. También devuelve "soft flags" — bios que NO matchearon regex
-// pero tienen N+ palabras sospechosas (heurística secundaria).
+// Admin-only — el gating se hace via isAdmin middleware en routes/fucknow.js
+// (sec audit #1). Acá NO duplicamos el check para evitar inconsistencias.
 export const getAdminModerationQueue = async (req, res) => {
   try {
-    // Gating admin: solo orbys85@gmail.com (matchea security_rules)
-    const adminEmail = process.env.ADMIN_EMAIL || 'orbys85@gmail.com';
-    if (req.user?.email !== adminEmail) {
-      return res.status(403).json({ error: 'Solo admin' });
-    }
-
     const { outcome = 'all', limit = '100' } = req.query;
     let q = supabase
       .from('fucknow_moderation_log')
@@ -504,28 +526,34 @@ export const getAdminModerationQueue = async (req, res) => {
 // ── POST /api/fucknow/admin/force-unpublish ────────────────────────────
 // Admin quita un publisher manualmente (por revisión humana de soft flag,
 // reporte, etc). Envía email explicando por qué.
+// Gating via isAdmin middleware (sec audit #1).
 export const adminForceUnpublish = async (req, res) => {
   try {
-    const adminEmail = process.env.ADMIN_EMAIL || 'orbys85@gmail.com';
-    if (req.user?.email !== adminEmail) {
-      return res.status(403).json({ error: 'Solo admin' });
-    }
     const { user_id, reason } = req.body || {};
     if (!user_id) return res.status(400).json({ error: 'user_id requerido' });
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(user_id)) {
+      return res.status(400).json({ error: 'user_id inválido (debe ser UUID)' });
+    }
 
     await supabase
       .from('profiles')
       .update({ fucknow_publisher: false })
       .eq('id', user_id);
 
-    // Log de la acción del admin
+    // Log de la acción del admin en fucknow_moderation_log (para queue)
     await supabase.from('fucknow_moderation_log').insert({
       user_id,
       field: 'bio',
-      raw_value: `[ADMIN unpublish] ${reason || 'sin razón especificada'}`,
+      raw_value: `[ADMIN unpublish] ${(reason || 'sin razón especificada').slice(0, 500)}`,
       outcome: 'rejected',
       rule_matched: 'admin_review',
     });
+
+    // Sec audit #2: log en audit_log con admin context (IP, UA, etc)
+    await logAdmin(req, 'fucknow.force_unpublish',
+      { type: 'user', id: user_id },
+      { reason: (reason || '').slice(0, 500) }
+    );
 
     import('../lib/emailService.js')
       .then(m => m.sendSpotlightModeratedEmail?.(user_id, reason || 'revisión manual'))

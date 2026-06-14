@@ -9,22 +9,31 @@ import api from '../lib/api.js';
 import toast from 'react-hot-toast';
 import PageShell from '../components/layout/PageShell.jsx';
 import { useAuthStore } from '../store/authStore.js';
+import { useConfirm } from '../components/ui/ConfirmDialog.jsx';
 
 // Admin Fuck Now Moderation Queue
 // - GET /api/fucknow/admin/moderation-queue?outcome=...&limit=...
 // - POST /api/fucknow/admin/force-unpublish con { user_id, reason }
 //
-// Gating: solo orbys85@gmail.com (matchea backend admin check)
+// Gating: profile.is_admin (set en DB) o super admin via env del backend.
+// El backend isAdmin middleware es source of truth — el frontend solo
+// optimiza la UX para no mostrar el panel si no sos admin. (Sec audit #4)
 
 export default function AdminFuckNowQueue() {
   const navigate = useNavigate();
-  const { user } = useAuthStore();
-  const isAdmin = user?.email === 'orbys85@gmail.com';
+  const { user, profile } = useAuthStore();
+  const confirm = useConfirm();
+  const isAdmin = !!profile?.is_admin
+    || (import.meta.env.VITE_ADMIN_EMAILS || '')
+       .split(',').map(s => s.trim().toLowerCase()).filter(Boolean)
+       .includes((user?.email || '').toLowerCase());
 
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
   const [busy, setBusy] = useState(null);
+  const [reasonModal, setReasonModal] = useState(null); // { userId } | null
+  const [reasonText, setReasonText] = useState('');
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -43,12 +52,29 @@ export default function AdminFuckNowQueue() {
     }
   };
 
-  const forceUnpublish = async (userId, reason) => {
-    if (!confirm(`¿Quitar publicación del user ${userId.slice(0, 8)}?`)) return;
-    setBusy(userId);
+  const openReasonModal = (userId) => {
+    setReasonText('Contenido borderline detectado en revisión manual');
+    setReasonModal({ userId });
+  };
+  const closeReasonModal = () => { setReasonModal(null); setReasonText(''); };
+
+  const forceUnpublish = async () => {
+    if (!reasonModal?.userId) return;
+    const ok = await confirm({
+      title: '¿Quitar del directorio?',
+      message: `User ${reasonModal.userId.slice(0, 8)}… recibirá un email con la razón. Esta acción queda en audit_log.`,
+      confirmLabel: 'Quitar publisher',
+      destructive: true,
+    });
+    if (!ok) return;
+    setBusy(reasonModal.userId);
     try {
-      await api.post('/api/fucknow/admin/force-unpublish', { user_id: userId, reason });
+      await api.post('/api/fucknow/admin/force-unpublish', {
+        user_id: reasonModal.userId,
+        reason: reasonText.trim().slice(0, 500),
+      });
       toast.success('Publisher quitado del directorio');
+      closeReasonModal();
       load();
     } catch (err) {
       toast.error(err.response?.data?.error || 'Error');
@@ -132,7 +158,41 @@ export default function AdminFuckNowQueue() {
         </div>
       ) : (
         <div className="space-y-2">
-          {logs.map(log => <LogRow key={log.id} log={log} busy={busy} onForceUnpublish={forceUnpublish} />)}
+          {logs.map(log => <LogRow key={log.id} log={log} busy={busy} onForceUnpublish={openReasonModal} />)}
+        </div>
+      )}
+
+      {/* Modal de razón para force-unpublish (reemplaza prompt() nativo) */}
+      {reasonModal && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={(e) => { if (e.target === e.currentTarget) closeReasonModal(); }}
+        >
+          <div className="bg-dark-900 border border-white/10 rounded-2xl p-5 max-w-md w-full shadow-2xl">
+            <h3 className="text-white font-bold text-base mb-1">Razón para quitar del directorio</h3>
+            <p className="text-xs text-gray-500 mb-3">El user recibirá este texto por email.</p>
+            <textarea
+              value={reasonText}
+              onChange={(e) => setReasonText(e.target.value.slice(0, 500))}
+              rows={4}
+              placeholder="Ej: Tu bio contiene contenido no permitido..."
+              className="input-field w-full text-sm resize-none mb-1"
+              autoFocus
+            />
+            <p className="text-[10px] text-gray-600 text-right mb-3">{reasonText.length}/500</p>
+            <div className="flex gap-2 justify-end">
+              <button onClick={closeReasonModal}
+                className="bg-dark-700 hover:bg-dark-600 text-white text-sm font-bold px-4 py-2 rounded-xl">
+                Cancelar
+              </button>
+              <button
+                onClick={forceUnpublish}
+                disabled={busy || !reasonText.trim()}
+                className="bg-red-500 hover:bg-red-400 disabled:opacity-40 text-white text-sm font-bold px-4 py-2 rounded-xl"
+              >
+                {busy ? '…' : 'Force unpublish'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </PageShell>
@@ -224,10 +284,7 @@ function LogRow({ log, busy, onForceUnpublish }) {
             </Link>
             {isPublisher && (
               <button
-                onClick={() => {
-                  const reason = prompt('Razón para quitar (visible en email al user):', 'Contenido borderline detectado en revisión manual');
-                  if (reason !== null) onForceUnpublish(log.user_id, reason);
-                }}
+                onClick={() => onForceUnpublish(log.user_id)}
                 disabled={busy === log.user_id}
                 className="text-xs bg-red-500 hover:bg-red-400 text-white font-bold px-3 py-1.5 rounded-lg disabled:opacity-40 flex items-center gap-1.5"
               >

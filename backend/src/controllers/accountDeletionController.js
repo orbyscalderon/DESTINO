@@ -133,6 +133,22 @@ export async function processDueDeletions() {
     let ok = 0, failed = 0;
     for (const req of due) {
       try {
+        // Sec audit #8: limpiar PII de tablas que guardan raw text del user
+        // ANTES de borrar auth.users (por si las constraints no cascada).
+        // GDPR right-to-be-forgotten: bio/looking_for del Spotlight + log de
+        // moderación con su texto raw.
+        await Promise.allSettled([
+          supabase.from('fucknow_moderation_log').delete().eq('user_id', req.user_id),
+          // Borrar columnas fucknow_* del profile antes de eliminarlo
+          supabase.from('profiles').update({
+            fucknow_bio: null,
+            fucknow_looking_for: null,
+            fucknow_availability: null,
+            fucknow_interests: null,
+            fucknow_city: null,
+          }).eq('id', req.user_id),
+        ]);
+
         await supabase.auth.admin.deleteUser(req.user_id);
         await supabase
           .from('account_deletion_requests')

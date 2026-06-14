@@ -44,7 +44,8 @@ export default function VRVideoPlayer({ url, format = 'mono_360', poster, onErro
 
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(width, height);
-        container.innerHTML = '';
+        // Sec audit #27: removeChild loop en vez de innerHTML='' (CSP-friendly)
+        while (container.firstChild) container.removeChild(container.firstChild);
         container.appendChild(renderer.domElement);
 
         const video = document.createElement('video');
