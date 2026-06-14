@@ -100,7 +100,7 @@ export default function VideosMegamenu({ onSelectSort, onSelectTag, onClose, tre
     <div
       role="menu"
       aria-label="Menú de videos"
-      className="bg-dark-900/98 backdrop-blur-xl border-y border-white/5 shadow-2xl shadow-black/80"
+      className="relative bg-dark-900 border-y border-white/10 shadow-2xl shadow-black/80"
     >
       <div className="max-w-7xl mx-auto px-6 py-6 grid grid-cols-12 gap-6">
         {/* Col 1: Descubre Videos (3 cols) */}

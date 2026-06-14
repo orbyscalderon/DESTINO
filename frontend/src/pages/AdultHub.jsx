@@ -233,7 +233,7 @@ export default function AdultHub() {
               transition={{ duration: 0.14 }}
               onMouseEnter={cancelCloseMegamenu}
               onMouseLeave={scheduleCloseMegamenu}
-              className="hidden lg:block absolute left-0 right-0 top-full z-40"
+              className="hidden lg:block absolute left-0 right-0 top-full z-50"
             >
               {openMega === 'videos' && (
                 <VideosMegamenu
