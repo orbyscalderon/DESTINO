@@ -1,11 +1,17 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { FiArrowLeft, FiMessageSquare } from 'react-icons/fi';
+import { FiMessageSquare, FiInfo, FiCheck, FiImage } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import api from '../lib/api.js';
+import PageShell from '../components/layout/PageShell.jsx';
+import Toggle from '../components/ui/Toggle.jsx';
 
 export default function CreatorWelcomeMessage() {
-  const [form, setForm] = useState({ enabled: true, message_text: '', ppv_media_url: '', ppv_price: '' });
+  const [form, setForm] = useState({
+    enabled: true,
+    message_text: '',
+    ppv_media_url: '',
+    ppv_price: '',
+  });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -29,6 +35,10 @@ export default function CreatorWelcomeMessage() {
       toast.error('El mensaje debe tener al menos 5 caracteres');
       return;
     }
+    if (form.ppv_media_url && (!form.ppv_price || parseInt(form.ppv_price) < 1)) {
+      toast.error('Si adjuntás un PPV, definí un precio mayor a 0');
+      return;
+    }
     setSaving(true);
     try {
       await api.put('/api/creator-auto/welcome-message', {
@@ -37,7 +47,7 @@ export default function CreatorWelcomeMessage() {
         ppv_media_url: form.ppv_media_url || null,
         ppv_price: form.ppv_price ? parseInt(form.ppv_price) : null,
       });
-      toast.success('Welcome message guardado');
+      toast.success('✓ Welcome message guardado');
     } catch {
       toast.error('Error guardando');
     } finally {
@@ -46,101 +56,135 @@ export default function CreatorWelcomeMessage() {
   };
 
   if (loading) {
-    return <div className="min-h-screen bg-dark-900 flex items-center justify-center">
-      <div className="w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
-    </div>;
+    return (
+      <PageShell icon={FiMessageSquare} title="Welcome Message" backTo="/creator/monetization" maxWidth="2xl">
+        <div className="flex justify-center py-12">
+          <div className="w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
+        </div>
+      </PageShell>
+    );
   }
 
   return (
-    <div className="min-h-screen bg-dark-900 hero-mesh px-5 py-8 lg:px-16 lg:py-12 relative overflow-hidden">
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-96 h-96 bg-brand-500/8 rounded-full blur-3xl pointer-events-none animate-float" />
-
-      <div className="max-w-xl mx-auto relative z-10">
-        <Link to="/creator/dashboard" className="inline-flex items-center gap-2 text-gray-400 hover:text-white hover:bg-white/5 px-2 py-1 -ml-2 rounded-lg mb-8 transition-colors">
-          <FiArrowLeft size={16} /> Volver
-        </Link>
-
-        <div className="flex items-center gap-3 mb-2">
-          <div className="p-2 rounded-xl bg-brand-500/10 border border-brand-500/20">
-            <FiMessageSquare className="text-brand-400" size={22} />
-          </div>
-          <h1 className="text-3xl font-black gradient-text">Welcome Message</h1>
-        </div>
-        <p className="text-gray-500 text-sm mb-8">
-          Mensaje automático que se envía cada vez que alguien se suscribe a tu contenido.
-          Puede incluir un PPV (foto/video pago) opcional.
-        </p>
-
-        <div className="space-y-5">
-          <label className="glass-strong rounded-2xl p-5 border border-white/5 flex items-center gap-4 cursor-pointer">
-            <div className="flex-1">
-              <p className="font-bold text-white">Activar welcome message</p>
-              <p className="text-xs text-gray-400 mt-1">Si está desactivado, los nuevos subs no recibirán DM automático.</p>
-            </div>
-            <Toggle on={form.enabled} onChange={() => setForm(s => ({ ...s, enabled: !s.enabled }))} />
-          </label>
-
-          <div className="glass-strong rounded-2xl p-5 border border-white/5">
-            <label className="block">
-              <span className="block text-sm font-bold text-white mb-2">Texto del mensaje</span>
-              <textarea
-                value={form.message_text}
-                onChange={(e) => setForm(s => ({ ...s, message_text: e.target.value }))}
-                rows={5}
-                maxLength={2000}
-                placeholder="¡Hola! Gracias por suscribirte 💕 Aquí tienes contenido exclusivo cada semana…"
-                className="w-full px-3 py-2 rounded-lg bg-white/[0.03] border border-white/10 text-white text-sm focus:border-brand-500/50 focus:outline-none transition resize-y"
-              />
-              <span className="text-xs text-gray-500 mt-1 block text-right">{form.message_text.length}/2000</span>
-            </label>
-          </div>
-
-          <div className="glass-strong rounded-2xl p-5 border border-white/5 space-y-4">
-            <p className="text-sm font-bold text-white">PPV opcional</p>
-            <p className="text-xs text-gray-400 -mt-2">
-              Adjunta una foto o video con precio. El sub tendrá que pagar para verlo. (Sube primero el archivo desde tu galería).
-            </p>
-            <label className="block">
-              <span className="block text-xs text-gray-400 mb-1">URL del media PPV</span>
-              <input
-                type="text"
-                value={form.ppv_media_url}
-                onChange={(e) => setForm(s => ({ ...s, ppv_media_url: e.target.value }))}
-                placeholder="https://… (de tu galería privada)"
-                className="w-full px-3 py-2 rounded-lg bg-white/[0.03] border border-white/10 text-white text-sm focus:border-brand-500/50 focus:outline-none transition"
-              />
-            </label>
-            <label className="block">
-              <span className="block text-xs text-gray-400 mb-1">Precio en coins</span>
-              <input
-                type="number"
-                value={form.ppv_price}
-                onChange={(e) => setForm(s => ({ ...s, ppv_price: e.target.value }))}
-                min="0"
-                placeholder="100"
-                className="w-full px-3 py-2 rounded-lg bg-white/[0.03] border border-white/10 text-white text-sm focus:border-brand-500/50 focus:outline-none transition"
-              />
-            </label>
-          </div>
-
-          <button
-            onClick={save}
-            disabled={saving}
-            className="w-full px-5 py-3 rounded-xl bg-gradient-to-r from-brand-500 to-brand-600 hover:from-brand-400 hover:to-brand-500 text-white font-bold shadow-glow-sm hover:shadow-glow hover:-translate-y-0.5 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {saving ? 'Guardando…' : 'Guardar'}
-          </button>
+    <PageShell
+      icon={FiMessageSquare}
+      title="Welcome Message"
+      subtitle="DM automático al nuevo suscriptor. Con PPV opcional para monetizar la bienvenida."
+      backTo="/creator/monetization"
+      backLabel="Volver al hub"
+      maxWidth="2xl"
+    >
+      {/* Info */}
+      <div className="card p-4 mb-5 bg-brand-500/5 border-brand-500/20 flex gap-3">
+        <FiInfo className="text-brand-400 shrink-0 mt-0.5" size={16} />
+        <div className="text-xs text-gray-300 leading-relaxed">
+          <p className="text-brand-300 font-bold mb-1">¿Cómo funciona?</p>
+          <p>Cada vez que alguien se suscribe a tu contenido, le mandamos automáticamente el mensaje que configures acá. Si adjuntás un PPV, va pago y el sub paga para verlo.</p>
         </div>
       </div>
-    </div>
-  );
-}
 
-function Toggle({ on, onChange }) {
-  return (
-    <button type="button" onClick={onChange} role="switch" aria-checked={on}
-      className={`relative w-12 h-7 rounded-full transition-colors shrink-0 ${on ? 'bg-brand-500' : 'bg-white/10'}`}>
-      <span className={`absolute top-1 left-1 w-5 h-5 rounded-full bg-white shadow transition-transform ${on ? 'translate-x-5' : ''}`} />
-    </button>
+      <div className="space-y-4">
+        {/* Toggle */}
+        <div className="card p-4 flex items-center gap-4">
+          <div className="flex-1">
+            <p className="text-white font-bold text-sm">Activar welcome message</p>
+            <p className="text-xs text-gray-400 mt-0.5">Si está apagado, no se envía DM automático a nuevos subs.</p>
+          </div>
+          <Toggle
+            on={form.enabled}
+            onChange={() => setForm(s => ({ ...s, enabled: !s.enabled }))}
+            ariaLabel="Activar welcome message"
+          />
+        </div>
+
+        {/* Mensaje */}
+        <div className="card p-4">
+          <label className="text-[10px] text-gray-400 uppercase font-bold tracking-wide mb-1.5 flex items-center justify-between">
+            <span>Texto del mensaje *</span>
+            <span className={form.message_text.length > 1900 ? 'text-amber-400' : 'text-gray-600'}>
+              {form.message_text.length}/2000
+            </span>
+          </label>
+          <textarea
+            value={form.message_text}
+            onChange={(e) => setForm(s => ({ ...s, message_text: e.target.value.slice(0, 2000) }))}
+            rows={5}
+            placeholder="¡Hola! Gracias por suscribirte 💕 Tenés acceso a todo mi contenido exclusivo. Si querés algo custom, escribime."
+            className="input-field w-full text-sm resize-y"
+          />
+          <p className="text-[10px] text-gray-500 mt-1.5 flex items-start gap-1">
+            <FiInfo size={11} className="shrink-0 mt-0.5" />
+            Mantenelo personal y cálido — los subs notan la diferencia.
+          </p>
+        </div>
+
+        {/* PPV opcional */}
+        <div className="card p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <FiImage size={14} className="text-accent-400" />
+            <p className="text-white font-bold text-sm">PPV opcional</p>
+            <span className="text-[10px] bg-accent-500/15 text-accent-300 border border-accent-500/30 px-2 py-0.5 rounded-full font-bold">Monetiza</span>
+          </div>
+          <p className="text-xs text-gray-500">
+            Adjuntá una foto o video pago al mensaje. El sub paga la cantidad que pongas para verlo.
+            Subí el archivo a tu vault primero y pegá la URL acá.
+          </p>
+
+          <div>
+            <label className="text-[10px] text-gray-400 uppercase font-bold tracking-wide mb-1 block">
+              URL del media (desde vault)
+            </label>
+            <input
+              type="url"
+              value={form.ppv_media_url}
+              onChange={(e) => setForm(s => ({ ...s, ppv_media_url: e.target.value }))}
+              placeholder="https://… (URL pública del archivo en tu vault)"
+              className="input-field w-full text-sm font-mono"
+            />
+            {form.ppv_media_url && (
+              <div className="mt-2 aspect-video rounded-lg overflow-hidden bg-dark-800 border border-white/10 max-w-xs">
+                <img src={form.ppv_media_url} alt="Preview"
+                  className="w-full h-full object-cover"
+                  onError={e => e.target.style.display = 'none'} />
+              </div>
+            )}
+          </div>
+
+          <div>
+            <label className="text-[10px] text-gray-400 uppercase font-bold tracking-wide mb-1 block">
+              Precio en coins
+            </label>
+            <div className="flex items-center gap-2">
+              <input
+                type="number" min="0" step="10"
+                value={form.ppv_price}
+                onChange={(e) => setForm(s => ({ ...s, ppv_price: e.target.value }))}
+                placeholder="100"
+                className="input-field text-sm w-32"
+              />
+              <span className="text-xs text-gray-500">coins (mínimo 1 si hay PPV)</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Submit */}
+        <button
+          onClick={save}
+          disabled={saving || form.message_text.length < 5}
+          className="w-full bg-brand-500 hover:bg-brand-400 disabled:opacity-40 text-white font-black text-sm py-3 rounded-xl shadow-glow-sm hover:shadow-glow flex items-center justify-center gap-2 transition-all"
+        >
+          {saving ? (
+            <>
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              Guardando…
+            </>
+          ) : (
+            <>
+              <FiCheck size={16} /> Guardar configuración
+            </>
+          )}
+        </button>
+      </div>
+    </PageShell>
   );
 }

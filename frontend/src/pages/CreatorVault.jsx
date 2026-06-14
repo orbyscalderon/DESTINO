@@ -6,6 +6,7 @@ import api from '../lib/api.js';
 import PageShell from '../components/layout/PageShell.jsx';
 import EmptyState from '../components/ui/EmptyState.jsx';
 import { EmptyVault } from '../components/ui/illustrations/index.js';
+import { useConfirm } from '../components/ui/ConfirmDialog.jsx';
 
 const TYPE_ICONS = { photo: FiImage, video: FiVideo, audio: FiMusic, text: FiFileText, gif: FiImage };
 const FILTERS = [
@@ -17,6 +18,7 @@ const FILTERS = [
 ];
 
 export default function CreatorVault() {
+  const confirm = useConfirm();
   const [items, setItems] = useState([]);
   const [filter, setFilter] = useState('all');
   const [uploading, setUploading] = useState(false);
@@ -50,9 +52,20 @@ export default function CreatorVault() {
   };
 
   const del = async (id) => {
-    if (!confirm('¿Eliminar este item del vault?')) return;
-    await api.delete(`/api/creator-monetization/vault/${id}`);
-    setItems(items.filter(i => i.id !== id));
+    const ok = await confirm({
+      title: '¿Eliminar este item del vault?',
+      message: 'Esta acción es permanente. Si estás usándolo en alguna collection o DM, también deja de funcionar.',
+      confirmLabel: 'Eliminar',
+      destructive: true,
+    });
+    if (!ok) return;
+    try {
+      await api.delete(`/api/creator-monetization/vault/${id}`);
+      setItems(items.filter(i => i.id !== id));
+      toast.success('Eliminado del vault');
+    } catch {
+      toast.error('Error al eliminar');
+    }
   };
 
   const uploadButton = (
