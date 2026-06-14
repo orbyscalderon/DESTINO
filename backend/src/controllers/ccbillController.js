@@ -191,6 +191,24 @@ export const handleCCBillWebhook = async (req, res) => {
     const subAccount   = payload.clientSubacc;
     const amountUsd    = parseFloat(payload.accountingAmount || payload.billedAmount || 0);
 
+    // ── Spotlight billing: customField1='spotlight', customField2=userId ──
+    // Servicio de la plataforma, NO suscripción entre usuarios. Routing
+    // separado al activar/extender publisher en profiles.
+    if (subscriberId === 'spotlight' && creatorId) {
+      const userId = creatorId;
+      if (eventType === 'NewSaleSuccess' || eventType === 'Renewal') {
+        const { activateSpotlightFromWebhook } = await import('./fucknowController.js');
+        await activateSpotlightFromWebhook(userId, eventType);
+        return res.json({ received: true, type: 'spotlight_activated' });
+      }
+      if (eventType === 'Cancellation' || eventType === 'Expiration') {
+        // No tocamos publisher al cancelar — solo evita renovación.
+        // El cron de expiry hará el cleanup cuando llegue la fecha.
+        return res.json({ received: true, type: 'spotlight_cancelled' });
+      }
+      return res.json({ received: true, type: 'spotlight_unhandled', eventType });
+    }
+
     if (!subscriberId || !creatorId || !ccbillSubId) {
       console.warn('[CCBill webhook] custom fields incompletos, skip');
       return res.json({ received: true, skipped: 'incomplete_fields' });

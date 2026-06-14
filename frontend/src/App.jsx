@@ -61,6 +61,7 @@ const AdultHub = IOS_BUILD
 const FuckNowSpotlight = IOS_BUILD
   ? lazy(() => import('./pages/NotFound.jsx'))
   : lazy(() => import('./pages/FuckNowSpotlight.jsx'));
+const AdminFuckNowQueue = lazy(() => import('./pages/AdminFuckNowQueue.jsx'));
 const VideoRequests   = lazy(() => import('./pages/VideoRequests.jsx'));
 const Leaderboard     = lazy(() => import('./pages/Leaderboard.jsx'));
 const VerifyEmail     = lazy(() => import('./pages/VerifyEmail.jsx'));
@@ -433,6 +434,7 @@ export default function App() {
           <Route path="/premium" element={<Premium />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/admin" element={<Admin />} />
+          <Route path="/admin/fucknow-queue" element={<AdminFuckNowQueue />} />
           <Route path="/become-creator" element={<BecomeCreator />} />
           <Route path="/creator/dashboard" element={<CreatorDashboard />} />
           <Route path="/studio" element={<ShowStudio />} />

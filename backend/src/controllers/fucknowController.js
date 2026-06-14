@@ -74,6 +74,15 @@ async function logModeration(userId, field, value, outcome, ruleMatched = null) 
 
 // Duración del spotlight cuando se activa (días)
 const SPOTLIGHT_DAYS = 30;
+const SPOTLIGHT_PRICE_USD = parseFloat(process.env.SPOTLIGHT_PRICE_USD || '9.99');
+
+// CCBill master account (no sub-account de creator) para cobros de
+// servicios de la plataforma (Spotlight, Boosts, etc).
+const CCBILL_FORM_BASE = process.env.CCBILL_FLEXFORMS_DOMAIN || 'https://api.ccbill.com';
+function isCCBillConfigured() {
+  return !!process.env.CCBILL_ACCOUNT_NUMBER
+      && !!process.env.CCBILL_WEBHOOK_HMAC_SECRET;
+}
 
 // ── GET /api/fucknow/status ────────────────────────────────────────────
 export const getStatus = async (req, res) => {
@@ -117,10 +126,15 @@ export const getStatus = async (req, res) => {
 // Body: { bio, looking_for, intent, city, availability, interests, height_cm,
 //         body_type, ethnicity, languages, tos_accepted: true }
 //
-// Requisitos:
-// - El user debe ser is_adult_creator + age_verified_at (eligible)
-// - tos_accepted DEBE ser true
-// - bio/looking_for pasan moderación (regex)
+// Flow nuevo (v75.1):
+//   1. Validar eligibility (is_adult_creator + age_verified_at)
+//   2. Validar ToS aceptado
+//   3. Moderación de bio/looking_for (regex)
+//   4. Persistir datos (NO activar publisher todavía)
+//   5. Devolver URL de CCBill FlexForms — el publisher solo se activa
+//      cuando llega el webhook NewSaleSuccess con customField1='spotlight'
+//   6. Si el user ya tiene spotlight activo, el publish solo actualiza
+//      datos sin cobrar (devuelve { mode: 'updated' })
 export const publish = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -170,14 +184,20 @@ export const publish = async (req, res) => {
       }
     }
 
-    const now = new Date();
-    const expiresAt = new Date(now.getTime() + SPOTLIGHT_DAYS * 86400 * 1000);
+    // Verificar si ya tiene spotlight activo — en ese caso solo actualiza
+    const { data: cur } = await supabase
+      .from('profiles')
+      .select('fucknow_publisher, fucknow_expires_at')
+      .eq('id', userId)
+      .single();
+    const isAlreadyActive = !!cur?.fucknow_publisher
+      && cur.fucknow_expires_at
+      && new Date(cur.fucknow_expires_at).getTime() > Date.now();
 
-    // Sanitizar inputs antes de persist
+    const now = new Date();
+    // Sanitizar inputs antes de persist — siempre persiste datos
+    // pero solo activa publisher si ya tenía o pagó
     const update = {
-      fucknow_publisher:       true,
-      fucknow_published_at:    now.toISOString(),
-      fucknow_expires_at:      expiresAt.toISOString(),
       fucknow_tos_accepted_at: now.toISOString(),
     };
     if (body.bio != null)          update.fucknow_bio          = String(body.bio).slice(0, 600);
@@ -204,16 +224,103 @@ export const publish = async (req, res) => {
       .eq('id', userId);
     if (updErr) throw updErr;
 
+    // Si ya está activo → solo actualizó datos, sin cobro
+    if (isAlreadyActive) {
+      return res.json({
+        mode: 'updated',
+        message: 'Datos actualizados. Spotlight sigue activo.',
+        expires_at: cur.fucknow_expires_at,
+      });
+    }
+
+    // Caso primer publish — generar URL de checkout
+    if (!isCCBillConfigured()) {
+      // Modo dev sin CCBill — activar gratis (warning en consola)
+      console.warn('[fucknow:publish] CCBill NO configurado, activando Spotlight gratis (dev mode)');
+      const expiresAt = new Date(now.getTime() + SPOTLIGHT_DAYS * 86400 * 1000);
+      await supabase.from('profiles').update({
+        fucknow_publisher:    true,
+        fucknow_published_at: now.toISOString(),
+        fucknow_expires_at:   expiresAt.toISOString(),
+      }).eq('id', userId);
+      return res.json({
+        mode: 'dev_activated',
+        message: '¡Spotlight activado (modo dev)!',
+        expires_at: expiresAt.toISOString(),
+      });
+    }
+
+    // Producción — devolver URL al FlexForms de CCBill.
+    // customField1='spotlight' es el discriminador que el webhook usa
+    // para detectar que el cobro es por Spotlight (no por subscription
+    // a otro creator).
+    const params = new URLSearchParams({
+      clientAccnum: process.env.CCBILL_ACCOUNT_NUMBER,
+      clientSubacc: process.env.CCBILL_SPOTLIGHT_SUB_ACCOUNT || '0000',
+      formName:     process.env.CCBILL_SPOTLIGHT_FORM_ID || '',
+      currencyCode: '840',
+      formPrice:           SPOTLIGHT_PRICE_USD.toFixed(2),
+      formPeriod:          String(SPOTLIGHT_DAYS),
+      formRecurringPrice:  SPOTLIGHT_PRICE_USD.toFixed(2),
+      formRecurringPeriod: String(SPOTLIGHT_DAYS),
+      customField1: 'spotlight',
+      customField2: userId,
+    });
+    const checkoutUrl = `${CCBILL_FORM_BASE}/jpost/signup.cgi?${params}`;
+
     res.json({
-      ok: true,
-      message: '¡Spotlight activado por 30 días!',
-      expires_at: expiresAt.toISOString(),
+      mode: 'checkout',
+      checkout_url: checkoutUrl,
+      price_usd: SPOTLIGHT_PRICE_USD,
+      days: SPOTLIGHT_DAYS,
+      message: 'Completa el pago para activar Spotlight',
     });
   } catch (err) {
     console.error('[fucknow:publish]', err.message);
-    res.status(500).json({ error: 'No se pudo activar Spotlight' });
+    res.status(500).json({ error: 'No se pudo iniciar Spotlight' });
   }
 };
+
+// ── Helper exportado para el webhook handler ──────────────────────────
+// Llamado desde ccbillController cuando llega NewSaleSuccess|Renewal con
+// customField1='spotlight'. Activa o extiende el publisher.
+export async function activateSpotlightFromWebhook(userId, eventType) {
+  if (!userId) return false;
+  try {
+    const { data: cur } = await supabase
+      .from('profiles')
+      .select('fucknow_expires_at')
+      .eq('id', userId)
+      .single();
+
+    // Si se renueva mientras aún está activo, extender desde su expires_at
+    // actual; sino, desde ahora.
+    const baseTime = (cur?.fucknow_expires_at && new Date(cur.fucknow_expires_at).getTime() > Date.now())
+      ? new Date(cur.fucknow_expires_at).getTime()
+      : Date.now();
+    const newExpiresAt = new Date(baseTime + SPOTLIGHT_DAYS * 86400 * 1000);
+
+    await supabase.from('profiles').update({
+      fucknow_publisher:    true,
+      fucknow_published_at: new Date().toISOString(),
+      fucknow_expires_at:   newExpiresAt.toISOString(),
+    }).eq('id', userId);
+
+    // Email de activación/renovación
+    import('../lib/emailService.js')
+      .then(m => {
+        if (eventType === 'Renewal') return m.sendSpotlightRenewedEmail?.(userId, newExpiresAt);
+        return m.sendSpotlightActivatedEmail?.(userId, newExpiresAt);
+      })
+      .catch(() => {});
+
+    console.log(`[fucknow] Spotlight ${eventType} para user=${userId} → expira ${newExpiresAt.toISOString()}`);
+    return true;
+  } catch (err) {
+    console.error('[activateSpotlightFromWebhook]', err.message);
+    return false;
+  }
+}
 
 // ── POST /api/fucknow/update ───────────────────────────────────────────
 // Edita los campos sin renovar la suscripción.
@@ -316,6 +423,97 @@ export const getModerationRules = async (req, res) => {
       'Disponible noches y fines de semana',
     ],
   });
+};
+
+// ── GET /api/fucknow/admin/moderation-queue ────────────────────────────
+// Admin-only. Devuelve los últimos N intentos de publish + filtrar por
+// outcome. También devuelve "soft flags" — bios que NO matchearon regex
+// pero tienen N+ palabras sospechosas (heurística secundaria).
+export const getAdminModerationQueue = async (req, res) => {
+  try {
+    // Gating admin: solo orbys85@gmail.com (matchea security_rules)
+    const adminEmail = process.env.ADMIN_EMAIL || 'orbys85@gmail.com';
+    if (req.user?.email !== adminEmail) {
+      return res.status(403).json({ error: 'Solo admin' });
+    }
+
+    const { outcome = 'all', limit = '100' } = req.query;
+    let q = supabase
+      .from('fucknow_moderation_log')
+      .select(`
+        id, user_id, field, raw_value, outcome, rule_matched, created_at,
+        user:profiles!user_id(full_name, avatar_url, fucknow_publisher, fucknow_expires_at)
+      `)
+      .order('created_at', { ascending: false })
+      .limit(Math.min(500, parseInt(limit) || 100));
+    if (outcome !== 'all') q = q.eq('outcome', outcome);
+
+    const { data, error } = await q;
+    if (error) throw error;
+
+    // Heurística secundaria — detectar "soft flags": bios accepted con N+
+    // palabras sospechosas (sin matchear regex literal).
+    const SUSPICIOUS_WORDS = [
+      'noche', 'encuentro', 'visita', 'recibo', 'voy', 'salida',
+      'discreto', 'discreta', 'privacidad', 'hotel', 'cita',
+      'pagas', 'reembolso', 'tip', 'propina',
+    ];
+
+    const enriched = (data || []).map(row => {
+      let softFlags = [];
+      if (row.outcome === 'accepted' && row.raw_value) {
+        const lower = row.raw_value.toLowerCase();
+        softFlags = SUSPICIOUS_WORDS.filter(w => lower.includes(w));
+      }
+      return {
+        ...row,
+        soft_flags: softFlags,
+        is_borderline: softFlags.length >= 2,
+      };
+    });
+
+    res.json({ logs: enriched });
+  } catch (err) {
+    console.error('[fucknow:adminQueue]', err.message);
+    res.status(500).json({ error: 'No se pudo cargar queue' });
+  }
+};
+
+// ── POST /api/fucknow/admin/force-unpublish ────────────────────────────
+// Admin quita un publisher manualmente (por revisión humana de soft flag,
+// reporte, etc). Envía email explicando por qué.
+export const adminForceUnpublish = async (req, res) => {
+  try {
+    const adminEmail = process.env.ADMIN_EMAIL || 'orbys85@gmail.com';
+    if (req.user?.email !== adminEmail) {
+      return res.status(403).json({ error: 'Solo admin' });
+    }
+    const { user_id, reason } = req.body || {};
+    if (!user_id) return res.status(400).json({ error: 'user_id requerido' });
+
+    await supabase
+      .from('profiles')
+      .update({ fucknow_publisher: false })
+      .eq('id', user_id);
+
+    // Log de la acción del admin
+    await supabase.from('fucknow_moderation_log').insert({
+      user_id,
+      field: 'bio',
+      raw_value: `[ADMIN unpublish] ${reason || 'sin razón especificada'}`,
+      outcome: 'rejected',
+      rule_matched: 'admin_review',
+    });
+
+    import('../lib/emailService.js')
+      .then(m => m.sendSpotlightModeratedEmail?.(user_id, reason || 'revisión manual'))
+      .catch(() => {});
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[fucknow:adminForceUnpublish]', err.message);
+    res.status(500).json({ error: 'No se pudo desactivar' });
+  }
 };
 
 // ── GET /api/fucknow/directory ─────────────────────────────────────────

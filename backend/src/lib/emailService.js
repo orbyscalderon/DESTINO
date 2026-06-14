@@ -106,6 +106,101 @@ export async function sendNewMessageEmail(email, userName, senderName) {
   await send(email, `${senderName} te escribió en Destino TV 💬`, html);
 }
 
+// ── Fuck Now Spotlight emails ────────────────────────────────────────
+
+async function getUserEmail(userId) {
+  try {
+    const { supabase } = await import('./supabase.js');
+    const { data } = await supabase
+      .from('profiles')
+      .select('full_name, email_prefs')
+      .eq('id', userId)
+      .single();
+    // El email no está en profiles — viene de auth.users via getUserById
+    const { data: user } = await supabase.auth.admin.getUserById(userId);
+    return { email: user?.user?.email, name: data?.full_name || 'Creator' };
+  } catch {
+    return null;
+  }
+}
+
+export async function sendSpotlightActivatedEmail(userId, expiresAt) {
+  const u = await getUserEmail(userId);
+  if (!u?.email) return;
+  const expDate = new Date(expiresAt).toLocaleDateString('es', { day: 'numeric', month: 'long', year: 'numeric' });
+  const html = base(`
+    <h2>⚡ Tu Spotlight está activo</h2>
+    <p>Hola ${_e(u.name)},</p>
+    <p>Acabás de activar tu perfil en el directorio <strong style="color:#ff8800">Fuck Now Spotlight</strong>. A partir de ahora vas a aparecer en el directorio para todos los usuarios verificados.</p>
+    <p><strong>Tu Spotlight expira el ${expDate}</strong>. Te avisaremos 3 días antes para que puedas renovarlo.</p>
+    <p style="background:#2a1a08;padding:12px;border-left:3px solid #ff8800;font-size:13px">
+      Recordá: no podés publicar tarifas por servicios físicos, contacto externo, ni dirección. El contenido se modera automáticamente.
+    </p>
+    <a href="${APP_URL}/#/adult?tab=ahora" class="btn">Ver el directorio</a>
+  `);
+  await send(u.email, '⚡ Spotlight activado en Destino TV', html);
+}
+
+export async function sendSpotlightRenewedEmail(userId, expiresAt) {
+  const u = await getUserEmail(userId);
+  if (!u?.email) return;
+  const expDate = new Date(expiresAt).toLocaleDateString('es', { day: 'numeric', month: 'long', year: 'numeric' });
+  const html = base(`
+    <h2>✨ Spotlight renovado</h2>
+    <p>Hola ${_e(u.name)}, renovamos tu Spotlight por 30 días más.</p>
+    <p><strong>Nueva expiración: ${expDate}</strong>.</p>
+    <a href="${APP_URL}/#/adult/spotlight" class="btn">Editar mi perfil</a>
+  `);
+  await send(u.email, '✨ Spotlight renovado por 30 días', html);
+}
+
+export async function sendSpotlightExpiringEmail(userId, expiresAt, daysLeft) {
+  const u = await getUserEmail(userId);
+  if (!u?.email) return;
+  const expDate = new Date(expiresAt).toLocaleDateString('es', { day: 'numeric', month: 'long' });
+  const html = base(`
+    <h2>⏰ Tu Spotlight expira en ${daysLeft} ${daysLeft === 1 ? 'día' : 'días'}</h2>
+    <p>Hola ${_e(u.name)},</p>
+    <p>Tu publicación en el directorio Fuck Now expira el <strong>${expDate}</strong>. Después de esa fecha, tu perfil dejará de aparecer hasta que renueves.</p>
+    <p>Si tenés activada la renovación automática vía CCBill, no necesitás hacer nada — se renueva sola.</p>
+    <a href="${APP_URL}/#/adult/spotlight" class="btn">Renovar ahora</a>
+  `);
+  await send(u.email, `⏰ Spotlight expira en ${daysLeft} ${daysLeft === 1 ? 'día' : 'días'}`, html);
+}
+
+export async function sendSpotlightExpiredEmail(userId) {
+  const u = await getUserEmail(userId);
+  if (!u?.email) return;
+  const html = base(`
+    <h2>💤 Tu Spotlight expiró</h2>
+    <p>Hola ${_e(u.name)},</p>
+    <p>Tu publicación en el directorio Fuck Now expiró y ya no aparece. Tu perfil de creator sigue activo en el resto de la plataforma.</p>
+    <p>Si querés volver a aparecer en el directorio, podés reactivar tu Spotlight cuando quieras.</p>
+    <a href="${APP_URL}/#/adult/spotlight" class="btn">Reactivar Spotlight</a>
+  `);
+  await send(u.email, '💤 Tu Spotlight expiró — reactivá cuando quieras', html);
+}
+
+export async function sendSpotlightModeratedEmail(userId, ruleLabel) {
+  const u = await getUserEmail(userId);
+  if (!u?.email) return;
+  const html = base(`
+    <h2>⚠ Tu Spotlight fue quitado del directorio</h2>
+    <p>Hola ${_e(u.name)},</p>
+    <p>Detectamos contenido no permitido en tu publicación: <strong style="color:#ff4444">${_e(ruleLabel)}</strong>.</p>
+    <p>Las reglas del directorio prohíben:</p>
+    <ul style="color:#aaa;font-size:14px">
+      <li>Tarifas por servicios físicos</li>
+      <li>Contacto externo (WhatsApp, teléfono, redes)</li>
+      <li>Servicios sexuales explícitos por dinero</li>
+      <li>Dirección física</li>
+    </ul>
+    <p>Podés editar tu perfil y volver a publicar respetando las reglas.</p>
+    <a href="${APP_URL}/#/adult/spotlight" class="btn">Editar perfil</a>
+  `);
+  await send(u.email, '⚠ Spotlight quitado del directorio', html);
+}
+
 // ── Helper: respetar prefs del usuario (no enviar si desactivó la categoría)
 async function emailEnabled(userId, category) {
   if (!userId) return true;

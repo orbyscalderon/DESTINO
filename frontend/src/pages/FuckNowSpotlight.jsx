@@ -169,6 +169,14 @@ export default function FuckNowSpotlight() {
       };
       const endpoint = status?.is_active ? '/api/fucknow/update' : '/api/fucknow/publish';
       const { data } = await api.post(endpoint, body);
+
+      // Backend devuelve mode: 'updated' | 'dev_activated' | 'checkout'
+      if (data.mode === 'checkout' && data.checkout_url) {
+        toast.success(`Te llevamos a CCBill — $${data.price_usd}/${data.days} días`);
+        // Pequeño delay para que se vea el toast
+        setTimeout(() => { window.location.href = data.checkout_url; }, 800);
+        return;
+      }
       toast.success(data.message || '¡Listo!');
       setTimeout(() => navigate('/adult?tab=ahora'), 600);
     } catch (err) {

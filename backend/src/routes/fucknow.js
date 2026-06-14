@@ -4,6 +4,7 @@ import { authMiddleware } from '../middleware/auth.js';
 import {
   getStatus, publish, update, unpublish,
   getModerationRules, getDirectory,
+  getAdminModerationQueue, adminForceUnpublish,
 } from '../controllers/fucknowController.js';
 
 const router = Router();
@@ -21,5 +22,9 @@ router.get('/moderation-rules',  authMiddleware, getModerationRules);
 router.post('/publish',          authMiddleware, writeLimiter, publish);
 router.post('/update',           authMiddleware, writeLimiter, update);
 router.delete('/',               authMiddleware, unpublish);
+
+// Admin-only
+router.get('/admin/moderation-queue', authMiddleware, getAdminModerationQueue);
+router.post('/admin/force-unpublish', authMiddleware, adminForceUnpublish);
 
 export default router;

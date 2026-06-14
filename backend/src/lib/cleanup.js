@@ -715,6 +715,66 @@ async function v68ComplianceCron() {
   ]);
 }
 
+// v75 — Fuck Now Spotlight: warnings 3 días antes, expiry cleanup, email
+async function fucknowSpotlightCron() {
+  try {
+    const now = new Date();
+    const nowIso = now.toISOString();
+
+    // 1) Publishers que expiran en próximos 3 días — email warning una vez
+    //    Usa updated_at < hace 24h como "no notificado en este ciclo" heurística
+    const in3Days = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000).toISOString();
+    const { data: expiringSoon } = await supabase
+      .from('profiles')
+      .select('id, fucknow_expires_at')
+      .eq('fucknow_publisher', true)
+      .gte('fucknow_expires_at', nowIso)
+      .lte('fucknow_expires_at', in3Days)
+      .limit(200);
+
+    if (expiringSoon?.length) {
+      const { sendSpotlightExpiringEmail } = await import('./emailService.js');
+      for (const p of expiringSoon) {
+        const daysLeft = Math.max(1, Math.ceil(
+          (new Date(p.fucknow_expires_at).getTime() - now.getTime()) / 86400000
+        ));
+        sendSpotlightExpiringEmail(p.id, p.fucknow_expires_at, daysLeft).catch(() => {});
+      }
+    }
+
+    // 2) Publishers ya expirados — desactivar publisher flag + email expirado
+    const { data: expired } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('fucknow_publisher', true)
+      .lt('fucknow_expires_at', nowIso)
+      .limit(500);
+
+    if (expired?.length) {
+      const ids = expired.map(p => p.id);
+      await supabase
+        .from('profiles')
+        .update({ fucknow_publisher: false })
+        .in('id', ids);
+
+      const { sendSpotlightExpiredEmail } = await import('./emailService.js');
+      for (const p of expired) {
+        sendSpotlightExpiredEmail(p.id).catch(() => {});
+        createNotification(
+          p.id,
+          'spotlight_expired',
+          '💤 Tu Spotlight expiró',
+          'Reactivá tu publicación cuando quieras desde el editor Spotlight.',
+          { url: '/adult/spotlight' },
+        ).catch(() => {});
+      }
+      console.log(`[fucknow] expirados ${expired.length} publishers`);
+    }
+  } catch (err) {
+    console.error('[fucknowSpotlightCron]', err.message);
+  }
+}
+
 export function startCleanupJob() {
   cleanStaleVideoSessions();
   setInterval(cleanStaleVideoSessions, CLEANUP_INTERVAL_MS);
@@ -758,6 +818,10 @@ export function startCleanupJob() {
   // v68 compliance: 2257 expiration alerts + archive (corre 1 vez al día)
   v68ComplianceCron();
   setInterval(v68ComplianceCron, 24 * 60 * 60 * 1000);
+
+  // v75 Fuck Now Spotlight: expiry cleanup + warning emails (corre cada 6h)
+  fucknowSpotlightCron();
+  setInterval(fucknowSpotlightCron, 6 * 60 * 60 * 1000);
 
   // v70: publicar posts/reels programados (cada 2 min)
   import('../controllers/scheduledContentController.js').then(({ publishDueScheduledContent }) => {
