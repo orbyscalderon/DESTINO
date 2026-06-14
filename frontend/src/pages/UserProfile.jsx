@@ -460,8 +460,41 @@ export default function UserProfile() {
     : (creatorLegacyPrice ?? profile.creator_subscription_price ?? null);
   const canMatch = !isOwnProfile && !profile.is_creator; // bottom bar Pasar/Like solo en perfiles "match-ables"
 
+  // Live activo del creator. status==='live' viene del backend (server.js:400).
+  // Si es show adulto, mantener contexto con ?from=adult para que el back regrese a /adult.
+  const activeLiveShow = creatorShows.find(s => s.status === 'live') || null;
+  const liveShowHref = activeLiveShow
+    ? `/shows/${activeLiveShow.id}${activeLiveShow.is_adult || activeLiveShow.adult || profile.is_adult_creator ? '?from=adult' : ''}`
+    : null;
+
   return (
     <div className="min-h-screen bg-dark-900">
+      {/* ═══════════════════ BANNER LIVE (si hay show activo) ═══════════════════ */}
+      {activeLiveShow && liveShowHref && !isOwnProfile && (
+        <Link
+          to={liveShowHref}
+          className="block bg-gradient-to-r from-rose-600 via-pink-600 to-fuchsia-600 hover:from-rose-500 hover:via-pink-500 hover:to-fuchsia-500 transition-colors"
+        >
+          <div className="lg:max-w-6xl xl:max-w-7xl lg:mx-auto px-5 lg:px-8 py-3 flex items-center gap-3">
+            <span className="flex items-center gap-1.5 bg-white/15 backdrop-blur-sm rounded-full px-2.5 py-1">
+              <span className="w-2 h-2 bg-white rounded-full animate-pulse" />
+              <span className="text-white text-[11px] font-black tracking-wider">EN VIVO</span>
+            </span>
+            <div className="flex-1 min-w-0">
+              <p className="text-white text-sm font-bold truncate">
+                {activeLiveShow.title || `${profile.full_name} está transmitiendo ahora`}
+              </p>
+              {activeLiveShow.viewer_count > 0 && (
+                <p className="text-white/80 text-xs font-medium">
+                  👀 {activeLiveShow.viewer_count} viendo
+                </p>
+              )}
+            </div>
+            <span className="text-white text-sm font-bold whitespace-nowrap">Ver show →</span>
+          </div>
+        </Link>
+      )}
+
       <div className="lg:max-w-6xl xl:max-w-7xl lg:mx-auto lg:grid lg:grid-cols-[minmax(0,400px)_minmax(0,1fr)] lg:gap-8 lg:px-8 lg:pt-6">
         {/* ═══════════════════ FOTO PRINCIPAL ═══════════════════ */}
         <div className="relative h-[55vh] lg:h-auto lg:rounded-3xl lg:overflow-hidden lg:aspect-[4/5] lg:sticky lg:top-6 lg:self-start">
@@ -499,7 +532,12 @@ export default function UserProfile() {
               <h1 className="text-3xl font-bold text-white tracking-tight">
                 {profile.full_name}{profile.age ? `, ${profile.age}` : ''}
               </h1>
-              {isOnline && (
+              {activeLiveShow ? (
+                <span className="flex items-center gap-1 bg-rose-500/25 border border-rose-500/60 text-rose-300 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wide">
+                  <span className="w-1.5 h-1.5 bg-rose-400 rounded-full animate-pulse" />
+                  En vivo
+                </span>
+              ) : isOnline && (
                 <span className="flex items-center gap-1 bg-green-500/20 border border-green-500/40 text-green-400 text-[10px] font-semibold px-2 py-0.5 rounded-full">
                   <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />
                   En línea
@@ -529,7 +567,12 @@ export default function UserProfile() {
               <h1 className="text-4xl font-bold text-white tracking-tight">
                 {profile.full_name}{profile.age ? `, ${profile.age}` : ''}
               </h1>
-              {isOnline && (
+              {activeLiveShow ? (
+                <span className="flex items-center gap-1.5 bg-rose-500/20 border border-rose-500/60 text-rose-300 text-xs font-black px-2.5 py-1 rounded-full uppercase tracking-wide">
+                  <span className="w-1.5 h-1.5 bg-rose-400 rounded-full animate-pulse" />
+                  En vivo
+                </span>
+              ) : isOnline && (
                 <span className="flex items-center gap-1.5 bg-green-500/15 border border-green-500/40 text-green-400 text-xs font-semibold px-2.5 py-1 rounded-full">
                   <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />
                   En línea
