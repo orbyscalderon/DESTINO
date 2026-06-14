@@ -2621,7 +2621,9 @@ export default function LiveShow() {
           )}
 
           {/* v70: Spy + Skip queue controls cuando soy viewer y hay private activa */}
-          {role === 'viewer' && (privateSession || show?.spy_mode_enabled) && (
+          {/* FIX: `role` no existe en este scope (era param local de joinShowChannel).
+              Usamos `!isHost` que es el flag derivado de show.is_host arriba. */}
+          {!isHost && (privateSession || show?.spy_mode_enabled) && (
             <div className="absolute top-24 left-3 right-3 z-20 max-w-xs mx-auto">
               <ShowViewerControls
                 showId={id}
