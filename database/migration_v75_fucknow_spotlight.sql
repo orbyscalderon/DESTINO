@@ -31,16 +31,25 @@ ALTER TABLE profiles
   ADD COLUMN IF NOT EXISTS ethnicity    text  CHECK (ethnicity IS NULL OR ethnicity IN ('latina','caucasica','afro','asiatica','mixta')),
   ADD COLUMN IF NOT EXISTS languages    text[];  -- ['es','en','pt']
 
--- Índice parcial para queries del directorio — solo publishers activos
+-- Limpieza: drop si existían versiones malas de iteraciones previas
+DROP INDEX IF EXISTS idx_profiles_fucknow_active;
+DROP INDEX IF EXISTS idx_profiles_fucknow_city;
+
+-- Índice compuesto para queries del directorio.
+-- NOTA: Postgres requiere funciones IMMUTABLE en predicados parciales.
+-- now() es STABLE (no IMMUTABLE), así que NO puede ir en WHERE.
+-- Filtramos por fucknow_publisher = true (literal IMMUTABLE).
+-- El filtro `fucknow_expires_at > now()` lo hace el query en runtime,
+-- y el planner igual puede usar este índice porque expires_at es
+-- la segunda columna del orden.
 CREATE INDEX IF NOT EXISTS idx_profiles_fucknow_active
-  ON profiles (fucknow_published_at DESC)
-  WHERE fucknow_publisher = true
-    AND fucknow_expires_at > now();
+  ON profiles (fucknow_expires_at DESC, fucknow_published_at DESC)
+  WHERE fucknow_publisher = true;
 
 -- Índice geográfico para filtrar por ciudad en el directorio
 CREATE INDEX IF NOT EXISTS idx_profiles_fucknow_city
-  ON profiles (lower(fucknow_city))
-  WHERE fucknow_publisher = true AND fucknow_expires_at > now();
+  ON profiles (lower(fucknow_city), fucknow_expires_at DESC)
+  WHERE fucknow_publisher = true;
 
 -- Log de moderación: cada vez que un publisher edita su bio/looking_for,
 -- registramos si pasó/falló y por qué regla, para auditoría y métricas.
