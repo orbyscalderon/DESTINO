@@ -11,6 +11,7 @@ import AgeGate, { isAgeVerified } from '../components/ui/AgeGate.jsx';
 import Explore from './Explore.jsx';
 import AdultCreators from './AdultCreators.jsx';
 import VideosMegamenu from '../components/ui/VideosMegamenu.jsx';
+import CategoriasMegamenu from '../components/ui/CategoriasMegamenu.jsx';
 
 // AdultHub — punto único de entrada al +18.
 // Estructura:
@@ -57,8 +58,9 @@ export default function AdultHub() {
   const [trending, setTrending] = useState(TRENDING_PILLS_FALLBACK);
   const [searchInput, setSearchInput] = useState('');
 
-  // Megamenu hover state (solo aplicado al tab Videos por ahora)
-  const [openMega, setOpenMega] = useState(null); // 'videos' | null
+  // Megamenu hover state — tabs que muestran panel en hover
+  const TABS_WITH_MEGAMENU = ['videos', 'categorias'];
+  const [openMega, setOpenMega] = useState(null); // 'videos' | 'categorias' | null
   const megaCloseTimerRef = useRef(null);
   const openMegamenu = (id) => {
     if (megaCloseTimerRef.current) clearTimeout(megaCloseTimerRef.current);
@@ -174,7 +176,7 @@ export default function AdultHub() {
           {TABS.map(t => {
             const Icon = t.icon;
             const active = tab === t.id;
-            const hasMegamenu = t.id === 'videos';
+            const hasMegamenu = TABS_WITH_MEGAMENU.includes(t.id);
             return (
               <button
                 key={t.id}
@@ -210,10 +212,10 @@ export default function AdultHub() {
         </nav>
 
         {/* Megamenu hover panel (solo desktop) — pegado al fondo del nav */}
-        <AnimatePresence>
-          {openMega === 'videos' && (
+        <AnimatePresence mode="wait">
+          {openMega && (
             <motion.div
-              key="videos-megamenu"
+              key={`mega-${openMega}`}
               initial={{ opacity: 0, y: -4 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -4 }}
@@ -222,22 +224,43 @@ export default function AdultHub() {
               onMouseLeave={scheduleCloseMegamenu}
               className="hidden lg:block absolute left-0 right-0 top-full z-40"
             >
-              <VideosMegamenu
-                trendingFromHub={trending}
-                onSelectSort={(sortId) => {
-                  const p = new URLSearchParams(searchParams);
-                  p.set('tab', 'videos');
-                  p.set('sort', sortId);
-                  setSearchParams(p, { replace: true });
-                }}
-                onSelectTag={(tag) => {
-                  const p = new URLSearchParams(searchParams);
-                  p.set('tab', 'videos');
-                  p.set('tag', tag);
-                  setSearchParams(p, { replace: true });
-                }}
-                onClose={() => setOpenMega(null)}
-              />
+              {openMega === 'videos' && (
+                <VideosMegamenu
+                  trendingFromHub={trending}
+                  onSelectSort={(sortId) => {
+                    const p = new URLSearchParams(searchParams);
+                    p.set('tab', 'videos');
+                    p.set('sort', sortId);
+                    setSearchParams(p, { replace: true });
+                  }}
+                  onSelectTag={(tag) => {
+                    const p = new URLSearchParams(searchParams);
+                    p.set('tab', 'videos');
+                    p.set('tag', tag);
+                    setSearchParams(p, { replace: true });
+                  }}
+                  onClose={() => setOpenMega(null)}
+                />
+              )}
+              {openMega === 'categorias' && (
+                <CategoriasMegamenu
+                  trendingFromHub={trending}
+                  onSelectTag={(tag) => {
+                    const p = new URLSearchParams(searchParams);
+                    p.set('tab', 'videos');
+                    if (tag) p.set('tag', tag); else p.delete('tag');
+                    setSearchParams(p, { replace: true });
+                  }}
+                  onSelectFilter={({ kind, value }) => {
+                    const p = new URLSearchParams(searchParams);
+                    p.set('tab', 'videos');
+                    // orientation/language → mapeo a query param dedicado
+                    p.set(kind, value);
+                    setSearchParams(p, { replace: true });
+                  }}
+                  onClose={() => setOpenMega(null)}
+                />
+              )}
             </motion.div>
           )}
         </AnimatePresence>
