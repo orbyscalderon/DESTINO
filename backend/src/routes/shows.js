@@ -9,6 +9,7 @@ import {
   getShowToken,
   purchaseShowTicket,
   confirmShowTicket,
+  purchaseShowTicketWithCoins,
   getMyShows,
   sendTip,
   sendGift,
@@ -80,6 +81,7 @@ router.put('/:id/gift-goals',   setGiftGoals);
 router.get('/:id/token', getShowToken);
 router.post('/:id/ticket', purchaseShowTicket);
 router.post('/:id/ticket/confirm', confirmShowTicket);
+router.post('/:id/ticket-coins', purchaseShowTicketWithCoins);
 router.post('/:id/tip',           sendTip);
 router.post('/:id/gift',          sendGift);
 router.get('/:id/tippers',        getShowTippers);

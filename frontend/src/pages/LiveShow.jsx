@@ -1184,23 +1184,24 @@ export default function LiveShow() {
     }
   };
 
-  // ── Comprar ticket ────────────────────────────────────────────────────────────
+  // ── Comprar ticket con coins ────────────────────────────────────────────────
+  // El precio del show está en USD pero el user paga con coins de la plataforma.
+  // Conversión: 1 USD = 20 coins (COIN_VALUE_USD=0.05 en backend/lib/constants.js).
   const handleBuyTicket = async () => {
     try {
-      const { data } = await api.post(`/api/shows/${id}/ticket`);
-      setPaymentModal({
-        clientSecret: data.clientSecret,
-        amount: `$${show.ticket_price}`,
-        description: `Ticket · ${show.title}`,
-        onSuccess: async (piId) => {
-          await api.post(`/api/shows/${id}/ticket/confirm`, { paymentIntentId: piId });
-          setPaymentModal(null);
-          toast.success('Ticket comprado! Uniéndote al show…');
-          await loadShow();
-        },
-      });
+      const { data } = await api.post(`/api/shows/${id}/ticket-coins`);
+      toast.success(`Ticket comprado (${data.coins_spent} coins). Uniéndote al show…`);
+      await loadShow();
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Error al comprar el ticket');
+      const code = err.response?.data?.code;
+      if (code === 'INSUFFICIENT_COINS') {
+        const needed = err.response.data.required;
+        toast.error(`Coins insuficientes. Necesitas ${needed} coins.`);
+      } else if (code === 'AGE_VERIFICATION_REQUIRED') {
+        toast.error('Debes verificar tu edad para acceder a este contenido.');
+      } else {
+        toast.error(err.response?.data?.error || 'Error al comprar el ticket');
+      }
     }
   };
 
@@ -3159,7 +3160,7 @@ export default function LiveShow() {
       <div className="card p-4 mb-6 flex items-center justify-between">
         <span className="text-gray-300 text-sm">Precio del ticket</span>
         <span className={`text-lg font-black ${show?.ticket_price > 0 ? 'text-brand-400' : 'text-green-400'}`}>
-          {show?.ticket_price > 0 ? `$${show.ticket_price}` : 'Gratis'}
+          {show?.ticket_price > 0 ? `🪙 ${Math.ceil(show.ticket_price * 20)} coins` : 'Gratis'}
         </span>
       </div>
 
@@ -3250,7 +3251,7 @@ export default function LiveShow() {
         )
       ) : needsTicket ? (
         <button onClick={handleBuyTicket} className="btn-primary w-full flex items-center justify-center gap-2">
-          <FiDollarSign size={16} /> Comprar ticket · ${show?.ticket_price}
+          <span aria-hidden="true">🪙</span> Comprar ticket · {Math.ceil((show?.ticket_price || 0) * 20)} coins
         </button>
       ) : (
         show?.status === 'live' ? (

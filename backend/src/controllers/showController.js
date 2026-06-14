@@ -5,6 +5,7 @@ import { v4 as uuidv4 } from 'uuid';
 import multer from 'multer';
 import { uploadFile } from '../lib/storageProvider.js';
 import { spendCoins, addCoins, coinsToUSD, creatorCutUSD, CREATOR_CUT } from './coinController.js';
+import { usdToCoins } from '../lib/constants.js';
 import { createNotification } from './inAppNotifController.js';
 import { sendPushToUser } from './notificationController.js';
 import { sanitizeUserText } from '../lib/helpers.js';
@@ -939,6 +940,87 @@ export const confirmShowTicket = async (req, res) => {
     res.json({ success: true, message: 'Ticket confirmado' });
   } catch (err) {
     console.error('confirmShowTicket error:', err.message);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
+// POST /api/shows/:id/ticket-coins — comprar ticket con coins (sin Stripe)
+// Flow simple: debita coins del buyer, credita coins al host (creator cut),
+// crea row en show_tickets con stripe_payment_intent_id=null.
+// Funciona para shows adultos y no-adultos.
+export const purchaseShowTicketWithCoins = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const buyerId = req.user.id;
+
+    const { data: show } = await supabase
+      .from('live_shows')
+      .select('id, title, ticket_price, status, host_id, category')
+      .eq('id', id)
+      .single();
+
+    if (!show) return res.status(404).json({ error: 'Show no encontrado' });
+    if (show.status === 'ended') return res.status(400).json({ error: 'El show ya terminó' });
+    if (show.host_id === buyerId) return res.status(400).json({ error: 'No puedes comprar tu propio show' });
+    if (show.ticket_price <= 0) return res.status(400).json({ error: 'Este show es gratuito' });
+
+    // Gate de edad para shows adultos
+    if (show.category === 'adult') {
+      const { data: vp } = await supabase
+        .from('profiles').select('is_adult_creator, age_verified_at').eq('id', buyerId).single();
+      if (!vp?.is_adult_creator && !vp?.age_verified_at) {
+        return res.status(403).json({ error: 'Debes verificar tu edad para acceder a este contenido', code: 'AGE_VERIFICATION_REQUIRED' });
+      }
+    }
+
+    const { data: existing } = await supabase
+      .from('show_tickets').select('id').eq('show_id', id).eq('buyer_id', buyerId).single();
+    if (existing) return res.status(400).json({ error: 'Ya tienes un ticket para este show' });
+
+    const coinsAmount = usdToCoins(parseFloat(show.ticket_price));
+    const creatorCoinsCut = Math.round(coinsAmount * CREATOR_CUT);
+
+    try {
+      await spendCoins(buyerId, coinsAmount, 'show_ticket', id);
+    } catch (e) {
+      if (e?.code === 'INSUFFICIENT_COINS') {
+        return res.status(400).json({ error: 'Coins insuficientes', code: 'INSUFFICIENT_COINS', required: coinsAmount });
+      }
+      throw e;
+    }
+    await addCoins(show.host_id, creatorCoinsCut, 'show_ticket_received', id);
+
+    const amountUsd = coinsToUSD(coinsAmount);
+    const creatorEarningsUsd = coinsToUSD(creatorCoinsCut);
+    const platformFeeUsd = amountUsd - creatorEarningsUsd;
+
+    await supabase.from('show_tickets').insert({
+      show_id: id,
+      buyer_id: buyerId,
+      amount_paid: amountUsd,
+      creator_earnings: creatorEarningsUsd,
+      platform_fee: platformFeeUsd,
+      stripe_payment_intent_id: null,
+      status: 'active',
+    });
+
+    await upsertCreatorEarnings(show.host_id, creatorEarningsUsd).catch(() => {});
+
+    // Notificar al creador (silent fail)
+    const { data: buyer } = await supabase.from('profiles').select('full_name').eq('id', buyerId).single();
+    createNotification(show.host_id, 'show_ticket',
+      `${buyer?.full_name || 'Alguien'} compró un ticket para ${show.title}`,
+      `${coinsAmount} coins`,
+      { show_id: id }
+    ).catch(() => {});
+    sendPushToUser(show.host_id, {
+      title: `🎟️ Ticket vendido`,
+      body: `${buyer?.full_name || 'Alguien'} entró a ${show.title}`,
+    }).catch(() => {});
+
+    res.json({ success: true, coins_spent: coinsAmount });
+  } catch (err) {
+    console.error('purchaseShowTicketWithCoins error:', err.message);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };

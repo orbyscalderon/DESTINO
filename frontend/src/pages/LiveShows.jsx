@@ -138,7 +138,7 @@ function ChannelCard({ show, index }) {
             <span className={`text-[11px] font-bold mt-1 inline-block ${
               show.ticket_price > 0 ? 'text-brand-400' : 'text-green-400'
             }`}>
-              {show.ticket_price > 0 ? `$${show.ticket_price} ticket` : 'Gratis'}
+              {show.ticket_price > 0 ? `🪙 ${Math.ceil(show.ticket_price * 20)} coins` : 'Gratis'}
             </span>
           </div>
         </div>
@@ -205,7 +205,7 @@ function UpcomingRow({ show }) {
             {show.scheduled_at ? <Countdown date={show.scheduled_at} /> : 'Sin fecha'}
           </div>
           <span className={`text-[10px] font-bold ${show.ticket_price > 0 ? 'text-brand-400' : 'text-green-400'}`}>
-            {show.ticket_price > 0 ? `$${show.ticket_price}` : 'Gratis'}
+            {show.ticket_price > 0 ? `🪙 ${Math.ceil(show.ticket_price * 20)}` : 'Gratis'}
           </span>
         </div>
       </div>

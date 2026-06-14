@@ -484,7 +484,7 @@ function ShowsList({ shows }) {
               </p>
               {show.ticket_price > 0 && (
                 <span className="inline-block mt-1.5 text-[10px] bg-brand-500/20 text-brand-300 px-2 py-0.5 rounded-full font-medium">
-                  ${show.ticket_price} entrada
+                  🪙 {Math.ceil(show.ticket_price * 20)} coins
                 </span>
               )}
             </div>
