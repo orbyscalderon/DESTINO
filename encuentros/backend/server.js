@@ -2,6 +2,7 @@
 // IMPORTANTE: Este backend va en un Postgres/Supabase project SEPARADO del
 // de Destino TV. NO comparte auth, profiles, ni cualquier otra entidad.
 
+import 'dotenv/config'; // fallback para entornos sin --env-file (Railway/Render)
 import express from 'express';
 import helmet from 'helmet';
 import cors from 'cors';

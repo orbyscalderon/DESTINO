@@ -5,12 +5,13 @@
   "private": true,
   "description": "Encuentros — backend del directorio (operado por LLC offshore separada de Destino TV)",
   "scripts": {
-    "dev":   "node --watch server.js",
+    "dev":   "node --env-file=.env --watch server.js",
     "start": "node server.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",
     "cors": "^2.8.5",
+    "dotenv": "^16.3.0",
     "express": "^4.18.0",
     "express-rate-limit": "^7.0.0",
     "helmet": "^7.0.0",

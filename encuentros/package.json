@@ -1,0 +1,13 @@
+{
+  "name": "encuentros",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Encuentros — directorio independiente. NO desplegar bajo OC Moon Group LLC.",
+  "scripts": {
+    "install:all": "cd backend && npm install && cd ../frontend && npm install",
+    "dev:backend":  "cd backend && npm run dev",
+    "dev:frontend": "cd frontend && npm run dev",
+    "build:frontend": "cd frontend && npm run build",
+    "seed": "psql $DATABASE_URL -f database/schema_v1_encuentros.sql && psql $DATABASE_URL -f database/seed_demo_listings.sql"
+  }
+}
