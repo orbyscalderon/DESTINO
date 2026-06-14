@@ -259,6 +259,13 @@ app.use('/api/video-requests', videoRequestRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/2fa', twoFactorRoutes);
 app.use('/api/fucknow', fucknowRoutes);
+
+// ── Stubs para endpoints que el frontend megamenu/dashboard llama pero ──
+// que aún no tienen implementación completa. Devuelven payload vacío
+// para que la UI degrade gracefully en lugar de tirar 404.
+// TODO cuando se implementen los features reales, mover a su controller.
+app.get('/api/photo-collections/public', (_req, res) => res.json({ collections: [] }));
+app.get('/api/coins/daily-reward/status', (_req, res) => res.json({ available: false, next_at: null }));
 app.use('/api/tax-forms', taxFormRoutes);
 app.use('/api/seo', seoRoutes);
 // Rutas agregadas en v54+: chat mods, account deletion, recurring shows,

@@ -29,6 +29,10 @@ router.get('/tags',                   listTags);
 router.get('/categories',             listCategories);
 
 // Playlists
+// NOTE: /playlists/featured es stub vacío hasta que se implemente
+// un sistema de featured playlists. Devuelve { playlists: [] } para
+// que los megamenús dejen de tirar 404 — degradan a empty state.
+router.get('/playlists/featured',     (_req, res) => res.json({ playlists: [] }));
 router.get('/playlists',              getMyPlaylists);
 router.post('/playlists',             createPlaylist);
 router.delete('/playlists/:id',       deletePlaylist);

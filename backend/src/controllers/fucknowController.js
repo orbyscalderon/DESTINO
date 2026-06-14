@@ -99,7 +99,29 @@ export const getStatus = async (req, res) => {
       `)
       .eq('id', userId)
       .single();
-    if (error) throw error;
+    if (error) {
+      const msg = String(error.message || '').toLowerCase();
+      const isMissingColumn = msg.includes('column') || msg.includes('does not exist') || error.code === '42703';
+      if (isMissingColumn) {
+        // Migración v75 pendiente — devolver estado neutro sin crashear
+        console.warn('[fucknow:status] columnas v75 ausentes — degradando. Corré migration_v75_fucknow_spotlight.sql.');
+        // Fallback: consultar solo columnas base para saber si es elegible
+        const { data: base } = await supabase
+          .from('profiles')
+          .select('is_adult_creator, age_verified_at')
+          .eq('id', userId)
+          .single();
+        return res.json({
+          is_active: false,
+          days_remaining: 0,
+          eligible: !!(base?.is_adult_creator && base?.age_verified_at),
+          data: null,
+          degraded: true,
+          reason: 'migration_pending',
+        });
+      }
+      throw error;
+    }
 
     const now = Date.now();
     const isActive = !!data?.fucknow_publisher
@@ -560,7 +582,21 @@ export const getDirectory = async (req, res) => {
     else if (sort === 'new') q = q.order('fucknow_published_at', { ascending: false });
 
     const { data, error } = await q;
-    if (error) throw error;
+    if (error) {
+      // Si la migración v75 no se aplicó aún (columnas no existen), degradar:
+      // devolver array vacío en lugar de 500. El frontend muestra empty state.
+      const msg = String(error.message || '').toLowerCase();
+      const isMissingColumn = msg.includes('column') ||
+                              msg.includes('does not exist') ||
+                              error.code === '42703' ||
+                              error.code === 'PGRST204' ||
+                              error.code === 'PGRST116';
+      if (isMissingColumn) {
+        console.warn('[fucknow:directory] columnas v75 ausentes — degradando a vacío. Corré migration_v75_fucknow_spotlight.sql.');
+        return res.json({ creators: [], degraded: true, reason: 'migration_pending' });
+      }
+      throw error;
+    }
     res.json({ creators: data || [] });
   } catch (err) {
     console.error('[fucknow:directory]', err.message);
