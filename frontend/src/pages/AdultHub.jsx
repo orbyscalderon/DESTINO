@@ -383,6 +383,39 @@ export default function AdultHub() {
         {tab === 'ahora' && <AhoraTab liveShows={liveShows} onSwitchTab={switchTab} profile={profile} />}
         {tab === 'comunidad' && <ComunidadTab onSwitchTab={switchTab} />}
         {tab === 'fotos' && <FotosTab />}
+
+        {/* Link a sitio partner Encuentros — solo aparece si VITE_ENCUENTROS_URL
+            está set. Apagado por default. Activar SOLO cuando la entidad
+            offshore + payment processor + domain estén operacionales. */}
+        {import.meta.env.VITE_ENCUENTROS_URL && (
+          <div className="px-4 py-6 mt-8 max-w-7xl mx-auto border-t border-white/5">
+            <a
+              href={import.meta.env.VITE_ENCUENTROS_URL}
+              target="_blank"
+              rel="noopener noreferrer nofollow"
+              className="block bg-zinc-900/50 border border-orange-500/20 hover:border-orange-500/40 rounded-xl p-4 transition-colors group"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-orange-500/15 border border-orange-500/30 flex items-center justify-center text-xl shrink-0">
+                  🔥
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-orange-400 font-black text-sm flex items-center gap-2">
+                    encuentros
+                    <span className="text-[9px] bg-orange-500/15 border border-orange-500/30 text-orange-300 px-1.5 py-0.5 rounded uppercase tracking-wider font-bold">
+                      Sitio partner
+                    </span>
+                  </p>
+                  <p className="text-[11px] text-gray-500 leading-relaxed mt-0.5">
+                    Operado por entidad legal independiente. Directorio classifieds de adultos +18.
+                    No afiliado con Destino TV.
+                  </p>
+                </div>
+                <span className="text-gray-600 group-hover:text-orange-400 transition-colors shrink-0">↗</span>
+              </div>
+            </a>
+          </div>
+        )}
       </div>
     </div>
   );
