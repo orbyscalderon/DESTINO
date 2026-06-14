@@ -1601,6 +1601,77 @@ export default function LiveShow() {
     }
   };
 
+  // ── BATTLE: fetch detalles cuando aparece un activeBattleId ─────────────────
+  // FIX React #310: estos hooks DEBEN ir antes de cualquier early return.
+  // Antes estaban a línea ~2433 después de 4 if-returns lo cual cambiaba el
+  // hook count entre renders y disparaba "rendered more hooks than..."
+  useEffect(() => {
+    if (!activeBattleId) {
+      setBattleData(null);
+      return;
+    }
+    let cancel = false;
+    api.get(`/api/battles/${activeBattleId}`)
+      .then(({ data }) => { if (!cancel && data?.battle) setBattleData(data.battle); })
+      .catch(() => {});
+    return () => { cancel = true; };
+  }, [activeBattleId]);
+
+  // ── BATTLE: subscribe-only al room del oponente para mostrar su cámara ─────
+  useEffect(() => {
+    if (!battleData || !id) {
+      if (battleOpponentRtcRef.current) {
+        battleOpponentRtcRef.current.leave().catch(() => {});
+        battleOpponentRtcRef.current = null;
+      }
+      setBattleOpponentStream(null);
+      return;
+    }
+    // Determinar cuál es el "otro" show desde el punto de vista del viewer
+    const isShow1 = battleData.show1_id === id;
+    const opponentShowId = isShow1 ? battleData.show2_id : battleData.show1_id;
+    const opponentHostId = isShow1 ? battleData.host2_id : battleData.host1_id;
+    if (!opponentShowId || !opponentHostId) return;
+
+    const opponentRoomId = `show_${opponentShowId.replace(/-/g, '')}`;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const rtc = new LiveKitSession(opponentRoomId);
+        rtc.onRemoteTrack = (track, participant) => {
+          if (participant?.identity !== opponentHostId) return;
+          if (track.kind === 'video') {
+            setBattleOpponentStream(new MediaStream([track.mediaStreamTrack]));
+          } else if (track.kind === 'audio') {
+            const a = document.createElement('audio');
+            a.autoplay = true;
+            a.srcObject = new MediaStream([track.mediaStreamTrack]);
+            a.dataset.battleOpponentAudio = 'true';
+            document.body.appendChild(a);
+          }
+        };
+        battleOpponentRtcRef.current = rtc;
+        await rtc.join(false, { skipAutoMedia: true });
+        if (cancelled) await rtc.leave().catch(() => {});
+      } catch (e) {
+        console.warn('[viewer-battle] no se pudo suscribir al oponente:', e?.message);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      if (battleOpponentRtcRef.current) {
+        battleOpponentRtcRef.current.leave().catch(() => {});
+        battleOpponentRtcRef.current = null;
+      }
+      setBattleOpponentStream(null);
+      document.querySelectorAll('audio[data-battle-opponent-audio]').forEach(a => {
+        try { a.srcObject = null; a.remove(); } catch {}
+      });
+    };
+  }, [battleData, id]);
+
   // ── Age gate ─────────────────────────────────────────────────────────────────
   if (showAgeModal) {
     return (
@@ -2428,74 +2499,6 @@ export default function LiveShow() {
       )}
     </div>
   );
-
-  // ── BATTLE: fetch detalles cuando aparece un activeBattleId ─────────────────
-  useEffect(() => {
-    if (!activeBattleId) {
-      setBattleData(null);
-      return;
-    }
-    let cancel = false;
-    api.get(`/api/battles/${activeBattleId}`)
-      .then(({ data }) => { if (!cancel && data?.battle) setBattleData(data.battle); })
-      .catch(() => {});
-    return () => { cancel = true; };
-  }, [activeBattleId]);
-
-  // ── BATTLE: subscribe-only al room del oponente para mostrar su cámara ─────
-  useEffect(() => {
-    if (!battleData || !id) {
-      if (battleOpponentRtcRef.current) {
-        battleOpponentRtcRef.current.leave().catch(() => {});
-        battleOpponentRtcRef.current = null;
-      }
-      setBattleOpponentStream(null);
-      return;
-    }
-    // Determinar cuál es el "otro" show desde el punto de vista del viewer
-    const isShow1 = battleData.show1_id === id;
-    const opponentShowId = isShow1 ? battleData.show2_id : battleData.show1_id;
-    const opponentHostId = isShow1 ? battleData.host2_id : battleData.host1_id;
-    if (!opponentShowId || !opponentHostId) return;
-
-    const opponentRoomId = `show_${opponentShowId.replace(/-/g, '')}`;
-    let cancelled = false;
-
-    (async () => {
-      try {
-        const rtc = new LiveKitSession(opponentRoomId);
-        rtc.onRemoteTrack = (track, participant) => {
-          if (participant?.identity !== opponentHostId) return;
-          if (track.kind === 'video') {
-            setBattleOpponentStream(new MediaStream([track.mediaStreamTrack]));
-          } else if (track.kind === 'audio') {
-            const a = document.createElement('audio');
-            a.autoplay = true;
-            a.srcObject = new MediaStream([track.mediaStreamTrack]);
-            a.dataset.battleOpponentAudio = 'true';
-            document.body.appendChild(a);
-          }
-        };
-        battleOpponentRtcRef.current = rtc;
-        await rtc.join(false, { skipAutoMedia: true });
-        if (cancelled) await rtc.leave().catch(() => {});
-      } catch (e) {
-        console.warn('[viewer-battle] no se pudo suscribir al oponente:', e?.message);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-      if (battleOpponentRtcRef.current) {
-        battleOpponentRtcRef.current.leave().catch(() => {});
-        battleOpponentRtcRef.current = null;
-      }
-      setBattleOpponentStream(null);
-      document.querySelectorAll('audio[data-battle-opponent-audio]').forEach(a => {
-        try { a.srcObject = null; a.remove(); } catch {}
-      });
-    };
-  }, [battleData, id]);
 
   // ── EN SHOW (VIEWER) ──────────────────────────────────────────────────────────
   if (inShow) {
