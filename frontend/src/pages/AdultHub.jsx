@@ -468,7 +468,9 @@ function TrendingPills({ pills, onPick }) {
 function LiveStripCard({ show }) {
   return (
     <Link
-      to={`/shows/${show.id}`}
+      // ?from=adult marca el origen — LiveShow lo usa para que el botón
+      // "Volver" regrese a /adult?tab=lives en vez de /shows.
+      to={`/shows/${show.id}?from=adult`}
       className="shrink-0 w-40 sm:w-48 group"
     >
       <div className="relative aspect-video bg-dark-800 rounded-xl overflow-hidden ring-1 ring-red-500/30 group-hover:ring-red-500/60 transition-all">

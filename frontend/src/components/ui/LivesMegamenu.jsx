@@ -196,7 +196,7 @@ function LiveModelCard({ show, bucket, onClose }) {
 
   return (
     <Link
-      to={`/shows/${show.id}`}
+      to={`/shows/${show.id}?from=adult`}
       onClick={onClose}
       className="block group"
     >

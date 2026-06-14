@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   FiMic, FiMicOff, FiVideo, FiVideoOff, FiUsers, FiDollarSign,
@@ -243,6 +243,11 @@ export default function LiveShow() {
   const { t } = useTranslation();
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  // Si el user vino desde el AdultHub (?from=adult), "volver" lo lleva
+  // a /adult?tab=lives en vez de /shows (página genérica de live shows
+  // no-adultos). Así no se mezcla el contexto adulto con el normal.
+  const backPath = searchParams.get('from') === 'adult' ? '/adult?tab=lives' : '/shows';
   const { user, profile: authProfile } = useAuthStore();
   const { showBottomBanner, hideBottomBanner } = useAds();
 
@@ -553,7 +558,7 @@ export default function LiveShow() {
         return;
       }
       toast.error('Show no encontrado');
-      navigate('/shows');
+      navigate(backPath);
     } finally {
       setLoading(false);
     }
@@ -716,14 +721,14 @@ export default function LiveShow() {
             console.warn('[viewer] rejoin tras pausa falló', e?.message);
             toast.error('No se pudo reconectar — vuelve a /shows');
             setWaitingForResume(false);
-            navigate('/shows');
+            navigate(backPath);
           }
         })();
       })
       .on('broadcast', { event: 'show_ended' }, () => {
         if (role !== 'host') {
           toast('El show terminó', { icon: '📺' });
-          navigate('/shows');
+          navigate(backPath);
         }
       })
       .on('broadcast', { event: 'show_updated' }, ({ payload }) => {
@@ -743,7 +748,7 @@ export default function LiveShow() {
                          || myProfile?.premium_tier === 'vip';
         if (!canSeeAdult) {
           toast.error('Este show ahora es para adultos. Verifica tu edad para continuar.', { duration: 5000 });
-          setTimeout(() => navigate('/shows'), 1500);
+          setTimeout(() => navigate(backPath), 1500);
         }
       })
       .on('broadcast', { event: 'battle_started' }, ({ payload }) => {
@@ -1279,7 +1284,7 @@ export default function LiveShow() {
         if (!pid || pid === hostUserId) {
           // El host se fue → terminó el show
           toast('El show terminó', { icon: '📺' });
-          navigate('/shows');
+          navigate(backPath);
         } else {
           // Co-host se fue → remover su tile
           setCoHostStreams(prev => {
@@ -1330,7 +1335,7 @@ export default function LiveShow() {
     leaveShowChannel();
     await leaveShow();
     toast.success('Show terminado');
-    navigate('/shows');
+    navigate(backPath);
   };
 
   const toggleScreenShare = async () => {
@@ -1387,7 +1392,7 @@ export default function LiveShow() {
   const handleLeave = async () => {
     leaveShowChannel();
     await leaveShow();
-    navigate('/shows');
+    navigate(backPath);
   };
 
   const handleSendTip = async (coins) => {
@@ -1677,7 +1682,7 @@ export default function LiveShow() {
     return (
       <AgeVerificationModal
         onVerified={() => { setShowAgeModal(false); setLoading(true); loadShow(); }}
-        onClose={() => navigate('/shows')}
+        onClose={() => navigate(backPath)}
       />
     );
   }
@@ -2589,7 +2594,7 @@ export default function LiveShow() {
                   Te avisaremos cuando vuelva al show público. No cierres esta página.
                 </p>
                 <button
-                  onClick={() => { setWaitingForResume(false); navigate('/shows'); }}
+                  onClick={() => { setWaitingForResume(false); navigate(backPath); }}
                   className="w-full bg-white/15 hover:bg-white/25 text-white font-bold py-2.5 rounded-xl text-sm"
                 >
                   Salir
@@ -3111,7 +3116,7 @@ export default function LiveShow() {
   return (
     <div className="min-h-screen px-4 pt-8 pb-8 max-w-lg mx-auto">
       <div className="flex items-center justify-between mb-6">
-        <button onClick={() => navigate('/shows')} className="text-gray-500 hover:text-white text-sm transition-colors">← Volver</button>
+        <button onClick={() => navigate(backPath)} className="text-gray-500 hover:text-white text-sm transition-colors">← Volver</button>
         <button
           onClick={handleShare}
           className="w-9 h-9 flex items-center justify-center text-gray-400 hover:text-white bg-dark-700 hover:bg-dark-600 rounded-full transition-colors"
