@@ -12,6 +12,7 @@ import Explore from './Explore.jsx';
 import AdultCreators from './AdultCreators.jsx';
 import VideosMegamenu from '../components/ui/VideosMegamenu.jsx';
 import CategoriasMegamenu from '../components/ui/CategoriasMegamenu.jsx';
+import LivesMegamenu from '../components/ui/LivesMegamenu.jsx';
 
 // AdultHub — punto único de entrada al +18.
 // Estructura:
@@ -59,8 +60,8 @@ export default function AdultHub() {
   const [searchInput, setSearchInput] = useState('');
 
   // Megamenu hover state — tabs que muestran panel en hover
-  const TABS_WITH_MEGAMENU = ['videos', 'categorias'];
-  const [openMega, setOpenMega] = useState(null); // 'videos' | 'categorias' | null
+  const TABS_WITH_MEGAMENU = ['videos', 'categorias', 'lives'];
+  const [openMega, setOpenMega] = useState(null); // 'videos' | 'categorias' | 'lives' | null
   const megaCloseTimerRef = useRef(null);
   const openMegamenu = (id) => {
     if (megaCloseTimerRef.current) clearTimeout(megaCloseTimerRef.current);
@@ -255,6 +256,20 @@ export default function AdultHub() {
                     const p = new URLSearchParams(searchParams);
                     p.set('tab', 'videos');
                     // orientation/language → mapeo a query param dedicado
+                    p.set(kind, value);
+                    setSearchParams(p, { replace: true });
+                  }}
+                  onClose={() => setOpenMega(null)}
+                />
+              )}
+              {openMega === 'lives' && (
+                <LivesMegamenu
+                  liveShows={liveShows}
+                  userCountry={profile?.country}
+                  onSelectCategory={({ kind, value }) => {
+                    const p = new URLSearchParams(searchParams);
+                    p.set('tab', 'lives');
+                    // kind: 'live-filter' | 'live-category' | 'live-bucket'
                     p.set(kind, value);
                     setSearchParams(p, { replace: true });
                   }}
