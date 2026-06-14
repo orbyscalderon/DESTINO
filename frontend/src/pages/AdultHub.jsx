@@ -148,7 +148,11 @@ export default function AdultHub() {
   // Age-gate (una sola vez en todo el hub)
   if (!ageOk) return <AgeGate onVerified={() => setAgeOk(true)} />;
 
-  const showLiveStrip = tab !== 'lives' && liveShows.length > 0;
+  // Strip "EN VIVO AHORA" SOLO en el tab Inicio (home destacado).
+  // En tab Lives ya está el grid completo. En el resto (Videos, Categorías,
+  // Fuck Now, Comunidad, Fotos, Estrellas) NO aparece — el user no espera
+  // ver live shows ahí.
+  const showLiveStrip = tab === 'inicio' && liveShows.length > 0;
 
   return (
     <div className="min-h-screen pb-24 bg-dark-900">
