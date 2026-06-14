@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // Umbrales para mostrar animación grande full-screen.
@@ -6,11 +6,18 @@ import { motion, AnimatePresence } from 'framer-motion';
 const BIG_GIFT_THRESHOLD = 200; // a partir de aquí: animación
 const EPIC_THRESHOLD     = 1000; // animación "épica"
 
-// Hook para gestionar una cola de animaciones (varios regalos seguidos no se pisan)
+// Hook para gestionar una cola de animaciones (varios regalos seguidos no se pisan).
+// CRÍTICO: enqueue/dequeue deben ser estables (useCallback) — si cambian en cada
+// render, el useEffect de BigGiftAnimation se re-ejecuta y cancela el timer
+// que limpia el regalo, dejándolo pegado en pantalla.
 export function useGiftAnimationQueue() {
   const [queue, setQueue] = useState([]);
-  const enqueue = (gift) => setQueue(q => [...q, { ...gift, _id: Date.now() + Math.random() }]);
-  const dequeue = () => setQueue(q => q.slice(1));
+  const enqueue = useCallback((gift) => {
+    setQueue(q => [...q, { ...gift, _id: Date.now() + Math.random() }]);
+  }, []);
+  const dequeue = useCallback(() => {
+    setQueue(q => q.slice(1));
+  }, []);
   return { current: queue[0] || null, enqueue, dequeue, pendingCount: queue.length };
 }
 
@@ -27,16 +34,20 @@ function getTier(coins) {
 //   duration: ms (default 4000)
 export default function BigGiftAnimation({ gift, onComplete, duration = 4000 }) {
   const [visible, setVisible] = useState(false);
+  // Ref para onComplete — su referencia puede cambiar entre renders del padre
+  // y NO debe re-disparar el effect (eso reseteaba el timer del gift).
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
 
   useEffect(() => {
     if (!gift) return;
     setVisible(true);
     const t = setTimeout(() => {
       setVisible(false);
-      setTimeout(() => onComplete?.(), 500); // espera exit anim
+      setTimeout(() => onCompleteRef.current?.(), 500); // espera exit anim
     }, duration);
     return () => clearTimeout(t);
-  }, [gift, duration, onComplete]);
+  }, [gift, duration]);
 
   if (!gift) return null;
   const tier = getTier(gift.coins);
