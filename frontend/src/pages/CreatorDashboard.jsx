@@ -541,6 +541,30 @@ export default function CreatorDashboard() {
             {tab === 'overview' && (
               <motion.div key="overview" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-5">
 
+                {/* Monetización Hub CTA destacado */}
+                <Link
+                  to="/creator/monetization"
+                  className="block rounded-2xl bg-gradient-to-br from-brand-500/15 to-accent-500/10 border border-brand-500/30 hover:border-brand-500/50 p-5 transition-all group shadow-glow-sm hover:shadow-glow"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-brand-500/20 border border-brand-500/30 flex items-center justify-center text-brand-300 shrink-0 group-hover:scale-110 transition-transform">
+                      <FiTrendingUp size={20} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-white text-sm flex items-center gap-1.5">
+                        Hub de Monetización
+                        <span className="bg-brand-500/30 text-brand-200 text-[9px] font-black px-1.5 py-0.5 rounded-full uppercase">13 tools</span>
+                        <FiChevronRight size={14} className="text-brand-400 group-hover:translate-x-0.5 transition-transform ml-auto" />
+                      </p>
+                      <p className="text-xs text-gray-400 mt-1 leading-relaxed">
+                        Vault · Photo Collections · Video Series · DM Pricing · Promo Codes
+                        · AI Persona · Auto-Reply · Top Fans · Mass DM · Co-stars · Geo Block
+                        · Scheduled · Welcome Message
+                      </p>
+                    </div>
+                  </div>
+                </Link>
+
                 {/* Balance card */}
                 {isStripeActive && (
                   <div className="rounded-2xl bg-gradient-to-r from-brand-500/15 to-purple-500/10 border border-brand-500/20 p-5">
@@ -1613,29 +1637,6 @@ export default function CreatorDashboard() {
                     )}
                   </div>
                 </div>
-
-                {/* Monetización Hub CTA destacado */}
-                <Link
-                  to="/creator/monetization"
-                  className="block rounded-2xl bg-gradient-to-br from-brand-500/15 to-accent-500/10 border border-brand-500/30 hover:border-brand-500/50 p-5 transition-all group shadow-glow-sm hover:shadow-glow"
-                >
-                  <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-brand-500/20 border border-brand-500/30 flex items-center justify-center text-brand-300 shrink-0 group-hover:scale-110 transition-transform">
-                      <FiTrendingUp size={20} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-bold text-white text-sm flex items-center gap-1.5">
-                        Hub de Monetización
-                        <FiChevronRight size={14} className="text-brand-400 group-hover:translate-x-0.5 transition-transform" />
-                      </p>
-                      <p className="text-xs text-gray-400 mt-1 leading-relaxed">
-                        13 herramientas: Vault, Photo Collections, Video Series, DM Pricing,
-                        Promo Codes, AI Persona, Auto-Reply, Top Fans, Mass DM, Co-stars,
-                        Geo Block, Scheduled, Welcome Message.
-                      </p>
-                    </div>
-                  </div>
-                </Link>
 
                 {/* Quick links */}
                 <div className="rounded-2xl bg-dark-800 border border-white/5 p-5">
