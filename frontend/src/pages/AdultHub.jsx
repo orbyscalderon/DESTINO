@@ -740,28 +740,35 @@ function AhoraTab({ liveShows, onSwitchTab, profile }) {
   const [maxHeight, setMaxHeight] = useState(220);
   const [sortBy, setSortBy] = useState('recent');
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [myStatus, setMyStatus] = useState(null); // mi propio estado de publisher
 
   const cityOptions = FUCKNOW_CITIES_BY_COUNTRY[userCountry?.toLowerCase()] || FUCKNOW_CITIES_BY_COUNTRY.do;
+
+  // Consultar mi propio estado de publisher (para mostrar CTA correcto)
+  useEffect(() => {
+    api.get('/api/fucknow/status')
+      .then(({ data }) => setMyStatus(data))
+      .catch(() => setMyStatus({ is_active: false, eligible: false }));
+  }, []);
 
   useEffect(() => {
     setLoading(true);
     const params = new URLSearchParams({
       sort: sortBy,
-      adult: '1',
       limit: '60',
     });
     if (genderFilter !== 'all') params.set('gender', genderFilter);
     if (onlineOnly || sortBy === 'online') params.set('online', 'true');
     if (city !== 'all') params.set('city', city);
-    if (userCountry) params.set('country', userCountry);
     if (bodyType !== 'all') params.set('body_type', bodyType);
     if (ethnicity !== 'all') params.set('ethnicity', ethnicity);
     if (languages.size > 0) params.set('languages', Array.from(languages).join(','));
-    api.get(`/api/creator/discover?${params}`)
+    // NUEVO: usa /api/fucknow/directory que solo devuelve fucknow_publisher activos
+    api.get(`/api/fucknow/directory?${params}`)
       .then(({ data }) => setCreators(data.creators || []))
-      .catch(() => {})
+      .catch(() => setCreators([]))
       .finally(() => setLoading(false));
-  }, [genderFilter, onlineOnly, city, userCountry, bodyType, ethnicity, languages, sortBy]);
+  }, [genderFilter, onlineOnly, city, bodyType, ethnicity, languages, sortBy]);
 
   const toggleLanguage = (code) => {
     setLanguages(prev => {
@@ -803,14 +810,52 @@ function AhoraTab({ liveShows, onSwitchTab, profile }) {
 
   return (
     <div className="px-4 py-4 max-w-7xl mx-auto">
+      {/* Spotlight CTA — para el user que no es publisher */}
+      {myStatus && !myStatus.is_active && (
+        <Link
+          to="/adult/spotlight"
+          className="block bg-gradient-to-r from-orange-500 to-rose-500 hover:from-orange-400 hover:to-rose-400 transition-all rounded-xl p-3.5 mb-3 shadow-glow"
+        >
+          <div className="flex items-center gap-3">
+            <div className="bg-white/20 rounded-full p-2 shrink-0">
+              <FiZap size={20} className="text-white" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-white font-black text-sm">
+                ¿Quieres aparecer aquí? Hazte Spotlight
+              </p>
+              <p className="text-white/80 text-[11px]">
+                Publicate por 30 días en el directorio. Solo creadores adultos verificados.
+              </p>
+            </div>
+            <FiChevronRight className="text-white shrink-0" size={18} />
+          </div>
+        </Link>
+      )}
+      {myStatus?.is_active && (
+        <Link
+          to="/adult/spotlight"
+          className="block bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-3 mb-3 flex items-center gap-3"
+        >
+          <FiCheck className="text-emerald-400 shrink-0" size={18} />
+          <div className="flex-1 text-xs">
+            <p className="text-emerald-300 font-bold">Tu Spotlight está activo</p>
+            <p className="text-gray-400">
+              {myStatus.days_remaining} {myStatus.days_remaining === 1 ? 'día restante' : 'días restantes'} · Tocá para editar
+            </p>
+          </div>
+        </Link>
+      )}
+
       {/* Banner aclaratorio */}
       <div className="bg-orange-500/10 border border-orange-500/30 rounded-xl p-3 mb-4 flex items-start gap-3">
         <span className="text-xl">🔥</span>
         <div className="flex-1 text-xs text-gray-300 leading-relaxed">
           <p className="text-orange-400 font-bold mb-0.5">Directorio Fuck Now</p>
           <p>
-            Creators adultos verificados disponibles. Todo el contacto pasa por chat de la
-            plataforma — sin números externos. Encuentros físicos no se gestionan en-app.
+            Adult dating con publicación premium. Los creadores que aparecen acá pagaron
+            por aparecer (Spotlight). Todo el contacto pasa por chat de la plataforma —
+            sin tarifas por encuentros, sin números externos. Encuentros físicos no se gestionan en-app.
           </p>
         </div>
       </div>

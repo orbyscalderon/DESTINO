@@ -53,6 +53,7 @@ import appealsRoutes from './src/routes/appeals.js';
 import videoRequestRoutes from './src/routes/videoRequests.js';
 import authRoutes from './src/routes/auth.js';
 import twoFactorRoutes from './src/routes/twoFactor.js';
+import fucknowRoutes from './src/routes/fucknow.js';
 import taxFormRoutes from './src/routes/taxForms.js';
 import seoRoutes from './src/routes/seo.js';
 import v6Routes from './src/routes/v6Routes.js';
@@ -257,6 +258,7 @@ app.use('/api/appeals', appealsRoutes);
 app.use('/api/video-requests', videoRequestRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/2fa', twoFactorRoutes);
+app.use('/api/fucknow', fucknowRoutes);
 app.use('/api/tax-forms', taxFormRoutes);
 app.use('/api/seo', seoRoutes);
 // Rutas agregadas en v54+: chat mods, account deletion, recurring shows,

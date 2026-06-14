@@ -58,6 +58,9 @@ const AdultCreators = IOS_BUILD
 const AdultHub = IOS_BUILD
   ? lazy(() => import('./pages/NotFound.jsx'))
   : lazy(() => import('./pages/AdultHub.jsx'));
+const FuckNowSpotlight = IOS_BUILD
+  ? lazy(() => import('./pages/NotFound.jsx'))
+  : lazy(() => import('./pages/FuckNowSpotlight.jsx'));
 const VideoRequests   = lazy(() => import('./pages/VideoRequests.jsx'));
 const Leaderboard     = lazy(() => import('./pages/Leaderboard.jsx'));
 const VerifyEmail     = lazy(() => import('./pages/VerifyEmail.jsx'));
@@ -444,6 +447,7 @@ export default function App() {
               y /explore/legacy quedan para acceso directo a las páginas
               individuales si se necesita (e.g. linkear desde docs). */}
           {!IOS_BUILD && <Route path="/adult" element={<AdultHub />} />}
+          {!IOS_BUILD && <Route path="/adult/spotlight" element={<FuckNowSpotlight />} />}
           {!IOS_BUILD && <Route path="/adult/legacy" element={<AdultCreators />} />}
           <Route path="/video-requests" element={<VideoRequests />} />
           <Route path="/leaderboard" element={<Leaderboard />} />
