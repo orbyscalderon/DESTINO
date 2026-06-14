@@ -380,7 +380,7 @@ export default function AdultHub() {
         }} />}
         {tab === 'lives' && <LivesTab liveShows={liveShows} />}
         {tab === 'creators' && <AdultCreators embedded />}
-        {tab === 'ahora' && <AhoraTab liveShows={liveShows} onSwitchTab={switchTab} />}
+        {tab === 'ahora' && <AhoraTab liveShows={liveShows} onSwitchTab={switchTab} profile={profile} />}
         {tab === 'comunidad' && <ComunidadTab onSwitchTab={switchTab} />}
         {tab === 'fotos' && <FotosTab />}
       </div>
@@ -680,84 +680,279 @@ function FotosTab() {
 }
 
 /* ── Fuck Now: pick aleatorio de live shows con botón "siguiente" ── */
-function AhoraTab({ liveShows, onSwitchTab }) {
-  const [idx, setIdx] = useState(() => Math.floor(Math.random() * Math.max(1, liveShows.length)));
+/* ── Fuck Now: directorio classified-ads de adult creators verificados ──
+ *
+ * Inspirado en Skokka / Photoprepagos: grid denso con énfasis en ubicación
+ * y disponibilidad. Reusa /api/creator/discover con flag adult.
+ * Importante: TODO el contacto pasa por chat interno (/chat/), no expone
+ * teléfono/WhatsApp. Solo creators con is_adult_creator+age_verified_at.
+ */
+function AhoraTab({ liveShows, onSwitchTab, profile }) {
+  const userCountry = profile?.country || 'do';
+  const [creators, setCreators] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [city, setCity] = useState('all');
+  const [genderFilter, setGenderFilter] = useState('all');
+  const [onlineOnly, setOnlineOnly] = useState(false);
+  const [minAge, setMinAge] = useState(18);
+  const [maxAge, setMaxAge] = useState(99);
+
+  // Ciudades por país — RD primero ya que es donde está la mayoría del user base
+  const CITIES_BY_COUNTRY = {
+    do: ['Santo Domingo', 'Santiago', 'Punta Cana', 'La Romana', 'Puerto Plata', 'San Pedro de Macorís', 'San Cristóbal', 'Bávaro'],
+    mx: ['Ciudad de México', 'Guadalajara', 'Monterrey', 'Cancún', 'Tijuana', 'Puebla'],
+    ar: ['Buenos Aires', 'Córdoba', 'Rosario', 'Mendoza', 'La Plata'],
+    co: ['Bogotá', 'Medellín', 'Cali', 'Barranquilla', 'Cartagena'],
+    es: ['Madrid', 'Barcelona', 'Valencia', 'Sevilla', 'Málaga'],
+    ve: ['Caracas', 'Maracaibo', 'Valencia', 'Barquisimeto'],
+  };
+  const cityOptions = CITIES_BY_COUNTRY[userCountry?.toLowerCase()] || CITIES_BY_COUNTRY.do;
 
   useEffect(() => {
-    if (liveShows.length === 0) return;
-    setIdx(Math.floor(Math.random() * liveShows.length));
-  }, [liveShows.length]);
+    setLoading(true);
+    const params = new URLSearchParams({
+      sort: 'recent',
+      adult: '1',
+      limit: '60',
+    });
+    if (genderFilter !== 'all') params.set('gender', genderFilter);
+    if (onlineOnly) params.set('online', 'true');
+    if (city !== 'all') params.set('city', city);
+    if (userCountry) params.set('country', userCountry);
+    api.get(`/api/creator/discover?${params}`)
+      .then(({ data }) => setCreators(data.creators || []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [genderFilter, onlineOnly, city, userCountry]);
 
-  if (liveShows.length === 0) {
-    return (
-      <div className="text-center py-20 px-4">
-        <div className="text-5xl mb-3 animate-float inline-block">⚡</div>
-        <p className="text-white font-bold">Sin sesiones en vivo ahora mismo</p>
-        <p className="text-gray-500 text-sm mt-1">Probá en unos minutos o explorá los videos.</p>
-        <button
-          onClick={() => onSwitchTab('videos')}
-          className="mt-5 bg-orange-500 hover:bg-orange-400 text-white font-bold px-6 py-2.5 rounded-xl text-sm transition-colors"
-        >
-          Ver Vídeos →
-        </button>
-      </div>
-    );
-  }
+  const filtered = creators.filter(c => {
+    if (c.age && (c.age < minAge || c.age > maxAge)) return false;
+    return true;
+  });
 
-  const current = liveShows[idx % liveShows.length];
+  // Pick aleatorio — botón "Sorpréndeme"
+  const surpriseMe = () => {
+    if (filtered.length === 0) return;
+    const pick = filtered[Math.floor(Math.random() * filtered.length)];
+    window.location.hash = `#/profile/${pick.id}`;
+  };
+
   return (
-    <div className="px-4 py-6 max-w-3xl mx-auto">
-      <div className="mb-4 flex items-center justify-between">
-        <p className="text-sm text-gray-400">
-          Match aleatorio · <span className="text-orange-400 font-bold">{liveShows.length} en vivo</span>
-        </p>
-        <button
-          onClick={() => setIdx((idx + 1 + Math.floor(Math.random() * (liveShows.length - 1))) % liveShows.length)}
-          className="flex items-center gap-1.5 bg-orange-500 hover:bg-orange-400 text-white font-bold px-4 py-2 rounded-xl text-sm transition-colors active:scale-95"
-        >
-          <FiShuffle size={14} /> Siguiente
-        </button>
+    <div className="px-4 py-4 max-w-7xl mx-auto">
+      {/* Banner aclaratorio */}
+      <div className="bg-orange-500/10 border border-orange-500/30 rounded-xl p-3 mb-4 flex items-start gap-3">
+        <span className="text-xl">🔥</span>
+        <div className="flex-1 text-xs text-gray-300 leading-relaxed">
+          <p className="text-orange-400 font-bold mb-0.5">Directorio Fuck Now</p>
+          <p>
+            Creators adultos verificados disponibles. Todo el contacto pasa por chat de la
+            plataforma — sin números externos. Encuentros físicos no se gestionan en-app.
+          </p>
+        </div>
       </div>
-      <Link
-        to={`/shows/${current.id}`}
-        className="block relative aspect-video bg-dark-800 rounded-2xl overflow-hidden ring-2 ring-orange-500/30 hover:ring-orange-500/60 transition-all group"
-      >
-        {current.cover_url || current.host?.avatar_url ? (
-          <img
-            src={current.cover_url || current.host?.avatar_url}
-            alt={current.title || ''}
-            className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-          />
-        ) : (
-          <div className="absolute inset-0 bg-gradient-to-br from-orange-900/40 to-red-900/40 flex items-center justify-center">
-            <span className="text-6xl opacity-40">🔥</span>
+
+      {/* Filtros: ciudad + género + edad + online */}
+      <div className="bg-dark-800/60 border border-white/5 rounded-2xl p-3 mb-4 space-y-3">
+        <div className="flex items-center gap-2 flex-wrap">
+          <label className="flex items-center gap-1.5 text-[10px] text-gray-400 uppercase font-bold tracking-wide shrink-0">
+            <FiZap size={11} className="text-orange-500" /> Ciudad
+          </label>
+          <select
+            value={city}
+            onChange={(e) => setCity(e.target.value)}
+            className="bg-dark-900 border border-white/10 text-white text-xs rounded-lg px-3 py-1.5 outline-none focus:border-orange-500/50"
+          >
+            <option value="all">Todas las ciudades</option>
+            {cityOptions.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+
+          <div className="flex items-center gap-1 ml-auto">
+            <button
+              onClick={() => setOnlineOnly(v => !v)}
+              className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg transition-colors border ${
+                onlineOnly
+                  ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
+                  : 'bg-dark-900 border-white/10 text-gray-400 hover:text-white'
+              }`}
+            >
+              <span className={`w-1.5 h-1.5 rounded-full ${onlineOnly ? 'bg-emerald-500 animate-pulse' : 'bg-gray-600'}`} />
+              En línea
+            </button>
+            <button
+              onClick={surpriseMe}
+              disabled={filtered.length === 0}
+              className="flex items-center gap-1.5 bg-orange-500 hover:bg-orange-400 disabled:opacity-40 text-white font-bold text-xs px-3 py-1.5 rounded-lg transition-colors"
+            >
+              <FiShuffle size={11} /> Sorpréndeme
+            </button>
           </div>
+        </div>
+
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-[10px] text-gray-400 uppercase font-bold tracking-wide shrink-0">Género</span>
+          {[
+            { id: 'all',    label: 'Todos'   },
+            { id: 'female', label: 'Chicas'  },
+            { id: 'male',   label: 'Chicos'  },
+            { id: 'couple', label: 'Parejas' },
+            { id: 'trans',  label: 'Trans'   },
+          ].map(g => (
+            <button
+              key={g.id}
+              onClick={() => setGenderFilter(g.id)}
+              className={`text-[11px] font-bold px-3 py-1 rounded-full transition-colors ${
+                genderFilter === g.id
+                  ? 'bg-orange-500 text-white'
+                  : 'bg-dark-900 text-gray-400 hover:text-white border border-white/5'
+              }`}
+            >
+              {g.label}
+            </button>
+          ))}
+
+          <div className="flex items-center gap-1.5 ml-2">
+            <span className="text-[10px] text-gray-400 uppercase font-bold tracking-wide">Edad</span>
+            <input
+              type="number" min="18" max="99"
+              value={minAge}
+              onChange={(e) => setMinAge(Math.max(18, parseInt(e.target.value) || 18))}
+              className="w-12 bg-dark-900 border border-white/10 text-white text-xs rounded-md px-1.5 py-0.5 outline-none focus:border-orange-500/50 text-center"
+            />
+            <span className="text-gray-500 text-xs">—</span>
+            <input
+              type="number" min="18" max="99"
+              value={maxAge}
+              onChange={(e) => setMaxAge(Math.min(99, parseInt(e.target.value) || 99))}
+              className="w-12 bg-dark-900 border border-white/10 text-white text-xs rounded-md px-1.5 py-0.5 outline-none focus:border-orange-500/50 text-center"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Stats */}
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-xs text-gray-400">
+          {loading ? 'Cargando…' : (
+            <>
+              <span className="text-orange-400 font-bold">{filtered.length}</span> creators disponibles
+              {city !== 'all' && <> · {city}</>}
+              {onlineOnly && <> · En línea</>}
+            </>
+          )}
+        </p>
+        {liveShows.length > 0 && (
+          <button
+            onClick={() => onSwitchTab('lives')}
+            className="text-xs text-orange-400 hover:text-orange-300 font-bold flex items-center gap-1"
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+            {liveShows.length} en vivo ahora →
+          </button>
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/30 to-transparent" />
-        <div className="absolute top-4 left-4 flex items-center gap-2">
-          <span className="bg-orange-500 text-white text-xs font-black px-2.5 py-1 rounded-full flex items-center gap-1.5 uppercase">
-            <span className="w-2 h-2 rounded-full bg-white animate-pulse" /> Fuck Now
-          </span>
-          {current.viewer_count > 0 && (
-            <span className="bg-black/70 text-white text-xs font-bold px-2 py-1 rounded-full">
-              👁 {current.viewer_count}
+      </div>
+
+      {/* Grid classified-ads */}
+      {loading ? (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+          {[...Array(18)].map((_, i) => (
+            <div key={i} className="aspect-[3/4] bg-dark-800 rounded-xl animate-pulse" />
+          ))}
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="text-center py-20 px-4">
+          <div className="text-5xl mb-3">🔍</div>
+          <p className="text-white font-bold">No hay creators con estos filtros</p>
+          <p className="text-gray-500 text-sm mt-1">Probá quitando ciudad o género.</p>
+          <button
+            onClick={() => { setCity('all'); setGenderFilter('all'); setOnlineOnly(false); setMinAge(18); setMaxAge(99); }}
+            className="mt-5 bg-orange-500 hover:bg-orange-400 text-white font-bold px-5 py-2 rounded-lg text-sm transition-colors"
+          >
+            Limpiar filtros
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+          {filtered.map(c => <FuckNowCard key={c.id} creator={c} />)}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FuckNowCard({ creator }) {
+  const isOnline = creator.last_active && (Date.now() - new Date(creator.last_active).getTime() < 5 * 60 * 1000);
+  const isLive = !!creator.is_live;
+  const services = [];
+  if (creator.has_video_calls)    services.push('Video');
+  if (creator.has_custom_content) services.push('Custom');
+  if (creator.has_subscription)   services.push('Sub');
+  if (creator.has_ppv)            services.push('PPV');
+
+  return (
+    <Link
+      to={`/profile/${creator.id}`}
+      className="group block relative aspect-[3/4] rounded-xl overflow-hidden bg-dark-800 ring-1 ring-white/5 hover:ring-orange-500/50 transition-all"
+    >
+      {creator.avatar_url ? (
+        <img
+          src={creator.avatar_url}
+          alt={creator.full_name}
+          className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+          loading="lazy"
+        />
+      ) : (
+        <div className="absolute inset-0 bg-gradient-to-br from-orange-900/40 to-rose-900/40 flex items-center justify-center text-3xl">
+          🔥
+        </div>
+      )}
+
+      {/* Gradient overlay */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/30 to-transparent" />
+
+      {/* Top badges */}
+      <div className="absolute top-2 left-2 right-2 flex items-start justify-between">
+        <div className="flex items-center gap-1">
+          {isLive && (
+            <span className="flex items-center gap-1 bg-red-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full uppercase">
+              <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" /> LIVE
+            </span>
+          )}
+          {!isLive && isOnline && (
+            <span className="flex items-center gap-1 bg-emerald-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full uppercase">
+              <span className="w-1.5 h-1.5 bg-white rounded-full" /> Online
             </span>
           )}
         </div>
-        <div className="absolute bottom-0 left-0 right-0 p-5">
-          <p className="text-white text-xl font-black mb-1">
-            {current.host?.full_name || 'Modelo en vivo'}
-          </p>
-          {current.title && (
-            <p className="text-gray-200 text-sm truncate">{current.title}</p>
-          )}
-          <p className="text-orange-300 text-xs font-bold mt-2">Tocá para entrar al show →</p>
+        {creator.is_verified && (
+          <span className="bg-blue-500 rounded-full w-4 h-4 flex items-center justify-center ring-2 ring-dark-900" aria-label="Verificado">
+            <FiCheck size={9} className="text-white" strokeWidth={3} />
+          </span>
+        )}
+      </div>
+
+      {/* Bottom info */}
+      <div className="absolute bottom-0 left-0 right-0 p-2.5">
+        <div className="flex items-baseline gap-1.5 mb-0.5">
+          <p className="text-white font-black text-sm truncate">{creator.full_name}</p>
+          {creator.age && <span className="text-orange-300 text-xs font-bold">· {creator.age}</span>}
         </div>
-      </Link>
-      <p className="text-center text-[10px] text-gray-600 mt-4">
-        Mirá un perfil al azar de los que están transmitiendo en vivo. Pulsá "Siguiente" para cambiar.
-      </p>
-    </div>
+        {(creator.city || creator.country) && (
+          <p className="text-gray-300 text-[10px] flex items-center gap-1 truncate">
+            <span className="text-orange-400">📍</span>
+            {creator.city || creator.country}
+          </p>
+        )}
+        {services.length > 0 && (
+          <div className="flex gap-1 mt-1.5 flex-wrap">
+            {services.slice(0, 3).map(s => (
+              <span key={s} className="text-[8px] font-bold bg-orange-500/20 text-orange-300 px-1.5 py-0.5 rounded">
+                {s}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+    </Link>
   );
 }
 
