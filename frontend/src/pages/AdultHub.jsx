@@ -3,7 +3,8 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   FiHome, FiVideo, FiGrid, FiUsers, FiImage, FiRadio,
-  FiCheck, FiTrendingUp, FiChevronRight, FiSearch,
+  FiCheck, FiTrendingUp, FiChevronRight, FiChevronDown,
+  FiSearch, FiZap, FiMessageSquare, FiShuffle,
 } from 'react-icons/fi';
 import api from '../lib/api.js';
 import { useAuthStore } from '../store/authStore.js';
@@ -13,6 +14,9 @@ import AdultCreators from './AdultCreators.jsx';
 import VideosMegamenu from '../components/ui/VideosMegamenu.jsx';
 import CategoriasMegamenu from '../components/ui/CategoriasMegamenu.jsx';
 import LivesMegamenu from '../components/ui/LivesMegamenu.jsx';
+import CreatorsMegamenu from '../components/ui/CreatorsMegamenu.jsx';
+import ComunidadMegamenu from '../components/ui/ComunidadMegamenu.jsx';
+import FotosMegamenu from '../components/ui/FotosMegamenu.jsx';
 
 // AdultHub — punto único de entrada al +18.
 // Estructura:
@@ -31,11 +35,14 @@ import LivesMegamenu from '../components/ui/LivesMegamenu.jsx';
 
 const TABS = [
   { id: 'inicio',     label: 'Inicio',     icon: FiHome },
-  { id: 'videos',     label: 'Videos',     icon: FiVideo },
+  { id: 'videos',     label: 'Vídeos',     icon: FiVideo },
   { id: 'categorias', label: 'Categorías', icon: FiGrid },
-  { id: 'lives',      label: 'Lives',      icon: FiRadio, accent: true },
-  { id: 'creators',   label: 'Creators',   icon: FiUsers },
-  { id: 'fotos',      label: 'Fotos',      icon: FiImage },
+  { id: 'lives',      label: 'Live Cams',  icon: FiRadio,    accent: true },
+  { id: 'creators',   label: 'Estrellas',  icon: FiUsers },
+  // FUCK NOW (PH parity) — sin dropdown, navega al tab "ahora" con random pick
+  { id: 'ahora',      label: 'Fuck Now',   icon: FiZap,      hotAccent: true },
+  { id: 'comunidad',  label: 'Comunidad',  icon: FiMessageSquare },
+  { id: 'fotos',      label: 'Fotos y GIFs', icon: FiImage },
 ];
 
 // Trending pills — mezcla creator names + búsquedas comunes.
@@ -60,8 +67,8 @@ export default function AdultHub() {
   const [searchInput, setSearchInput] = useState('');
 
   // Megamenu hover state — tabs que muestran panel en hover
-  const TABS_WITH_MEGAMENU = ['videos', 'categorias', 'lives'];
-  const [openMega, setOpenMega] = useState(null); // 'videos' | 'categorias' | 'lives' | null
+  const TABS_WITH_MEGAMENU = ['videos', 'categorias', 'lives', 'creators', 'comunidad', 'fotos'];
+  const [openMega, setOpenMega] = useState(null);
   const megaCloseTimerRef = useRef(null);
   const openMegamenu = (id) => {
     if (megaCloseTimerRef.current) clearTimeout(megaCloseTimerRef.current);
@@ -191,14 +198,17 @@ export default function AdultHub() {
                 onFocus={hasMegamenu ? () => openMegamenu(t.id) : undefined}
                 className={`relative shrink-0 flex items-center gap-1.5 px-3 sm:px-4 py-3 text-[11px] sm:text-xs font-black uppercase tracking-wider transition-colors ${
                   active ? 'text-white' : 'text-gray-500 hover:text-gray-200'
-                } ${t.accent && !active ? 'text-red-400 hover:text-red-300' : ''}`}
+                } ${t.accent && !active ? 'text-red-400 hover:text-red-300' : ''} ${t.hotAccent ? 'text-orange-400 hover:text-orange-300' : ''}`}
               >
-                <Icon size={13} className={t.accent ? 'text-red-500' : ''} />
+                <Icon size={13} className={t.accent ? 'text-red-500' : t.hotAccent ? 'text-orange-500' : ''} />
                 {t.label}
                 {t.accent && liveShows.length > 0 && (
                   <span className="bg-red-500 text-white text-[8px] font-black px-1 py-0.5 rounded leading-none">
                     {liveShows.length}
                   </span>
+                )}
+                {hasMegamenu && (
+                  <FiChevronDown size={10} className="opacity-60 -ml-0.5" aria-hidden="true" />
                 )}
                 {active && (
                   <motion.span
@@ -269,7 +279,36 @@ export default function AdultHub() {
                   onSelectCategory={({ kind, value }) => {
                     const p = new URLSearchParams(searchParams);
                     p.set('tab', 'lives');
-                    // kind: 'live-filter' | 'live-category' | 'live-bucket'
+                    p.set(kind, value);
+                    setSearchParams(p, { replace: true });
+                  }}
+                  onClose={() => setOpenMega(null)}
+                />
+              )}
+              {openMega === 'creators' && (
+                <CreatorsMegamenu
+                  trendingFromHub={trending}
+                  onSelectFilter={({ kind, value }) => {
+                    const p = new URLSearchParams(searchParams);
+                    p.set('tab', 'creators');
+                    p.set(kind, value);
+                    setSearchParams(p, { replace: true });
+                  }}
+                  onClose={() => setOpenMega(null)}
+                />
+              )}
+              {openMega === 'comunidad' && (
+                <ComunidadMegamenu
+                  trendingFromHub={trending}
+                  onClose={() => setOpenMega(null)}
+                />
+              )}
+              {openMega === 'fotos' && (
+                <FotosMegamenu
+                  trendingFromHub={trending}
+                  onSelectFilter={({ kind, value }) => {
+                    const p = new URLSearchParams(searchParams);
+                    p.set('tab', 'fotos');
                     p.set(kind, value);
                     setSearchParams(p, { replace: true });
                   }}
@@ -341,6 +380,8 @@ export default function AdultHub() {
         }} />}
         {tab === 'lives' && <LivesTab liveShows={liveShows} />}
         {tab === 'creators' && <AdultCreators embedded />}
+        {tab === 'ahora' && <AhoraTab liveShows={liveShows} onSwitchTab={switchTab} />}
+        {tab === 'comunidad' && <ComunidadTab onSwitchTab={switchTab} />}
         {tab === 'fotos' && <FotosTab />}
       </div>
     </div>
@@ -355,8 +396,10 @@ function SectionTitle({ tab }) {
     videos:     'Videos porno calientes',
     categorias: 'Explora por categoría',
     lives:      'Shows en vivo ahora',
-    creators:   'Creators verificados',
-    fotos:      'Galerías y colecciones',
+    creators:   'Estrellas verificadas',
+    ahora:      'Fuck Now — match instantáneo',
+    comunidad:  'Comunidad +18',
+    fotos:      'Fotos y GIFs',
   };
   return (
     <h1 className="flex items-center gap-2 text-lg sm:text-xl font-black text-white mb-3">
@@ -632,6 +675,134 @@ function FotosTab() {
           </div>
         </Link>
       ))}
+    </div>
+  );
+}
+
+/* ── Fuck Now: pick aleatorio de live shows con botón "siguiente" ── */
+function AhoraTab({ liveShows, onSwitchTab }) {
+  const [idx, setIdx] = useState(() => Math.floor(Math.random() * Math.max(1, liveShows.length)));
+
+  useEffect(() => {
+    if (liveShows.length === 0) return;
+    setIdx(Math.floor(Math.random() * liveShows.length));
+  }, [liveShows.length]);
+
+  if (liveShows.length === 0) {
+    return (
+      <div className="text-center py-20 px-4">
+        <div className="text-5xl mb-3 animate-float inline-block">⚡</div>
+        <p className="text-white font-bold">Sin sesiones en vivo ahora mismo</p>
+        <p className="text-gray-500 text-sm mt-1">Probá en unos minutos o explorá los videos.</p>
+        <button
+          onClick={() => onSwitchTab('videos')}
+          className="mt-5 bg-orange-500 hover:bg-orange-400 text-white font-bold px-6 py-2.5 rounded-xl text-sm transition-colors"
+        >
+          Ver Vídeos →
+        </button>
+      </div>
+    );
+  }
+
+  const current = liveShows[idx % liveShows.length];
+  return (
+    <div className="px-4 py-6 max-w-3xl mx-auto">
+      <div className="mb-4 flex items-center justify-between">
+        <p className="text-sm text-gray-400">
+          Match aleatorio · <span className="text-orange-400 font-bold">{liveShows.length} en vivo</span>
+        </p>
+        <button
+          onClick={() => setIdx((idx + 1 + Math.floor(Math.random() * (liveShows.length - 1))) % liveShows.length)}
+          className="flex items-center gap-1.5 bg-orange-500 hover:bg-orange-400 text-white font-bold px-4 py-2 rounded-xl text-sm transition-colors active:scale-95"
+        >
+          <FiShuffle size={14} /> Siguiente
+        </button>
+      </div>
+      <Link
+        to={`/shows/${current.id}`}
+        className="block relative aspect-video bg-dark-800 rounded-2xl overflow-hidden ring-2 ring-orange-500/30 hover:ring-orange-500/60 transition-all group"
+      >
+        {current.cover_url || current.host?.avatar_url ? (
+          <img
+            src={current.cover_url || current.host?.avatar_url}
+            alt={current.title || ''}
+            className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+          />
+        ) : (
+          <div className="absolute inset-0 bg-gradient-to-br from-orange-900/40 to-red-900/40 flex items-center justify-center">
+            <span className="text-6xl opacity-40">🔥</span>
+          </div>
+        )}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/30 to-transparent" />
+        <div className="absolute top-4 left-4 flex items-center gap-2">
+          <span className="bg-orange-500 text-white text-xs font-black px-2.5 py-1 rounded-full flex items-center gap-1.5 uppercase">
+            <span className="w-2 h-2 rounded-full bg-white animate-pulse" /> Fuck Now
+          </span>
+          {current.viewer_count > 0 && (
+            <span className="bg-black/70 text-white text-xs font-bold px-2 py-1 rounded-full">
+              👁 {current.viewer_count}
+            </span>
+          )}
+        </div>
+        <div className="absolute bottom-0 left-0 right-0 p-5">
+          <p className="text-white text-xl font-black mb-1">
+            {current.host?.full_name || 'Modelo en vivo'}
+          </p>
+          {current.title && (
+            <p className="text-gray-200 text-sm truncate">{current.title}</p>
+          )}
+          <p className="text-orange-300 text-xs font-bold mt-2">Tocá para entrar al show →</p>
+        </div>
+      </Link>
+      <p className="text-center text-[10px] text-gray-600 mt-4">
+        Mirá un perfil al azar de los que están transmitiendo en vivo. Pulsá "Siguiente" para cambiar.
+      </p>
+    </div>
+  );
+}
+
+/* ── Comunidad: reels recientes + posts (placeholder funcional) ── */
+function ComunidadTab({ onSwitchTab }) {
+  const [reels, setReels] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    api.get('/api/reels/feed?limit=12&adult=1')
+      .then(({ data }) => setReels(data.reels || []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  return (
+    <div className="px-4 py-4 space-y-6">
+      <section>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-sm font-black uppercase tracking-wider text-white">Reels +18 más recientes</h2>
+          <Link to="/reels?adult=1" className="text-xs text-brand-400 hover:text-brand-300 font-bold">
+            Ver todos →
+          </Link>
+        </div>
+        {loading ? (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+            {[...Array(8)].map((_, i) => <div key={i} className="aspect-[9/16] bg-dark-800 rounded-lg animate-pulse" />)}
+          </div>
+        ) : reels.length === 0 ? (
+          <p className="text-center text-gray-500 text-sm py-12">No hay reels todavía. Volvé pronto.</p>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+            {reels.map(r => (
+              <Link key={r.id} to={`/reels?id=${r.id}`} className="group block relative aspect-[9/16] rounded-lg overflow-hidden bg-dark-800 ring-1 ring-white/5 hover:ring-brand-500/40 transition-all">
+                {r.thumbnail_url && (
+                  <img src={r.thumbnail_url} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" />
+                )}
+                <div className="absolute inset-x-0 bottom-0 p-2 bg-gradient-to-t from-black/90 to-transparent">
+                  <p className="text-white text-xs font-bold truncate">{r.user?.full_name || ''}</p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 }
