@@ -478,6 +478,36 @@ export default function LiveShow() {
     return () => clearInterval(timer);
   }, [isLive, id, show?.host?.id, user?.id]);
 
+  // Auto-cierre si el live se queda en 'reconnecting' más de 2 minutos.
+  // - Host: termina el show en el backend + cleanup + navega a backPath.
+  // - Viewer: navega a backPath con toast.
+  // Si la conexión vuelve antes (connState === 'connected'), el cleanup cancela el timer.
+  const RECONNECT_TIMEOUT_MS = 2 * 60 * 1000;
+  useEffect(() => {
+    if (connState !== 'reconnecting') return;
+    const timer = setTimeout(async () => {
+      const wasHost = isHostRef.current;
+      if (wasHost) {
+        isLiveRef.current = false;
+        clearInterval(liveTimerRef.current);
+        clearInterval(audioLevelRef.current);
+        try { await api.post(`/api/shows/${id}/end`); } catch {}
+        await chatChannelRef.current?.send({
+          type: 'broadcast', event: 'show_ended', payload: { reason: 'reconnect_timeout' },
+        }).catch(() => {});
+        leaveShowChannel();
+        await leaveShow();
+        toast.error('Conexión perdida más de 2 min — el show se cerró');
+      } else {
+        leaveShowChannel();
+        await leaveShow();
+        toast.error('No se pudo reconectar al show');
+      }
+      navigate(backPath);
+    }, RECONNECT_TIMEOUT_MS);
+    return () => clearTimeout(timer);
+  }, [connState, id, backPath, navigate]);
+
   // Apply pending viewer tracks once the video element is in the DOM (inShow=true)
   useEffect(() => {
     if (!inShow || !pendingViewerTracks) return;
