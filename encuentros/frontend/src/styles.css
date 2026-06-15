@@ -8,3 +8,10 @@
     font-feature-settings: "ss01", "ss02";
   }
 }
+
+@layer components {
+  .enc-input {
+    @apply w-full bg-zinc-900 border border-zinc-700 text-white text-sm rounded px-3 py-2;
+    @apply focus:outline-none focus:ring-2 focus:ring-accent-500/40 focus:border-accent-500;
+  }
+}

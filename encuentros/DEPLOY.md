@@ -159,11 +159,38 @@ En el proyecto de Destino TV (Vercel/Cloudflare Pages):
 
 ## Mantenimiento
 
-- Cron diario para expirar listings (status='expired' cuando expires_at < now())
-- Cron diario para enviar warnings 3 días antes de expiry
-- Backup nightly de la DB (Supabase Pro lo hace automático)
-- Review semanal de reports urgentes (siempre <24h SLA)
-- Audit mensual de listings activos (Onfido re-verify si > 6 meses)
+### Cron jobs (Railway → Cron schedule)
+
+Configurar 4 schedules:
+
+```
+expire-listings   — daily 04:00 UTC — node cron/worker.js expire-listings
+notify-expiring   — daily 09:00 UTC — node cron/worker.js notify-expiring
+daily-digest      — daily 09:30 UTC — node cron/worker.js daily-digest
+execute-deletions — daily 03:00 UTC — node cron/worker.js execute-deletions
+```
+
+Sobre Railway:
+1. Dashboard → tu backend service → Settings → Cron Schedule
+2. Add 4 entries — cada uno con su comando
+
+### Otros
+- Backup nightly DB: Supabase Pro lo hace automático
+- Review semanal reports urgentes (<24h SLA)
+- Audit mensual listings activos (re-verify Onfido si > 6 meses)
+- Rotación trimestral del SERVICE_KEY de Supabase
+
+## Hacer admin a un publisher
+
+Después de que el admin se registre via magic link (su email entra en
+`encuentros_publishers`), correr este SQL en Supabase:
+
+```sql
+INSERT INTO encuentros_admins (email, role)
+VALUES ('admin@encuentros.app', 'super_admin');
+```
+
+Luego el admin verá el botón Admin en su dashboard al loguearse.
 
 ## Rollback
 
