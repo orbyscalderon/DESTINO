@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase.js';
+import { sanitizeImageUrl } from '../lib/urlValidation.js';
 
 // GET /api/adult-video/series/by/:creatorId — listado público
 export const listByCreator = async (req, res) => {
@@ -58,7 +59,7 @@ export const createSeries = async (req, res) => {
       creator_id: req.user.id,
       title: title.trim(),
       description: description?.trim() || null,
-      cover_url: cover_url || null,
+      cover_url: sanitizeImageUrl(cover_url),
       is_paid: !!is_paid, price_coins: price,
       is_adult: !!is_adult,
     }).select().single();

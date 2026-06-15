@@ -8,6 +8,7 @@ import {
 import { useAuthStore } from '../store/authStore.js';
 import api from '../lib/api.js';
 import toast from 'react-hot-toast';
+import { safeRedirect } from '../lib/safeRedirect.js';
 import SuccessConfetti from '../components/ui/SuccessConfetti.jsx';
 
 const normalBenefits = [
@@ -80,7 +81,9 @@ export default function BecomeCreator() {
     setLoading(true);
     try {
       const { data } = await api.get('/api/creator/onboarding-link');
-      window.location.href = data.url;
+      safeRedirect(data.url, {
+        onReject: () => toast.error('URL de redirección no permitida'),
+      });
     } catch (err) {
       toast.error(err.response?.data?.error || 'Error al abrir la configuración de pagos');
       setLoading(false);

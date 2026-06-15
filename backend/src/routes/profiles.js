@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import rateLimit from 'express-rate-limit';
 import { authMiddleware } from '../middleware/auth.js';
 import {
   getFeed,
@@ -51,9 +52,33 @@ const router = Router();
 
 router.use(authMiddleware);
 
-router.get('/feed', getFeed);
-router.get('/search', searchProfiles);
-router.get('/top-creators', getTopCreators);
+// Anti-scraping: limit a /search por usuario autenticado.
+// Búsqueda razonable de un humano: ~20 queries / minuto. Bots intentando
+// enumerar perfiles típicamente exceden esto rápido.
+const searchLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  // Key por user_id (no IP — un mismo IP puede tener varios users legítimos).
+  keyGenerator: (req) => req.user?.id || req.ip,
+  message: { error: 'Demasiadas búsquedas. Espera un momento.', code: 'RATE_LIMIT' },
+});
+
+// Limit a la enumeración de top creators desde el feed (más permisivo —
+// se ve al hacer scroll y refresh; cap general anti-bot).
+const enumerationLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => req.user?.id || req.ip,
+  message: { error: 'Demasiadas peticiones. Espera un momento.', code: 'RATE_LIMIT' },
+});
+
+router.get('/feed', enumerationLimiter, getFeed);
+router.get('/search', searchLimiter, searchProfiles);
+router.get('/top-creators', enumerationLimiter, getTopCreators);
 router.post('/heartbeat', heartbeat);
 router.delete('/me', deleteAccount);
 router.post('/boost', boostProfile);

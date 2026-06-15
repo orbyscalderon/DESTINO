@@ -1286,12 +1286,13 @@ export const discoverAdultCreators = async (req, res) => {
     const requesterId = req.user.id;
     const { data: requester } = await supabase
       .from('profiles')
-      .select('age, is_adult_creator')
+      .select('age, is_adult_creator, country')
       .eq('id', requesterId)
       .single();
     if (!requester?.is_adult_creator && (requester?.age === null || requester?.age === undefined || requester.age < 18)) {
       return res.status(403).json({ error: 'Debes ser mayor de 18 años para acceder a este contenido.', code: 'AGE_REQUIRED' });
     }
+    const requesterCountry = requester?.country?.toUpperCase() || null;
 
     const q          = req.query.q?.trim();
     const gender     = req.query.gender;   // 'male' | 'female' | 'other'
@@ -1386,6 +1387,26 @@ export const discoverAdultCreators = async (req, res) => {
 
     // Live creators always first (within their sort group)
     result.sort((a, b) => (b.is_live ? 1 : 0) - (a.is_live ? 1 : 0));
+
+    // Filtrar creators con geo_block activo para el country del requester.
+    // El creator marca su perfil como bloqueado para un país desde content-geo.
+    if (requesterCountry && result.length > 0) {
+      const profileIds = result.map(c => c.id);
+      const { data: blocks } = await supabase
+        .from('content_geo_blocks')
+        .select('content_id, country_codes')
+        .eq('content_type', 'profile')
+        .in('content_id', profileIds);
+      const blockedSet = new Set();
+      (blocks || []).forEach(b => {
+        if (Array.isArray(b.country_codes) && b.country_codes.includes(requesterCountry)) {
+          blockedSet.add(b.content_id);
+        }
+      });
+      if (blockedSet.size > 0) {
+        result = result.filter(c => !blockedSet.has(c.id));
+      }
+    }
 
     res.json({ creators: result, hasMore: result.length === limit });
   } catch (err) {

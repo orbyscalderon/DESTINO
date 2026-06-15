@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { FiArrowLeft, FiArrowRight, FiHeart, FiX, FiMoreVertical, FiLock, FiZap, FiCheck, FiVideo, FiUserMinus, FiShare2, FiUserPlus, FiUsers, FiGrid, FiMessageCircle, FiGift, FiImage, FiFilm, FiPlay, FiSend } from 'react-icons/fi';
 import api from '../lib/api.js';
+import { safeRedirect } from '../lib/safeRedirect.js';
 import toast from 'react-hot-toast';
 import BlockReportModal from '../components/ui/BlockReportModal.jsx';
 import PaymentModal from '../components/ui/PaymentModal.jsx';
@@ -207,7 +208,7 @@ export default function UserProfile() {
             creatorId: userId,
             tierId: tierOrLegacy.id,
           });
-          window.location.href = data.url;
+          safeRedirect(data.url, { onReject: () => toast.error('URL de suscripción no permitida') });
           return;
         } catch (ccbillErr) {
           const code = ccbillErr.response?.data?.code;

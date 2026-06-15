@@ -329,6 +329,7 @@ export default function LiveShow() {
 
   // Connection state
   const [connState, setConnState] = useState('connected');
+  const [reconnectCountdown, setReconnectCountdown] = useState(null);
 
   // Gifts + leaderboard
   const [showGifts, setShowGifts]       = useState(false);
@@ -484,7 +485,17 @@ export default function LiveShow() {
   // Si la conexión vuelve antes (connState === 'connected'), el cleanup cancela el timer.
   const RECONNECT_TIMEOUT_MS = 2 * 60 * 1000;
   useEffect(() => {
-    if (connState !== 'reconnecting') return;
+    if (connState !== 'reconnecting') {
+      setReconnectCountdown(null);
+      return;
+    }
+    // Countdown visible cada segundo para que el user sepa que el live se va a cerrar.
+    const startedAt = Date.now();
+    setReconnectCountdown(Math.floor(RECONNECT_TIMEOUT_MS / 1000));
+    const tick = setInterval(() => {
+      const remaining = Math.max(0, Math.floor((RECONNECT_TIMEOUT_MS - (Date.now() - startedAt)) / 1000));
+      setReconnectCountdown(remaining);
+    }, 1000);
     const timer = setTimeout(async () => {
       const wasHost = isHostRef.current;
       if (wasHost) {
@@ -505,7 +516,7 @@ export default function LiveShow() {
       }
       navigate(backPath);
     }, RECONNECT_TIMEOUT_MS);
-    return () => clearTimeout(timer);
+    return () => { clearTimeout(timer); clearInterval(tick); };
   }, [connState, id, backPath, navigate]);
 
   // Apply pending viewer tracks once the video element is in the DOM (inShow=true)
@@ -1234,7 +1245,32 @@ export default function LiveShow() {
       const code = err.response?.data?.code;
       if (code === 'INSUFFICIENT_COINS') {
         const needed = err.response.data.required;
-        toast.error(`Coins insuficientes. Necesitas ${needed} coins.`);
+        const missing = Math.max(0, needed - (coinBalance || 0));
+        // Toast con action button para ir a /coins directo.
+        toast.custom((tt) => (
+          <div className={`${tt.visible ? 'animate-enter' : 'animate-leave'} bg-dark-800 border border-red-500/40 rounded-xl px-4 py-3 shadow-2xl flex flex-col gap-2 max-w-sm`}>
+            <p className="text-white text-sm font-semibold">
+              🪙 Te faltan {missing.toLocaleString()} coins
+            </p>
+            <p className="text-gray-400 text-xs">
+              Necesitas {needed.toLocaleString()} — tu saldo: {(coinBalance || 0).toLocaleString()}
+            </p>
+            <div className="flex gap-2 mt-1">
+              <button
+                onClick={() => { toast.dismiss(tt.id); navigate('/coins'); }}
+                className="flex-1 bg-brand-500 hover:bg-brand-600 text-white text-xs font-bold py-1.5 rounded-lg transition-colors"
+              >
+                Comprar coins
+              </button>
+              <button
+                onClick={() => toast.dismiss(tt.id)}
+                className="flex-1 bg-dark-700 hover:bg-dark-600 text-gray-300 text-xs font-bold py-1.5 rounded-lg transition-colors"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        ), { duration: 8000 });
       } else if (code === 'AGE_VERIFICATION_REQUIRED') {
         toast.error('Debes verificar tu edad para acceder a este contenido.');
       } else {
@@ -1904,7 +1940,11 @@ export default function LiveShow() {
               {connState !== 'connected' && (
                 <span className={`text-xs flex items-center gap-1 ${connState === 'reconnecting' ? 'text-yellow-400' : 'text-red-400'}`}>
                   {connState === 'reconnecting' ? <FiWifi size={12} className="animate-pulse" /> : <FiWifiOff size={12} />}
-                  {connState === 'reconnecting' ? 'Reconectando…' : 'Sin conexión'}
+                  {connState === 'reconnecting'
+                    ? (reconnectCountdown !== null && reconnectCountdown < 90
+                        ? `Cerrando en ${reconnectCountdown}s…`
+                        : 'Reconectando…')
+                    : 'Sin conexión'}
                 </span>
               )}
             </div>
@@ -2762,11 +2802,14 @@ export default function LiveShow() {
             </div>
             <div className="flex items-center gap-2 shrink-0">
               {connState !== 'connected' && (
-                <div className="bg-black/50 backdrop-blur-sm rounded-xl px-2 py-2">
+                <div className="bg-black/50 backdrop-blur-sm rounded-xl px-2 py-2 flex items-center gap-1">
                   {connState === 'reconnecting'
                     ? <FiWifi className="text-yellow-400 animate-pulse" size={14} />
                     : <FiWifiOff className="text-red-400" size={14} />
                   }
+                  {connState === 'reconnecting' && reconnectCountdown !== null && reconnectCountdown < 90 && (
+                    <span className="text-yellow-400 text-[10px] font-bold tabular-nums">{reconnectCountdown}s</span>
+                  )}
                 </div>
               )}
               <div className="bg-black/50 backdrop-blur-sm rounded-xl px-3 py-2 flex items-center gap-1">
@@ -3288,9 +3331,16 @@ export default function LiveShow() {
           </div>
         )
       ) : needsTicket ? (
-        <button onClick={handleBuyTicket} className="btn-primary w-full flex items-center justify-center gap-2">
-          <span aria-hidden="true">🪙</span> Comprar ticket · {Math.ceil((show?.ticket_price || 0) * 20)} coins
-        </button>
+        <div className="space-y-1.5">
+          <button onClick={handleBuyTicket} className="btn-primary w-full flex items-center justify-center gap-2">
+            <span aria-hidden="true">🪙</span> Comprar ticket · {Math.ceil((show?.ticket_price || 0) * 20)} coins
+          </button>
+          <p className="text-center text-[11px] text-gray-500">
+            Tu saldo: <span className={coinBalance >= Math.ceil((show?.ticket_price || 0) * 20) ? 'text-yellow-400 font-bold' : 'text-red-400 font-bold'}>
+              🪙 {(coinBalance || 0).toLocaleString()}
+            </span>
+          </p>
+        </div>
       ) : (
         show?.status === 'live' ? (
           <button onClick={handleJoinAsViewer} disabled={joining} className="btn-primary w-full flex items-center justify-center gap-2">

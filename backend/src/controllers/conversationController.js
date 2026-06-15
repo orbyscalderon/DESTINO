@@ -6,6 +6,7 @@
 
 import { supabase } from '../lib/supabase.js';
 import { sendPushToUser } from './notificationController.js';
+import { sanitizeImageUrl } from '../lib/urlValidation.js';
 
 // GET /api/conversations — mis grupos
 export const listMyConversations = async (req, res) => {
@@ -103,7 +104,7 @@ export const createConversation = async (req, res) => {
     // Create conversation + members en transacción simulada
     const { data: conv, error: convErr } = await supabase
       .from('conversations')
-      .insert({ name: name.trim(), avatar_url: avatar_url || null, created_by: userId })
+      .insert({ name: name.trim(), avatar_url: sanitizeImageUrl(avatar_url), created_by: userId })
       .select().single();
     if (convErr) throw convErr;
 

@@ -11,6 +11,7 @@ import { supabase } from '../lib/supabase.js';
 import { initPushNotifications } from '../lib/pushNotifications.js';
 import api from '../lib/api.js';
 import toast from 'react-hot-toast';
+import { useConfirm } from '../components/ui/ConfirmDialog.jsx';
 
 const SUPPORT_EMAIL = import.meta.env.VITE_SUPPORT_EMAIL || 'soporte@destino.app';
 
@@ -27,6 +28,7 @@ export default function Settings() {
   const { isDark, toggle: toggleTheme } = useThemeStore();
   const location = useLocation();
   const navigate = useNavigate();
+  const confirm = useConfirm();
   const [notifications, setNotifications] = useState(false);
   const [togglingNotif, setTogglingNotif] = useState(false);
   const [newPassword, setNewPassword] = useState('');
@@ -231,14 +233,16 @@ export default function Settings() {
   };
 
   const handleDeleteAccount = async () => {
-    const phrase = window.prompt(
-      'Esta acción es PERMANENTE e irreversible. Borraremos todos tus datos, fotos, mensajes y suscripciones.\n\n' +
-      'Para confirmar, escribe exactamente:\n\nBORRAR MI CUENTA'
-    );
-    if (phrase !== 'BORRAR MI CUENTA') {
-      if (phrase !== null) toast.error('Confirmación incorrecta. Cuenta NO eliminada.');
-      return;
-    }
+    const ok = await confirm({
+      title: '¿Eliminar tu cuenta permanentemente?',
+      message:
+        'Esta acción es PERMANENTE e irreversible. Borraremos todos tus datos, fotos, mensajes y suscripciones.',
+      confirmLabel: 'Eliminar cuenta',
+      cancelLabel: 'Cancelar',
+      destructive: true,
+      requirePhrase: 'BORRAR MI CUENTA',
+    });
+    if (!ok) return;
     setDeletingAccount(true);
     try {
       await api.delete('/api/gdpr/account', { data: { confirm: 'BORRAR MI CUENTA' } });

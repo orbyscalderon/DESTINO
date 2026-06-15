@@ -7,6 +7,7 @@ import {
 } from 'react-icons/fi';
 import api from '../lib/api.js';
 import toast from 'react-hot-toast';
+import { safeRedirect } from '../lib/safeRedirect.js';
 import PageShell from '../components/layout/PageShell.jsx';
 import { useAuthStore } from '../store/authStore.js';
 import AgeGate, { isAgeVerified } from '../components/ui/AgeGate.jsx';
@@ -174,7 +175,7 @@ export default function FuckNowSpotlight() {
       if (data.mode === 'checkout' && data.checkout_url) {
         toast.success(`Te llevamos a CCBill — $${data.price_usd}/${data.days} días`);
         // Pequeño delay para que se vea el toast
-        setTimeout(() => { window.location.href = data.checkout_url; }, 800);
+        setTimeout(() => { safeRedirect(data.checkout_url, { onReject: () => toast.error('URL de checkout no permitida') }); }, 800);
         return;
       }
       toast.success(data.message || '¡Listo!');

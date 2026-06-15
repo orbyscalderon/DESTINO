@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase.js';
+import { sanitizeImageUrl } from '../lib/urlValidation.js';
 
 // GET /api/photo-collections/:creatorId — público (listado)
 export const listByCreator = async (req, res) => {
@@ -65,7 +66,7 @@ export const createCollection = async (req, res) => {
     const { data, error } = await supabase.from('photo_collections').insert({
       creator_id: req.user.id,
       title: title.trim(), description: description?.trim() || null,
-      cover_url: cover_url || null, price_coins: price, is_adult: !!is_adult,
+      cover_url: sanitizeImageUrl(cover_url), price_coins: price, is_adult: !!is_adult,
     }).select().single();
 
     if (error) throw error;

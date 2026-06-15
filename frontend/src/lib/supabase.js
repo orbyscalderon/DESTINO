@@ -26,6 +26,19 @@ export const supabase = createClient(
     auth: {
       flowType: 'pkce',
       detectSessionInUrl: true,
+      // Refresh tokens lifecycle:
+      //   - autoRefreshToken: el SDK refresca el access_token automáticamente
+      //     ~10 min antes de su expiry (default 1 h, configurar en Supabase
+      //     Dashboard > Settings > Auth > JWT expiry, recomendado: 3600 sec).
+      //   - persistSession: mantiene la sesión entre reloads vía dualStorage.
+      //   - Refresh tokens propios de Supabase tienen rotación habilitada
+      //     por defecto (Dashboard > Settings > Auth > Refresh token rotation).
+      //     Si un atacante intercepta uno usado, el siguiente refresh fallará
+      //     y se invalida la sesión. NO desactivar.
+      //   - Reuse interval: dejar en 10 segundos (default) para tolerar
+      //     condiciones de carrera al refrescar desde varias pestañas.
+      autoRefreshToken: true,
+      persistSession: true,
       storage: dualStorage,
     },
   }

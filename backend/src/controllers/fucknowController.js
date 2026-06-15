@@ -625,7 +625,31 @@ export const getDirectory = async (req, res) => {
       }
       throw error;
     }
-    res.json({ creators: data || [] });
+
+    // Geo-block: filtrar publishers bloqueados para el country del viewer.
+    let result = data || [];
+    const viewerId = req.user?.id;
+    if (viewerId && result.length > 0) {
+      const { data: viewer } = await supabase
+        .from('profiles').select('country').eq('id', viewerId).maybeSingle();
+      const viewerCountry = viewer?.country?.toUpperCase();
+      if (viewerCountry) {
+        const ids = result.map(c => c.id);
+        const { data: blocks } = await supabase
+          .from('content_geo_blocks')
+          .select('content_id, country_codes')
+          .eq('content_type', 'profile')
+          .in('content_id', ids);
+        const blockedSet = new Set();
+        (blocks || []).forEach(b => {
+          if (Array.isArray(b.country_codes) && b.country_codes.includes(viewerCountry)) {
+            blockedSet.add(b.content_id);
+          }
+        });
+        if (blockedSet.size > 0) result = result.filter(c => !blockedSet.has(c.id));
+      }
+    }
+    res.json({ creators: result });
   } catch (err) {
     console.error('[fucknow:directory]', err.message);
     res.status(500).json({ error: 'No se pudo cargar directorio' });

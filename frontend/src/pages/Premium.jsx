@@ -8,6 +8,7 @@ import {
 import { useAuthStore } from '../store/authStore.js';
 import { useTranslation } from 'react-i18next';
 import api from '../lib/api.js';
+import { safeRedirect } from '../lib/safeRedirect.js';
 import toast from 'react-hot-toast';
 import PromoCodeInput from '../components/ui/PromoCodeInput.jsx';
 
@@ -116,7 +117,7 @@ export default function Premium() {
         plan,
         promo_code: promo?.code || null,
       });
-      window.location.href = data.url;
+      safeRedirect(data.url, { onReject: () => toast.error('URL de checkout no permitida') });
     } catch (err) {
       toast.error(err.response?.data?.error || 'Error al procesar pago');
       setLoading(null);

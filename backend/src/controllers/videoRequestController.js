@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase.js';
+import { sanitizeImageUrl } from '../lib/urlValidation.js';
 import { uploadFile, deleteFile } from '../lib/storageProvider.js';
 import { spendCoins, addCoins, CREATOR_CUT } from './coinController.js';
 import multer from 'multer';
@@ -349,7 +350,7 @@ export const createPackage = async (req, res) => {
         price: coinPrice,
         delivery_days: Math.max(1, Math.min(30, parseInt(delivery_days) || 7)),
         max_duration_sec: Math.max(10, Math.min(600, parseInt(max_duration_sec) || 60)),
-        cover_url: cover_url || null,
+        cover_url: sanitizeImageUrl(cover_url),
       })
       .select()
       .single();
@@ -380,7 +381,7 @@ export const updatePackage = async (req, res) => {
     }
     if (delivery_days !== undefined) updates.delivery_days = Math.max(1, Math.min(30, parseInt(delivery_days) || 7));
     if (max_duration_sec !== undefined) updates.max_duration_sec = Math.max(10, Math.min(600, parseInt(max_duration_sec) || 60));
-    if (cover_url !== undefined) updates.cover_url = cover_url || null;
+    if (cover_url !== undefined) updates.cover_url = sanitizeImageUrl(cover_url);
     if (active !== undefined) updates.active = !!active;
     if (position !== undefined) updates.position = parseInt(position) || 0;
     updates.updated_at = new Date().toISOString();

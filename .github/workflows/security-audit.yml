@@ -1,0 +1,54 @@
+name: Security Audit
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  schedule:
+    # Weekly check todos los lunes a las 09:00 UTC
+    - cron: '0 9 * * 1'
+  workflow_dispatch:
+
+jobs:
+  npm-audit:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        workspace:
+          - { name: 'backend',  path: 'backend'  }
+          - { name: 'frontend', path: 'frontend' }
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: ${{ matrix.workspace.path }}/package-lock.json
+
+      - name: Install ${{ matrix.workspace.name }} deps
+        working-directory: ${{ matrix.workspace.path }}
+        run: npm ci --ignore-scripts
+
+      # --audit-level=high: solo falla en high/critical
+      # Las moderate/low se reportan pero no bloquean (demasiado ruido en deps frontend).
+      - name: npm audit ${{ matrix.workspace.name }}
+        working-directory: ${{ matrix.workspace.path }}
+        run: npm audit --audit-level=high
+
+      # Reporte completo (incluyendo moderate/low) como artifact, sin fallar
+      - name: Generate full audit report
+        if: always()
+        working-directory: ${{ matrix.workspace.path }}
+        run: npm audit --json > audit-report.json || true
+
+      - name: Upload audit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: audit-${{ matrix.workspace.name }}
+          path: ${{ matrix.workspace.path }}/audit-report.json
+          retention-days: 30

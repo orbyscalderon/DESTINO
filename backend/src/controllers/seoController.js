@@ -146,10 +146,20 @@ export const publicStats = async (req, res) => {
   }
 };
 
-// GET /api/seo/featured-creators — top 6 creators verificados para landing
+// GET /api/seo/featured-creators — 6 creators verificados para landing.
+// Rotación diaria pseudo-aleatoria: usamos el día del año como seed para
+// elegir un offset distinto cada día sobre la pool de creators activos.
+// Esto da variedad sin necesidad de mantener una tabla "featured_creators"
+// curada manualmente. La cache es de 1 día completo (s-maxage=86400) y se
+// invalida cuando cambia el día (Cache-Control + Vary on date).
 export const featuredCreators = async (req, res) => {
   try {
-    const { data } = await supabase
+    // Pool grande de candidatos verificados — sacamos los últimos 60 creators
+    // verificados con avatar. De ahí elegimos 6 con rotación diaria.
+    const POOL_SIZE = 60;
+    const FEATURED_COUNT = 6;
+
+    const { data: pool } = await supabase
       .from('profiles')
       .select('id, full_name, avatar_url, bio')
       .eq('is_creator', true)
@@ -157,11 +167,27 @@ export const featuredCreators = async (req, res) => {
       .eq('is_adult_creator', false)
       .not('avatar_url', 'is', null)
       .order('created_at', { ascending: false })
-      .limit(6);
+      .limit(POOL_SIZE);
 
-    res.set('Cache-Control', 'public, max-age=600, s-maxage=600');
+    const list = pool || [];
+    let featured = [];
+    if (list.length <= FEATURED_COUNT) {
+      featured = list;
+    } else {
+      // Seed determinístico por día (UTC) — todos los users del mundo ven el
+      // mismo set en un día dado, lo cual permite CDN caching.
+      const today = new Date();
+      const dayKey = today.getUTCFullYear() * 1000 + (today.getUTCMonth() + 1) * 50 + today.getUTCDate();
+      const offset = dayKey % list.length;
+      for (let i = 0; i < FEATURED_COUNT; i++) {
+        featured.push(list[(offset + i) % list.length]);
+      }
+    }
+
+    // Cache 1 día (CDN/proxy) — distinto seed cada día UTC.
+    res.set('Cache-Control', 'public, max-age=3600, s-maxage=86400');
     res.json({
-      creators: (data || []).map(c => ({
+      creators: featured.map(c => ({
         id: c.id,
         name: c.full_name,
         avatar: c.avatar_url,

@@ -11,6 +11,7 @@ import { useTranslation } from 'react-i18next';
 import PinnedReelsGrid from '../components/ui/PinnedReelsGrid.jsx';
 import api from '../lib/api.js';
 import toast from 'react-hot-toast';
+import { safeRedirect } from '../lib/safeRedirect.js';
 import { COUNTRIES, LANGUAGES, countryByCode, languageByCode } from '../lib/geodata.js';
 import FlagImg from '../components/ui/FlagImg.jsx';
 import { compressAvatar, compressImage } from '../lib/imageCompressor.js';
@@ -295,7 +296,7 @@ export default function Profile() {
     setVerifying(true);
     try {
       const { data } = await api.post('/api/verification/start');
-      window.location.href = data.url; // Redirect a Stripe Identity
+      safeRedirect(data.url, { onReject: () => toast.error('URL de verificación no permitida') });
     } catch (err) {
       toast.error(err.response?.data?.error || 'Error al iniciar la verificación');
       setVerifying(false);
