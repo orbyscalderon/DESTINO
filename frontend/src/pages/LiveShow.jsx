@@ -211,7 +211,15 @@ function PrivateCountdownOverlay({ countdown, onBuyTicket, ticketStatus }) {
 // Se posiciona arriba-izq del canvas, debajo del header. Si no hay goals
 // activos o todos están completados, no renderiza nada.
 function GoalsViewerOverlay({ goals }) {
-  const next = (goals || []).find(g => !g.completed);
+  // Filtrar goals válidos: no completados Y con target_count numérico > 0 Y
+  // con reward_text presente. Sin esto se renderizaba una "barra negra"
+  // con NaN% y texto vacío cuando el backend devolvía rows incompletas.
+  const next = (goals || []).find(g =>
+    !g.completed &&
+    typeof g.target_count === 'number' &&
+    g.target_count > 0 &&
+    (g.reward_text || g.gift_type)
+  );
   if (!next) return null;
   const pct = Math.min(100, ((next.current_count || 0) / next.target_count) * 100);
   const emoji = ({ rose: '🌹', heart: '💖', diamond: '💎', crown: '👑' })[next.gift_type] || '🎁';
