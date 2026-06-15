@@ -1,0 +1,10 @@
+# DEMO — bloquea todos los crawlers hasta el deploy de producción con
+# dominio propio. Cuando se haga ese deploy, reemplazar este archivo con
+# un robots.txt permisivo:
+#
+#   User-agent: *
+#   Allow: /
+#   Sitemap: https://encuentrosdo.com/sitemap.xml
+
+User-agent: *
+Disallow: /
