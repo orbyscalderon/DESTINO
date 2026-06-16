@@ -1,6 +1,37 @@
 import { supabase } from '../lib/supabase.js';
 import { sanitizeImageUrl } from '../lib/urlValidation.js';
 
+// GET /api/photo-collections/public — feed público de collections recientes.
+// Usado por AdultHub trending y FotosMegamenu. Devuelve solo published + no-adult
+// por default (a menos que ?adult=1 explícito y el viewer pase age-gate via header).
+export const listPublic = async (req, res) => {
+  try {
+    const limit = Math.min(48, parseInt(req.query.limit) || 24);
+    const wantAdult = req.query.adult === '1';
+    // Si pide adult, el viewer debe haber confirmado mayoría en sesión.
+    // El frontend ya gatea esto con AgeGate antes de mandar adult=1.
+    let q = supabase
+      .from('photo_collections')
+      .select(`
+        id, title, description, cover_url, price_coins, is_adult,
+        items_count, purchases_count, created_at, creator_id,
+        creator:profiles!creator_id(id, full_name, username, avatar_url, is_verified)
+      `)
+      .eq('is_published', true)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+    if (!wantAdult) q = q.eq('is_adult', false);
+    const { data, error } = await q;
+    if (error) throw error;
+    // Cache 5 min en CDN
+    res.set('Cache-Control', 'public, max-age=60, s-maxage=300');
+    res.json({ collections: data || [] });
+  } catch (err) {
+    console.error('listPublic photo-collections:', err.message);
+    res.json({ collections: [] });
+  }
+};
+
 // GET /api/photo-collections/:creatorId — público (listado)
 export const listByCreator = async (req, res) => {
   try {

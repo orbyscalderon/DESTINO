@@ -11,6 +11,7 @@ import api from '../lib/api.js';
 import { safeRedirect } from '../lib/safeRedirect.js';
 import toast from 'react-hot-toast';
 import PromoCodeInput from '../components/ui/PromoCodeInput.jsx';
+import { useConfirm } from '../components/ui/ConfirmDialog.jsx';
 
 const PLANS = [
   {
@@ -84,6 +85,7 @@ const COLOR = {
 export default function Premium() {
   const { t } = useTranslation();
   const { profile, fetchProfile, user } = useAuthStore();
+  const confirm = useConfirm();
   const [loading, setLoading] = useState(null); // 'premium' | 'vip'
   const [subscription, setSubscription] = useState(null);
   const [searchParams] = useSearchParams();
@@ -125,7 +127,14 @@ export default function Premium() {
   };
 
   const handleCancel = async () => {
-    if (!confirm('¿Seguro que quieres cancelar tu suscripción?')) return;
+    const ok = await confirm({
+      title: '¿Cancelar tu suscripción?',
+      message: 'Mantendrás acceso hasta el final del período actual, después no se renueva.',
+      confirmLabel: 'Cancelar suscripción',
+      cancelLabel: 'Mantener',
+      destructive: true,
+    });
+    if (!ok) return;
     try {
       await api.post('/api/payments/cancel');
       toast.success('Suscripción cancelada al final del período');
@@ -136,7 +145,13 @@ export default function Premium() {
   };
 
   const handlePause = async () => {
-    if (!confirm('¿Pausar tu suscripción? Perderás acceso hasta que la reanudes.')) return;
+    const ok = await confirm({
+      title: '¿Pausar tu suscripción?',
+      message: 'Perderás acceso a las features premium hasta que la reanudes.',
+      confirmLabel: 'Pausar',
+      cancelLabel: 'Cancelar',
+    });
+    if (!ok) return;
     try {
       await api.post('/api/payments/pause');
       toast.success('Suscripción pausada');

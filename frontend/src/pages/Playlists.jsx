@@ -4,6 +4,7 @@ import { FiArrowLeft, FiPlus, FiTrash2, FiHeart, FiList } from 'react-icons/fi';
 import api from '../lib/api.js';
 import toast from 'react-hot-toast';
 import AgeGate, { isAgeVerified } from '../components/ui/AgeGate.jsx';
+import { useConfirm } from '../components/ui/ConfirmDialog.jsx';
 
 function fmtDuration(seconds) {
   if (!seconds) return '0:00';
@@ -15,6 +16,7 @@ function fmtDuration(seconds) {
 export default function Playlists() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const confirm = useConfirm();
   const [lists, setLists]         = useState([]);
   const [content, setContent]     = useState(null);
   const [loading, setLoading]     = useState(true);
@@ -61,7 +63,13 @@ export default function Playlists() {
   };
 
   const deleteList = async (lid) => {
-    if (!confirm('¿Eliminar esta lista?')) return;
+    const ok = await confirm({
+      title: '¿Eliminar esta lista?',
+      message: 'Los items se quitan de la lista pero no se borran del sitio.',
+      confirmLabel: 'Eliminar lista',
+      destructive: true,
+    });
+    if (!ok) return;
     try {
       await api.delete(`/api/explore/playlists/${lid}`);
       toast.success('Lista eliminada');

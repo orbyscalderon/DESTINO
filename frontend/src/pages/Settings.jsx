@@ -311,7 +311,14 @@ export default function Settings() {
   };
 
   const handlePauseAccount = async () => {
-    if (!isPaused && !confirm('¿Pausar tu cuenta? No aparecerás en el feed mientras esté pausada.')) return;
+    if (!isPaused) {
+      const ok = await confirm({
+        title: '¿Pausar tu cuenta?',
+        message: 'No aparecerás en el feed ni en discovery mientras esté pausada. Podés reactivarla cuando quieras.',
+        confirmLabel: 'Pausar',
+      });
+      if (!ok) return;
+    }
     setPausingAccount(true);
     try {
       if (isPaused) {

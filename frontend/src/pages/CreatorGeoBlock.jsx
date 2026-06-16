@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 import api from '../lib/api.js';
 import { useAuthStore } from '../store/authStore.js';
 import PageShell from '../components/layout/PageShell.jsx';
+import { useConfirm } from '../components/ui/ConfirmDialog.jsx';
 import { COUNTRIES, countryByCode } from '../lib/geodata.js';
 
 // Tipos de contenido bloqueables. Cada uno con su ícono visual.
@@ -20,6 +21,7 @@ const CONTENT_TYPES = [
 
 export default function CreatorGeoBlock() {
   const { profile } = useAuthStore();
+  const confirm = useConfirm();
   const [blocks, setBlocks] = useState([]);
   const [contentType, setContentType] = useState('post');
   const [contentId, setContentId] = useState('');
@@ -92,7 +94,12 @@ export default function CreatorGeoBlock() {
   };
 
   const removeBlock = async (b) => {
-    if (!confirm('¿Quitar este geo-block?')) return;
+    const ok = await confirm({
+      title: '¿Quitar este geo-block?',
+      message: 'El contenido volverá a ser visible en los países bloqueados.',
+      confirmLabel: 'Quitar bloqueo',
+    });
+    if (!ok) return;
     try {
       await api.delete(`/api/creator-monetization/content-geo/${b.content_type}/${b.content_id}`);
       toast.success('Bloqueo eliminado');

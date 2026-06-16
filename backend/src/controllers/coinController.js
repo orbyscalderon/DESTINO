@@ -137,6 +137,111 @@ export const confirmCoinPurchase = async (req, res) => {
 };
 
 // GET /api/coins/transactions
+// ── Daily reward ──────────────────────────────────────────────────────
+// Escalado de coins según día de racha. Día 1=5, día 7+=100.
+const DAILY_REWARDS = [5, 10, 15, 20, 30, 50, 100];
+
+function getUtcDay(date = new Date()) {
+  // YYYY-MM-DD en UTC — todos los users del mundo claim el mismo día calendar UTC.
+  return date.toISOString().split('T')[0];
+}
+
+// Devuelve la última reclamación + streak actual basado en coin_transactions.
+async function getLastDailyClaim(userId) {
+  const { data } = await supabase
+    .from('coin_transactions')
+    .select('amount, created_at, metadata')
+    .eq('user_id', userId)
+    .eq('type', 'daily_reward')
+    .order('created_at', { ascending: false })
+    .limit(1);
+  return data?.[0] || null;
+}
+
+// GET /api/coins/daily-reward/status
+export const getDailyRewardStatus = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.json({ available: false, alreadyClaimed: false, streak: 0 });
+
+    const last = await getLastDailyClaim(userId);
+    const today = getUtcDay();
+    const lastDay = last ? getUtcDay(new Date(last.created_at)) : null;
+
+    if (lastDay === today) {
+      // Ya reclamó hoy
+      return res.json({
+        available: false,
+        alreadyClaimed: true,
+        streak: last.metadata?.streak || 1,
+        last_claimed: last.created_at,
+        next_at: new Date(Date.UTC(
+          new Date().getUTCFullYear(),
+          new Date().getUTCMonth(),
+          new Date().getUTCDate() + 1
+        )).toISOString(),
+      });
+    }
+
+    // Computar próxima streak
+    let nextStreak = 1;
+    if (lastDay) {
+      const yesterday = getUtcDay(new Date(Date.now() - 86400 * 1000));
+      if (lastDay === yesterday) {
+        nextStreak = Math.min((last.metadata?.streak || 1) + 1, 7);
+      }
+    }
+
+    res.json({
+      available: true,
+      alreadyClaimed: false,
+      streak: (last?.metadata?.streak) || 0,  // streak actual del último claim
+      next_coins: DAILY_REWARDS[nextStreak - 1] || 5,
+      next_streak: nextStreak,
+    });
+  } catch (err) {
+    console.error('getDailyRewardStatus:', err.message);
+    res.json({ available: false, alreadyClaimed: false, streak: 0 });
+  }
+};
+
+// POST /api/coins/daily-reward
+export const claimDailyReward = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const last = await getLastDailyClaim(userId);
+    const today = getUtcDay();
+    const lastDay = last ? getUtcDay(new Date(last.created_at)) : null;
+
+    if (lastDay === today) {
+      return res.status(400).json({ error: 'Ya reclamaste hoy', code: 'ALREADY_CLAIMED' });
+    }
+
+    let nextStreak = 1;
+    if (lastDay) {
+      const yesterday = getUtcDay(new Date(Date.now() - 86400 * 1000));
+      if (lastDay === yesterday) {
+        nextStreak = Math.min((last.metadata?.streak || 1) + 1, 7);
+      }
+    }
+    const reward = DAILY_REWARDS[nextStreak - 1] || 5;
+
+    await supabase.rpc('increment_coins', { p_user_id: userId, p_amount: reward });
+    await supabase.from('coin_transactions').insert({
+      user_id: userId,
+      amount: reward,
+      type: 'daily_reward',
+      metadata: { streak: nextStreak },
+    });
+    cacheDel?.(`coins:${userId}`);
+
+    res.json({ coins: reward, streak: nextStreak });
+  } catch (err) {
+    console.error('claimDailyReward:', err.message);
+    res.status(500).json({ error: 'Error reclamando reward' });
+  }
+};
+
 export const getTransactions = async (req, res) => {
   try {
     const { data } = await supabase

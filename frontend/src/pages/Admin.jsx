@@ -9,6 +9,7 @@ import {
 } from 'react-icons/fi';
 import api from '../lib/api.js';
 import toast from 'react-hot-toast';
+import { useConfirm } from '../components/ui/ConfirmDialog.jsx';
 import { SHOW_CATEGORIES } from './LiveShows.jsx';
 import AdminGlobalSearch from '../components/ui/AdminGlobalSearch.jsx';
 import AdminAuditLog from '../components/ui/AdminAuditLog.jsx';
@@ -65,6 +66,7 @@ const USERS_PAGE_SIZE = 20;
 
 export default function Admin() {
   const navigate = useNavigate();
+  const confirm = useConfirm();
   const [tab, setTab] = useState('overview');
   const [stats, setStats] = useState(null);
   const [users, setUsers] = useState([]);
@@ -267,7 +269,15 @@ export default function Admin() {
   };
 
   const handleProcessReport = async (id, status, banUser = false) => {
-    if (banUser && !confirm('¿Banear al usuario reportado? Esta acción es irreversible.')) return;
+    if (banUser) {
+      const ok = await confirm({
+        title: '¿Banear al usuario reportado?',
+        message: 'Esta acción es irreversible. El usuario perderá acceso a su cuenta y todo su contenido.',
+        confirmLabel: 'Banear',
+        destructive: true,
+      });
+      if (!ok) return;
+    }
     setProcessingReport(id);
     try {
       await api.patch(`/api/admin/reports/${id}`, { status, banUser });
@@ -281,7 +291,13 @@ export default function Admin() {
   };
 
   const handleEndShow = async (id) => {
-    if (!confirm('¿Terminar este show ahora?')) return;
+    const ok = await confirm({
+      title: '¿Terminar este show?',
+      message: 'Los viewers serán desconectados inmediatamente.',
+      confirmLabel: 'Terminar show',
+      destructive: true,
+    });
+    if (!ok) return;
     try {
       await api.patch(`/api/admin/shows/${id}/end`);
       setShows(prev => prev.map(s => s.id === id ? { ...s, status: 'ended' } : s));
@@ -299,7 +315,14 @@ export default function Admin() {
     () => setUsers(prev => prev.map(x => x.id === u.id ? { ...x, is_adult_creator: !u.is_adult_creator } : x)));
 
   const removeUser = async (u) => {
-    if (!confirm(`¿Eliminar a "${u.full_name || u.username}"? Irreversible.`)) return;
+    const ok = await confirm({
+      title: `¿Eliminar a "${u.full_name || u.username}"?`,
+      message: 'Esta acción es irreversible. Se eliminarán todos sus datos: perfil, mensajes, fotos, transacciones y suscripciones.',
+      confirmLabel: 'Eliminar usuario',
+      destructive: true,
+      requirePhrase: 'ELIMINAR',
+    });
+    if (!ok) return;
     try {
       await api.delete(`/api/admin/users/${u.id}`);
       setUsers(prev => prev.filter(x => x.id !== u.id));
@@ -730,7 +753,16 @@ export default function Admin() {
                 count={selectedUsers.size}
                 disabled={bulkLoading}
                 onAction={async (action) => {
-                  if (action === 'delete' && !confirm(`¿Eliminar ${selectedUsers.size} usuarios? Esta acción es irreversible.`)) return;
+                  if (action === 'delete') {
+                    const ok = await confirm({
+                      title: `¿Eliminar ${selectedUsers.size} usuarios?`,
+                      message: 'Acción irreversible. Todos sus datos serán borrados.',
+                      confirmLabel: 'Eliminar todos',
+                      destructive: true,
+                      requirePhrase: 'ELIMINAR',
+                    });
+                    if (!ok) return;
+                  }
                   setBulkLoading(true);
                   try {
                     const { data } = await api.post('/api/admin/users/bulk', {

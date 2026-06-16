@@ -11,6 +11,7 @@ import { safeRedirect } from '../lib/safeRedirect.js';
 import PageShell from '../components/layout/PageShell.jsx';
 import { useAuthStore } from '../store/authStore.js';
 import AgeGate, { isAgeVerified } from '../components/ui/AgeGate.jsx';
+import { useConfirm } from '../components/ui/ConfirmDialog.jsx';
 
 // Editor del perfil Fuck Now Spotlight.
 // - Suscripción de 30 días para aparecer en /adult?tab=ahora
@@ -73,6 +74,7 @@ function checkText(text) {
 export default function FuckNowSpotlight() {
   const navigate = useNavigate();
   const { profile } = useAuthStore();
+  const confirm = useConfirm();
   const [ageOk, setAgeOk] = useState(isAgeVerified());
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -189,7 +191,13 @@ export default function FuckNowSpotlight() {
   };
 
   const handleUnpublish = async () => {
-    if (!confirm('¿Quitar tu perfil del directorio Fuck Now?')) return;
+    const ok = await confirm({
+      title: '¿Quitar tu perfil del directorio Fuck Now?',
+      message: 'Dejarás de aparecer en el spotlight. Podés republicar después si querés.',
+      confirmLabel: 'Quitar del directorio',
+      destructive: true,
+    });
+    if (!ok) return;
     setSubmitting(true);
     try {
       await api.delete('/api/fucknow');

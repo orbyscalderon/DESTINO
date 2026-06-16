@@ -13,6 +13,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../store/authStore.js';
 import api from '../lib/api.js';
 import toast from 'react-hot-toast';
+import { useConfirm } from '../components/ui/ConfirmDialog.jsx';
 import { SHOW_CATEGORIES } from './LiveShows.jsx';
 import VerifiedBadge from '../components/ui/VerifiedBadge.jsx';
 import VideoPackagesManager from '../components/ui/VideoPackagesManager.jsx';
@@ -157,6 +158,7 @@ export default function CreatorDashboard() {
   const { t } = useTranslation();
   const { profile, user, fetchProfile } = useAuthStore();
   const navigate = useNavigate();
+  const confirm = useConfirm();
   const [searchParams] = useSearchParams();
 
   const [data, setData]                   = useState(null);
@@ -279,7 +281,13 @@ export default function CreatorDashboard() {
 
   /* ── handlers ── */
   const handleDeleteShow = async (showId) => {
-    if (!confirm('¿Eliminar este show?')) return;
+    const ok = await confirm({
+      title: '¿Eliminar este show?',
+      message: 'Esta acción no se puede deshacer.',
+      confirmLabel: 'Eliminar',
+      destructive: true,
+    });
+    if (!ok) return;
     try {
       await api.delete(`/api/shows/${showId}`);
       toast.success('Show eliminado');
@@ -288,7 +296,13 @@ export default function CreatorDashboard() {
   };
 
   const handleEndShow = async (showId) => {
-    if (!confirm('¿Terminar este show ahora? Los viewers serán desconectados.')) return;
+    const ok = await confirm({
+      title: '¿Terminar este show ahora?',
+      message: 'Los viewers serán desconectados inmediatamente.',
+      confirmLabel: 'Terminar',
+      destructive: true,
+    });
+    if (!ok) return;
     try {
       await api.post(`/api/shows/${showId}/end`);
       toast.success('Show terminado');
@@ -849,7 +863,13 @@ export default function CreatorDashboard() {
                             </button>
                             <button
                               onClick={async () => {
-                                if (!confirm('¿Eliminar esta galería?')) return;
+                                const ok = await confirm({
+                                  title: '¿Eliminar esta galería?',
+                                  message: 'Las fotos no se borran del vault, pero se quita la galería del perfil.',
+                                  confirmLabel: 'Eliminar',
+                                  destructive: true,
+                                });
+                                if (!ok) return;
                                 await api.delete(`/api/creator/galleries/${g.id}`);
                                 setGalleries(p => p.filter(x => x.id !== g.id));
                                 toast.success('Eliminada');

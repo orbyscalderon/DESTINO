@@ -78,6 +78,7 @@ import watermarkRoutes from './src/routes/watermark.js';
 import privacyDisclosureRoutes from './src/routes/privacyDisclosure.js';
 import creatorMonetizationRoutes from './src/routes/creatorMonetization.js';
 import adultVideoRoutes from './src/routes/adultVideo.js';
+import { listPublic as listPublicPhotoCollections } from './src/controllers/photoCollectionsController.js';
 import { supabase } from './src/lib/supabase.js';
 
 const app = express();
@@ -288,12 +289,11 @@ app.use('/api/auth', authRoutes);
 app.use('/api/2fa', twoFactorRoutes);
 app.use('/api/fucknow', fucknowRoutes);
 
-// ── Stubs para endpoints que el frontend megamenu/dashboard llama pero ──
-// que aún no tienen implementación completa. Devuelven payload vacío
-// para que la UI degrade gracefully en lugar de tirar 404.
-// TODO cuando se implementen los features reales, mover a su controller.
-app.get('/api/photo-collections/public', (_req, res) => res.json({ collections: [] }));
-app.get('/api/coins/daily-reward/status', (_req, res) => res.json({ available: false, next_at: null }));
+// Endpoint público de photo-collections (real, no stub) — montado fuera del
+// /api/creator-monetization namespace para que el feed público no requiera auth.
+// El daily-reward/status y /daily-reward (POST) están en routes/coins.js
+// (heredan authMiddleware del router.use).
+app.get('/api/photo-collections/public', listPublicPhotoCollections);
 app.use('/api/tax-forms', taxFormRoutes);
 app.use('/api/seo', seoRoutes);
 // Rutas agregadas en v54+: chat mods, account deletion, recurring shows,
