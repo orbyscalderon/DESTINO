@@ -24,6 +24,7 @@
  *           LIVEKIT_URL_OCEANIA=wss://livekit-syd.destino.app (opcional fase 3)
  */
 
+import crypto from 'crypto';
 import { AccessToken } from 'livekit-server-sdk';
 
 // País → nodo
@@ -76,7 +77,19 @@ function getNode(country) {
 
 /**
  * Genera un token JWT de LiveKit para unirse a una sala.
- * @param {string} userId      ID del usuario (identity)
+ *
+ * IMPORTANTE — identity:
+ *   - HOST (canPublish=true): identity = userId limpio, así los viewers pueden
+ *     identificar al host por su user_id (`pid === hostUserId`).
+ *   - VIEWER (canPublish=false): identity = userId + '#' + random(8). Esto
+ *     evita el bug DUPLICATE_IDENTITY (DisconnectReason 2) cuando:
+ *       · El user abre el show en 2 pestañas
+ *       · StrictMode dispara doble-mount del componente
+ *       · La reconexión arranca antes de que termine la desconexión vieja
+ *     El backend nunca chequea identity de viewers, solo el del host (para
+ *     verificar que es el dueño del show via assertRoomAccess).
+ *
+ * @param {string} userId      ID del usuario (identity base)
  * @param {string} roomName    Nombre de la sala
  * @param {object} opts
  * @param {boolean} opts.canPublish  Puede publicar video/audio (default true)
@@ -91,7 +104,13 @@ export async function createToken(userId, roomName, { canPublish = true, country
     throw new Error('LiveKit no configurado — verifica LIVEKIT_API_KEY y LIVEKIT_API_SECRET');
   }
 
-  const at = new AccessToken(node.key, node.secret, { identity: userId, ttl });
+  // Solo los viewers reciben suffix random — el host debe mantener identity=userId
+  // para que los viewers lo puedan identificar via `participant.identity === hostUserId`.
+  const identity = canPublish
+    ? userId
+    : `${userId}#${crypto.randomBytes(4).toString('hex')}`;
+
+  const at = new AccessToken(node.key, node.secret, { identity, ttl });
   at.addGrant({ room: roomName, roomJoin: true, canPublish: !!canPublish, canSubscribe: true });
 
   const token = await at.toJwt();
