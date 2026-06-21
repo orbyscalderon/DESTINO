@@ -34,6 +34,7 @@ import blockRoutes from './src/routes/blocks.js';
 import notificationRoutes from './src/routes/notifications.js';
 import translationRoutes from './src/routes/translation.js';
 import showRoutes from './src/routes/shows.js';
+import chatModRoutes from './src/routes/chatMod.js';
 import creatorRoutes from './src/routes/creator.js';
 import coinRoutes from './src/routes/coins.js';
 import storyRoutes from './src/routes/stories.js';
@@ -267,6 +268,10 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/blocks', blockRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/translate', translationRoutes);
+// chatModRoutes debe ir ANTES de showRoutes porque shows.js tiene
+// `router.get('/:id', getShow)` que comería /mods, /chat/restrictions, etc.
+// interpretándolos como showId="mods" → 404.
+app.use('/api/shows', chatModRoutes);
 app.use('/api/shows', showRoutes);
 app.use('/api/creator', creatorRoutes);
 app.use('/api/coins', coinRoutes);
