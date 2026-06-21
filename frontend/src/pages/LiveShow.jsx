@@ -1302,8 +1302,9 @@ export default function LiveShow() {
         const isPromotedHost = pid && pid === promotedAsHostRef.current;
         const isHostTrack = isRealHost || isPromotedHost;
 
-        // Log para debug en producción (se ve en DevTools)
-        console.log('[viewer onRemoteTrack]', {
+        // Debug log — visible solo si el user abrió DevTools con verbose enabled.
+        // console.debug NO se muestra en la pestaña Console por default (nivel info).
+        console.debug('[viewer onRemoteTrack]', {
           identity: pid,
           kind: track.kind,
           expectedHost: hostUserId,
@@ -1325,7 +1326,7 @@ export default function LiveShow() {
           // llega antes de que `show` esté cargado en el state).
           if (!promotedAsHostRef.current && pid) {
             promotedAsHostRef.current = pid;
-            console.log('[viewer] promoviendo a host fallback:', pid);
+            console.debug('[viewer] promoviendo a host fallback:', pid);
             if (track.kind === 'video') {
               setPendingViewerTracks(prev => ({ ...(prev || {}), video: track.mediaStreamTrack }));
             } else if (track.kind === 'audio') {

@@ -1,5 +1,58 @@
 import { supabase } from '../lib/supabase.js';
 
+// GET /api/explore/playlists/featured — playlists destacadas para megamenús.
+// Pool: solo playlists públicas (is_public=true) con items_count >= 3.
+// Sort: por items_count desc + recencia. Cap a 8 con thumbnail del primer item.
+export const getFeaturedPlaylists = async (req, res) => {
+  try {
+    const limit = Math.min(20, parseInt(req.query.limit) || 8);
+
+    const { data: candidates } = await supabase
+      .from('video_playlists')
+      .select(`
+        id, name, user_id, created_at, updated_at,
+        user:profiles!user_id(id, full_name, username, avatar_url, is_verified)
+      `)
+      .eq('is_public', true)
+      .eq('is_favorites', false)
+      .order('updated_at', { ascending: false })
+      .limit(60);
+
+    if (!candidates?.length) {
+      res.set('Cache-Control', 'public, max-age=60, s-maxage=300');
+      return res.json({ playlists: [] });
+    }
+
+    // Cargar item counts + primer item para thumbnail
+    const ids = candidates.map(p => p.id);
+    const [{ data: items }, { data: anyItems }] = await Promise.all([
+      supabase.from('playlist_items').select('playlist_id').in('playlist_id', ids),
+      supabase.from('playlist_items')
+        .select('playlist_id, video_id, profile_videos:profile_videos!video_id(thumbnail_url)')
+        .in('playlist_id', ids).limit(60),
+    ]);
+
+    const counts = {};
+    (items || []).forEach(i => { counts[i.playlist_id] = (counts[i.playlist_id] || 0) + 1; });
+    const thumbs = {};
+    (anyItems || []).forEach(i => {
+      if (!thumbs[i.playlist_id]) thumbs[i.playlist_id] = i.profile_videos?.thumbnail_url || null;
+    });
+
+    const featured = candidates
+      .map(p => ({ ...p, items_count: counts[p.id] || 0, thumbnail_url: thumbs[p.id] || null }))
+      .filter(p => p.items_count >= 3)
+      .sort((a, b) => b.items_count - a.items_count)
+      .slice(0, limit);
+
+    res.set('Cache-Control', 'public, max-age=60, s-maxage=300');
+    res.json({ playlists: featured });
+  } catch (err) {
+    console.error('[getFeaturedPlaylists]', err.message);
+    res.json({ playlists: [] });
+  }
+};
+
 // GET /api/playlists — mis playlists
 export const getMyPlaylists = async (req, res) => {
   try {

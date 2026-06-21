@@ -435,58 +435,9 @@ app.get('/share/profile/:id', async (req, res) => {
   }
 });
 
-// ── SEO: sitemap dinámico ─────────────────────────────────────
-// Sirve XML con perfiles públicos verificados (no contenido adulto, no privado)
-app.get('/sitemap.xml', async (req, res) => {
-  const fe = process.env.FRONTEND_URL || 'https://destino-sigma.vercel.app';
-  try {
-    const staticUrls = [
-      { loc: `${fe}/`,        priority: 1.0,  changefreq: 'daily' },
-      { loc: `${fe}/#/login`,    priority: 0.6,  changefreq: 'monthly' },
-      { loc: `${fe}/#/register`, priority: 0.7,  changefreq: 'monthly' },
-      { loc: `${fe}/#/privacy`,  priority: 0.4,  changefreq: 'yearly' },
-      { loc: `${fe}/#/terms`,    priority: 0.4,  changefreq: 'yearly' },
-      { loc: `${fe}/#/help`,     priority: 0.5,  changefreq: 'monthly' },
-      { loc: `${fe}/#/dmca`,     priority: 0.3,  changefreq: 'yearly' },
-    ];
-
-    // Top creadoras verificadas y públicas (no adultas para SEO seguro)
-    const { data: creators } = await supabase
-      .from('profiles')
-      .select('id, username, updated_at')
-      .eq('is_creator', true)
-      .eq('is_verified', true)
-      .eq('is_adult_creator', false)
-      .neq('is_banned', true)
-      .order('updated_at', { ascending: false })
-      .limit(500);
-
-    const profileUrls = (creators || []).map(c => ({
-      loc: `${fe}/share/profile/${c.id}`,
-      priority: 0.6,
-      changefreq: 'weekly',
-      lastmod: c.updated_at,
-    }));
-
-    const all = [...staticUrls, ...profileUrls];
-    const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${all.map(u => `  <url>
-    <loc>${u.loc}</loc>
-    <priority>${u.priority}</priority>
-    <changefreq>${u.changefreq}</changefreq>${u.lastmod ? `\n    <lastmod>${new Date(u.lastmod).toISOString().slice(0,10)}</lastmod>` : ''}
-  </url>`).join('\n')}
-</urlset>`;
-
-    res.setHeader('Content-Type', 'application/xml; charset=utf-8');
-    res.setHeader('Cache-Control', 'public, max-age=3600');
-    res.send(xml);
-  } catch (err) {
-    res.status(500).send('<error>Error generating sitemap</error>');
-  }
-});
-
 // ── Health check ──────────────────────────────────────────────
+// NOTA: /sitemap.xml se sirve desde line 303 (passthrough → seoController.sitemapXml)
+// que tiene 15 staticUrls + creators verificados. NO duplicar aquí.
 app.get('/health', (req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
 
 // ── Error handler global ──────────────────────────────────────

@@ -45,9 +45,8 @@ const TABS = [
   { id: 'fotos',      label: 'Fotos y GIFs', icon: FiImage },
 ];
 
-// Trending pills — mezcla creator names + búsquedas comunes.
-// TODO: idealmente viene del backend /api/explore/trending pero hardcoded
-// como fallback para que la sección se sienta viva desde día 1.
+// Trending pills — fallback estático si el backend devuelve vacío o falla.
+// El endpoint real es /api/explore/trending (top video_tags por uso).
 const TRENDING_PILLS_FALLBACK = [
   'amateur latino', 'parejas reales', 'castellano', 'colombianas',
   'milf', 'pov sub', 'lésbico', 'cosplay', 'roleplay', 'español',
@@ -99,12 +98,14 @@ export default function AdultHub() {
     return () => clearInterval(t);
   }, [ageOk, isVip]);
 
-  // Cargar trending tags reales (si el endpoint existe; sino mantiene fallback)
+  // Cargar trending pills desde el backend.
+  // El endpoint /api/explore/trending combina top video_tags por uso + fallback
+  // estático para que nunca quede vacío. Si falla, mantiene el fallback local.
   useEffect(() => {
     if (!ageOk || !isVip) return;
-    api.get('/api/explore/tags?limit=20').then(({ data }) => {
-      const real = (data.tags || []).map(t => t.slug || t.name).filter(Boolean);
-      if (real.length > 5) setTrending(real);
+    api.get('/api/explore/trending?limit=13').then(({ data }) => {
+      const real = (data.trending || []).map(t => t.label || t.slug).filter(Boolean);
+      if (real.length >= 5) setTrending(real);
     }).catch(() => {});
   }, [ageOk, isVip]);
 

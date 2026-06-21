@@ -3,11 +3,12 @@ import { authMiddleware } from '../middleware/auth.js';
 import { requireAgeVerified, geoBlockAdult } from '../middleware/adult.js';
 import {
   listVideos, getVideoDetail, listTags, listCategories,
-  rateVideo, recordView,
+  rateVideo, recordView, listTrending,
 } from '../controllers/exploreController.js';
 import {
   getMyPlaylists, createPlaylist, deletePlaylist,
   addToPlaylist, removeFromPlaylist, getPlaylistContent,
+  getFeaturedPlaylists,
 } from '../controllers/playlistsController.js';
 import {
   submit2257, check2257, uploadIdMiddleware,
@@ -27,12 +28,10 @@ router.post('/videos/:id/rate',       rateVideo);
 router.post('/videos/:id/view',       recordView);
 router.get('/tags',                   listTags);
 router.get('/categories',             listCategories);
+router.get('/trending',               listTrending);
 
 // Playlists
-// NOTE: /playlists/featured es stub vacío hasta que se implemente
-// un sistema de featured playlists. Devuelve { playlists: [] } para
-// que los megamenús dejen de tirar 404 — degradan a empty state.
-router.get('/playlists/featured',     (_req, res) => res.json({ playlists: [] }));
+router.get('/playlists/featured',     getFeaturedPlaylists);
 router.get('/playlists',              getMyPlaylists);
 router.post('/playlists',             createPlaylist);
 router.delete('/playlists/:id',       deletePlaylist);

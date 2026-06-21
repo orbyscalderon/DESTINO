@@ -176,6 +176,51 @@ export const listTags = async (req, res) => {
   }
 };
 
+// GET /api/explore/trending — pills de búsqueda trending para el feed.
+// Fuente: top video_tags por videos_count (los tags más usados son los más
+// trending por proxy). Combinado con un floor de tags fallback para que
+// nunca quede vacío.
+//
+// Por qué tags y no búsquedas: aún no tenemos analytics de search queries.
+// Cuando se implemente search_log, esta función puede mezclar ambas fuentes.
+const TRENDING_FALLBACK = [
+  'amateur latino', 'parejas reales', 'castellano', 'colombianas',
+  'milf', 'pov', 'lésbico', 'cosplay', 'roleplay', 'español',
+  'argentina', 'venezolanas', 'tatuadas',
+];
+
+export const listTrending = async (req, res) => {
+  try {
+    const limit = Math.min(20, parseInt(req.query.limit) || 13);
+
+    const { data: topTags } = await supabase
+      .from('video_tags')
+      .select('name, slug, videos_count')
+      .gt('videos_count', 0)
+      .order('videos_count', { ascending: false })
+      .limit(limit);
+
+    const fromDb = (topTags || []).map(t => ({ label: t.name, slug: t.slug, count: t.videos_count }));
+
+    // Si hay menos de la mitad del cap desde DB, completamos con fallback.
+    const result = fromDb.length >= limit / 2
+      ? fromDb
+      : [
+          ...fromDb,
+          ...TRENDING_FALLBACK
+            .filter(f => !fromDb.some(d => d.label.toLowerCase() === f.toLowerCase()))
+            .slice(0, limit - fromDb.length)
+            .map(f => ({ label: f, slug: f.toLowerCase().replace(/\s+/g, '-'), count: null })),
+        ];
+
+    res.set('Cache-Control', 'public, max-age=300, s-maxage=600');
+    res.json({ trending: result });
+  } catch (err) {
+    console.error('[listTrending]', err.message);
+    res.json({ trending: TRENDING_FALLBACK.slice(0, 13).map(f => ({ label: f, slug: f.toLowerCase().replace(/\s+/g, '-'), count: null })) });
+  }
+};
+
 // POST /api/explore/videos/:id/rate — body { value: 1 | -1 }
 export const rateVideo = async (req, res) => {
   try {
