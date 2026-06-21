@@ -35,6 +35,8 @@ import notificationRoutes from './src/routes/notifications.js';
 import translationRoutes from './src/routes/translation.js';
 import showRoutes from './src/routes/shows.js';
 import chatModRoutes from './src/routes/chatMod.js';
+import { validateEnv } from './src/lib/envCheck.js';
+import { logger, requestId } from './src/lib/logger.js';
 import creatorRoutes from './src/routes/creator.js';
 import coinRoutes from './src/routes/coins.js';
 import storyRoutes from './src/routes/stories.js';
@@ -82,11 +84,19 @@ import adultVideoRoutes from './src/routes/adultVideo.js';
 import { listPublic as listPublicPhotoCollections } from './src/controllers/photoCollectionsController.js';
 import { supabase } from './src/lib/supabase.js';
 
+// Validar env vars al startup. En prod, faltantes CRÍTICAS hacen exit(1)
+// → Railway healthcheck reintenta el container.
+validateEnv();
+
 const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Railway / Vercel / cualquier reverse proxy pone el IP real en X-Forwarded-For
 app.set('trust proxy', 1);
+
+// Request ID + structured logger por request.
+// Cada log line incluye reqId → buscable end-to-end por user request.
+app.use(requestId);
 
 // ── Security headers ──────────────────────────────────────────
 // Sec audit #9: CSP strict para API JSON. Cualquier intento de renderear
@@ -464,26 +474,64 @@ if (missing.length > 0) {
   console.error('   El servidor arrancará pero las queries a Supabase fallarán.');
 }
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
+  logger.info('Backend listening', { port: PORT, env: process.env.NODE_ENV });
   const isProduction = process.env.NODE_ENV === 'production';
-  console.log(`🚀 Destino TV backend corriendo en puerto ${PORT}`);
 
   if (isProduction) {
     const frontendUrl = process.env.FRONTEND_URL || '';
     if (!frontendUrl || frontendUrl.includes('localhost')) {
-      console.warn('⚠️  FRONTEND_URL apunta a localhost o falta');
-    }
-    if (!process.env.STRIPE_SECRET_KEY) {
-      console.warn('⚠️  STRIPE_SECRET_KEY no configurada — pagos deshabilitados');
-    } else if (process.env.STRIPE_SECRET_KEY.startsWith('sk_test_')) {
-      console.warn('⚠️  STRIPE en modo TEST en producción (sk_test_).');
-    }
-    if (!process.env.STRIPE_WEBHOOK_SECRET?.startsWith('whsec_')) {
-      console.warn('⚠️  STRIPE_WEBHOOK_SECRET inválido o falta — webhooks no se procesarán correctamente');
+      logger.warn('FRONTEND_URL apunta a localhost o falta', { frontendUrl });
     }
   }
 
   startCleanupJob();
+});
+
+// ── Graceful shutdown ──────────────────────────────────────────
+// Railway hace rolling deploy → SIGTERM al container viejo. Sin handler,
+// las requests en vuelo se cortan a mitad. Damos 25s para drenar.
+//
+// SIGINT (Ctrl+C en dev) tiene el mismo handler.
+function gracefulShutdown(signal) {
+  logger.info(`Shutdown signal received, draining...`, { signal });
+  let exited = false;
+  const exit = (code) => {
+    if (exited) return;
+    exited = true;
+    process.exit(code);
+  };
+
+  server.close((err) => {
+    if (err) {
+      logger.error('Error closing server', { err: err.message });
+      exit(1);
+    } else {
+      logger.info('All connections drained, exiting');
+      exit(0);
+    }
+  });
+
+  // Failsafe: si pasan 25s y aún no terminó (Railway le da 30s), forzamos.
+  setTimeout(() => {
+    logger.warn('Drain timeout, forcing exit');
+    exit(1);
+  }, 25_000).unref();
+}
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT',  () => gracefulShutdown('SIGINT'));
+
+// Unhandled rejections — loguear con stack en vez de crashear silently.
+process.on('unhandledRejection', (reason) => {
+  logger.error('Unhandled rejection', {
+    err: reason instanceof Error ? reason.message : String(reason),
+    stack: reason instanceof Error ? reason.stack : null,
+  });
+});
+process.on('uncaughtException', (err) => {
+  logger.fatal('Uncaught exception, exiting', { err: err.message, stack: err.stack });
+  process.exit(1);
 });
 
 export default app;

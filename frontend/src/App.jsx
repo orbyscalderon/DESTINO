@@ -140,9 +140,6 @@ class ErrorBoundary extends Component {
     return { hasError: true, isChunkError: isChunkLoadError(error) };
   }
   componentDidCatch(error, info) {
-    // Si es chunk error y no recargamos aún en esta sesión, recargar una vez.
-    // El flag evita loop infinito si el problema fuera persistente (ej.
-    // CDN caído).
     if (isChunkLoadError(error)) {
       try {
         if (!sessionStorage.getItem(RELOAD_FLAG)) {
@@ -152,21 +149,33 @@ class ErrorBoundary extends Component {
         }
       } catch {}
     }
-    Sentry.captureException(error, { extra: info });
+    // Tag con scope para que Sentry agrupe errores por área de la app.
+    Sentry.captureException(error, {
+      extra: info,
+      tags: { boundary_scope: this.props.scope || 'global' },
+    });
   }
   render() {
     if (this.state.hasError) {
       const isChunk = this.state.isChunkError;
+      const scoped = !!this.props.scope;
+      // Boundary scoped (por route) → contenido inline, mantiene chrome de la app.
+      // Boundary global → full-screen, primera vez que se ve la app.
+      const containerClass = scoped
+        ? 'flex flex-col items-center justify-center gap-3 px-6 py-12 text-center'
+        : 'min-h-screen bg-dark-900 flex flex-col items-center justify-center gap-4 px-6 text-center';
       return (
-        <div className="min-h-screen bg-dark-900 flex flex-col items-center justify-center gap-4 px-6 text-center">
+        <div className={containerClass}>
           <div className="text-5xl">{isChunk ? '🔄' : '😕'}</div>
           <p className="text-white font-semibold text-lg">
             {isChunk ? 'Nueva versión disponible' : 'Algo salió mal'}
           </p>
           <p className="text-gray-400 text-sm">
             {isChunk
-              ? 'Recarga para obtener la última versión de Destino TV.'
-              : 'Esta sección no pudo cargarse.'}
+              ? 'Recarga para obtener la última versión.'
+              : scoped
+                ? 'Esta sección no pudo cargarse. El resto de la app sigue funcionando.'
+                : 'No se pudo iniciar la aplicación.'}
           </p>
           <button
             onClick={() => {
@@ -181,11 +190,22 @@ class ErrorBoundary extends Component {
           >
             {isChunk ? 'Recargar' : 'Reintentar'}
           </button>
+          {scoped && (
+            <a href="/#/home" className="text-brand-400 text-sm hover:underline mt-2">
+              Volver al inicio
+            </a>
+          )}
         </div>
       );
     }
     return this.props.children;
   }
+}
+
+// Helper para wrappear un element de Route en su propio boundary.
+// Uso: <Route path="/shows/:id" element={withBoundary(<LiveShow />, 'live-show')} />
+function withBoundary(element, scope) {
+  return <ErrorBoundary scope={scope}>{element}</ErrorBoundary>;
 }
 
 function IncomingCallListener() {
@@ -433,13 +453,13 @@ export default function App() {
           <Route path="/profile/:userId" element={<UserProfile />} />
           <Route path="/premium" element={<Premium />} />
           <Route path="/settings" element={<Settings />} />
-          <Route path="/admin" element={<Admin />} />
+          <Route path="/admin" element={withBoundary(<Admin />, 'admin')} />
           <Route path="/admin/fucknow-queue" element={<AdminFuckNowQueue />} />
           <Route path="/become-creator" element={<BecomeCreator />} />
-          <Route path="/creator/dashboard" element={<CreatorDashboard />} />
-          <Route path="/studio" element={<ShowStudio />} />
+          <Route path="/creator/dashboard" element={withBoundary(<CreatorDashboard />, 'creator-dashboard')} />
+          <Route path="/studio" element={withBoundary(<ShowStudio />, 'show-studio')} />
           <Route path="/shows" element={<LiveShows />} />
-          <Route path="/shows/:id" element={<LiveShow />} />
+          <Route path="/shows/:id" element={withBoundary(<LiveShow />, 'live-show')} />
           <Route path="/coins" element={<Coins />} />
           <Route path="/moments" element={<Navigate to="/home" replace />} />
           <Route path="/search" element={<Search />} />
@@ -448,14 +468,14 @@ export default function App() {
           {/* /adult y /explore son aliases del hub unificado. /adult/legacy
               y /explore/legacy quedan para acceso directo a las páginas
               individuales si se necesita (e.g. linkear desde docs). */}
-          {!IOS_BUILD && <Route path="/adult" element={<AdultHub />} />}
+          {!IOS_BUILD && <Route path="/adult" element={withBoundary(<AdultHub />, 'adult-hub')} />}
           {!IOS_BUILD && <Route path="/adult/spotlight" element={<FuckNowSpotlight />} />}
           {!IOS_BUILD && <Route path="/adult/legacy" element={<AdultCreators />} />}
           <Route path="/video-requests" element={<VideoRequests />} />
           <Route path="/leaderboard" element={<Leaderboard />} />
           <Route path="/referrals" element={<Referrals />} />
           <Route path="/achievements" element={<Achievements />} />
-          <Route path="/cohost/:showId" element={<CoHostStage />} />
+          <Route path="/cohost/:showId" element={withBoundary(<CoHostStage />, 'cohost')} />
           {!IOS_BUILD && <Route path="/explore" element={<AdultHub />} />}
           <Route path="/explore/legacy" element={<Explore />} />
           <Route path="/explore/v/:id" element={<ExploreVideo />} />

@@ -62,7 +62,9 @@ export default function CreatorMassDM() {
         ppv_media_url: form.ppv_media_url || null,
         ppv_price: form.ppv_price ? parseInt(form.ppv_price) : null,
       });
-      toast.success(`✓ Enviado a ${r.data.sent_count}/${r.data.recipients_count}`);
+      // Backend devuelve 202 con status:'queued' — el envío real corre async.
+      // El historial se actualiza con sent_count cuando termine el fan-out.
+      toast.success(`✓ Encolado: ${r.data.recipients_count} destinatarios. Verás el progreso en el historial.`);
       setForm(s => ({ ...s, message_text: '', ppv_media_url: '', ppv_price: '' }));
       const h = await api.get('/api/creator-auto/mass-dm');
       setHistory(h.data?.broadcasts || []);

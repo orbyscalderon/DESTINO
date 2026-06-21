@@ -1,6 +1,12 @@
 import { supabase } from '../lib/supabase.js';
+import { logger } from '../lib/logger.js';
 
 const TARGETS = ['all_subs', 'tier_1_plus', 'tier_2_plus', 'tier_3'];
+
+// Fan-out en batches paralelos. 50 per batch evita open file limit en
+// Supabase y mantiene latency razonable. Para 1000 subs = 20 batches × ~80ms
+// vs el secuencial que era 50s.
+const BATCH_SIZE = 50;
 
 // POST /api/creator/mass-dm
 // Body: { target_filter, message_text?, ppv_media_url?, ppv_price? }
@@ -65,70 +71,133 @@ export const createBroadcast = async (req, res) => {
       ? `Te envió contenido${price ? ` (${price} coins)` : ''}`
       : (message_text?.slice(0, 100) || 'Te envió un mensaje');
 
-    // Fan-out: 1 mensaje por suscriptor con dedup match + push notification
-    let sent = 0;
-    for (const subId of recipients) {
-      try {
-        const { data: m } = await supabase
-          .from('matches')
-          .select('id')
-          .or(`and(user1_id.eq.${creatorId},user2_id.eq.${subId}),and(user1_id.eq.${subId},user2_id.eq.${creatorId})`)
-          .maybeSingle();
-
-        let matchId = m?.id;
-        if (!matchId) {
-          const { data: newM } = await supabase.from('matches').insert({
-            user1_id: creatorId,
-            user2_id: subId,
-            kind: 'creator_subscription',
-            created_at: new Date().toISOString(),
-          }).select('id').single().catch(() => ({ data: null }));
-          matchId = newM?.id;
-        }
-        if (!matchId) continue;
-
-        await supabase.from('messages').insert({
-          match_id: matchId,
-          sender_id: creatorId,
-          receiver_id: subId,
-          type: ppv_media_url ? 'ppv' : 'text',
-          content: message_text || null,
-          is_ppv: !!ppv_media_url,
-          ppv_price: price || null,
-          ppv_media_url: ppv_media_url || null,
-          broadcast_id: broadcast.id,
-        });
-
-        if (sendPushToUser) {
-          sendPushToUser(subId, {
-            title: pushTitle,
-            body: pushBody,
-            url: `/chat/${matchId}`,
-            icon: creatorProfile?.avatar_url,
-          }).catch(() => {});
-        }
-        sent++;
-      } catch (err) {
-        console.error('[massDM fan-out]', err.message);
-      }
-    }
-
-    await supabase.from('mass_dm_broadcasts').update({
-      sent_count: sent,
-      status: sent === recipients.length ? 'completed' : (sent > 0 ? 'completed' : 'failed'),
-      completed_at: new Date().toISOString(),
-    }).eq('id', broadcast.id);
-
-    res.status(201).json({
+    // ── Respondemos AHORA al frontend ──
+    // El fan-out (1000+ subs × 3 queries c/u) se ejecuta async después de la
+    // response. Antes el creator esperaba 30-50s (request timeout en Railway).
+    res.status(202).json({
       broadcast_id: broadcast.id,
       recipients_count: recipients.length,
-      sent_count: sent,
+      status: 'queued',
+    });
+
+    // Fan-out async — corre después de mandar response.
+    // Errores se loguean y se reflejan en mass_dm_broadcasts.status.
+    setImmediate(() => {
+      processBroadcastFanOut({
+        broadcast,
+        recipients,
+        creatorId,
+        message_text,
+        ppv_media_url,
+        price,
+        pushTitle,
+        pushBody,
+        creatorAvatar: creatorProfile?.avatar_url,
+        sendPushToUser,
+      }).catch(err => {
+        logger.error('massDM fanout failed', { broadcastId: broadcast.id, err: err.message });
+      });
     });
   } catch (err) {
-    console.error('createBroadcast', err.message);
+    logger.error('createBroadcast', { err: err.message });
     res.status(500).json({ error: 'Error enviando mass DM' });
   }
 };
+
+// Procesa el fan-out en batches paralelos. Llamado vía setImmediate después
+// de responder al cliente.
+async function processBroadcastFanOut({
+  broadcast, recipients, creatorId, message_text, ppv_media_url, price,
+  pushTitle, pushBody, creatorAvatar, sendPushToUser,
+}) {
+  const log = logger.child({ broadcastId: broadcast.id, creatorId });
+  log.info('fanout start', { recipients: recipients.length });
+  const t0 = Date.now();
+
+  let sent = 0;
+  let failed = 0;
+
+  // ── Paso 1: pre-cargar matches existentes en 1 sola query ──
+  // Antes era N selects, ahora 1.
+  const { data: existingMatches } = await supabase
+    .from('matches')
+    .select('id, user1_id, user2_id')
+    .or(`user1_id.eq.${creatorId},user2_id.eq.${creatorId}`)
+    .in('user1_id', [creatorId, ...recipients])
+    .in('user2_id', [creatorId, ...recipients]);
+
+  // Map otherUserId → matchId para lookup O(1).
+  const matchByPeer = new Map();
+  for (const m of existingMatches || []) {
+    const peer = m.user1_id === creatorId ? m.user2_id : m.user1_id;
+    matchByPeer.set(peer, m.id);
+  }
+
+  // ── Paso 2: crear matches que faltan en bulk ──
+  const missingPeers = recipients.filter(r => !matchByPeer.has(r));
+  if (missingPeers.length > 0) {
+    const newMatches = missingPeers.map(peer => ({
+      user1_id: creatorId,
+      user2_id: peer,
+      kind: 'creator_subscription',
+      created_at: new Date().toISOString(),
+    }));
+    const { data: created } = await supabase
+      .from('matches').insert(newMatches).select('id, user2_id');
+    for (const m of created || []) matchByPeer.set(m.user2_id, m.id);
+  }
+
+  // ── Paso 3: enviar messages + push en batches paralelos ──
+  for (let i = 0; i < recipients.length; i += BATCH_SIZE) {
+    const batch = recipients.slice(i, i + BATCH_SIZE);
+
+    const messageRows = batch
+      .filter(subId => matchByPeer.has(subId))
+      .map(subId => ({
+        match_id: matchByPeer.get(subId),
+        sender_id: creatorId,
+        receiver_id: subId,
+        type: ppv_media_url ? 'ppv' : 'text',
+        content: message_text || null,
+        is_ppv: !!ppv_media_url,
+        ppv_price: price || null,
+        ppv_media_url: ppv_media_url || null,
+        broadcast_id: broadcast.id,
+      }));
+
+    if (messageRows.length === 0) continue;
+
+    const { error: msgErr } = await supabase.from('messages').insert(messageRows);
+    if (msgErr) {
+      failed += messageRows.length;
+      log.warn('batch insert failed', { batchStart: i, err: msgErr.message });
+      continue;
+    }
+    sent += messageRows.length;
+
+    // Push notifications en paralelo (no esperamos la response, fire-and-forget)
+    if (sendPushToUser) {
+      for (const subId of batch) {
+        const matchId = matchByPeer.get(subId);
+        if (!matchId) continue;
+        sendPushToUser(subId, {
+          title: pushTitle,
+          body: pushBody,
+          url: `/chat/${matchId}`,
+          icon: creatorAvatar,
+        }).catch(() => {});
+      }
+    }
+  }
+
+  await supabase.from('mass_dm_broadcasts').update({
+    sent_count: sent,
+    status: sent === recipients.length ? 'completed' : (sent > 0 ? 'completed' : 'failed'),
+    completed_at: new Date().toISOString(),
+  }).eq('id', broadcast.id);
+
+  log.info('fanout done', { sent, failed, ms: Date.now() - t0 });
+}
 
 // GET /api/creator/mass-dm — historial
 export const listMyBroadcasts = async (req, res) => {
