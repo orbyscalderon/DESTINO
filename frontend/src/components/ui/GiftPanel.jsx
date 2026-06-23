@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { FiX } from 'react-icons/fi';
 import api from '../../lib/api.js';
 import toast from 'react-hot-toast';
+import { track, Events } from '../../lib/analytics.js';
 import SuccessConfetti from './SuccessConfetti.jsx';
 import { playDing } from '../../lib/sounds.js';
 
@@ -47,6 +48,7 @@ export default function GiftPanel({ showId, hostId, coinBalance, onClose, onGift
     setSending(gift.type);
     try {
       const { data } = await api.post(`/api/shows/${showId}/gift`, { gift_type: gift.type });
+      track(Events.GIFT_SENT, { show_id: showId, gift_type: gift.type, coins: gift.coins });
       onGiftSent?.(gift.type, gift.emoji || '🎁', data?.new_balance);
       toast.success(`${gift.emoji || '🎁'} ${gift.label} enviado`);
       playDing();

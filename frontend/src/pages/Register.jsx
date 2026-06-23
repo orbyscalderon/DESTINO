@@ -8,15 +8,23 @@ import { supabase } from '../lib/supabase.js';
 import { signInWithGoogle, signInWithApple } from '../lib/oauth.js';
 import api from '../lib/api.js';
 import toast from 'react-hot-toast';
+import { track, Events } from '../lib/analytics.js';
 
 const TURNSTILE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+// Versión actual de Terms + Privacy. Si cambian materialmente, bumpear este
+// número → users existentes verán prompt de re-aceptación en próximo login.
+// Backend guarda accepted_tos_version en profiles para audit + GDPR.
+const TOS_VERSION = 1;
 
 function validate(form) {
   const errs = {};
   if (!form.fullName.trim()) errs.fullName = 'El nombre es requerido';
   if (!EMAIL_RE.test(form.email)) errs.email = 'Ingresa un email válido';
   if (form.password.length < 6) errs.password = 'Mínimo 6 caracteres';
+  if (!form.acceptedTos) errs.acceptedTos = 'Debes aceptar los términos y privacidad';
+  if (!form.confirmedAge) errs.confirmedAge = 'Debes confirmar que eres mayor de 18 años';
   return errs;
 }
 
@@ -29,7 +37,13 @@ export default function Register() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [form, setForm] = useState({ fullName: '', email: '', password: '' });
+  const [form, setForm] = useState({
+    fullName: '',
+    email: '',
+    password: '',
+    acceptedTos: false,
+    confirmedAge: false,
+  });
   const [errors, setErrors] = useState({});
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -80,17 +94,30 @@ export default function Register() {
     }
 
     setLoading(true);
+    track(Events.SIGN_UP_STARTED, { has_affiliate: !!affCode });
     try {
       const { data, error } = await supabase.auth.signUp({
         email: form.email,
         password: form.password,
         options: {
-          data: { full_name: form.fullName },
+          data: {
+            full_name: form.fullName,
+            accepted_tos_version: TOS_VERSION,
+            accepted_tos_at: new Date().toISOString(),
+            confirmed_age_at: new Date().toISOString(),
+          },
           emailRedirectTo: `${window.location.origin}/#/auth/callback`,
         },
       });
 
       if (error) throw error;
+
+      // Registrar consent en backend (idempotente — si user existe lo updatea).
+      // Cumple Art. 7 GDPR (consent debe ser auditable) + DSA Art. 14.
+      api.post('/auth/record-tos-acceptance', {
+        tos_version: TOS_VERSION,
+        email: form.email,
+      }).catch(() => {}); // fire-and-forget — no rompe signup
 
       // Enviar email de bienvenida (fire-and-forget)
       api.post('/auth/welcome-email', {
@@ -110,6 +137,12 @@ export default function Register() {
           })
           .catch(() => {}); // ya atribuido, código inválido, etc.
       }
+
+      track(Events.SIGN_UP_COMPLETED, {
+        method: 'email',
+        has_affiliate: !!affCode,
+        requires_email_confirm: !data.session,
+      });
 
       if (data.session) {
         toast.success('¡Cuenta creada! Completa tu perfil.');
@@ -227,6 +260,38 @@ export default function Register() {
               </button>
             </div>
             {errors.password && <p className="text-red-400 text-xs mt-1 pl-1">{errors.password}</p>}
+          </div>
+
+          {/* Age + Terms consent — legal-critical para GDPR/CCPA + 2257 + DSA */}
+          <div className="space-y-2 pt-1">
+            <label className="flex items-start gap-2 cursor-pointer group">
+              <input
+                type="checkbox"
+                checked={form.confirmedAge}
+                onChange={(e) => setForm(f => ({ ...f, confirmedAge: e.target.checked }))}
+                className="mt-0.5 w-4 h-4 accent-brand-500 cursor-pointer shrink-0"
+              />
+              <span className="text-xs text-gray-300 leading-relaxed select-none group-hover:text-white transition-colors">
+                Confirmo que soy mayor de <strong>18 años</strong> y que es legal acceder a este servicio en mi país.
+              </span>
+            </label>
+            {errors.confirmedAge && <p className="text-red-400 text-xs pl-6">{errors.confirmedAge}</p>}
+
+            <label className="flex items-start gap-2 cursor-pointer group">
+              <input
+                type="checkbox"
+                checked={form.acceptedTos}
+                onChange={(e) => setForm(f => ({ ...f, acceptedTos: e.target.checked }))}
+                className="mt-0.5 w-4 h-4 accent-brand-500 cursor-pointer shrink-0"
+              />
+              <span className="text-xs text-gray-300 leading-relaxed select-none group-hover:text-white transition-colors">
+                Acepto los{' '}
+                <Link to="/terms" target="_blank" className="text-brand-400 hover:underline">Términos</Link>
+                {' '}y la{' '}
+                <Link to="/privacy" target="_blank" className="text-brand-400 hover:underline">Política de Privacidad</Link>.
+              </span>
+            </label>
+            {errors.acceptedTos && <p className="text-red-400 text-xs pl-6">{errors.acceptedTos}</p>}
           </div>
 
           {TURNSTILE_KEY && (

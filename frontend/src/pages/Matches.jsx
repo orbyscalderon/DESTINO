@@ -199,7 +199,17 @@ export default function Matches() {
               <EmptyState
                 illustration={<EmptyHeart size={120} />}
                 title="Nadie te ha dado like aún"
-                desc="¡Sigue siendo tú mismo!"
+                desc="Mejorá tu perfil y empezá a deslizar — la actividad atrae actividad."
+                action={
+                  <div className="flex flex-col sm:flex-row gap-2 items-center">
+                    <Link to="/profile" className="btn-secondary px-5 py-2.5 text-sm">
+                      Mejorar mi perfil
+                    </Link>
+                    <Link to="/discover" className="btn-primary px-5 py-2.5 text-sm">
+                      ❤️ Empezar a deslizar
+                    </Link>
+                  </div>
+                }
               />
             ) : (
               <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">

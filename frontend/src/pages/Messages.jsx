@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAds } from '../hooks/useAds.js';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiSearch, FiX, FiMessageCircle, FiFilter } from 'react-icons/fi';
@@ -181,8 +181,14 @@ export default function Messages() {
         ) : displayMatches.length === 0 ? (
           <EmptyState
             illustration={search ? <EmptySearch size={100} /> : undefined}
-            emoji={search ? undefined : '✅'}
-            title={search ? `Sin resultados para "${search}"` : 'Sin mensajes sin leer'}
+            emoji={search ? undefined : '💬'}
+            title={search ? `Sin resultados para "${search}"` : 'Aún no tienes mensajes'}
+            desc={search ? null : 'Cuando hagas match, podrás chatear acá. Empezá deslizando perfiles.'}
+            action={search ? null : (
+              <Link to="/discover" className="btn-primary inline-flex items-center gap-2 px-5 py-2.5">
+                ❤️ Ir a Descubrir
+              </Link>
+            )}
           />
         ) : (
           <div className="flex flex-col">

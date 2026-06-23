@@ -19,6 +19,7 @@ import { showBanner, hideBanner, showRewardedAd } from '../lib/admob.js';
 import { useAds } from '../hooks/useAds.js';
 import { compressImage } from '../lib/imageCompressor.js';
 import toast from 'react-hot-toast';
+import { track, Events } from '../lib/analytics.js';
 import { usePullToRefresh, PullIndicator } from '../lib/usePullToRefresh.jsx';
 
 const DEFAULT_FILTERS = { gender: 'all', minAge: '', maxAge: '', country: '', language: '', interests: [], maxDistance: '', lookingFor: '' };
@@ -198,9 +199,11 @@ export default function Discover() {
     if (likesRemaining !== null) setLikesRemaining(r => Math.max(0, (r || 0) - 1));
     trackAction();
 
+    track(Events.SWIPE_RIGHT, { target_id: targetId });
     try {
       const { data } = await api.post('/api/matches/like', { targetUserId: targetId });
       if (data.isMatch) {
+        track(Events.MATCH_CREATED, { match_id: data.matchId, target_id: targetId });
         setMatchData({ ...swiped, matchId: data.matchId, myAvatar: profile?.avatar_url });
       }
       if (data.remainingLikes !== null && data.remainingLikes !== undefined) {

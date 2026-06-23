@@ -4,6 +4,7 @@ import { FiZap, FiArrowLeft, FiClock, FiStar, FiTag, FiArrowDown, FiArrowUp, FiG
 import { Link, useNavigate } from 'react-router-dom';
 import api from '../lib/api.js';
 import toast from 'react-hot-toast';
+import { track, Events } from '../lib/analytics.js';
 import PaymentModal from '../components/ui/PaymentModal.jsx';
 import { useAuthStore } from '../store/authStore.js';
 
@@ -107,6 +108,12 @@ export default function Coins() {
 
   const handleBuy = async (pkg) => {
     setBuying(pkg.id);
+    track(Events.COIN_PURCHASE_INITIATED, {
+      package_id: pkg.id,
+      coins: pkg.coins,
+      bonus: pkg.bonus_coins || 0,
+      usd: pkg.price_usd,
+    });
     try {
       const { data } = await api.post('/api/coins/purchase', { packageId: pkg.id });
       setPaymentModal({ clientSecret: data.clientSecret, paymentIntentId: data.paymentIntentId, pkg });
@@ -122,6 +129,11 @@ export default function Coins() {
       const confirm = await api.post('/api/coins/purchase/confirm', { paymentIntentId });
       setBalance(prev => confirm.data.coins ?? prev);
       const total = paymentModal.pkg.coins + (paymentModal.pkg.bonus_coins || 0);
+      track(Events.COIN_PURCHASE_COMPLETED, {
+        package_id: paymentModal.pkg.id,
+        coins: total,
+        usd: paymentModal.pkg.price_usd,
+      });
       toast.success(`¡${fmtCoins(total)} coins añadidos!`);
       setPaymentModal(null);
       const t = await api.get('/api/coins/transactions');

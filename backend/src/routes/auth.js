@@ -3,6 +3,8 @@ import rateLimit from 'express-rate-limit';
 import { authMiddleware } from '../middleware/auth.js';
 import { sendWelcomeEmail } from '../lib/emailService.js';
 import { logLoginAttempt, checkLockout } from '../controllers/loginAttemptController.js';
+import { supabase } from '../lib/supabase.js';
+import { logger } from '../lib/logger.js';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -43,6 +45,49 @@ router.post('/welcome-email', authMiddleware, async (req, res) => {
   }
   sendWelcomeEmail(email, name).catch(() => {});
   res.json({ ok: true });
+});
+
+// Registro de aceptación de Terms/Privacy con versión + timestamp + IP.
+// Cumple GDPR Art. 7 (consent auditable) + DSA Art. 14 (clarity).
+// Auth opcional: el user pudo haber recién hecho signup y aún no estar logged.
+const tosLimiter = rateLimit({ windowMs: 60 * 1000, max: 10 });
+router.post('/record-tos-acceptance', tosLimiter, async (req, res) => {
+  try {
+    const { tos_version, email } = req.body;
+    if (!tos_version || typeof tos_version !== 'number') {
+      return res.status(400).json({ error: 'tos_version requerido (number)' });
+    }
+    if (!email || !EMAIL_REGEX.test(email)) {
+      return res.status(400).json({ error: 'Email inválido' });
+    }
+
+    // Buscar el user por email (puede no existir aún si signup async)
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('id, accepted_tos_version')
+      .ilike('email', email)
+      .maybeSingle();
+
+    if (!profile) {
+      // No bloqueamos — el signup pudo crear el row después. Lo registramos
+      // en audit_log como pending para reconciliar luego.
+      logger.warn('tos acceptance recorded for non-existent profile', {
+        email: email.toLowerCase(), tos_version,
+      });
+      return res.json({ ok: true, deferred: true });
+    }
+
+    await supabase.from('profiles').update({
+      accepted_tos_version: tos_version,
+      accepted_tos_at: new Date().toISOString(),
+      accepted_tos_ip: req.ip,
+    }).eq('id', profile.id);
+
+    res.json({ ok: true });
+  } catch (err) {
+    logger.error('record-tos-acceptance failed', { err: err.message });
+    res.status(500).json({ error: 'Error registrando aceptación' });
+  }
 });
 
 // Account lockout: el frontend reporta cada intento de login

@@ -24,6 +24,7 @@ import { supabase } from '../lib/supabase.js';
 import { LiveKitSession, HQ_AUDIO_CONSTRAINTS, HQ_VIDEO_CONSTRAINTS } from '../lib/livekitSession.js';
 import api from '../lib/api.js';
 import toast from 'react-hot-toast';
+import { track, Events } from '../lib/analytics.js';
 import { useTranslation } from 'react-i18next';
 import { useMetaTags } from '../lib/useMetaTags.js';
 import { ChatModActions } from '../components/ui/ChatModeratorsManager.jsx';
@@ -1239,6 +1240,7 @@ export default function LiveShow() {
   const handleBuyTicket = async () => {
     try {
       const { data } = await api.post(`/api/shows/${id}/ticket-coins`);
+      track(Events.SHOW_TICKET_BOUGHT, { show_id: id, coins: data.coins_spent });
       toast.success(`Ticket comprado (${data.coins_spent} coins). Uniéndote al show…`);
       await loadShow();
     } catch (err) {
@@ -1475,6 +1477,7 @@ export default function LiveShow() {
     setSendingTip(coins);
     try {
       await api.post(`/api/shows/${id}/tip`, { coins, message: tipMessage });
+      track(Events.TIP_SENT, { show_id: id, coins, has_message: !!tipMessage.trim() });
       toast.success(`¡${coins} coins enviados!`);
 
       // Broadcast super chat al canal del show para que todos lo vean

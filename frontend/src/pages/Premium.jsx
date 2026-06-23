@@ -12,6 +12,7 @@ import { safeRedirect } from '../lib/safeRedirect.js';
 import toast from 'react-hot-toast';
 import PromoCodeInput from '../components/ui/PromoCodeInput.jsx';
 import { useConfirm } from '../components/ui/ConfirmDialog.jsx';
+import { track, Events } from '../lib/analytics.js';
 
 const PLANS = [
   {
@@ -114,6 +115,11 @@ export default function Premium() {
 
   const handleSubscribe = async (plan) => {
     setLoading(plan);
+    track(Events.PREMIUM_PURCHASED, {
+      plan,
+      promo_code: promo?.code || null,
+      step: 'checkout_initiated',
+    });
     try {
       const { data } = await api.post('/api/payments/create-checkout', {
         plan,

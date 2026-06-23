@@ -54,6 +54,7 @@ import PremiumModal from './PremiumModal.jsx';
 import { compressChatImage } from '../../lib/imageCompressor.js';
 import { useConfirm } from './ConfirmDialog.jsx';
 import toast from 'react-hot-toast';
+import { track, Events } from '../../lib/analytics.js';
 
 const REACTION_EMOJIS = ['❤️', '😂', '🔥', '👍', '😮'];
 
@@ -352,6 +353,12 @@ export default function ChatWindow({ matchId, otherUser }) {
 
     try {
       const res = await api.post('/api/messages', payload);
+      track(Events.MESSAGE_SENT, {
+        match_id: matchId,
+        is_scheduled: !!res.data?.scheduled,
+        has_media: !!payload.media_url,
+        is_ppv: !!payload.is_ppv,
+      });
       if (res.data?.scheduled) {
         // No echo en scheduled — solo toast
         setMessages(prev => prev.filter(m => m.id !== tempId));

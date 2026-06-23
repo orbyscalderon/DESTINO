@@ -12,8 +12,12 @@ import { FiX, FiArrowRight, FiHeart, FiMessageCircle, FiVideo, FiZap, FiGift } f
 // · Skip total con la X (se marca como visto igual).
 // · localStorage flag de versión: si añadimos pasos en el futuro y bumpamos
 //   la versión, los users existentes lo vuelven a ver.
+// · DEDUP: si el user ya vio OnboardingTour (post-signup global), saltamos
+//   este — el contenido es similar y duplicarlo cansa.
 
 const STORAGE_KEY = 'destino-first-tour-v1';
+// Flag del OnboardingTour global. Si ya está set, este tour se skip.
+const ONBOARDING_TOUR_KEY = 'Destino TV_onboarding_done';
 
 const STEPS = [
   {
@@ -50,6 +54,12 @@ export default function FirstTimeTour({ skipFor }) {
   useEffect(() => {
     if (skipFor) return; // ej. user nuevo sin perfil → no mostrar todavía
     try {
+      // Dedup: si el user ya vio el OnboardingTour global, no mostrar este.
+      // Marcamos como visto para no volver a evaluar en futuras sesiones.
+      if (localStorage.getItem(ONBOARDING_TOUR_KEY)) {
+        localStorage.setItem(STORAGE_KEY, '1');
+        return;
+      }
       if (!localStorage.getItem(STORAGE_KEY)) {
         const t = setTimeout(() => setOpen(true), 800);
         return () => clearTimeout(t);
