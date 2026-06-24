@@ -77,7 +77,7 @@ function ReceivedCard({ req, onAction, onDeliver }) {
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2.5">
-          <img
+          <img loading="lazy"
             src={req.requester?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(req.requester?.full_name || 'U')}&size=80&background=1a1a2e&color=f43f5e`}
             className="w-9 h-9 rounded-full object-cover shrink-0"
             alt=""
@@ -146,7 +146,7 @@ function SentCard({ req, onCancel }) {
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2.5">
-          <img
+          <img loading="lazy"
             src={req.creator?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(req.creator?.full_name || 'C')}&size=80&background=1a1a2e&color=f43f5e`}
             className="w-9 h-9 rounded-full object-cover shrink-0"
             alt=""

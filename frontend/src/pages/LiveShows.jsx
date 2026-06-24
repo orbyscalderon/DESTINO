@@ -67,7 +67,7 @@ function ChannelCard({ show, index }) {
         {/* Thumbnail 16:9 */}
         <div className="relative rounded-xl overflow-hidden aspect-video bg-dark-800 mb-2.5">
           {show.cover_url
-            ? <img src={show.cover_url} alt="" className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
+            ? <img loading="lazy" src={show.cover_url} alt="" className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
             : (
               <div className={`w-full h-full flex items-center justify-center bg-gradient-to-br ${
                 isPrivate ? 'from-purple-900/60 to-dark-900' : 'from-dark-700 to-dark-900'
@@ -118,7 +118,7 @@ function ChannelCard({ show, index }) {
         {/* Info below thumbnail */}
         <div className="flex items-start gap-2.5 px-0.5">
           {/* Avatar */}
-          <img
+          <img loading="lazy"
             src={show.host?.avatar_url || `https://api.dicebear.com/7.x/personas/svg?seed=${show.host?.id}`}
             alt=""
             className="w-9 h-9 rounded-full object-cover border border-white/10 shrink-0 mt-0.5"
@@ -179,7 +179,7 @@ function UpcomingRow({ show }) {
       <div className="flex items-center gap-3 p-3 rounded-xl bg-dark-800 border border-white/5 hover:border-white/10 transition-colors">
         <div className="w-11 h-11 rounded-lg overflow-hidden shrink-0 bg-dark-700 flex items-center justify-center">
           {show.cover_url
-            ? <img src={show.cover_url} alt="" className="w-full h-full object-cover" />
+            ? <img loading="lazy" src={show.cover_url} alt="" className="w-full h-full object-cover" />
             : <span className="text-xl">{cat.emoji}</span>
           }
         </div>
@@ -667,7 +667,7 @@ function ReplaysSection() {
                 >
                   <div className="aspect-video bg-black relative">
                     {r.cover_url ? (
-                      <img src={r.cover_url} alt="" className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
+                      <img loading="lazy" src={r.cover_url} alt="" className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
                         <FiFilm size={32} className="text-gray-700" />

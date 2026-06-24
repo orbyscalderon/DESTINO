@@ -562,7 +562,7 @@ export default function Admin() {
             <div className="space-y-1.5">
               {users.slice(0, 8).map(u => (
                 <div key={u.id} className="flex items-center gap-3 p-2.5 rounded-xl bg-dark-800">
-                  <img
+                  <img loading="lazy"
                     src={u.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.full_name || 'U')}&size=40&background=1a1a2e&color=f43f5e`}
                     className="w-8 h-8 rounded-full object-cover shrink-0"
                     alt=""
@@ -802,7 +802,7 @@ export default function Admin() {
                     })}
                     className="w-4 h-4 rounded accent-brand-500 shrink-0"
                   />
-                  <img
+                  <img loading="lazy"
                     src={u.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.full_name || 'U')}&size=40&background=1a1a2e&color=f43f5e`}
                     className="w-9 h-9 rounded-full object-cover shrink-0"
                     alt=""
@@ -925,7 +925,7 @@ export default function Admin() {
           {creators.map(c => (
             <div key={c.id} className="card p-4">
               <div className="flex items-center gap-3 mb-3">
-                <img
+                <img loading="lazy"
                   src={c.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(c.full_name || 'U')}&size=40&background=1a1a2e&color=f43f5e`}
                   className="w-10 h-10 rounded-full object-cover shrink-0"
                   alt=""
@@ -1041,7 +1041,7 @@ export default function Admin() {
             contentQueue.map(post => (
               <div key={post.id} className="card p-4 space-y-3">
                 <div className="flex items-center gap-3">
-                  <img
+                  <img loading="lazy"
                     src={post.author?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(post.author?.full_name || 'U')}&size=80&background=1a1a2e&color=f43f5e`}
                     alt=""
                     className="w-9 h-9 rounded-full object-cover shrink-0"
@@ -1120,7 +1120,7 @@ export default function Admin() {
             <div key={w.id} className="card p-4">
               <div className="flex items-start justify-between gap-3 mb-3">
                 <div className="flex items-center gap-3">
-                  <img
+                  <img loading="lazy"
                     src={w.creator?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(w.creator?.full_name || 'U')}&size=40&background=1a1a2e&color=f43f5e`}
                     className="w-9 h-9 rounded-full object-cover shrink-0"
                     alt=""
@@ -1191,7 +1191,7 @@ export default function Admin() {
             <div key={v.id} className="card p-4">
               <div className="flex items-start justify-between gap-3 mb-3">
                 <div className="flex items-center gap-3">
-                  <img
+                  <img loading="lazy"
                     src={v.user?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(v.user?.full_name || 'U')}&size=40&background=1a1a2e&color=f43f5e`}
                     className="w-9 h-9 rounded-full object-cover shrink-0"
                     alt=""
@@ -1214,7 +1214,7 @@ export default function Admin() {
                   <div>
                     <p className="text-[10px] text-gray-500 mb-1">Selfie</p>
                     <a href={v.selfie_url} target="_blank" rel="noopener noreferrer">
-                      <img src={v.selfie_url} alt="selfie" className="w-full aspect-square object-cover rounded-xl hover:opacity-80 transition-opacity" />
+                      <img loading="lazy" src={v.selfie_url} alt="selfie" className="w-full aspect-square object-cover rounded-xl hover:opacity-80 transition-opacity" />
                     </a>
                   </div>
                 )}
@@ -1222,7 +1222,7 @@ export default function Admin() {
                   <div>
                     <p className="text-[10px] text-gray-500 mb-1">Documento ID</p>
                     <a href={v.id_url} target="_blank" rel="noopener noreferrer">
-                      <img src={v.id_url} alt="id" className="w-full aspect-square object-cover rounded-xl hover:opacity-80 transition-opacity" />
+                      <img loading="lazy" src={v.id_url} alt="id" className="w-full aspect-square object-cover rounded-xl hover:opacity-80 transition-opacity" />
                     </a>
                   </div>
                 )}
@@ -1370,7 +1370,7 @@ export default function Admin() {
                   <div className="flex-1 min-w-0">
                     <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-1">Usuario reportado</p>
                     <div className="flex items-center gap-2">
-                      <img
+                      <img loading="lazy"
                         src={r.reported?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(r.reported?.full_name || 'U')}&size=32&background=1a1a2e&color=f43f5e`}
                         className="w-8 h-8 rounded-full object-cover shrink-0"
                         alt=""
@@ -1461,7 +1461,7 @@ export default function Admin() {
           {appeals.map(a => (
             <div key={a.id} className="card p-4 space-y-3">
               <div className="flex items-center gap-3">
-                <img
+                <img loading="lazy"
                   src={a.user?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(a.user?.full_name || 'U')}&size=36&background=1a1a2e&color=f43f5e`}
                   className="w-9 h-9 rounded-full object-cover shrink-0"
                   alt=""

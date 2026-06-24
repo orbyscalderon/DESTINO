@@ -42,13 +42,21 @@ export default function ComunidadMegamenu({ onClose }) {
       .catch(() => {});
   }, []);
 
+  // Distribución cíclica de creators en buckets para que ningún bucket quede
+  // vacío aunque haya pocos creators (fix audit megamenu #7).
+  // Bucket sizes: editorsJune=2, editorsAlt=2, viewsMay=2, viewsApril=2,
+  //               verifiedTop=4, newPopular=4 (total 16).
+  const bucket = (offset, size) => {
+    if (creators.length === 0) return [];
+    return Array.from({ length: size }, (_, i) => creators[(offset + i) % creators.length]);
+  };
   const buckets = {
-    editorsJune:    creators.slice(0, 2),
-    editorsAlt:     creators.slice(2, 4),
-    viewsMay:       creators.slice(4, 6),
-    viewsApril:     creators.slice(6, 8),
-    verifiedTop:    creators.slice(8, 12),
-    newPopular:     creators.slice(12, 16),
+    editorsJune: bucket(0, 2),
+    editorsAlt:  bucket(2, 2),
+    viewsMay:    bucket(4, 2),
+    viewsApril:  bucket(6, 2),
+    verifiedTop: bucket(8, 4),
+    newPopular:  bucket(12, 4),
   };
 
   return (

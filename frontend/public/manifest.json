@@ -9,7 +9,7 @@
   "theme_color": "#0d0d1a",
   "orientation": "portrait",
   "lang": "es",
-  "categories": ["social", "lifestyle"],
+  "categories": ["social", "lifestyle", "dating"],
   "icons": [
     {
       "src": "/icon-192.png",
@@ -35,5 +35,66 @@
       "type": "image/png",
       "purpose": "maskable"
     }
-  ]
+  ],
+  "shortcuts": [
+    {
+      "name": "Descubrir",
+      "short_name": "Discover",
+      "description": "Encuentra nuevas personas",
+      "url": "/discover",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Mensajes",
+      "short_name": "Chat",
+      "description": "Tus conversaciones",
+      "url": "/messages",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Live Shows",
+      "short_name": "Shows",
+      "description": "Shows en vivo ahora",
+      "url": "/shows",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Coins",
+      "short_name": "Coins",
+      "description": "Tu balance y compras",
+      "url": "/coins",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    }
+  ],
+  "share_target": {
+    "action": "/share",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url",
+      "files": [
+        {
+          "name": "media",
+          "accept": ["image/*", "video/*"]
+        }
+      ]
+    }
+  },
+  "screenshots": [
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Pantalla principal"
+    }
+  ],
+  "edge_side_panel": {
+    "preferred_width": 480
+  },
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  }
 }

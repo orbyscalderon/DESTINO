@@ -86,7 +86,7 @@ function StoryAnalyticsCard() {
         {stories.slice(0, 8).map(s => (
           <div key={s.id} className="bg-dark-700/60 rounded-xl p-2.5 flex items-center gap-2">
             {s.media_url && (
-              <img src={s.media_url} alt="" className="w-10 h-10 rounded-lg object-cover shrink-0" />
+              <img loading="lazy" src={s.media_url} alt="" className="w-10 h-10 rounded-lg object-cover shrink-0" />
             )}
             <div className="min-w-0">
               <p className="text-xs text-gray-400">{new Date(s.created_at).toLocaleDateString('es',{day:'numeric',month:'short'})}</p>
@@ -405,7 +405,7 @@ export default function CreatorDashboard() {
           {/* Avatar + nombre */}
           <div className="flex items-center gap-2 min-w-0 flex-1">
             <div className="relative shrink-0">
-              <img
+              <img loading="lazy"
                 src={profile?.avatar_url || `https://api.dicebear.com/7.x/personas/svg?seed=${profile?.id}`}
                 alt=""
                 className="w-8 h-8 rounded-xl object-cover border border-white/10"
@@ -766,7 +766,7 @@ export default function CreatorDashboard() {
                     <div className="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-8 gap-2">
                       {data.paid_photos.map(photo => (
                         <div key={photo.id} className="relative aspect-square rounded-xl overflow-hidden group">
-                          <img src={photo.url} alt="" className="w-full h-full object-cover transition-transform group-hover:scale-105" />
+                          <img loading="lazy" src={photo.url} alt="" className="w-full h-full object-cover transition-transform group-hover:scale-105" />
                           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
                           <div className="absolute bottom-1 left-0 right-0 text-center">
                             <span className="text-white text-[9px] font-bold">${photo.price}</span>
@@ -845,7 +845,7 @@ export default function CreatorDashboard() {
                         <div key={g.id} className="flex items-center gap-3 p-3 bg-dark-700/50 rounded-xl">
                           <div className="w-12 h-12 rounded-lg bg-dark-600 overflow-hidden shrink-0">
                             {g.cover_url
-                              ? <img src={g.cover_url} alt="" className="w-full h-full object-cover" />
+                              ? <img loading="lazy" src={g.cover_url} alt="" className="w-full h-full object-cover" />
                               : <div className="w-full h-full flex items-center justify-center"><FiImage className="text-gray-600" size={16} /></div>
                             }
                           </div>
@@ -1025,7 +1025,7 @@ export default function CreatorDashboard() {
                       <div className="rounded-2xl bg-dark-800 border border-white/5 divide-y divide-white/5">
                         {(subscribers.subscribers||[]).map(sub => (
                           <div key={sub.id} className="flex items-center gap-3 p-4">
-                            <img src={sub.subscriber?.avatar_url||`https://ui-avatars.com/api/?name=${encodeURIComponent(sub.subscriber?.full_name||'U')}&size=80&background=1a1a2e&color=f43f5e`}
+                            <img loading="lazy" src={sub.subscriber?.avatar_url||`https://ui-avatars.com/api/?name=${encodeURIComponent(sub.subscriber?.full_name||'U')}&size=80&background=1a1a2e&color=f43f5e`}
                               alt="" className="w-10 h-10 rounded-full object-cover shrink-0" />
                             <div className="flex-1 min-w-0">
                               <p className="text-white text-sm font-semibold truncate">{sub.subscriber?.full_name}</p>
@@ -1160,7 +1160,7 @@ export default function CreatorDashboard() {
                         };
                         return (
                           <div key={item.id} className="flex items-center gap-3 py-2.5 border-b border-white/5 last:border-0">
-                            <img src={item.from?.avatar_url||`https://ui-avatars.com/api/?name=${encodeURIComponent(item.from?.full_name||'U')}&size=60&background=1a1a2e&color=f43f5e`}
+                            <img loading="lazy" src={item.from?.avatar_url||`https://ui-avatars.com/api/?name=${encodeURIComponent(item.from?.full_name||'U')}&size=60&background=1a1a2e&color=f43f5e`}
                               className="w-8 h-8 rounded-full object-cover shrink-0" alt="" />
                             <div className="flex-1 min-w-0">
                               <p className="text-white text-xs font-medium truncate flex items-center gap-1">
@@ -1421,7 +1421,7 @@ export default function CreatorDashboard() {
                           <span className={`w-6 text-center font-black ${i === 0 ? 'text-yellow-400' : i === 1 ? 'text-gray-300' : i === 2 ? 'text-orange-400' : 'text-gray-600'} text-sm shrink-0`}>
                             {i + 1}
                           </span>
-                          <img src={fan.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(fan.name || 'U')}&size=60&background=1a1a2e&color=f43f5e`}
+                          <img loading="lazy" src={fan.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(fan.name || 'U')}&size=60&background=1a1a2e&color=f43f5e`}
                             className="w-8 h-8 rounded-full object-cover shrink-0" alt="" />
                           <div className="flex-1 min-w-0">
                             <p className="text-white text-sm font-medium truncate">{fan.name || 'Anónimo'}</p>

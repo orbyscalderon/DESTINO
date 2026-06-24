@@ -67,7 +67,7 @@ export default function PhotoCollectionView() {
         <div className="glass-strong rounded-2xl border border-white/5 overflow-hidden mb-6">
           {collection.cover_url && (
             <div className="aspect-video bg-dark-800 relative">
-              <img src={collection.cover_url} alt="" className="w-full h-full object-cover" />
+              <img loading="lazy" src={collection.cover_url} alt="" className="w-full h-full object-cover" />
               {locked && <div className="absolute inset-0 bg-black/50 backdrop-blur-md flex items-center justify-center">
                 <div className="text-center">
                   <FiLock size={48} className="mx-auto text-white mb-2" />
@@ -114,7 +114,7 @@ export default function PhotoCollectionView() {
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             {items.map(it => (
               <div key={it.id} className="aspect-square rounded-xl overflow-hidden bg-dark-800">
-                <img src={it.url} alt="" className="w-full h-full object-cover" />
+                <img loading="lazy" src={it.url} alt="" className="w-full h-full object-cover" />
               </div>
             ))}
           </div>

@@ -122,7 +122,7 @@ export default function CreatorCollections() {
             />
             {form.cover_url && (
               <div className="mt-2 aspect-video rounded-lg overflow-hidden bg-dark-800 border border-white/10">
-                <img src={form.cover_url} alt="Preview" className="w-full h-full object-cover"
+                <img loading="lazy" src={form.cover_url} alt="Preview" className="w-full h-full object-cover"
                   onError={e => e.target.style.display = 'none'} />
               </div>
             )}
@@ -193,7 +193,7 @@ export default function CreatorCollections() {
             <div key={c.id} className="card overflow-hidden hover:border-brand-500/30 transition-colors">
               <div className="relative aspect-video bg-dark-800">
                 {c.cover_url ? (
-                  <img src={c.cover_url} alt={c.title} className="w-full h-full object-cover" />
+                  <img loading="lazy" src={c.cover_url} alt={c.title} className="w-full h-full object-cover" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-4xl opacity-30">🖼️</div>
                 )}

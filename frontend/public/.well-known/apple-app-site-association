@@ -1,0 +1,24 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appIDs": ["PLACEHOLDER_TEAM_ID.com.destino.app"],
+        "paths": [
+          "/profile/*",
+          "/shows/*",
+          "/messages",
+          "/chat/*",
+          "/discover",
+          "/matches",
+          "/c/collection/*",
+          "/series/*",
+          "/share/*"
+        ]
+      }
+    ]
+  },
+  "webcredentials": {
+    "apps": ["PLACEHOLDER_TEAM_ID.com.destino.app"]
+  }
+}

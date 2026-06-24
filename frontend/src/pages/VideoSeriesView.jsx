@@ -64,7 +64,7 @@ export default function VideoSeriesView() {
         <div className="glass-strong rounded-2xl border border-white/5 overflow-hidden mb-6">
           {series.cover_url && (
             <div className="aspect-video bg-dark-800 relative">
-              <img src={series.cover_url} alt="" className="w-full h-full object-cover" />
+              <img loading="lazy" src={series.cover_url} alt="" className="w-full h-full object-cover" />
               {locked && (
                 <div className="absolute inset-0 bg-black/50 backdrop-blur-md flex items-center justify-center">
                   <div className="text-center">
@@ -118,7 +118,7 @@ export default function VideoSeriesView() {
             >
               <span className="text-xl font-black text-gray-600 w-8 text-center">{i + 1}</span>
               {it.video?.thumbnail_url && (
-                <img src={it.video.thumbnail_url} className="w-20 h-12 rounded object-cover shrink-0" alt="" />
+                <img loading="lazy" src={it.video.thumbnail_url} className="w-20 h-12 rounded object-cover shrink-0" alt="" />
               )}
               <div className="flex-1 min-w-0">
                 <p className="text-sm text-white truncate">{it.episode_title || it.video?.title}</p>

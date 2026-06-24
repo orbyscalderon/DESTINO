@@ -160,7 +160,7 @@ export default function ConversationChat() {
           <FiArrowLeft size={20} />
         </button>
         <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-500/30 to-accent-500/30 flex items-center justify-center text-lg shrink-0">
-          {conv.avatar_url ? <img src={conv.avatar_url} alt="" className="w-full h-full object-cover rounded-xl" /> : '👥'}
+          {conv.avatar_url ? <img loading="lazy" src={conv.avatar_url} alt="" className="w-full h-full object-cover rounded-xl" /> : '👥'}
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-white font-bold text-sm truncate">{conv.name}</p>
@@ -198,10 +198,10 @@ export default function ConversationChat() {
                 onContextMenu={(e) => { e.preventDefault(); setMsgMenu({ id: msg.id, isMe }); }}
               >
                 {!isMe && (
-                  <img src={msg.sender?.avatar_url || '/avatar-placeholder.png'} alt="" className="w-7 h-7 rounded-full object-cover shrink-0" />
+                  <img loading="lazy" src={msg.sender?.avatar_url || '/avatar-placeholder.png'} alt="" className="w-7 h-7 rounded-full object-cover shrink-0" />
                 )}
                 {msg.type === 'sticker' && msg.sticker ? (
-                  <img src={msg.sticker.image_url} alt={msg.sticker.label || ''} className="max-w-[140px] max-h-[140px] object-contain" />
+                  <img loading="lazy" src={msg.sticker.image_url} alt={msg.sticker.label || ''} className="max-w-[140px] max-h-[140px] object-contain" />
                 ) : (
                   <div className={`px-3.5 py-2 rounded-2xl text-sm ${isMe ? 'bg-gradient-to-br from-brand-500 to-brand-700 text-white rounded-br-sm' : 'bg-white/5 border border-white/10 text-gray-100 rounded-bl-sm'}`}>
                     {!isMe && (

@@ -200,7 +200,7 @@ export default function VideoCall() {
                       transition={{ duration: 2, repeat: Infinity, delay: i * 0.6, ease: 'easeOut' }}
                     />
                   ))}
-                  <img
+                  <img loading="lazy"
                     src={remoteUser.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(remoteUser.full_name || 'U')}&size=200&background=1a1a2e&color=f43f5e`}
                     className="w-24 h-24 rounded-full object-cover border-2 border-brand-500/60 relative z-10"
                     alt=""
@@ -219,7 +219,7 @@ export default function VideoCall() {
       {/* Header (active call info) */}
       {callStatus === 'active' && remoteUser && (
         <div className="absolute top-0 inset-x-0 p-4 flex items-center gap-3 z-20 bg-gradient-to-b from-black/60 to-transparent">
-          <img
+          <img loading="lazy"
             src={remoteUser.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(remoteUser.full_name || 'U')}&size=80&background=1a1a2e&color=f43f5e`}
             className="w-8 h-8 rounded-full object-cover" alt=""
           />

@@ -78,7 +78,7 @@ export default function CreatorCostars() {
               <div key={p.video_id} className="card p-4 hover:border-brand-500/30 transition-colors">
                 <div className="flex items-start gap-3 mb-3">
                   {p.video?.thumbnail_url ? (
-                    <img src={p.video.thumbnail_url} alt="" className="w-24 h-14 rounded-lg object-cover shrink-0 ring-1 ring-white/10" />
+                    <img loading="lazy" src={p.video.thumbnail_url} alt="" className="w-24 h-14 rounded-lg object-cover shrink-0 ring-1 ring-white/10" />
                   ) : (
                     <div className="w-24 h-14 rounded-lg bg-dark-800 shrink-0 flex items-center justify-center text-2xl opacity-30">🎬</div>
                   )}
@@ -130,7 +130,7 @@ export default function CreatorCostars() {
             {history.map(h => (
               <div key={h.video_id} className="card p-3 flex items-center gap-3">
                 {h.video?.thumbnail_url && (
-                  <img src={h.video.thumbnail_url} className="w-10 h-10 rounded object-cover shrink-0" />
+                  <img loading="lazy" src={h.video.thumbnail_url} className="w-10 h-10 rounded object-cover shrink-0" />
                 )}
                 <div className="flex-1 min-w-0">
                   <p className="text-sm text-white truncate">{h.video?.title}</p>

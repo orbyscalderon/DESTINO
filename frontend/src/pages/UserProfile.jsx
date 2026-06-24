@@ -499,7 +499,7 @@ export default function UserProfile() {
       <div className="lg:max-w-6xl xl:max-w-7xl lg:mx-auto lg:grid lg:grid-cols-[minmax(0,400px)_minmax(0,1fr)] lg:gap-8 lg:px-8 lg:pt-6">
         {/* ═══════════════════ FOTO PRINCIPAL ═══════════════════ */}
         <div className="relative h-[55vh] lg:h-auto lg:rounded-3xl lg:overflow-hidden lg:aspect-[4/5] lg:sticky lg:top-6 lg:self-start">
-          <img
+          <img loading="lazy"
             src={profile.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.full_name || 'U')}&size=600&background=1a1a2e&color=f43f5e`}
             alt={`Foto de perfil de ${profile.full_name || 'usuario'}`}
             className="w-full h-full object-cover"
@@ -1191,7 +1191,7 @@ export default function UserProfile() {
                         >
                           <div className="flex items-center gap-3">
                             {pkg.cover_url && (
-                              <img src={pkg.cover_url} alt="" className="w-12 h-12 rounded-lg object-cover shrink-0" />
+                              <img loading="lazy" src={pkg.cover_url} alt="" className="w-12 h-12 rounded-lg object-cover shrink-0" />
                             )}
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center justify-between gap-2">
@@ -1305,7 +1305,7 @@ export default function UserProfile() {
                 <p className="text-center text-gray-500 text-sm py-8">Sin seguidores aún</p>
               ) : followers.map(f => (
                 <Link key={f.id} to={`/profile/${f.id}`} onClick={() => setShowFollowers(false)} className="flex items-center gap-3 py-2.5 hover:bg-white/5 rounded-xl px-2 -mx-2 transition-colors">
-                  <img src={f.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(f.full_name||'U')}&size=64&background=1a1a2e&color=f43f5e`} className="w-9 h-9 rounded-full object-cover shrink-0" alt="" />
+                  <img loading="lazy" src={f.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(f.full_name||'U')}&size=64&background=1a1a2e&color=f43f5e`} className="w-9 h-9 rounded-full object-cover shrink-0" alt="" />
                   <p className="text-white text-sm font-medium truncate">{f.full_name}</p>
                   {f.is_verified && <span className="text-brand-400 text-xs ml-auto shrink-0">✓</span>}
                 </Link>

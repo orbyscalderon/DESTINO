@@ -31,7 +31,7 @@ const DISCOVER_ITEMS = [
   { id: 'top',         label: 'Mejor valorados',             icon: FiStar },
   { id: 'amateur',     label: 'Contenido Casero Popular',    icon: FiHome },
   { id: 'shorts',      label: 'Cortos',                      icon: FiClock },
-  { id: 'channels',    label: 'Canales',                     icon: FiUsers, link: '?tab=creators' },
+  { id: 'channels',    label: 'Canales',                     icon: FiUsers, link: '/adult?tab=creators' },
   { id: 'playlists',   label: 'Listas de reproducción',      icon: FiList, link: '/explore/playlists' },
   { id: 'random',      label: 'Al Azar',                     icon: FiShuffle },
   { id: 'new',         label: 'El más nuevo',                icon: FiZap },

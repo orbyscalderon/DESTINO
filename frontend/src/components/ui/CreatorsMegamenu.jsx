@@ -24,17 +24,26 @@ const FILTERS = [
   { id: 'follows',     label: 'Mis seguidas',      icon: FiHeart      },
 ];
 
-// Países top con código ISO-2 (matches FlagImg)
-const COUNTRIES = [
-  { code: 'us', label: 'EE.UU.'      },
-  { code: 'es', label: 'España'      },
+// Países fallback con código ISO-2 (matches FlagImg).
+// Si el backend devuelve countries con creators reales (via /api/creator/discover),
+// se reemplazan dinámicamente en useEffect.
+const COUNTRIES_FALLBACK = [
+  { code: 'do', label: 'R. Dominicana' },
   { code: 'mx', label: 'México'      },
   { code: 'co', label: 'Colombia'    },
   { code: 'ar', label: 'Argentina'   },
   { code: 've', label: 'Venezuela'   },
+  { code: 'es', label: 'España'      },
+  { code: 'us', label: 'EE.UU.'      },
   { code: 'br', label: 'Brasil'      },
-  { code: 'do', label: 'R. Dominicana' },
 ];
+// Map ISO-2 → label en español para countries derivados del backend
+const COUNTRY_LABELS = {
+  do: 'R. Dominicana', mx: 'México', co: 'Colombia', ar: 'Argentina',
+  ve: 'Venezuela',     es: 'España', us: 'EE.UU.',   br: 'Brasil',
+  cl: 'Chile',         pe: 'Perú',   uy: 'Uruguay',  ec: 'Ecuador',
+  bo: 'Bolivia',       pa: 'Panamá', pr: 'Puerto Rico', cr: 'Costa Rica',
+};
 
 const TRENDING_NAMES_FALLBACK = [
   'Abella Anderson', 'Asa Akira', 'Rebeca Linares',
@@ -43,14 +52,30 @@ const TRENDING_NAMES_FALLBACK = [
 
 export default function CreatorsMegamenu({ onClose, onSelectFilter, trendingFromHub }) {
   const [creators, setCreators] = useState([]);
+  const [countries, setCountries] = useState(COUNTRIES_FALLBACK);
 
   const trending = (trendingFromHub && trendingFromHub.length > 0)
     ? trendingFromHub.slice(0, 6)
     : TRENDING_NAMES_FALLBACK;
 
   useEffect(() => {
-    api.get('/api/creator/discover?sort=popular&limit=8')
-      .then(({ data }) => setCreators((data.creators || []).slice(0, 8)))
+    // Pedimos hasta 60 creators para derivar countries reales (no hardcoded)
+    api.get('/api/creator/discover?sort=popular&limit=60')
+      .then(({ data }) => {
+        const list = data.creators || [];
+        setCreators(list.slice(0, 8));
+        // Derivar countries únicos top 8 ordenados por frecuencia
+        const counts = {};
+        for (const c of list) {
+          const code = (c.country || '').toLowerCase().slice(0, 2);
+          if (code && /^[a-z]{2}$/.test(code)) counts[code] = (counts[code] || 0) + 1;
+        }
+        const topCountries = Object.entries(counts)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 8)
+          .map(([code]) => ({ code, label: COUNTRY_LABELS[code] || code.toUpperCase() }));
+        if (topCountries.length >= 3) setCountries(topCountries);
+      })
       .catch(() => {});
   }, []);
 
@@ -155,7 +180,7 @@ export default function CreatorsMegamenu({ onClose, onSelectFilter, trendingFrom
               <FiGlobe size={13} className="text-gray-500" /> Por País
             </h3>
             <ul className="grid grid-cols-2 gap-1.5">
-              {COUNTRIES.map(c => (
+              {countries.map(c => (
                 <li key={c.code}>
                   <button
                     onClick={() => pickCountry(c.code)}

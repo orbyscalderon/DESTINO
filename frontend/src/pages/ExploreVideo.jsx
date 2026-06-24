@@ -262,7 +262,7 @@ export default function ExploreVideo() {
           {/* Creator info */}
           <Link to={`/profile/${video.user?.id}`}
             className="flex items-center gap-3 p-3 rounded-xl bg-dark-800 hover:bg-dark-700 transition-colors">
-            <img src={video.user?.avatar_url || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(video.user?.full_name || 'U')}
+            <img loading="lazy" src={video.user?.avatar_url || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(video.user?.full_name || 'U')}
               className="w-10 h-10 rounded-full object-cover" alt="" />
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5">
@@ -346,7 +346,7 @@ export default function ExploreVideo() {
               {costars.map(cs => (
                 <Link key={cs.user?.id} to={`/profile/${cs.user?.id}`}
                   className="flex items-center gap-2 p-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition">
-                  {cs.user?.avatar_url && <img src={cs.user.avatar_url} className="w-8 h-8 rounded-full object-cover" alt="" />}
+                  {cs.user?.avatar_url && <img loading="lazy" src={cs.user.avatar_url} className="w-8 h-8 rounded-full object-cover" alt="" />}
                   <div>
                     <p className="text-sm text-white font-bold">{cs.user?.full_name}</p>
                     {cs.user?.is_verified && <span className="text-[10px] text-brand-400">✓ Verified</span>}

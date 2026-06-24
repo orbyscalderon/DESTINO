@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiSearch, FiUsers, FiStar, FiGlobe, FiWifi, FiX, FiSliders, FiChevronRight } from 'react-icons/fi';
@@ -185,14 +185,23 @@ export default function AdultCreators({ embedded = false }) {
   const { profile } = useAuthStore();
   const isVip = profile?.premium_tier === 'vip' || profile?.is_adult_creator;
   const [verified, setVerified] = useState(isAgeVerified);
+  // Lee query params iniciales — sin esto los megamenús setean ?gender=...
+  // pero los filtros internos los ignoraban (bug audit megamenu #2).
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialGender = searchParams.get('gender') || '';
+  const initialCountry = searchParams.get('country') || '';
+  const initialSort = searchParams.get('sort') || 'new';
+  const initialOnline = searchParams.get('online') === '1' || searchParams.get('online') === 'true';
+  const initialQ = searchParams.get('q') || '';
+
   const [liveShows, setLiveShows] = useState([]);
   const [creators, setCreators]   = useState([]);
   const [loading, setLoading]     = useState(false);
-  const [query, setQuery]         = useState('');
-  const [gender, setGender]       = useState('');
-  const [country, setCountry]     = useState('');
-  const [sort, setSort]           = useState('new');
-  const [onlineOnly, setOnlineOnly] = useState(false);
+  const [query, setQuery]         = useState(initialQ);
+  const [gender, setGender]       = useState(initialGender);
+  const [country, setCountry]     = useState(initialCountry);
+  const [sort, setSort]           = useState(initialSort);
+  const [onlineOnly, setOnlineOnly] = useState(initialOnline);
   const [liveOnly, setLiveOnly]   = useState(false);
   const [page, setPage]           = useState(0);
   const [hasMore, setHasMore]     = useState(false);
@@ -237,6 +246,23 @@ export default function AdultCreators({ embedded = false }) {
       .then(({ data }) => setLiveShows(data.shows || []))
       .catch(() => {});
   }, [verified, gender, sort, onlineOnly, country, selectedCategories]);
+
+  // Sync con searchParams cuando cambia (ej. user click en un megamenú).
+  // Bug fix audit megamenu #2: antes los filtros eran state local sin
+  // sincronizar con URL → links de megamenu setean URL pero filtros no.
+  useEffect(() => {
+    const g = searchParams.get('gender') || '';
+    const c = searchParams.get('country') || '';
+    const s = searchParams.get('sort') || 'new';
+    const o = searchParams.get('online') === '1' || searchParams.get('online') === 'true';
+    const q = searchParams.get('q') || '';
+    if (g !== gender) setGender(g);
+    if (c !== country) setCountry(c);
+    if (s !== sort) setSort(s);
+    if (o !== onlineOnly) setOnlineOnly(o);
+    if (q !== query) setQuery(q);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   const toggleCategory = (slug) => {
     setSelectedCategories(prev => {

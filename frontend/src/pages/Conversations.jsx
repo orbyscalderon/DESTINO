@@ -79,7 +79,7 @@ export default function Conversations() {
               >
                 <div className="relative shrink-0">
                   {c.avatar_url ? (
-                    <img src={c.avatar_url} alt="" className="w-12 h-12 rounded-xl object-cover" />
+                    <img loading="lazy" src={c.avatar_url} alt="" className="w-12 h-12 rounded-xl object-cover" />
                   ) : (
                     <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-brand-500/30 to-accent-500/30 flex items-center justify-center text-lg">
                       👥
@@ -198,7 +198,7 @@ function CreateGroupModal({ onClose, onCreated }) {
                       : 'bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20'
                   }`}
                 >
-                  <img
+                  <img loading="lazy"
                     src={m.other.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(m.other.full_name || '?')}&size=80&background=1a1a2e&color=f43f5e`}
                     alt=""
                     className="w-9 h-9 rounded-full object-cover shrink-0"

@@ -441,7 +441,7 @@ export default function Profile() {
             {/* Avatar */}
             <div className="relative inline-block mb-3">
               <div className="w-24 h-24 lg:w-28 lg:h-28 rounded-full p-0.5 bg-gradient-to-br from-brand-500 to-purple-600 mx-auto">
-                <img
+                <img loading="lazy"
                   src={profile?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile?.full_name || 'U')}&size=200&background=1a1a2e&color=f43f5e`}
                   alt=""
                   className="w-full h-full rounded-full object-cover bg-dark-900"
@@ -1068,7 +1068,7 @@ export default function Profile() {
                   onDragOver={e => handleDragOver(e, idx)}
                   onDragEnd={handleDragEnd}
                 >
-                  <img
+                  <img loading="lazy"
                     src={photo.url}
                     alt=""
                     className="w-full h-full object-cover rounded-xl pointer-events-none"
@@ -1259,7 +1259,7 @@ export default function Profile() {
                   ) : videoRequests.map(req => (
                     <div key={req.id} className="bg-dark-700/50 rounded-xl p-3">
                       <div className="flex items-start gap-3">
-                        <img
+                        <img loading="lazy"
                           src={req.requester?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(req.requester?.full_name || '?')}&size=60&background=1a1a2e&color=f43f5e`}
                           className="w-9 h-9 rounded-full object-cover shrink-0"
                           alt=""

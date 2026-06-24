@@ -197,7 +197,7 @@ function PreviewCol({ title, items, variant, onHeaderClick }) {
         {items.map(it => (
           <Link
             key={it.id}
-            to={`/photos/${it.id}`}
+            to={`/c/collection/${it.id}`}
             className="group block"
           >
             <div className="relative aspect-[3/4] bg-dark-800 rounded-md overflow-hidden ring-1 ring-white/5 group-hover:ring-brand-500/40 transition-all">

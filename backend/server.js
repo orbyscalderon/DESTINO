@@ -82,6 +82,7 @@ import privacyDisclosureRoutes from './src/routes/privacyDisclosure.js';
 import creatorMonetizationRoutes from './src/routes/creatorMonetization.js';
 import adultVideoRoutes from './src/routes/adultVideo.js';
 import { listPublic as listPublicPhotoCollections } from './src/controllers/photoCollectionsController.js';
+import { errorHandler } from './src/lib/errors.js';
 import { supabase } from './src/lib/supabase.js';
 
 // Validar env vars al startup. En prod, faltantes CRÍTICAS hacen exit(1)
@@ -456,11 +457,9 @@ app.get('/share/profile/:id', async (req, res) => {
 app.get('/health', (req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
 
 // ── Error handler global ──────────────────────────────────────
-app.use((err, req, res, next) => {
-  if (process.env.SENTRY_DSN) Sentry.captureException(err);
-  console.error(err.stack);
-  res.status(500).json({ error: 'Error interno del servidor' });
-});
+// Centralizado en src/lib/errors.js: shape estándar { error, code, details? }
+// Convierte ApiError instances + cualquier otro error a JSON consistente.
+app.use(errorHandler);
 
 // Warnings de configuración (NO abortar — antes hacíamos exit(1) y el
 // deploy de Railway fallaba el healthcheck. Mejor arrancar siempre y dejar

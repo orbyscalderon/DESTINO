@@ -52,3 +52,22 @@ if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js').catch(() => {});
   });
 }
+
+// Deep linking: cuando el user abre destino.app/profile/X desde un link
+// externo (WhatsApp, etc.) en la app instalada, Capacitor emite appUrlOpen.
+// Navegamos al path correcto manteniendo el hash router (#/profile/X).
+if (typeof window !== 'undefined' && window.Capacitor?.isNativePlatform?.()) {
+  import('@capacitor/app').then(({ App }) => {
+    App.addListener('appUrlOpen', (event) => {
+      try {
+        const url = new URL(event.url);
+        // HashRouter usa /#/<path>; si viene https://destino.app/profile/X,
+        // navegamos a #/profile/X
+        const path = url.pathname + url.search;
+        if (path && path !== '/') {
+          window.location.hash = path;
+        }
+      } catch {}
+    });
+  }).catch(() => {});
+}

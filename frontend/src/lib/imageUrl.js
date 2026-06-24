@@ -56,6 +56,36 @@ export function thumbUrl(url, size = 128) {
   }
 }
 
+/**
+ * Genera srcset para imágenes responsive cuadradas (avatars, cards).
+ *
+ * @param {string} url
+ * @param {number[]} sizes  ej. [64, 128, 256]
+ * @returns {string} "url?w=64 64w, url?w=128 128w, url?w=256 256w"
+ */
+export function thumbSrcset(url, sizes = [64, 128, 256]) {
+  if (!url) return '';
+  return sizes.map(s => `${thumbUrl(url, s)} ${s}w`).join(', ');
+}
+
+/**
+ * Genera srcset para covers/banners (rectangulares).
+ */
+export function coverSrcset(url, widths = [400, 800, 1200]) {
+  if (!url) return '';
+  return widths.map(w => `${coverUrl(url, w)} ${w}w`).join(', ');
+}
+
+// Sizes pre-configurados (atributo `sizes` del <img>)
+export const IMG_SIZES = {
+  avatar:    '(max-width: 768px) 64px, 128px',
+  avatarLg:  '(max-width: 768px) 128px, 200px',
+  card:      '(max-width: 768px) 50vw, 25vw',
+  thumb:     '(max-width: 768px) 33vw, 200px',
+  fullwidth: '(max-width: 768px) 100vw, 800px',
+  hero:      '100vw',
+};
+
 // Variante para covers/banners (ratio rectangular, no cuadrado)
 export function coverUrl(url, width = 800) {
   if (!url || typeof url !== 'string') return url;

@@ -118,7 +118,7 @@ export default function CreatorVideoSeries() {
             />
             {form.cover_url && (
               <div className="mt-2 aspect-video rounded-lg overflow-hidden bg-dark-800 border border-white/10">
-                <img src={form.cover_url} alt="Preview" className="w-full h-full object-cover"
+                <img loading="lazy" src={form.cover_url} alt="Preview" className="w-full h-full object-cover"
                   onError={e => e.target.style.display = 'none'} />
               </div>
             )}
@@ -197,7 +197,7 @@ export default function CreatorVideoSeries() {
             <div key={s.id} className="card overflow-hidden hover:border-brand-500/30 transition-colors">
               <div className="relative aspect-video bg-dark-800">
                 {s.cover_url ? (
-                  <img src={s.cover_url} alt={s.title} className="w-full h-full object-cover" />
+                  <img loading="lazy" src={s.cover_url} alt={s.title} className="w-full h-full object-cover" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-4xl opacity-30">🎬</div>
                 )}

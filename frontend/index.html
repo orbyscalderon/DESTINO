@@ -8,6 +8,14 @@
     <meta name="description" content="Destino TV — Conecta con personas reales cerca de ti" />
     <title>Destino TV</title>
 
+    <!-- Content Security Policy (defensa anti-XSS).
+         script-src: requiere 'unsafe-inline' por Vite dev y framer-motion.
+         img-src: https: + data: + blob: para uploads previews.
+         connect-src: API propia + Supabase + LiveKit + Sentry. -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' https: data: blob:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; connect-src 'self' https: wss: *.supabase.co *.livekit.cloud *.ingest.sentry.io https://api.openai.com; frame-src https://challenges.cloudflare.com https://js.stripe.com; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self';">
+    <!-- HSTS preload (también lo aplica el backend, pero meta es defensa en profundidad si el server no añade el header) -->
+    <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+
     <!-- Open Graph / Social sharing -->
     <meta property="og:type" content="website" />
     <meta property="og:title" content="Destino TV — Conecta con personas reales" />
@@ -32,7 +40,12 @@
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!-- Preload del CSS de Inter para que no bloquee render (display=swap ya está) -->
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+    <!-- Preload del font file más usado (weight 500 para body) -->
+    <link rel="preload" as="font" type="font/woff2" crossorigin
+          href="https://fonts.gstatic.com/s/inter/v18/UcCO3FwrK3iLTeHuS_nVMrMxCp50ojIa1ZL7.woff2" />
   </head>
   <body>
     <div id="root"></div>

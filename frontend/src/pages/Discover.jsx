@@ -434,7 +434,7 @@ export default function Discover() {
             className="mb-5 card p-3 bg-gradient-to-r from-brand-500/15 to-purple-500/10 border border-brand-500/20 flex items-center gap-3"
           >
             <div className="relative shrink-0">
-              <img
+              <img loading="lazy"
                 src={topMatch.other?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(topMatch.other?.full_name || 'U')}&size=80&background=1a1a2e&color=f43f5e`}
                 className="w-11 h-11 rounded-full object-cover border-2 border-brand-500/40"
                 alt=""
@@ -469,7 +469,7 @@ export default function Discover() {
                 className="flex flex-col items-center gap-1.5 shrink-0"
               >
                 <StoryRing hasUnseen={ownGroup.has_unseen} isOwn size={52}>
-                  <img
+                  <img loading="lazy"
                     src={profile?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile?.full_name || 'U')}&size=100&background=1a1a2e&color=f43f5e`}
                     className="w-full h-full rounded-full object-cover"
                     alt=""
@@ -486,7 +486,7 @@ export default function Discover() {
             >
               <div className="relative" style={{ width: 56, height: 56 }}>
                 <div className="w-full h-full rounded-full bg-dark-700 border-2 border-dashed border-dark-500 flex items-center justify-center">
-                  <img
+                  <img loading="lazy"
                     src={profile?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile?.full_name || 'U')}&size=100&background=1a1a2e&color=f43f5e`}
                     className="w-full h-full rounded-full object-cover opacity-50"
                     alt=""
@@ -512,7 +512,7 @@ export default function Discover() {
                 className="flex flex-col items-center gap-1.5 shrink-0"
               >
                 <StoryRing hasUnseen={group.has_unseen} isOwn={false} size={52}>
-                  <img
+                  <img loading="lazy"
                     src={group.user.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(group.user.full_name)}&size=100&background=1a1a2e&color=f43f5e`}
                     className="w-full h-full rounded-full object-cover"
                     alt=""
@@ -550,7 +550,7 @@ export default function Discover() {
                   style={{ zIndex: 1 }}
                 >
                   <div className="w-full max-w-sm mx-auto aspect-[3/4] rounded-3xl overflow-hidden bg-dark-800 border border-white/5">
-                    <img
+                    <img loading="lazy"
                       src={feed[2].avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(feed[2].full_name || '?')}&size=400&background=1a1a2e&color=d946ef`}
                       alt=""
                       className="w-full h-full object-cover opacity-80"
@@ -567,7 +567,7 @@ export default function Discover() {
                   style={{ zIndex: 2 }}
                 >
                   <div className="w-full max-w-sm mx-auto aspect-[3/4] rounded-3xl overflow-hidden bg-dark-800 border border-white/10 shadow-xl">
-                    <img
+                    <img loading="lazy"
                       src={feed[1].avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(feed[1].full_name || '?')}&size=400&background=1a1a2e&color=f43f5e`}
                       alt=""
                       className="w-full h-full object-cover"
@@ -768,7 +768,7 @@ export default function Discover() {
               onClick={e => e.stopPropagation()}
             >
               <div className="relative h-72">
-                <img
+                <img loading="lazy"
                   src={previewProfile.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(previewProfile.full_name || 'U')}&size=400&background=1a1a2e&color=f43f5e`}
                   className="w-full h-full object-cover"
                   alt=""

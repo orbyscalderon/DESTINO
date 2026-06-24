@@ -286,7 +286,7 @@ function CoHostsPanel({ showId }) {
       {results.slice(0, 8).map(p => (
         <div key={p.id} className="flex items-center gap-2 p-1.5 rounded bg-dark-800">
           <div className="relative shrink-0">
-            <img src={p.avatar_url || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(p.full_name || 'U')}
+            <img loading="lazy" src={p.avatar_url || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(p.full_name || 'U')}
               className="w-7 h-7 rounded-full object-cover" alt="" />
             <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-red-500 border-2 border-dark-800 animate-pulse" title="En vivo" />
           </div>
@@ -312,7 +312,7 @@ function CoHostsPanel({ showId }) {
       )}
       {coHosts.map(c => (
         <div key={c.user?.id} className="flex items-center gap-2 p-2 rounded bg-dark-800">
-          <img src={c.user?.avatar_url || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(c.user?.full_name || 'U')}
+          <img loading="lazy" src={c.user?.avatar_url || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(c.user?.full_name || 'U')}
             className="w-7 h-7 rounded-full" alt="" />
           <div className="flex-1 min-w-0">
             <p className="text-xs text-white font-semibold truncate">{c.user?.full_name}</p>
@@ -2215,7 +2215,7 @@ export default function ShowStudio() {
                   {tippers.slice(0, 3).map((t, i) => (
                     <div key={t.id} className="flex items-center gap-1.5 mb-1">
                       <span className="text-[9px] font-black w-3 shrink-0" style={{ color: ['#FFD700','#C0C0C0','#CD7F32'][i] }}>#{i+1}</span>
-                      <img src={t.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(t.full_name||'U')}&size=32&background=1a1a2e&color=f43f5e`}
+                      <img loading="lazy" src={t.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(t.full_name||'U')}&size=32&background=1a1a2e&color=f43f5e`}
                         className="w-4 h-4 rounded-full object-cover shrink-0" alt="" />
                       <span className="text-white text-[10px] flex-1 truncate">{t.full_name}</span>
                       <span className="text-yellow-400 text-[10px] font-bold shrink-0">⚡{t.coins_total}</span>
@@ -2240,7 +2240,7 @@ export default function ShowStudio() {
                   : chatMessages.slice(-60).map((msg, i) => (
                     <div key={i} className="flex items-start gap-1 group">
                       {msg.avatar
-                        ? <img src={msg.avatar} className="w-4 h-4 rounded-full object-cover shrink-0 mt-0.5" alt="" />
+                        ? <img loading="lazy" src={msg.avatar} className="w-4 h-4 rounded-full object-cover shrink-0 mt-0.5" alt="" />
                         : <div className="w-4 h-4 rounded-full bg-brand-500/30 shrink-0 mt-0.5" />
                       }
                       <div className="bg-dark-700/80 rounded-lg px-2 py-1 min-w-0 flex-1">
@@ -2363,7 +2363,7 @@ export default function ShowStudio() {
                       </div>
                       <div className="flex items-center gap-2 mb-3">
                         {privateRequest.viewerAvatar
-                          ? <img src={privateRequest.viewerAvatar} className="w-9 h-9 rounded-full object-cover shrink-0" alt="" />
+                          ? <img loading="lazy" src={privateRequest.viewerAvatar} className="w-9 h-9 rounded-full object-cover shrink-0" alt="" />
                           : <div className="w-9 h-9 rounded-full bg-purple-500/30 flex items-center justify-center text-purple-300 font-bold text-sm shrink-0">{privateRequest.viewerName[0]}</div>
                         }
                         <div className="min-w-0">
@@ -2411,7 +2411,7 @@ export default function ShowStudio() {
                   : privateMessages.map((msg, i) => (
                     <div key={i} className="flex items-start gap-1.5">
                       {msg.fromAvatar
-                        ? <img src={msg.fromAvatar} className="w-5 h-5 rounded-full object-cover shrink-0 mt-0.5" alt="" />
+                        ? <img loading="lazy" src={msg.fromAvatar} className="w-5 h-5 rounded-full object-cover shrink-0 mt-0.5" alt="" />
                         : <div className="w-5 h-5 rounded-full bg-purple-500/30 flex items-center justify-center shrink-0 mt-0.5 text-[9px] text-purple-300">{(msg.fromName||'?')[0]}</div>
                       }
                       <div className="bg-purple-900/30 border border-purple-500/20 rounded-lg px-2 py-1 min-w-0">
@@ -2504,7 +2504,7 @@ export default function ShowStudio() {
                 {viewerList.filter(v => v.role === 'viewer').map((v, i) => (
                   <div key={v.userId || i} className="flex items-center gap-1.5">
                     {v.avatar
-                      ? <img src={v.avatar} className="w-6 h-6 rounded-full object-cover shrink-0" alt="" />
+                      ? <img loading="lazy" src={v.avatar} className="w-6 h-6 rounded-full object-cover shrink-0" alt="" />
                       : <div className="w-6 h-6 rounded-full bg-dark-600 flex items-center justify-center text-white text-[9px] font-bold shrink-0">{(v.name||'?')[0]}</div>
                     }
                     <span className="text-white text-[10px] flex-1 truncate">{v.name || 'Anónimo'}</span>
@@ -2641,7 +2641,7 @@ export default function ShowStudio() {
                 exit={{ opacity: 0 }} transition={{ duration: 2.4, ease: 'easeOut' }}
                 className="flex items-center gap-1.5 bg-black/60 backdrop-blur-sm rounded-full px-3 py-1.5 mb-1"
               >
-                {g.imageUrl ? <img src={g.imageUrl} alt="" className="w-6 h-6 object-contain" /> : <span className="text-xl">{g.emoji}</span>}
+                {g.imageUrl ? <img loading="lazy" src={g.imageUrl} alt="" className="w-6 h-6 object-contain" /> : <span className="text-xl">{g.emoji}</span>}
                 <span className="text-white text-xs font-medium">{g.senderName}</span>
               </motion.div>
             ))}
@@ -2994,7 +2994,7 @@ export default function ShowStudio() {
                     className="w-full flex items-center gap-2.5 p-2 rounded-lg bg-dark-800 hover:bg-dark-700 transition-colors disabled:opacity-50"
                   >
                     <div className="relative shrink-0">
-                      <img
+                      <img loading="lazy"
                         src={p.avatar_url || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(p.full_name || 'U')}
                         alt=""
                         className="w-9 h-9 rounded-full object-cover"

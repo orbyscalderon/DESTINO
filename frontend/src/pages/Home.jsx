@@ -71,7 +71,7 @@ function PostCard({ post, onLike, onComment, onDelete, currentUserId }) {
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="card overflow-hidden">
       <div className="flex items-center gap-3 p-3">
         <Link to={`/profile/${post.author?.id}`}>
-          <img
+          <img loading="lazy"
             src={post.author?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(post.author?.full_name || 'U')}&size=80&background=1a1a2e&color=f43f5e`}
             className="w-9 h-9 rounded-full object-cover"
             alt=""
@@ -129,7 +129,7 @@ function PostCard({ post, onLike, onComment, onDelete, currentUserId }) {
       ) : post.blurred ? (
         <div className="relative bg-dark-700 h-48 overflow-hidden flex items-center justify-center">
           {post.media_url && (
-            <img src={post.media_url} alt="" className="w-full h-full object-cover blur-xl scale-110 opacity-50" />
+            <img loading="lazy" src={post.media_url} alt="" className="w-full h-full object-cover blur-xl scale-110 opacity-50" />
           )}
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
             <p className="text-gray-300 text-sm font-medium">{t('home.adult_content')}</p>
@@ -140,7 +140,7 @@ function PostCard({ post, onLike, onComment, onDelete, currentUserId }) {
         post.media_type === 'video' ? (
           <video src={post.media_url} controls className="w-full max-h-80 object-contain bg-black" />
         ) : (
-          <img src={post.media_url} alt="" className="w-full max-h-80 object-cover" />
+          <img loading="lazy" src={post.media_url} alt="" className="w-full max-h-80 object-cover" />
         )
       ) : null}
 
@@ -180,7 +180,7 @@ function PostCard({ post, onLike, onComment, onDelete, currentUserId }) {
                 <p className="text-gray-600 text-xs text-center py-2">{t('home.no_comments')}</p>
               ) : comments.map(c => (
                 <div key={c.id} className="flex items-start gap-2">
-                  <img
+                  <img loading="lazy"
                     src={c.user?.avatar_url || `https://ui-avatars.com/api/?name=${c.user?.full_name}&size=32&background=1a1a2e&color=f43f5e`}
                     className="w-6 h-6 rounded-full shrink-0" alt=""
                   />
@@ -456,7 +456,7 @@ export default function Home() {
 
               {mediaPreview && (
                 <div className="relative mb-3 rounded-xl overflow-hidden">
-                  <img src={mediaPreview} alt="" className="w-full max-h-48 object-cover" />
+                  <img loading="lazy" src={mediaPreview} alt="" className="w-full max-h-48 object-cover" />
                   <button
                     onClick={() => { setMediaPreview(null); setMediaFile(null); }}
                     className="absolute top-2 right-2 w-6 h-6 bg-black/70 rounded-full flex items-center justify-center"

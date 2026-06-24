@@ -166,8 +166,12 @@ export const getVideoDetail = async (req, res) => {
 export const listTags = async (req, res) => {
   try {
     const cat   = req.query.category?.toString();
+    const sort  = req.query.sort?.toString() || 'popular'; // popular | new | alpha
     const limit = Math.min(100, parseInt(req.query.limit) || 50);
-    let q = supabase.from('video_tags').select('*').order('videos_count', { ascending: false }).limit(limit);
+    let q = supabase.from('video_tags').select('*').limit(limit);
+    if (sort === 'new')   q = q.order('created_at', { ascending: false });
+    else if (sort === 'alpha') q = q.order('name', { ascending: true });
+    else /* popular */    q = q.order('videos_count', { ascending: false });
     if (cat) q = q.eq('category', cat);
     const { data } = await q;
     res.json({ tags: data || [] });
