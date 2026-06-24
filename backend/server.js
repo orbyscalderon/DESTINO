@@ -83,6 +83,7 @@ import creatorMonetizationRoutes from './src/routes/creatorMonetization.js';
 import adultVideoRoutes from './src/routes/adultVideo.js';
 import { listPublic as listPublicPhotoCollections } from './src/controllers/photoCollectionsController.js';
 import { errorHandler } from './src/lib/errors.js';
+import { botMetaRenderer } from './src/lib/botMetaRenderer.js';
 import { supabase } from './src/lib/supabase.js';
 
 // Validar env vars al startup. En prod, faltantes CRÍTICAS hacen exit(1)
@@ -316,6 +317,12 @@ app.use('/api/seo', seoRoutes);
 // affiliate, pinned reels (cada path completo definido dentro de v6Routes)
 app.use(v6Routes);
 // El sitemap se sirve también en la raíz para que los crawlers lo encuentren
+// Bot meta renderer — detecta crawlers de redes sociales y devuelve HTML
+// con OG/Twitter tags reales del recurso (profile, show, video, collection).
+// Para users humanos pasa al next() — el SPA se sirve normalmente desde
+// el dominio frontend.
+app.use(botMetaRenderer);
+
 app.get('/sitemap.xml', (req, res, next) => {
   req.url = '/sitemap.xml';
   seoRoutes(req, res, next);

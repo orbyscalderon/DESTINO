@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase.js';
 import { uploadFile, deleteFile } from '../lib/storageProvider.js';
+import { parsePagination } from '../lib/pagination.js';
 import { spendCoins, addCoins } from './coinController.js';
 import multer from 'multer';
 
@@ -164,7 +165,8 @@ export const getTopCreators = async (req, res) => {
 export const searchProfiles = async (req, res) => {
   try {
     const { q, gender, min_age, max_age, country, language, interests, is_creator } = req.query;
-    if (!q || q.trim().length < 2) return res.json({ profiles: [] });
+    const { page, limit, offset } = parsePagination(req.query, { defaultLimit: 30, maxLimit: 60 });
+    if (!q || q.trim().length < 2) return res.json({ profiles: [], page, limit, has_more: false });
 
     // Strip PostgREST special chars to prevent query injection
     const term = q.trim().toLowerCase().replace(/[%_().,'";\\]/g, '');
@@ -191,7 +193,7 @@ export const searchProfiles = async (req, res) => {
       .or('is_adult_creator.is.null,is_adult_creator.eq.false')
       .or('is_incognito.is.null,is_incognito.eq.false')
       .or('is_paused.is.null,is_paused.eq.false')
-      .limit(30);
+      .range(offset, offset + limit - 1);
 
     if (gender && gender !== 'all') query = query.eq('gender', gender);
     if (min_age) query = query.gte('age', parseInt(min_age));
@@ -219,7 +221,13 @@ export const searchProfiles = async (req, res) => {
       data = (fallback.data || []).filter(p => !p.is_adult_creator && !p.is_incognito);
     }
 
-    res.json({ profiles: (data || []).map(sanitizeForPublic) });
+    const profiles = (data || []).map(sanitizeForPublic);
+    res.json({
+      profiles,
+      page,
+      limit,
+      has_more: profiles.length >= limit,
+    });
   } catch (err) {
     console.error('[searchProfiles]', err);
     res.status(500).json({ error: 'Error interno del servidor' });

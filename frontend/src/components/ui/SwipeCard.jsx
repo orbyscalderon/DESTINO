@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
 import { motion, useMotionValue, useTransform } from 'framer-motion';
+import ResponsiveImg from './ResponsiveImg.jsx';
 import { FiHeart, FiX, FiStar, FiPlay, FiMapPin } from 'react-icons/fi';
 import VerifiedBadge from './VerifiedBadge.jsx';
 import { hapticImpact, hapticNotification } from '../../lib/haptics.js';
@@ -98,9 +99,11 @@ export default function SwipeCard({ profile, onLike, onDislike, onSuperLike, isP
             className="w-full h-full object-cover pointer-events-none"
           />
         ) : (
-          <img
+          <ResponsiveImg
             src={allPhotos[photoIndex]}
             alt={profile.full_name}
+            variant="fullwidth"
+            priority={photoIndex === 0}
             className="w-full h-full object-cover pointer-events-none"
             draggable={false}
           />
