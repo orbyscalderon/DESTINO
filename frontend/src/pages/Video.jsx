@@ -20,8 +20,23 @@ const REGIONS = [
     codes: ['MX','CO','AR','VE','PE','CL','EC','BO','CU','DO','GT','HN','SV','NI','CR','PA','PR','UY','PY','BR'],
   },
   { id: 'norte',  label: 'Norteamérica', codes: ['US','CA'] },
-  { id: 'europa', label: 'Europa',       codes: ['ES','PT','FR','DE','IT','GB','RU'] },
-  { id: 'asia',   label: 'Asia / Otros', codes: ['JP','KR','CN','IN','TR','SA','PH','NG','ZA','AU'] },
+  {
+    id: 'europa', label: 'Europa',
+    codes: ['ES','PT','FR','DE','IT','GB','IE','NL','BE','CH','AT','SE','NO','DK','FI','PL','CZ','HU','RO','GR','BG','RS','UA','RU'],
+  },
+  {
+    id: 'asia',   label: 'Asia',
+    codes: ['JP','KR','CN','HK','TW','SG','PH','TH','VN','MY','ID','IN','PK','BD','LK','NP','MM','KH'],
+  },
+  {
+    id: 'meo',    label: 'Medio Oriente',
+    codes: ['TR','SA','AE','QA','KW','IL','IR','IQ','JO','LB','OM','EG'],
+  },
+  {
+    id: 'africa', label: 'África',
+    codes: ['ZA','NG','KE','GH','ET','UG','CM','CI','SN','MA','DZ','TN','AO','MZ','ZW'],
+  },
+  { id: 'oceania', label: 'Oceanía', codes: ['AU','NZ','FJ','PG'] },
 ];
 
 function loadRecent() {
@@ -171,7 +186,7 @@ export default function Video() {
 
             {/* Tabs de región (solo cuando no se busca) */}
             {!countrySearch && (
-              <div className="flex gap-1 mb-3 overflow-x-auto scrollbar-hide">
+              <div className="flex flex-wrap gap-1 mb-3">
                 {REGIONS.map(r => (
                   <button
                     key={r.id}
