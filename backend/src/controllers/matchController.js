@@ -2,6 +2,7 @@ import { supabase } from '../lib/supabase.js';
 import { sendPushToUser } from './notificationController.js';
 import { trackFunnel } from '../lib/funnelTracker.js';
 import { sendMatchEmail } from '../lib/emailService.js';
+import { logError } from '../lib/logger.js';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const isValidUUID = (v) => UUID_REGEX.test(v);
@@ -177,6 +178,7 @@ export const likeProfile = async (req, res) => {
       remainingLikes,
     });
   } catch (err) {
+    logError('matchController', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
@@ -198,6 +200,7 @@ export const dislikeProfile = async (req, res) => {
 
     res.json({ message: 'Dislike registrado' });
   } catch (err) {
+    logError('matchController', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
@@ -242,6 +245,7 @@ export const getLikesCount = async (req, res) => {
     const totalLimit = DAILY_LIKE_LIMIT + bonus;
     res.json({ count: used, limit: totalLimit, remaining: Math.max(0, totalLimit - used) });
   } catch (err) {
+    logError('matchController', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
@@ -331,6 +335,7 @@ export const getMatches = async (req, res) => {
 
     res.json({ matches: result });
   } catch (err) {
+    logError('matchController', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
@@ -363,6 +368,7 @@ export const getMatch = async (req, res) => {
 
     res.json({ match: { id: m.id, created_at: m.created_at, other: { ...other, is_online: isOnline } } });
   } catch (err) {
+    logError('matchController', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
@@ -419,6 +425,7 @@ export const addBonusLikes = async (req, res) => {
 
     res.json({ remaining, bonus: newBonus });
   } catch (err) {
+    logError('matchController', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
@@ -470,6 +477,7 @@ export const undoLastSwipe = async (req, res) => {
 
     res.json({ undone: false });
   } catch (err) {
+    logError('matchController', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
@@ -503,6 +511,7 @@ export const getSentLikes = async (req, res) => {
       })) || [],
     });
   } catch (err) {
+    logError('matchController', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
@@ -530,6 +539,7 @@ export const getWhoLikedMe = async (req, res) => {
       likes: likes?.map(l => ({ ...l.user1, match_id: l.id, is_super_like: l.is_super_like })) || [],
     });
   } catch (err) {
+    logError('matchController', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };

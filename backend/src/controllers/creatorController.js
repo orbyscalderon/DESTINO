@@ -7,6 +7,7 @@ import { COIN_VALUE_USD, CREATOR_CUT, PLATFORM_FEE_RATE, MIN_PAYOUT_USD } from '
 import { safeErrorMessage, processBatched } from '../lib/helpers.js';
 import { createNotification } from './inAppNotifController.js';
 import { sendPushToUser } from './notificationController.js';
+import { logError } from '../lib/logger.js';
 const GALLERY_ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp', 'video/mp4', 'video/quicktime'];
 const galleryUpload = multer({
   storage: multer.memoryStorage(),
@@ -300,6 +301,7 @@ export const getEarnings = async (req, res) => {
 
     res.json({ earnings: earnings || { total_earned: 0, available_balance: 0, pending_balance: 0, total_paid_out: 0 } });
   } catch (err) {
+    logError('creatorController', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
@@ -410,6 +412,7 @@ export const updateCreatorBio = async (req, res) => {
 
     res.json({ success: true });
   } catch (err) {
+    logError('creatorController', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
@@ -432,6 +435,7 @@ export const setSubscriptionPrice = async (req, res) => {
 
     res.json({ success: true });
   } catch (err) {
+    logError('creatorController', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
@@ -671,6 +675,7 @@ export const cancelCreatorSubscription = async (req, res) => {
 
     res.json({ message: 'Renovación automática desactivada. Tu acceso continúa hasta el final del período actual.' });
   } catch (err) {
+    logError('creatorController', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
@@ -1219,6 +1224,7 @@ export const toggleAdultMode = async (req, res) => {
 
     res.json({ success: true, is_adult_creator: !!enabled });
   } catch (err) {
+    logError('creatorController', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
@@ -1275,6 +1281,7 @@ export const getSubscribers = async (req, res) => {
     const totalRevenue = (data || []).reduce((s, sub) => s + parseFloat(sub.subscription_price || 0), 0);
     res.json({ subscribers: data || [], count: (data || []).length, total_revenue: parseFloat(totalRevenue.toFixed(2)) });
   } catch (err) {
+    logError('creatorController', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
@@ -1410,6 +1417,7 @@ export const discoverAdultCreators = async (req, res) => {
 
     res.json({ creators: result, hasMore: result.length === limit });
   } catch (err) {
+    logError('creatorController', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
@@ -1447,6 +1455,7 @@ export const getCreatorGalleries = async (req, res) => {
 
     res.json({ galleries: result });
   } catch (err) {
+    logError('creatorController', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
@@ -1487,6 +1496,7 @@ export const getGalleryItems = async (req, res) => {
     const mapped = (items || []).map(i => ({ ...i, media_url: i.url, media_type: i.type }));
     res.json({ items: mapped });
   } catch (err) {
+    logError('creatorController', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
@@ -1520,6 +1530,7 @@ export const createGallery = async (req, res) => {
     if (error) throw error;
     res.json({ gallery });
   } catch (err) {
+    logError('creatorController', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
@@ -1584,6 +1595,7 @@ export const deleteGallery = async (req, res) => {
     await supabase.from('creator_galleries').delete().eq('id', galleryId);
     res.json({ success: true });
   } catch (err) {
+    logError('creatorController', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
@@ -1634,6 +1646,7 @@ export const unlockGallery = async (req, res) => {
     const { data: newBal } = await supabase.from('profiles').select('coins_balance').eq('id', userId).single();
     res.json({ success: true, coins_remaining: newBal?.coins_balance ?? 0 });
   } catch (err) {
+    logError('creatorController', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
@@ -1658,6 +1671,7 @@ export const deleteGalleryItem = async (req, res) => {
 
     res.json({ success: true });
   } catch (err) {
+    logError('creatorController', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
@@ -2033,6 +2047,7 @@ export const getStoryAnalytics = async (req, res) => {
 
     res.json({ stories: stories.map(s => ({ ...s, views_count: viewCounts[s.id] || 0 })) });
   } catch (err) {
+    logError('creatorController', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };

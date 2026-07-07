@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { FiMail, FiLock, FiUser, FiEye, FiEyeOff } from 'react-icons/fi';
+import { FiMail, FiLock, FiUser, FiEye, FiEyeOff, FiCalendar } from 'react-icons/fi';
 import { Turnstile } from '@marsidev/react-turnstile';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '../lib/supabase.js';
@@ -18,6 +18,17 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 // Backend guarda accepted_tos_version en profiles para audit + GDPR.
 const TOS_VERSION = 1;
 
+function calculateAge(dobStr) {
+  if (!dobStr) return null;
+  const dob = new Date(dobStr);
+  if (isNaN(dob.getTime())) return null;
+  const now = new Date();
+  let age = now.getFullYear() - dob.getFullYear();
+  const m = now.getMonth() - dob.getMonth();
+  if (m < 0 || (m === 0 && now.getDate() < dob.getDate())) age--;
+  return age;
+}
+
 function validate(form) {
   const errs = {};
   if (!form.fullName.trim()) errs.fullName = 'El nombre es requerido';
@@ -25,6 +36,15 @@ function validate(form) {
   if (form.password.length < 6) errs.password = 'Mínimo 6 caracteres';
   if (!form.acceptedTos) errs.acceptedTos = 'Debes aceptar los términos y privacidad';
   if (!form.confirmedAge) errs.confirmedAge = 'Debes confirmar que eres mayor de 18 años';
+  // DOB obligatorio + >= 13 años (COPPA). Adult content gate exige 18 server-side.
+  if (!form.dateOfBirth) {
+    errs.dateOfBirth = 'Ingresa tu fecha de nacimiento';
+  } else {
+    const age = calculateAge(form.dateOfBirth);
+    if (age === null) errs.dateOfBirth = 'Fecha inválida';
+    else if (age < 13) errs.dateOfBirth = 'Debes tener al menos 13 años';
+    else if (age > 120) errs.dateOfBirth = 'Fecha inválida';
+  }
   return errs;
 }
 
@@ -41,6 +61,7 @@ export default function Register() {
     fullName: '',
     email: '',
     password: '',
+    dateOfBirth: '',
     acceptedTos: false,
     confirmedAge: false,
   });
@@ -102,6 +123,7 @@ export default function Register() {
         options: {
           data: {
             full_name: form.fullName,
+            date_of_birth: form.dateOfBirth,
             accepted_tos_version: TOS_VERSION,
             accepted_tos_at: new Date().toISOString(),
             confirmed_age_at: new Date().toISOString(),
@@ -113,11 +135,23 @@ export default function Register() {
       if (error) throw error;
 
       // Registrar consent en backend (idempotente — si user existe lo updatea).
-      // Cumple Art. 7 GDPR (consent debe ser auditable) + DSA Art. 14.
+      // Cumple Art. 7 GDPR (consent auditable) + DSA Art. 14.
       api.post('/auth/record-tos-acceptance', {
         tos_version: TOS_VERSION,
         email: form.email,
-      }).catch(() => {}); // fire-and-forget — no rompe signup
+      }).catch(() => {});
+
+      // Persistir DOB server-side (fuente de verdad). Se llama tras signup
+      // porque requiere auth. Si hay sesión, es sincrónico; sino, se hace
+      // en AuthCallback post-confirmación de email.
+      if (data.session) {
+        api.post('/auth/record-date-of-birth', {
+          date_of_birth: form.dateOfBirth,
+        }).catch(() => {});
+      } else {
+        // Guardar en localStorage para que AuthCallback lo persista post-confirm
+        try { localStorage.setItem('destino-pending-dob', form.dateOfBirth); } catch {}
+      }
 
       // Enviar email de bienvenida (fire-and-forget)
       api.post('/auth/welcome-email', {
@@ -260,6 +294,26 @@ export default function Register() {
               </button>
             </div>
             {errors.password && <p className="text-red-400 text-xs mt-1 pl-1">{errors.password}</p>}
+          </div>
+
+          {/* Date of birth — fuente de verdad de la edad server-side */}
+          <div>
+            <div className="relative">
+              <FiCalendar className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 z-10 pointer-events-none" size={16} />
+              <input
+                className={`input-field pl-11 ${errors.dateOfBirth ? 'border-red-500' : ''}`}
+                type="date"
+                max={new Date().toISOString().split('T')[0]}
+                placeholder="Fecha de nacimiento"
+                value={form.dateOfBirth}
+                onChange={handleChange('dateOfBirth')}
+                aria-label="Fecha de nacimiento"
+              />
+            </div>
+            {errors.dateOfBirth && <p className="text-red-400 text-xs mt-1 pl-1">{errors.dateOfBirth}</p>}
+            <p className="text-[10px] text-gray-500 mt-1 pl-1">
+              Se usa para verificar edad — no se muestra públicamente.
+            </p>
           </div>
 
           {/* Age + Terms consent — legal-critical para GDPR/CCPA + 2257 + DSA */}

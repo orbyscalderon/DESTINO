@@ -51,7 +51,15 @@ export async function geoBlockAdult(req, res, next) {
   }
 }
 
-// Requiere age_verified_at en profile (consumer ya consintió ser 18+)
+// Gate para contenido adulto (18+).
+//
+// Verifica en orden:
+//   1. Usuario no baneado
+//   2. date_of_birth presente + edad calculada >= 18 (fuente de verdad)
+//   3. age_verified_at O is_adult_creator (verificación explícita del user)
+//
+// Antes solo chequeaba (3) — un menor podía marcar checkbox y pasar. Ahora
+// (2) es hard gate: sin DOB o con DOB < 18, retorna 403 aunque haya checkbox.
 export async function requireAgeVerified(req, res, next) {
   try {
     const userId = req.user?.id;
@@ -59,7 +67,7 @@ export async function requireAgeVerified(req, res, next) {
 
     const { data: prof } = await supabase
       .from('profiles')
-      .select('age_verified_at, is_adult_creator, is_banned, premium_tier')
+      .select('date_of_birth, age_verified_at, is_adult_creator, is_banned, premium_tier')
       .eq('id', userId)
       .single();
 
@@ -67,8 +75,31 @@ export async function requireAgeVerified(req, res, next) {
       return res.status(403).json({ error: 'Cuenta bloqueada', code: 'ACCOUNT_BANNED' });
     }
 
-    const verified = prof?.age_verified_at || prof?.is_adult_creator;
-    if (!verified) {
+    // Hard gate: DOB requerida
+    if (!prof?.date_of_birth) {
+      return res.status(403).json({
+        error: 'Debes proporcionar tu fecha de nacimiento para acceder a esta sección',
+        code: 'DOB_REQUIRED',
+      });
+    }
+
+    // Cálculo server-side de edad (no confía en frontend)
+    const dob = new Date(prof.date_of_birth);
+    const now = new Date();
+    let age = now.getFullYear() - dob.getFullYear();
+    const m = now.getMonth() - dob.getMonth();
+    if (m < 0 || (m === 0 && now.getDate() < dob.getDate())) age--;
+
+    if (age < 18) {
+      return res.status(403).json({
+        error: 'Esta sección es solo para mayores de 18 años',
+        code: 'UNDERAGE',
+      });
+    }
+
+    // Consent explícito adicional (checkbox 18+ o creator verificado)
+    const consented = prof?.age_verified_at || prof?.is_adult_creator;
+    if (!consented) {
       return res.status(403).json({
         error: 'Esta sección requiere verificación de edad',
         code: 'AGE_VERIFICATION_REQUIRED',
@@ -76,8 +107,11 @@ export async function requireAgeVerified(req, res, next) {
     }
 
     req.geo = getRequestGeo(req);
+    req.userAge = age;
     next();
-  } catch {
+  } catch (err) {
+    // Log real — antes tragaba el error silencioso
+    console.error('[requireAgeVerified]', err.message);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 }

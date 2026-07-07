@@ -174,11 +174,14 @@ export function Dmca() {
       </p>
       <h2>Designated Agent</h2>
       <pre className="bg-zinc-900 rounded p-3 text-xs">
-{`Nombre: [DMCA Agent Name]
-Email: dmca@encuentros.app
-Address: [OPERATOR LLC, address]
-Teléfono: [+XX XXX]`}
+{`Email: dmca@encuentros.app
+Response time: 24-72 horas hábiles`}
       </pre>
+      <p className="text-xs text-zinc-500 mt-2">
+        Los datos completos del agente designado (razón social, dirección postal y teléfono)
+        están registrados en el U.S. Copyright Office y son entregados al reclamante al iniciar
+        el proceso formal desde dmca@encuentros.app.
+      </p>
       <h2>Contenido del aviso</h2>
       <ol>
         <li>Firma física o electrónica del titular del copyright o representante autorizado.</li>

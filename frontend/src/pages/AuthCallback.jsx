@@ -5,6 +5,7 @@ import api from '../lib/api.js';
 import toast from 'react-hot-toast';
 
 const AFF_STORAGE_KEY = 'destino-pending-affiliate';
+const DOB_STORAGE_KEY = 'destino-pending-dob';
 
 // Consume el code de affiliate pendiente (si lo había). Llamado tras el login
 // exitoso vía OAuth o email confirmation — los flows donde el user salió del
@@ -16,9 +17,21 @@ async function consumePendingAffiliate() {
     await api.post('/api/affiliate/attribute', { code });
     localStorage.removeItem(AFF_STORAGE_KEY);
   } catch {
-    // Code inválido / ya atribuido / no es creator todavía — limpiamos igual
-    // para no reintentar infinitamente en cada login.
     try { localStorage.removeItem(AFF_STORAGE_KEY); } catch {}
+  }
+}
+
+// Persiste DOB pendiente si el signup requirió confirmación de email.
+// Se guarda en Register.jsx si no había session inmediata.
+async function consumePendingDob() {
+  try {
+    const dob = localStorage.getItem(DOB_STORAGE_KEY);
+    if (!dob) return;
+    await api.post('/auth/record-date-of-birth', { date_of_birth: dob });
+    localStorage.removeItem(DOB_STORAGE_KEY);
+  } catch {
+    // Si ya estaba seteada (409) o inválida, limpiamos igual
+    try { localStorage.removeItem(DOB_STORAGE_KEY); } catch {}
   }
 }
 
@@ -29,8 +42,9 @@ async function redirectByProfile(userId, type, navigate) {
     .eq('id', userId)
     .single();
 
-  // Atribuir affiliate antes del redirect (fire-and-forget, no bloqueante).
+  // Consumir pendings antes del redirect (fire-and-forget, no bloqueantes).
   consumePendingAffiliate();
+  consumePendingDob();
 
   if (type === 'recovery') {
     navigate('/settings?reset=true', { replace: true });

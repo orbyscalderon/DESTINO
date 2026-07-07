@@ -90,6 +90,71 @@ router.post('/record-tos-acceptance', tosLimiter, async (req, res) => {
   }
 });
 
+// Registra date_of_birth server-side. Se valida:
+//   - Formato YYYY-MM-DD
+//   - Fecha no en el futuro
+//   - Edad calculada >= 13 (COPPA / DB constraint)
+//
+// Se llama post-signup. Si el usuario ya tiene DOB registrada, NO permite
+// cambiarla (prevenir fraude de menor→mayor). Solo admin puede modificar
+// vía panel admin con audit trail.
+const dobLimiter = rateLimit({ windowMs: 60 * 1000, max: 5 });
+router.post('/record-date-of-birth', dobLimiter, authMiddleware, async (req, res) => {
+  try {
+    const { date_of_birth } = req.body;
+    if (!date_of_birth || !/^\d{4}-\d{2}-\d{2}$/.test(date_of_birth)) {
+      return res.status(400).json({ error: 'Fecha inválida (YYYY-MM-DD)', code: 'INVALID_DOB' });
+    }
+
+    const dob = new Date(date_of_birth);
+    if (isNaN(dob.getTime()) || dob > new Date()) {
+      return res.status(400).json({ error: 'Fecha inválida', code: 'INVALID_DOB' });
+    }
+
+    // Cálculo de edad — mínimo 13 años (COPPA)
+    const now = new Date();
+    let age = now.getFullYear() - dob.getFullYear();
+    const m = now.getMonth() - dob.getMonth();
+    if (m < 0 || (m === 0 && now.getDate() < dob.getDate())) age--;
+
+    if (age < 13) {
+      return res.status(400).json({
+        error: 'Debes tener al menos 13 años para usar esta app',
+        code: 'UNDERAGE',
+      });
+    }
+
+    // Chequear si ya existe DOB — no permitir cambio (prevenir fraude)
+    const { data: existing } = await supabase
+      .from('profiles')
+      .select('date_of_birth')
+      .eq('id', req.user.id)
+      .maybeSingle();
+
+    if (existing?.date_of_birth) {
+      return res.status(409).json({
+        error: 'Fecha de nacimiento ya registrada. Contacta soporte para modificar.',
+        code: 'DOB_ALREADY_SET',
+      });
+    }
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({ date_of_birth })
+      .eq('id', req.user.id);
+
+    if (error) {
+      logger.error('record-date-of-birth failed', { err: error.message, userId: req.user.id });
+      return res.status(500).json({ error: 'Error registrando fecha de nacimiento' });
+    }
+
+    res.json({ ok: true, age });
+  } catch (err) {
+    logger.error('record-date-of-birth exception', { err: err.message });
+    res.status(500).json({ error: 'Error registrando fecha de nacimiento' });
+  }
+});
+
 // Account lockout: el frontend reporta cada intento de login
 // (no requiere auth porque ocurre antes/durante login)
 const loginLimiter = rateLimit({

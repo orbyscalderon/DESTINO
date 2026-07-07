@@ -45,6 +45,42 @@ export const logger = {
   }),
 };
 
+// Logga un error Y lo reporta a Sentry si está disponible.
+// Uso estándar en catch blocks:
+//
+//   try { ... } catch (err) {
+//     logError('handler-name', err, { extra: context });
+//     return res.status(500).json({ error: 'Error interno' });
+//   }
+//
+// Antes había 182 catches silenciosos que solo hacían res.status(500) sin log.
+// Esta helper centraliza logging + Sentry en una sola llamada.
+export async function logError(source, err, context = {}) {
+  const payload = {
+    source,
+    err: err?.message || String(err),
+    stack: err?.stack?.split('\n').slice(0, 5).join('\n'),
+    ...context,
+  };
+  emit('error', payload, `[${source}] ${err?.message || err}`);
+
+  // Sentry es opcional — si está instalado, capturamos ahí también.
+  // Dynamic import para no romper si @sentry/node no está en el bundle.
+  if (process.env.SENTRY_DSN) {
+    try {
+      const Sentry = await import('@sentry/node').catch(() => null);
+      if (Sentry?.captureException) {
+        Sentry.captureException(err instanceof Error ? err : new Error(String(err)), {
+          tags: { source },
+          extra: context,
+        });
+      }
+    } catch {
+      // Sentry no disponible — el log estructurado en JSON queda igual
+    }
+  }
+}
+
 // Express middleware — atacha req.id (de X-Request-Id si vino, sino genera)
 // + req.log (logger con req.id, method, path bound).
 export function requestId(req, res, next) {

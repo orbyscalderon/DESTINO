@@ -4,6 +4,7 @@ import { sendBroadcastNotification } from './notificationController.js';
 import { sendWithdrawalStatusEmail } from '../lib/emailService.js';
 import { COIN_VALUE_USD, PLATFORM_FEE_RATE } from './coinController.js';
 import { logAdmin } from '../lib/auditLog.js';
+import { logError } from '../lib/logger.js';
 
 // GET /api/admin/platform-revenue?days=30 — ingresos de la plataforma (el 30%)
 // Solo accesible para admin. Suma TODAS las fuentes y devuelve:
@@ -376,6 +377,7 @@ export const deleteUser = async (req, res) => {
     logAdmin(req, 'user.delete', { type: 'user', id: userId });
     res.json({ message: 'Usuario eliminado' });
   } catch (err) {
+    logError('adminController', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
@@ -399,7 +401,8 @@ export const getWithdrawals = async (req, res) => {
     }));
 
     res.json({ withdrawals });
-  } catch {
+  } catch (err) {
+    logError('adminController', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
@@ -461,7 +464,8 @@ export const processWithdrawal = async (req, res) => {
     });
 
     res.json({ withdrawal: updated });
-  } catch {
+  } catch (err) {
+    logError('adminController', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
@@ -482,6 +486,7 @@ export const getContentQueue = async (req, res) => {
     if (error) throw error;
     res.json({ posts: data || [] });
   } catch (err) {
+    logError('adminController', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
@@ -535,6 +540,7 @@ export const processContent = async (req, res) => {
 
     res.json({ message: status === 'published' ? 'Post aprobado y publicado' : 'Post rechazado' });
   } catch (err) {
+    logError('adminController', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
@@ -552,7 +558,8 @@ export const getVerifications = async (req, res) => {
 
     if (error) throw error;
     res.json({ verifications: data || [] });
-  } catch {
+  } catch (err) {
+    logError('adminController', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
@@ -586,6 +593,7 @@ export const adjustUserCoins = async (req, res) => {
 
     res.json({ new_balance: newBalance });
   } catch (err) {
+    logError('adminController', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
@@ -601,6 +609,7 @@ export const endShow = async (req, res) => {
     logAdmin(req, 'show.force_end', { type: 'show', id });
     res.json({ message: 'Show terminado' });
   } catch (err) {
+    logError('adminController', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
@@ -618,6 +627,7 @@ export const broadcastNotification = async (req, res) => {
     });
     res.json(result);
   } catch (err) {
+    logError('adminController', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
@@ -639,7 +649,8 @@ export const getReports = async (req, res) => {
 
     if (error) throw error;
     res.json({ reports: data || [] });
-  } catch {
+  } catch (err) {
+    logError('adminController', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
@@ -675,6 +686,7 @@ export const processReport = async (req, res) => {
 
     res.json({ message: status === 'reviewed' ? 'Reporte revisado' : 'Reporte descartado' });
   } catch (err) {
+    logError('adminController', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
@@ -721,7 +733,8 @@ export const processVerification = async (req, res) => {
     }
 
     res.json({ message: `Verificación ${status === 'approved' ? 'aprobada' : 'rechazada'}` });
-  } catch {
+  } catch (err) {
+    logError('adminController', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };

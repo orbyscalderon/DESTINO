@@ -4,6 +4,9 @@
   "description": "Backend API for Destino TV social app",
   "main": "server.js",
   "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",

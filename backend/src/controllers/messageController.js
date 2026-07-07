@@ -9,6 +9,7 @@ import { trackFunnel } from '../lib/funnelTracker.js';
 import { moderateText } from '../lib/textModeration.js';
 import { insertMessageMentions } from '../lib/mentions.js';
 import multer from 'multer';
+import { logError } from '../lib/logger.js';
 
 const ALLOWED_IMAGE_MIME = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 const ALLOWED_AUDIO_MIME = ['audio/webm', 'audio/mp4', 'audio/ogg', 'audio/mpeg', 'audio/wav'];
@@ -123,6 +124,7 @@ export const sendImageMessage = async (req, res) => {
 
     res.json({ message });
   } catch (err) {
+    logError('messageController', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
@@ -190,6 +192,7 @@ export const getMessages = async (req, res) => {
     const ordered = (messages || []).reverse();
     res.json({ messages: ordered, hasMore: (messages || []).length === limit });
   } catch (err) {
+    logError('messageController', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
@@ -387,6 +390,7 @@ export const sendMessage = async (req, res) => {
 
     res.json({ message, remaining });
   } catch (err) {
+    logError('messageController', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
@@ -701,6 +705,7 @@ export const toggleReaction = async (req, res) => {
     await supabase.from('message_reactions').insert({ message_id: messageId, user_id: userId, emoji });
     res.json({ action: 'added' });
   } catch (err) {
+    logError('messageController', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
@@ -737,6 +742,7 @@ export const deleteMessage = async (req, res) => {
     }
     res.json({ action: 'deleted_for_me' });
   } catch (err) {
+    logError('messageController', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
@@ -776,6 +782,7 @@ export const pinMessage = async (req, res) => {
 
     res.json({ success: true });
   } catch (err) {
+    logError('messageController', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
@@ -800,6 +807,7 @@ export const unpinMessage = async (req, res) => {
 
     res.json({ success: true });
   } catch (err) {
+    logError('messageController', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
@@ -822,6 +830,7 @@ export const clearConversation = async (req, res) => {
 
     res.json({ success: true });
   } catch (err) {
+    logError('messageController', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
@@ -855,6 +864,7 @@ export const getPinnedMessage = async (req, res) => {
       pinned_list: list,          // nueva
     });
   } catch (err) {
+    logError('messageController', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
@@ -880,6 +890,7 @@ export const getTodayCount = async (req, res) => {
       remaining: Math.max(0, DAILY_LIMIT - count),
     });
   } catch (err) {
+    logError('messageController', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };

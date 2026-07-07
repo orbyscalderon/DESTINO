@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase.js';
+import { SUPER_ADMIN_EMAIL } from '../lib/constants.js';
 
 // POST /api/promo-codes (creator)
 export const createPromo = async (req, res) => {
@@ -21,7 +22,7 @@ export const createPromo = async (req, res) => {
 
     // Solo platform admin puede crear platform-wide codes
     if (type === 'platform') {
-      const isAdmin = req.user?.email === 'orbys85@gmail.com';
+      const isAdmin = req.user?.email === SUPER_ADMIN_EMAIL;
       if (!isAdmin) return res.status(403).json({ error: 'Solo admin puede crear platform codes' });
     }
 

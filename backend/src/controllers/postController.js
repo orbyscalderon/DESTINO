@@ -5,6 +5,7 @@ import { createNotification } from './inAppNotifController.js';
 import { spendCoins, addCoins, CREATOR_CUT } from './coinController.js';
 import { moderateImage } from '../lib/moderation.js';
 import { sanitizeUserText } from '../lib/helpers.js';
+import { logError } from '../lib/logger.js';
 
 const ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp', 'video/mp4', 'video/quicktime'];
 
@@ -178,6 +179,7 @@ export const getUserPosts = async (req, res) => {
 
     res.json({ posts: result, hasMore: (posts || []).length === limit });
   } catch (err) {
+    logError('postController', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
@@ -349,6 +351,7 @@ export const deletePost = async (req, res) => {
     await supabase.from('posts').delete().eq('id', id);
     res.json({ message: 'Post eliminado' });
   } catch (err) {
+    logError('postController', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
@@ -378,6 +381,7 @@ export const toggleLike = async (req, res) => {
 
     res.json({ liked: true });
   } catch (err) {
+    logError('postController', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
@@ -394,6 +398,7 @@ export const getComments = async (req, res) => {
       .limit(50);
     res.json({ comments: comments || [] });
   } catch (err) {
+    logError('postController', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
@@ -478,6 +483,7 @@ export const addComment = async (req, res) => {
 
     res.status(201).json({ comment });
   } catch (err) {
+    logError('postController', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
@@ -525,6 +531,7 @@ export const getByHashtag = async (req, res) => {
 
     res.json({ posts: posts || [], tag });
   } catch (err) {
+    logError('postController', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
@@ -556,6 +563,7 @@ export const getTrendingHashtags = async (req, res) => {
 
     res.json({ trending });
   } catch (err) {
+    logError('postController', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };

@@ -14,6 +14,15 @@ const config: CapacitorConfig = {
     allowNavigation: [
       'destino.app',
       '*.destino.app',
+      // Payment processor domains — se abren dentro del WebView (evitar
+      // navegación externa que rompe callbacks de Stripe/CCBill en mobile)
+      'checkout.stripe.com',
+      'js.stripe.com',
+      'api.ccbill.com',
+      '*.ccbill.com',
+      // OAuth
+      'accounts.google.com',
+      'appleid.apple.com',
     ],
   },
   plugins: {

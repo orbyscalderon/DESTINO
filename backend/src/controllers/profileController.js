@@ -2,6 +2,7 @@ import { supabase } from '../lib/supabase.js';
 import { uploadFile, deleteFile } from '../lib/storageProvider.js';
 import { parsePagination } from '../lib/pagination.js';
 import { spendCoins, addCoins } from './coinController.js';
+import { logError } from '../lib/logger.js';
 import multer from 'multer';
 
 // Sec audit #14: cambio de denylist (PRIVATE_FIELDS) a ALLOWLIST. Antes,
@@ -527,6 +528,7 @@ export const uploadAvatar = async (req, res) => {
 
     res.json({ avatar_url: url });
   } catch (err) {
+    logError('profileController', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
@@ -540,6 +542,7 @@ export const heartbeat = async (req, res) => {
       .eq('id', req.user.id);
     res.json({ ok: true });
   } catch (err) {
+    logError('profileController', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
@@ -562,6 +565,7 @@ export const toggleIncognito = async (req, res) => {
     await supabase.from('profiles').update({ is_incognito: !!enabled }).eq('id', userId);
     res.json({ is_incognito: !!enabled });
   } catch (err) {
+    logError('profileController', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
@@ -599,6 +603,7 @@ export const verifyAge = async (req, res) => {
     await supabase.from('profiles').update({ age_verified_at: new Date().toISOString() }).eq('id', userId);
     res.json({ age_verified_at: new Date().toISOString() });
   } catch (err) {
+    logError('profileController', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
@@ -615,6 +620,7 @@ export const getPhotos = async (req, res) => {
     if (error) throw error;
     res.json({ photos: photos || [] });
   } catch (err) {
+    logError('profileController', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
@@ -646,6 +652,7 @@ export const uploadPhoto = async (req, res) => {
     if (error) throw error;
     res.json({ photo });
   } catch (err) {
+    logError('profileController', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
@@ -754,6 +761,7 @@ export const getPhotosForViewer = async (req, res) => {
 
     res.json({ photos: result });
   } catch (err) {
+    logError('profileController', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
@@ -788,6 +796,7 @@ export const setPhotoPricing = async (req, res) => {
 
     res.json({ success: true });
   } catch (err) {
+    logError('profileController', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
@@ -815,6 +824,7 @@ export const deletePhoto = async (req, res) => {
 
     res.json({ message: 'Foto eliminada' });
   } catch (err) {
+    logError('profileController', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
@@ -834,6 +844,7 @@ export const reorderPhotos = async (req, res) => {
 
     res.json({ message: 'Orden actualizado' });
   } catch (err) {
+    logError('profileController', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
@@ -916,6 +927,7 @@ export const boostProfile = async (req, res) => {
 
     res.json({ message: 'Boost activado por 30 minutos', cost: BOOST_COST });
   } catch (err) {
+    logError('profileController', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
@@ -928,6 +940,7 @@ export const toggleHideOnlineStatus = async (req, res) => {
     await supabase.from('profiles').update({ hide_online_status: !!enabled }).eq('id', userId);
     res.json({ hide_online_status: !!enabled });
   } catch (err) {
+    logError('profileController', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
@@ -939,6 +952,7 @@ export const pauseAccount = async (req, res) => {
     await supabase.from('profiles').update({ is_paused: true, paused_at: new Date().toISOString() }).eq('id', userId);
     res.json({ is_paused: true });
   } catch (err) {
+    logError('profileController', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
@@ -950,6 +964,7 @@ export const unpauseAccount = async (req, res) => {
     await supabase.from('profiles').update({ is_paused: false, paused_at: null }).eq('id', userId);
     res.json({ is_paused: false });
   } catch (err) {
+    logError('profileController', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };

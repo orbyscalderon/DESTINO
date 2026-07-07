@@ -1,8 +1,6 @@
 import { supabase } from '../lib/supabase.js';
-
-// Hardcoded super admin — defensa en profundidad ante manipulación de is_admin
-// flag en DB (breach, inyección, error de operación).
-const SUPER_ADMIN_EMAIL = 'orbys85@gmail.com';
+import { SUPER_ADMIN_EMAIL } from '../lib/constants.js';
+import { logError } from '../lib/logger.js';
 
 const ADMIN_IDS = process.env.ADMIN_USER_IDS
   ?.split(',').map(id => id.trim().toLowerCase()).filter(Boolean) || [];
@@ -30,7 +28,8 @@ export const isAdmin = async (req, res, next) => {
     }
 
     return res.status(403).json({ error: 'Acceso denegado' });
-  } catch {
+  } catch (err) {
+    logError('isAdmin', err);
     return res.status(500).json({ error: 'Error de autorización' });
   }
 };
