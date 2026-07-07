@@ -61,17 +61,22 @@ router.post('/record-tos-acceptance', tosLimiter, async (req, res) => {
       return res.status(400).json({ error: 'Email inválido' });
     }
 
-    // Buscar el user por email (puede no existir aún si signup async)
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('id, accepted_tos_version')
-      .ilike('email', email)
-      .maybeSingle();
+    // El email vive en auth.users, no siempre en profiles. Usamos RPC helper
+    // (find_user_id_by_email) que hace lookup en auth.users con service_role.
+    const { data: userId, error: lookupErr } = await supabase.rpc(
+      'find_user_id_by_email',
+      { p_email: email }
+    );
 
-    if (!profile) {
-      // No bloqueamos — el signup pudo crear el row después. Lo registramos
-      // en audit_log como pending para reconciliar luego.
-      logger.warn('tos acceptance recorded for non-existent profile', {
+    if (lookupErr) {
+      logger.error('find_user_id_by_email RPC failed', { err: lookupErr.message });
+      return res.status(500).json({ error: 'Error registrando aceptación' });
+    }
+
+    if (!userId) {
+      // No bloqueamos — el signup pudo crear el user después. Lo registramos
+      // para reconciliar luego. Fire-and-forget: no rompe UX.
+      logger.warn('tos acceptance recorded for non-existent user', {
         email: email.toLowerCase(), tos_version,
       });
       return res.json({ ok: true, deferred: true });
@@ -81,7 +86,7 @@ router.post('/record-tos-acceptance', tosLimiter, async (req, res) => {
       accepted_tos_version: tos_version,
       accepted_tos_at: new Date().toISOString(),
       accepted_tos_ip: req.ip,
-    }).eq('id', profile.id);
+    }).eq('id', userId);
 
     res.json({ ok: true });
   } catch (err) {

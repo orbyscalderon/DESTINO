@@ -47,12 +47,33 @@ AS $$
 $$;
 
 -- View helper para queries de "usuarios que necesitan re-verificar edad"
--- (cambio de política, audit anual, etc.)
+-- (cambio de política, audit anual, etc.).
+-- El email vive en auth.users (Supabase Auth), no siempre en profiles.
 CREATE OR REPLACE VIEW users_without_dob AS
-SELECT id, email, created_at
-FROM profiles
-WHERE date_of_birth IS NULL
-  AND created_at < CURRENT_DATE - INTERVAL '30 days';
+SELECT p.id, u.email, p.created_at
+FROM profiles p
+LEFT JOIN auth.users u ON u.id = p.id
+WHERE p.date_of_birth IS NULL
+  AND p.created_at < CURRENT_DATE - INTERVAL '30 days';
+
+-- RPC helper: lookup user_id por email desde auth.users (source of truth).
+-- El JS client no puede leer auth.users directamente por seguridad; esta
+-- función SECURITY DEFINER lo permite de forma controlada.
+-- Uso desde backend con service key:
+--   const { data } = await supabase.rpc('find_user_id_by_email', { p_email: '...' });
+CREATE OR REPLACE FUNCTION find_user_id_by_email(p_email text)
+RETURNS uuid
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public, auth
+AS $$
+  SELECT id FROM auth.users WHERE lower(email) = lower(p_email) LIMIT 1;
+$$;
+
+-- Solo callable por service_role (backend), NO por anon/authenticated
+REVOKE ALL ON FUNCTION find_user_id_by_email(text) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION find_user_id_by_email(text) TO service_role;
 
 COMMENT ON COLUMN profiles.date_of_birth IS
 'Fecha de nacimiento — fuente de verdad de la edad. Constraint 13+ años. Requerido para acceso adulto (18+ calculado server-side).';
