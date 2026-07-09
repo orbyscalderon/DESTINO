@@ -47,6 +47,54 @@ function present(spec) {
   return { ok: true, value: v };
 }
 
+// Decodifica el claim `role` de un JWT de Supabase sin verificar la firma
+// (solo lo usamos para detectar una key mal puesta, no para autorizar).
+function jwtRole(token) {
+  try {
+    const payload = token.split('.')[1];
+    const json = Buffer.from(payload.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8');
+    return JSON.parse(json).role || null;
+  } catch {
+    return null;
+  }
+}
+
+// Guard CRÍTICO de "variable": el backend DEBE usar la key `service_role`
+// (bypassa RLS). Si por error alguien pone la `anon` key aquí, el backend
+// queda sujeto a RLS y todo se rompe o se filtra de forma silenciosa; y si
+// la `service_role` acaba en el frontend, es game over (bypass total de RLS).
+// Fallamos ruidosamente en prod.
+function assertServiceRoleKey(isProd) {
+  const key = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!key) return; // ya cubierto por CRITICAL missing
+  const role = jwtRole(key);
+  if (role === 'service_role') return; // correcto
+  const msg = role === 'anon'
+    ? 'SUPABASE_SERVICE_KEY contiene una ANON key (role=anon). El backend quedaría sujeto a RLS.'
+    : `SUPABASE_SERVICE_KEY no parece una service_role key (role=${role ?? 'desconocido'}).`;
+  if (isProd) {
+    console.error(`❌ ${msg}`);
+    console.error('   Usá la key service_role (Dashboard → Settings → API → service_role). Abortando.');
+    process.exit(1);
+  }
+  console.warn(`⚠️  ${msg}`);
+}
+
+// Las claves de cifrado AES-256 deben ser 32 bytes = 64 hex chars.
+// Una key corta = cifrado débil de payouts/TOTP.
+function assertEncryptionKeys(isProd) {
+  const keys = ['PAYOUT_ENCRYPTION_KEY', 'TOTP_ENCRYPTION_KEY'];
+  for (const k of keys) {
+    const v = process.env[k];
+    if (!v) continue; // ausencia ya se avisa en IMPORTANT
+    if (!/^[0-9a-fA-F]{64}$/.test(v)) {
+      const msg = `${k} debe ser 64 chars hex (32 bytes). Generá con: openssl rand -hex 32`;
+      if (isProd) { console.error(`❌ ${msg}`); process.exit(1); }
+      console.warn(`⚠️  ${msg}`);
+    }
+  }
+}
+
 export function validateEnv() {
   const isProd = process.env.NODE_ENV === 'production';
   const criticalMissing = [];
@@ -106,6 +154,10 @@ export function validateEnv() {
   if (isProd && process.env.STRIPE_SECRET_KEY?.startsWith('sk_test_')) {
     console.warn('⚠️  STRIPE en modo TEST (sk_test_) corriendo en producción.');
   }
+
+  // Guards de seguridad de claves (rol correcto + fuerza de cifrado)
+  assertServiceRoleKey(isProd);
+  assertEncryptionKeys(isProd);
 
   console.log('✓ Env validation OK');
 }

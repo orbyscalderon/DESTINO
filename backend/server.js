@@ -124,23 +124,56 @@ const NODE_ENV = ALLOWED_NODE_ENVS.has(process.env.NODE_ENV) ? process.env.NODE_
 const IS_PROD = NODE_ENV === 'production';
 const IS_DEV  = NODE_ENV === 'development';
 
-app.use(cors({
+// Auth es 100% Bearer token (header Authorization) — NO se usan cookies.
+// Reglas del hardening CORS:
+//  1. Allowlist EXACTA, nunca wildcard ni reflexión del origin (evita que un
+//     sitio atacante lea respuestas con credenciales).
+//  2. Rechazo LIMPIO: cb(null, false) → no se emiten headers CORS y el navegador
+//     bloquea. Nunca se lanza Error (antes devolvía 500 y ecoaba el origin).
+//  3. Normalización de trailing slash: un Origin nunca lleva "/" final; si la env
+//     lo trae, igualamos para no bloquear al frontend legítimo por un typo.
+//  4. Preflight cacheado (maxAge) y allowlist explícita de métodos/headers.
+const stripSlash = (u) => (u || '').trim().replace(/\/+$/, '');
+
+// CORS_EXTRA_ORIGINS: lista separada por comas de orígenes EXACTOS extra
+// (p.ej. previews de Vercel: https://destino-git-xxx.vercel.app).
+const ALLOWED_ORIGINS = new Set(
+  [
+    process.env.FRONTEND_URL,
+    process.env.FRONTEND_URL_ALT,
+    ...String(process.env.CORS_EXTRA_ORIGINS || '').split(','),
+    'capacitor://localhost', // iOS/Android Capacitor WebView
+    'https://localhost',     // Capacitor Android (scheme https moderno)
+    'http://localhost',      // Capacitor Android (scheme http legacy)
+    'ionic://localhost',     // Legacy Ionic
+  ]
+    .map(stripSlash)
+    .filter(Boolean)
+);
+
+if (IS_PROD && !process.env.FRONTEND_URL) {
+  console.warn('⚠️  FRONTEND_URL no está seteada en producción — el frontend web quedará bloqueado por CORS.');
+}
+
+const corsOptions = {
   origin: (origin, cb) => {
-    if (!origin) return cb(null, true); // curl / server-to-server / same-origin
-    if (IS_DEV) return cb(null, true);   // dev local: todos los origenes OK
-    // Prod: solo FRONTEND_URL + variantes opcionales (preview deploys, mobile WebView)
-    const allowed = [
-      process.env.FRONTEND_URL,
-      process.env.FRONTEND_URL_ALT,
-      'capacitor://localhost', // iOS/Android Capacitor WebView
-      'http://localhost',      // Android Capacitor WebView dev
-      'ionic://localhost',     // Legacy Ionic
-    ].filter(Boolean);
-    cb(allowed.includes(origin) ? null : new Error('CORS blocked: ' + origin),
-       allowed.includes(origin));
+    // Sin Origin: curl / apps móviles nativas / server-to-server / same-origin.
+    // CORS solo protege navegadores; los clientes no-browser no mandan Origin y
+    // la auth Bearer impide que un atacante adjunte el token de la víctima.
+    if (!origin) return cb(null, true);
+    if (IS_DEV)  return cb(null, true); // dev local: cualquier origen
+    // Prod: solo allowlist exacta. Rechazo limpio (sin header → navegador bloquea).
+    return cb(null, ALLOWED_ORIGINS.has(stripSlash(origin)));
   },
   credentials: true,
-}));
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-Requested-With'],
+  exposedHeaders: ['RateLimit-Limit', 'RateLimit-Remaining', 'RateLimit-Reset', 'Retry-After'],
+  maxAge: 600,               // cachea el preflight 10 min → menos OPTIONS
+  optionsSuccessStatus: 204,
+};
+
+app.use(cors(corsOptions)); // el middleware ya responde los preflight OPTIONS
 
 // ── Rate limiters ─────────────────────────────────────────────
 // Key generator: usa el bearer token (user.id) si está presente, sino la IP.
@@ -493,6 +526,16 @@ const server = app.listen(PORT, () => {
 
   startCleanupJob();
 });
+
+// ── HTTP timeouts (anti-Slowloris / slow-header DoS + proxy safety) ─────────
+// keepAliveTimeout > idle del proxy (Railway/Cloudflare ~60s) evita 502s por
+// carrera al reusar conexiones. headersTimeout acota el tiempo para recibir
+// los headers completos → mata ataques que mandan headers byte a byte para
+// agotar conexiones. NO tocamos requestTimeout (default 300s) para no cortar
+// subidas grandes de video que pasan por el backend.
+server.keepAliveTimeout = 65_000;
+server.headersTimeout   = 66_000; // debe ser > keepAliveTimeout
+server.requestTimeout   = 300_000; // 5 min: cota superior para bodies lentos
 
 // ── Graceful shutdown ──────────────────────────────────────────
 // Railway hace rolling deploy → SIGTERM al container viejo. Sin handler,
